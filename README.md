@@ -40,6 +40,15 @@ Sistema de componentes UI para el centro de entrenamiento y juez online, constru
 - ✅ **CodeEditor** - Editor de código con selector de lenguaje
 - ✅ **UserStats** - Estadísticas del usuario
 
+### Patrones Reutilizables
+- ✅ **EntityListPage** - Patrón completo para páginas de listado
+- ✅ **EntityFormPage** - Patrón completo para páginas de formulario
+- ✅ **EntityDetailPage** - Patrón completo para páginas de detalle
+- ✅ **DataTable** - Tabla con ordenamiento, selección y acciones
+- ✅ **StatsGrid** - Grid de estadísticas con iconos y tendencias
+- ✅ **SearchAndFilter** - Búsqueda con filtros configurables
+- ✅ **EmptyState** - Estado vacío con icono y acción
+
 ### Layout
 - ✅ **Header** - Barra de navegación con menú de usuario (legacy)
 - ✅ **AppLayout** - Layout principal con Navbar, Sidebar y Breadcrumbs
@@ -149,6 +158,30 @@ training-and-judge-center-frontend/
 ├── tsconfig.json
 ├── vite.config.ts
 └── tailwind.config.js        # Configuración con design tokens
+```
+
+## Patrones Reutilizables
+
+El proyecto incluye patrones reutilizables que aceleran el desarrollo. Ver [docs/patterns.md](docs/patterns.md) para documentación completa.
+
+### Ejemplo de Uso
+
+```tsx
+import { EntityListPage, SearchAndFilter } from '@/components/patterns'
+
+function MyListPage() {
+  return (
+    <EntityListPage
+      title="Mi Lista"
+      description="Descripción de la lista"
+      onCreateNew={() => navigate('/new')}
+      searchComponent={<SearchAndFilter />}
+      items={items}
+      renderItem={(item) => <ItemCard item={item} />}
+      paginationComponent={<Pagination />}
+    />
+  )
+}
 ```
 
 ## Uso de Componentes
