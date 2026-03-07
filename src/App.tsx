@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { ToastProvider, useToastContext } from './components/ui/ToastProvider'
+import { Header } from './components/layout/Header'
+import { ProblemsPage } from './pages/ProblemsPage'
 import {
   Button,
   Input,
@@ -48,19 +51,15 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Toast,
-  ToastContainer,
-  ToastTitle,
-  ToastDescription,
   Skeleton,
   SkeletonCard,
   SkeletonText,
 } from './components/ui'
 
-function App() {
+function ComponentsDemo() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [showToast, setShowToast] = useState(false)
   const [isChecked, setIsChecked] = useState(false)
+  const { toast } = useToastContext()
 
   return (
     <div className="min-h-screen bg-neutral-background p-8">
@@ -331,19 +330,18 @@ function App() {
             <CardTitle>Toast Notifications</CardTitle>
             <CardDescription>Notificaciones temporales</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => setShowToast(true)}>Mostrar Toast</Button>
+          <CardContent className="flex gap-2">
+            <Button onClick={() => toast({ variant: 'success', title: '¡Éxito!', description: 'Tu código fue enviado correctamente.' })}>
+              Success Toast
+            </Button>
+            <Button variant="danger" onClick={() => toast({ variant: 'error', title: 'Error', description: 'Hubo un problema al enviar tu código.' })}>
+              Error Toast
+            </Button>
+            <Button variant="outline" onClick={() => toast({ variant: 'warning', title: 'Advertencia', description: 'Tu sesión expirará pronto.' })}>
+              Warning Toast
+            </Button>
           </CardContent>
         </Card>
-
-        {showToast && (
-          <ToastContainer position="top-right">
-            <Toast variant="success" onClose={() => setShowToast(false)}>
-              <ToastTitle>¡Éxito!</ToastTitle>
-              <ToastDescription>Tu código fue enviado correctamente.</ToastDescription>
-            </Toast>
-          </ToastContainer>
-        )}
 
         {/* Skeleton Loaders */}
         <Card>
@@ -362,6 +360,37 @@ function App() {
         </Card>
       </div>
     </div>
+  )
+}
+
+function App() {
+  const [view, setView] = useState<'demo' | 'problems'>('problems')
+
+  return (
+    <ToastProvider>
+      <div className="min-h-screen bg-neutral-background">
+        <Header />
+        
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex gap-2 mb-4">
+            <Button 
+              variant={view === 'problems' ? 'primary' : 'outline'}
+              onClick={() => setView('problems')}
+            >
+              Problemas
+            </Button>
+            <Button 
+              variant={view === 'demo' ? 'primary' : 'outline'}
+              onClick={() => setView('demo')}
+            >
+              Demo Componentes
+            </Button>
+          </div>
+        </div>
+
+        {view === 'problems' ? <ProblemsPage /> : <ComponentsDemo />}
+      </div>
+    </ToastProvider>
   )
 }
 

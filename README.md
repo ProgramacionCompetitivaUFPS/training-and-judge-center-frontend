@@ -30,8 +30,22 @@ Sistema de componentes UI para el centro de entrenamiento y juez online, constru
 - ✅ **Table** - Tablas de datos con header, body y footer
 - ✅ **Pagination** - Paginación de resultados
 - ✅ **Tabs** - Pestañas de navegación
-- ✅ **Toast** - Notificaciones temporales
+- ✅ **Toast** - Notificaciones temporales con ToastProvider
 - ✅ **Skeleton** - Loaders de carga
+
+### Componentes de Características (Features)
+- ✅ **ProblemCard** - Tarjeta de problema con dificultad y categorías
+- ✅ **ProblemFilters** - Filtros de búsqueda y categorización
+- ✅ **SubmissionStatusBadge** - Badge de estado de envío
+- ✅ **CodeEditor** - Editor de código con selector de lenguaje
+- ✅ **UserStats** - Estadísticas del usuario
+
+### Layout
+- ✅ **Header** - Barra de navegación con menú de usuario
+
+### Páginas
+- ✅ **ProblemsPage** - Página de listado de problemas con filtros
+- ✅ **ComponentsDemo** - Demo interactiva de todos los componentes
 
 ## Instalación
 
@@ -85,26 +99,42 @@ training-and-judge-center-frontend/
 │   └── stack.md              # Stack tecnológico
 ├── src/
 │   ├── components/
-│   │   └── ui/               # Componentes UI reutilizables
-│   │       ├── Button.tsx
-│   │       ├── Input.tsx
-│   │       ├── Textarea.tsx
-│   │       ├── Select.tsx
-│   │       ├── Checkbox.tsx
-│   │       ├── Dialog.tsx
-│   │       ├── Card.tsx
-│   │       ├── Badge.tsx
-│   │       ├── Alert.tsx
-│   │       ├── Dropdown.tsx
-│   │       ├── Table.tsx
-│   │       ├── Pagination.tsx
-│   │       ├── Tabs.tsx
-│   │       ├── Toast.tsx
-│   │       ├── Skeleton.tsx
-│   │       └── index.ts
+│   │   ├── ui/               # Componentes UI reutilizables
+│   │   │   ├── Button.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Textarea.tsx
+│   │   │   ├── Select.tsx
+│   │   │   ├── Checkbox.tsx
+│   │   │   ├── Dialog.tsx
+│   │   │   ├── Card.tsx
+│   │   │   ├── Badge.tsx
+│   │   │   ├── Alert.tsx
+│   │   │   ├── Dropdown.tsx
+│   │   │   ├── Table.tsx
+│   │   │   ├── Pagination.tsx
+│   │   │   ├── Tabs.tsx
+│   │   │   ├── Toast.tsx
+│   │   │   ├── ToastProvider.tsx
+│   │   │   ├── Skeleton.tsx
+│   │   │   └── index.ts
+│   │   ├── features/         # Componentes de dominio
+│   │   │   ├── ProblemCard.tsx
+│   │   │   ├── ProblemFilters.tsx
+│   │   │   ├── SubmissionStatusBadge.tsx
+│   │   │   ├── CodeEditor.tsx
+│   │   │   └── UserStats.tsx
+│   │   └── layout/           # Componentes de layout
+│   │       └── Header.tsx
+│   ├── pages/                # Páginas de la aplicación
+│   │   └── ProblemsPage.tsx
+│   ├── hooks/                # Custom hooks
+│   │   └── useToast.tsx
 │   ├── lib/
-│   │   └── utils.ts          # Utilidades (cn helper)
-│   ├── App.tsx               # Demo de componentes
+│   │   ├── utils.ts          # Utilidades (cn helper)
+│   │   └── constants.ts      # Constantes de la app
+│   ├── types/                # TypeScript types
+│   │   └── index.ts
+│   ├── App.tsx               # App principal con routing
 │   ├── main.tsx              # Entry point
 │   └── index.css             # Estilos globales
 ├── index.html
@@ -115,6 +145,56 @@ training-and-judge-center-frontend/
 ```
 
 ## Uso de Componentes
+
+### Toast con Provider
+
+```tsx
+import { ToastProvider, useToastContext } from '@/components/ui'
+
+function App() {
+  return (
+    <ToastProvider>
+      <YourApp />
+    </ToastProvider>
+  )
+}
+
+function YourComponent() {
+  const { toast } = useToastContext()
+  
+  const handleSuccess = () => {
+    toast({
+      variant: 'success',
+      title: '¡Éxito!',
+      description: 'Operación completada',
+      duration: 5000
+    })
+  }
+}
+```
+
+### ProblemCard
+
+```tsx
+import { ProblemCard } from '@/components/features/ProblemCard'
+
+<ProblemCard
+  problem={problem}
+  isSolved={true}
+  onClick={() => navigate(`/problem/${problem.id}`)}
+/>
+```
+
+### CodeEditor
+
+```tsx
+import { CodeEditor } from '@/components/features/CodeEditor'
+
+<CodeEditor
+  onSubmit={(code, language) => submitSolution(code, language)}
+  onRun={(code, language) => runCode(code, language)}
+/>
+```
 
 ### Button
 
