@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { AppLayout } from '@/components/layout/AppLayout'
 import { ProblemCard } from '@/components/features/ProblemCard'
 import { ProblemFilters } from '@/components/features/ProblemFilters'
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui'
 import { Problem, ProblemFilters as Filters } from '@/types'
 import { SkeletonCard } from '@/components/ui'
+import { Code2 } from 'lucide-react'
 
 // Mock data
 const mockProblems: Problem[] = [
@@ -75,71 +77,80 @@ export function ProblemsPage() {
   })
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-neutral-text-primary mb-2">
-          Problemas de Programación
-        </h1>
-        <p className="text-neutral-text-muted">
-          Practica y mejora tus habilidades resolviendo problemas algorítmicos
-        </p>
-      </div>
+    <AppLayout
+      breadcrumbs={[
+        { label: 'Problemas', icon: Code2 },
+      ]}
+      showSidebar={true}
+    >
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-extrabold text-neutral-text-primary mb-2">
+            Problemas de Programación
+          </h1>
+          <p className="text-neutral-text-muted">
+            Practica y mejora tus habilidades resolviendo problemas algorítmicos
+          </p>
+        </div>
 
-      <div className="mb-6">
+        {/* Filters */}
         <ProblemFilters filters={filters} onFiltersChange={setFilters} />
-      </div>
 
-      <div className="space-y-4 mb-8">
-        {isLoading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
-        ) : (
-          filteredProblems.map((problem) => (
-            <ProblemCard
-              key={problem.id}
-              problem={problem}
-              isSolved={problem.id === '1'}
-              onClick={() => console.log('Navigate to problem', problem.id)}
-            />
-          ))
+        {/* Problems List */}
+        <div className="space-y-4">
+          {isLoading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            filteredProblems.map((problem) => (
+              <ProblemCard
+                key={problem.id}
+                problem={problem}
+                isSolved={problem.id === '1'}
+                onClick={() => console.log('Navigate to problem', problem.id)}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {filteredProblems.length > 0 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink isActive={currentPage === 1} onClick={() => setCurrentPage(1)}>
+                  1
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink isActive={currentPage === 2} onClick={() => setCurrentPage(2)}>
+                  2
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink isActive={currentPage === 3} onClick={() => setCurrentPage(3)}>
+                  3
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
       </div>
-
-      {filteredProblems.length > 0 && (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink isActive={currentPage === 1} onClick={() => setCurrentPage(1)}>
-                1
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink isActive={currentPage === 2} onClick={() => setCurrentPage(2)}>
-                2
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink isActive={currentPage === 3} onClick={() => setCurrentPage(3)}>
-                3
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext 
-                onClick={() => setCurrentPage(currentPage + 1)}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
-    </div>
+    </AppLayout>
   )
 }

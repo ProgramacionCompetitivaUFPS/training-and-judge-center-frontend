@@ -41,10 +41,17 @@ Sistema de componentes UI para el centro de entrenamiento y juez online, constru
 - ✅ **UserStats** - Estadísticas del usuario
 
 ### Layout
-- ✅ **Header** - Barra de navegación con menú de usuario
+- ✅ **Header** - Barra de navegación con menú de usuario (legacy)
+- ✅ **AppLayout** - Layout principal con Navbar, Sidebar y Breadcrumbs
+- ✅ **Navbar** - Barra de navegación superior con notificaciones y menú de usuario
+- ✅ **Sidebar** - Menú lateral colapsable con navegación y estadísticas
+- ✅ **Breadcrumbs** - Navegación de ruta con iconos
+- ✅ **ProblemLayout** - Layout split-view para páginas de problemas
 
 ### Páginas
+- ✅ **DashboardPage** - Página de inicio con estadísticas y actividad reciente
 - ✅ **ProblemsPage** - Página de listado de problemas con filtros
+- ✅ **ProblemDetailPage** - Página de detalle con editor de código split-view
 - ✅ **ComponentsDemo** - Demo interactiva de todos los componentes
 
 ## Instalación
@@ -145,6 +152,48 @@ training-and-judge-center-frontend/
 ```
 
 ## Uso de Componentes
+
+### AppLayout - Layout Global
+
+```tsx
+import { AppLayout } from '@/components/layout'
+
+function MyPage() {
+  return (
+    <AppLayout
+      breadcrumbs={[
+        { label: 'Problemas', icon: Code2 },
+        { label: 'Two Sum' }
+      ]}
+      showSidebar={true}
+      maxWidth="container" // 'full' | 'container' | 'narrow'
+    >
+      <div>
+        {/* Your page content */}
+      </div>
+    </AppLayout>
+  )
+}
+```
+
+### ProblemLayout - Split View
+
+```tsx
+import { ProblemLayout } from '@/components/layout'
+
+function ProblemPage() {
+  const leftPanel = <div>Problem description</div>
+  const rightPanel = <div>Code editor</div>
+  
+  return (
+    <ProblemLayout
+      leftPanel={leftPanel}
+      rightPanel={rightPanel}
+      splitRatio={50} // 0-100, default 50
+    />
+  )
+}
+```
 
 ### Toast con Provider
 

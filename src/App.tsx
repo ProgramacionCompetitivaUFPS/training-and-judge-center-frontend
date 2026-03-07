@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { ToastProvider, useToastContext } from './components/ui/ToastProvider'
-import { Header } from './components/layout/Header'
+import { DashboardPage } from './pages/DashboardPage'
 import { ProblemsPage } from './pages/ProblemsPage'
+import { ProblemDetailPage } from './pages/ProblemDetailPage'
+import { Button } from './components/ui'
 import {
   Button,
   Input,
@@ -364,32 +366,61 @@ function ComponentsDemo() {
 }
 
 function App() {
-  const [view, setView] = useState<'demo' | 'problems'>('problems')
+  const [view, setView] = useState<'dashboard' | 'problems' | 'problem-detail' | 'demo'>('dashboard')
+
+  const renderView = () => {
+    switch (view) {
+      case 'dashboard':
+        return <DashboardPage />
+      case 'problems':
+        return <ProblemsPage />
+      case 'problem-detail':
+        return <ProblemDetailPage />
+      case 'demo':
+        return <ComponentsDemo />
+      default:
+        return <DashboardPage />
+    }
+  }
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-neutral-background">
-        <Header />
-        
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex gap-2 mb-4">
-            <Button 
-              variant={view === 'problems' ? 'primary' : 'outline'}
-              onClick={() => setView('problems')}
-            >
-              Problemas
-            </Button>
-            <Button 
-              variant={view === 'demo' ? 'primary' : 'outline'}
-              onClick={() => setView('demo')}
-            >
-              Demo Componentes
-            </Button>
-          </div>
-        </div>
-
-        {view === 'problems' ? <ProblemsPage /> : <ComponentsDemo />}
+      {/* Dev Navigation - Remove in production */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-neutral-surface p-4 rounded-lg shadow-elevation-3 border border-neutral-border">
+        <p className="text-xs font-semibold text-neutral-text-muted mb-2">
+          Dev Navigation
+        </p>
+        <Button
+          size="sm"
+          variant={view === 'dashboard' ? 'primary' : 'outline'}
+          onClick={() => setView('dashboard')}
+        >
+          Dashboard
+        </Button>
+        <Button
+          size="sm"
+          variant={view === 'problems' ? 'primary' : 'outline'}
+          onClick={() => setView('problems')}
+        >
+          Problemas
+        </Button>
+        <Button
+          size="sm"
+          variant={view === 'problem-detail' ? 'primary' : 'outline'}
+          onClick={() => setView('problem-detail')}
+        >
+          Detalle Problema
+        </Button>
+        <Button
+          size="sm"
+          variant={view === 'demo' ? 'primary' : 'outline'}
+          onClick={() => setView('demo')}
+        >
+          Demo
+        </Button>
       </div>
+
+      {renderView()}
     </ToastProvider>
   )
 }
