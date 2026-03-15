@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileCode2, Plus, Search, Tag } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Card, CardContent } from '@/components/ui/Card'
 import { useProblems } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
+import { useDebounce } from '@/hooks/useDebounce'
 import type { ProblemListParams, ProblemListItem } from '@/types/problem'
 
 
@@ -21,6 +22,21 @@ export function ProblemsPage() {
   const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const [filters, setFilters] = useState<ProblemListParams>({ page: 1, limit: 20 })
+  const [authorInput, setAuthorInput] = useState('')
+  const [tagsInput, setTagsInput] = useState('')
+
+  const debouncedAuthor = useDebounce(authorInput)
+  const debouncedTags = useDebounce(tagsInput)
+
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      author: debouncedAuthor || undefined,
+      tags: debouncedTags.trim() || undefined,
+      page: 1,
+    }))
+  }, [debouncedAuthor, debouncedTags])
+
   const { data, isLoading } = useProblems(filters)
 
   const problems = data?.problems ?? []
@@ -58,7 +74,8 @@ export function ProblemsPage() {
             <Input
               placeholder="Filtrar por autor (nickname)..."
               className="pl-9"
-              onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value || undefined, page: 1 }))}
+              value={authorInput}
+              onChange={(e) => setAuthorInput(e.target.value)}
             />
           </div>
           <div className="relative sm:w-[220px]">
@@ -66,7 +83,8 @@ export function ProblemsPage() {
             <Input
               placeholder="Tags (dp, graphs...)"
               className="pl-9"
-              onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.trim() || undefined, page: 1 }))}
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
             />
           </div>
           {canCreate && (
