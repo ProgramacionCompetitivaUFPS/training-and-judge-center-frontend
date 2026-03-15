@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Kiro AI config
+.kiro/
+
+# Backend specs (local reference only)
+training-center-specs-backend/
