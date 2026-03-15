@@ -16,6 +16,34 @@ export type {
   UserDashboard,
 } from './user'
 
+// Group types
+export type {
+  GroupVisibility,
+  GroupJoinPolicy,
+  GroupRole,
+  Group,
+  GroupListItem,
+  GroupListParams,
+  GroupListResponse,
+  GroupDetail,
+  GroupStatistics,
+  GroupLead,
+  UserMembership,
+  MyGroupItem,
+  MyGroupsParams,
+  MyGroupsResponse,
+  CreateGroupRequest,
+  UpdateGroupRequest,
+  DeleteGroupRequest,
+  GroupMember,
+  AddMemberRequest,
+  ChangeMemberRoleRequest,
+  JoinRequestStatus,
+  JoinRequest,
+  CreateJoinRequestBody,
+  ProcessJoinRequestBody,
+} from './group'
+
 // Submission status (used across modules)
 export type SubmissionStatus =
   | 'PENDING'
