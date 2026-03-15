@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileCode2, Plus, Search, Tag } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -28,16 +28,13 @@ export function ProblemsPage() {
   const debouncedAuthor = useDebounce(authorInput)
   const debouncedTags = useDebounce(tagsInput)
 
-  useEffect(() => {
-    setFilters((prev) => ({
-      ...prev,
-      author: debouncedAuthor || undefined,
-      tags: debouncedTags.trim() || undefined,
-      page: 1,
-    }))
-  }, [debouncedAuthor, debouncedTags])
+  const queryParams: ProblemListParams = {
+    ...filters,
+    author: debouncedAuthor || undefined,
+    tags: debouncedTags.trim() || undefined,
+  }
 
-  const { data, isLoading } = useProblems(filters)
+  const { data, isLoading } = useProblems(queryParams)
 
   const problems = data?.problems ?? []
   const pagination = data?.pagination
