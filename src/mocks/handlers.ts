@@ -237,7 +237,7 @@ export const handlers = [
   }),
 
   // Update group
-  http.put(url('/groups/:id'), async ({ request, params }) => {
+  http.patch(url('/groups/:id'), async ({ request, params }) => {
     await delay(300)
     const { id } = params as { id: string }
     const body = (await request.json()) as Record<string, unknown>
@@ -250,9 +250,17 @@ export const handlers = [
   }),
 
   // Delete group
-  http.delete(url('/groups/:id'), async () => {
+  http.delete(url('/groups/:id'), async ({ request }) => {
     await delay(300)
-    return new HttpResponse(null, { status: 204 })
+    const body = (await request.json()) as { confirmationName?: string }
+    if (!body.confirmationName) {
+      return HttpResponse.json({ error: 'CONFIRMATION_REQUIRED', message: 'Confirmation name is required' }, { status: 400 })
+    }
+    return HttpResponse.json({
+      message: 'Group deleted successfully',
+      deletedGroup: { id: 'deleted', name: body.confirmationName },
+      deletionSummary: { contestsDeleted: 0, materialsDeleted: 0, standingCollectionsDeleted: 0, submissionsOrphaned: 0, membersRemoved: 0 },
+    })
   }),
 
   // Group members
@@ -288,7 +296,7 @@ export const handlers = [
   }),
 
   // Change member role
-  http.put(url('/groups/:groupId/members/:nickname'), async ({ request, params }) => {
+  http.patch(url('/groups/:groupId/members/:nickname'), async ({ request, params }) => {
     await delay(300)
     const { groupId, nickname } = params as { groupId: string; nickname: string }
     const body = (await request.json()) as { role: string }
@@ -345,7 +353,7 @@ export const handlers = [
   }),
 
   // Process join request
-  http.put(url('/groups/:groupId/requests/:requestId'), async ({ request, params }) => {
+  http.patch(url('/groups/:groupId/requests/:requestId'), async ({ request, params }) => {
     await delay(300)
     const { groupId, requestId } = params as { groupId: string; requestId: string }
     const body = (await request.json()) as { status: string }
@@ -359,14 +367,27 @@ export const handlers = [
   }),
 
   // Create invitation
-  http.post(url('/groups/:groupId/invitations'), async ({ params }) => {
+  http.post(url('/groups/:groupId/invitations'), async ({ request, params }) => {
     await delay(300)
     const { groupId } = params as { groupId: string }
+    const body = (await request.json()) as { inviteeNickname?: string; inviteeEmail?: string; inviteeUserId?: string }
+    const identifier = body.inviteeNickname || body.inviteeEmail || body.inviteeUserId || 'unknown'
     return HttpResponse.json({
       id: 'inv-new',
       groupId,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      inviteeUserId: 'u-resolved',
+      invitationUrl: `https://training-center.com/groups/${groupId}/accept?token=mock-jwt-token`,
+      expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     }, { status: 201 })
+  }),
+
+  // List invitations
+  http.get(url('/groups/:groupId/invitations'), async ({ params }) => {
+    await delay(200)
+    return HttpResponse.json({
+      invitations: [],
+      pagination: { page: 1, size: 20, totalItems: 0, totalPages: 0 },
+    })
   }),
 
   // Accept invitation

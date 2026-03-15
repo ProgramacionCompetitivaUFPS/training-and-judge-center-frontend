@@ -42,6 +42,10 @@ export type {
   JoinRequest,
   CreateJoinRequestBody,
   ProcessJoinRequestBody,
+  CreateInvitationRequest,
+  InvitationResponse,
+  InvitationListItem,
+  InvitationListResponse,
 } from './group'
 
 // Submission status (used across modules)

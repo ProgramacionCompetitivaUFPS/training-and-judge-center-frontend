@@ -15,6 +15,9 @@ import type {
   JoinRequest,
   CreateJoinRequestBody,
   ProcessJoinRequestBody,
+  CreateInvitationRequest,
+  InvitationResponse,
+  InvitationListResponse,
 } from '@/types/group'
 
 // === Groups CRUD ===
@@ -36,11 +39,11 @@ export function createGroup(data: CreateGroupRequest): Promise<Group> {
 }
 
 export function updateGroup(id: string, data: UpdateGroupRequest): Promise<Group> {
-  return apiClient.put(`/groups/${id}`, data)
+  return apiClient.patch(`/groups/${id}`, data)
 }
 
 export function deleteGroup(id: string, data: DeleteGroupRequest): Promise<void> {
-  return apiClient.delete(`/groups/${id}`, { params: { confirmationName: data.confirmationName } })
+  return apiClient.delete(`/groups/${id}`, { body: data })
 }
 
 // === Members ===
@@ -58,7 +61,7 @@ export function removeMember(groupId: string, nickname: string): Promise<void> {
 }
 
 export function changeMemberRole(groupId: string, nickname: string, data: ChangeMemberRoleRequest): Promise<GroupMember> {
-  return apiClient.put(`/groups/${groupId}/members/${nickname}`, data)
+  return apiClient.patch(`/groups/${groupId}/members/${nickname}`, data)
 }
 
 export function leaveGroup(groupId: string): Promise<void> {
@@ -90,13 +93,17 @@ export function getJoinRequests(groupId: string, params?: { status?: string; pag
 }
 
 export function processJoinRequest(groupId: string, requestId: string, data: ProcessJoinRequestBody): Promise<JoinRequest> {
-  return apiClient.put(`/groups/${groupId}/requests/${requestId}`, data)
+  return apiClient.patch(`/groups/${groupId}/requests/${requestId}`, data)
 }
 
 // === Invitations ===
 
-export function createInvitation(groupId: string, data: { inviteeNickname: string }): Promise<{ id: string; groupId: string; expiresAt: string }> {
+export function createInvitation(groupId: string, data: CreateInvitationRequest): Promise<InvitationResponse> {
   return apiClient.post(`/groups/${groupId}/invitations`, data)
+}
+
+export function getInvitations(groupId: string, params?: { page?: number; size?: number }): Promise<InvitationListResponse> {
+  return apiClient.get(`/groups/${groupId}/invitations`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 
 export function acceptInvitation(groupId: string, token: string): Promise<void> {

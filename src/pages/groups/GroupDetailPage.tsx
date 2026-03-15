@@ -181,7 +181,7 @@ export function GroupDetailPage() {
   const handleInvite = async () => {
     if (!inviteNickname.trim()) return
     try {
-      await inviteMutation.mutateAsync({ groupId: id, nickname: inviteNickname.trim() })
+      await inviteMutation.mutateAsync({ groupId: id, data: { inviteeNickname: inviteNickname.trim() } })
       toast({ variant: 'success', title: 'Invitación enviada' })
       setInviteOpen(false)
       setInviteNickname('')
@@ -194,6 +194,9 @@ export function GroupDetailPage() {
   const buildPrimaryAction = () => {
     if (!group) return undefined
     if (isMember) return undefined
+    if (group.userMembership.hasPendingInvitation) {
+      return { label: 'Invitación Pendiente', onClick: () => {}, variant: 'outline' as const }
+    }
     if (group.userMembership.hasPendingRequest) {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }

@@ -85,10 +85,28 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
-  async delete<T>(path: string, config?: RequestConfig): Promise<T> {
+  async delete<T>(path: string, config?: RequestConfig & { body?: unknown }): Promise<T> {
+    const headers: Record<string, string> = { ...this.getAuthHeaders(), ...config?.headers }
+    if (config?.body) {
+      headers['Content-Type'] = 'application/json'
+    }
     const response = await fetch(this.buildUrl(path, config?.params), {
       method: 'DELETE',
-      headers: { ...this.getAuthHeaders(), ...config?.headers },
+      headers,
+      body: config?.body ? JSON.stringify(config.body) : undefined,
+    })
+    return this.handleResponse<T>(response)
+  }
+
+  async patch<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
+    const response = await fetch(this.buildUrl(path, config?.params), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+        ...config?.headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
     })
     return this.handleResponse<T>(response)
   }

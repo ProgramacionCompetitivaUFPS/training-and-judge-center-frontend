@@ -396,6 +396,7 @@ export const mockMyGroups: MyGroupItem[] = [
     contestCount: 12,
     materialCount: 8,
     activeContestCount: 1,
+    unreadNotifications: 3,
   },
   {
     id: 'group-2',
@@ -410,6 +411,7 @@ export const mockMyGroups: MyGroupItem[] = [
     contestCount: 6,
     materialCount: 15,
     activeContestCount: 0,
+    unreadNotifications: 0,
   },
   {
     id: 'group-global',
@@ -424,6 +426,7 @@ export const mockMyGroups: MyGroupItem[] = [
     contestCount: 30,
     materialCount: 40,
     activeContestCount: 3,
+    unreadNotifications: 0,
   },
 ]
 

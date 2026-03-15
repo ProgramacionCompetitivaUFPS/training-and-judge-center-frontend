@@ -10,6 +10,7 @@ import type {
   ChangeMemberRoleRequest,
   CreateJoinRequestBody,
   ProcessJoinRequestBody,
+  CreateInvitationRequest,
 } from '@/types/group'
 
 // === Query Keys ===
@@ -191,8 +192,8 @@ export function useLeaveGroup() {
 export function useCreateInvitation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ groupId, nickname }: { groupId: string; nickname: string }) =>
-      groupsApi.createInvitation(groupId, { inviteeNickname: nickname }),
+    mutationFn: ({ groupId, data }: { groupId: string; data: CreateInvitationRequest }) =>
+      groupsApi.createInvitation(groupId, data),
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) })
     },

@@ -111,6 +111,7 @@ export interface MyGroupItem {
   contestCount: number
   materialCount: number
   activeContestCount: number
+  unreadNotifications: number
 }
 
 export interface MyGroupsParams extends PaginationParams {
@@ -199,4 +200,42 @@ export interface CreateJoinRequestBody {
 
 export interface ProcessJoinRequestBody {
   status: 'APPROVED' | 'REJECTED'
+}
+
+// === Invitations ===
+
+export interface CreateInvitationRequest {
+  inviteeUserId?: string
+  inviteeNickname?: string
+  inviteeEmail?: string
+}
+
+export interface InvitationResponse {
+  id: string
+  groupId: string
+  inviteeUserId: string
+  invitationUrl: string
+  expiresAt: string
+}
+
+export interface InvitationListItem {
+  id: string
+  groupId: string
+  invitee: {
+    userId: string
+    nickname: string
+    email: string
+    fullName: string
+  }
+  expiresAt: string
+}
+
+export interface InvitationListResponse {
+  invitations: InvitationListItem[]
+  pagination: {
+    page: number
+    size: number
+    totalItems: number
+    totalPages: number
+  }
 }

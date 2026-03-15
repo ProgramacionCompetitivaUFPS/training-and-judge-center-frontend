@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -27,6 +27,9 @@ export function GroupFormPage() {
   const { data: group, isLoading: isLoadingGroup } = useGroupDetail(id ?? '')
   const createMutation = useCreateGroup()
   const updateMutation = useUpdateGroup()
+
+  const [initialLeads, setInitialLeads] = useState('')
+  const [initialMembers, setInitialMembers] = useState('')
 
   const {
     register,
@@ -65,7 +68,13 @@ export function GroupFormPage() {
         await updateMutation.mutateAsync({ id, data })
         toast({ variant: 'success', title: 'Grupo actualizado' })
       } else {
-        await createMutation.mutateAsync(data)
+        const leadNicknames = initialLeads.split(',').map((s) => s.trim()).filter(Boolean)
+        const memberNicknames = initialMembers.split(',').map((s) => s.trim()).filter(Boolean)
+        await createMutation.mutateAsync({
+          ...data,
+          ...(leadNicknames.length > 0 && { initialLeadNicknames: leadNicknames }),
+          ...(memberNicknames.length > 0 && { initialMemberNicknames: memberNicknames }),
+        })
         toast({ variant: 'success', title: 'Grupo creado' })
       }
       navigate(ROUTES.GROUPS)
@@ -145,6 +154,25 @@ export function GroupFormPage() {
             <p className="text-xs text-neutral-text-muted mt-1">Los grupos no visibles solo permiten política de invitación</p>
           )}
         </div>
+
+        {!isEdit && (
+          <>
+            <Input
+              label="Líderes iniciales (nicknames separados por coma)"
+              value={initialLeads}
+              onChange={(e) => setInitialLeads(e.target.value)}
+              placeholder="coach_john, coach_mary"
+            />
+            <p className="text-xs text-neutral-text-muted -mt-3">Solo coaches o admins pueden ser líderes</p>
+
+            <Input
+              label="Miembros iniciales (nicknames separados por coma)"
+              value={initialMembers}
+              onChange={(e) => setInitialMembers(e.target.value)}
+              placeholder="student_alice, student_bob"
+            />
+          </>
+        )}
       </div>
     </EntityFormPage>
   )
