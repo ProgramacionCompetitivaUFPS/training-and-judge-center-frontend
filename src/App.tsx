@@ -18,6 +18,11 @@ import { EditProfilePage } from '@/pages/users/EditProfilePage'
 // Admin pages
 import { UsersListPage } from '@/pages/admin/UsersListPage'
 
+// Group pages
+import { GroupsPage } from '@/pages/groups/GroupsPage'
+import { GroupDetailPage } from '@/pages/groups/GroupDetailPage'
+import { GroupFormPage } from '@/pages/groups/GroupFormPage'
+
 // Existing pages (legacy, will be replaced)
 import { ProblemsPage } from '@/pages/ProblemsPage'
 import { ProblemDetailPage } from '@/pages/ProblemDetailPage'
@@ -87,9 +92,11 @@ export default function App() {
                 <ProtectedRoute roles={['ADMIN']}><UsersListPage /></ProtectedRoute>
               } />
 
-              {/* Placeholder routes — replaced in each phase */}
-              <Route path={ROUTES.GROUPS} element={<ProtectedRoute><PlaceholderPage title="Grupos" /></ProtectedRoute>} />
-              <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Grupo" /></ProtectedRoute>} />
+              {/* Group routes */}
+              <Route path={ROUTES.GROUPS} element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><PlaceholderPage title="Competencias" /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Competencia" /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><PlaceholderPage title="Submissions" /></ProtectedRoute>} />
