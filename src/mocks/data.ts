@@ -503,3 +503,242 @@ export function buildMyGroupsList(params: {
     },
   }
 }
+
+// === Mock Problems ===
+
+import type { ProblemDetail, ProblemListItem, ProblemStatistics } from '@/types/problem'
+
+export const mockProblems: ProblemDetail[] = [
+  {
+    slug: 'two-sum',
+    title: 'Two Sum',
+    statement: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution.',
+    timeLimit: 2000,
+    memoryLimit: 256,
+    languageOverrides: [{ language: 'python310', timeLimit: 4000 }],
+    tags: ['arrays', 'hash-table'],
+    status: 'PUBLISHED',
+    accessibility: 'PUBLIC',
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    modifiers: [
+      { nickname: 'mariacoach', name: 'María Coach' },
+      { nickname: 'luisadmin', name: 'Luis Admin' },
+    ],
+    files: { testCases: true, solutions: ['solution.cpp', 'solution.py'], checker: false, validator: true },
+    createdAt: '2025-06-10T10:00:00Z',
+    updatedAt: '2025-07-01T14:00:00Z',
+    problemJudgingUpdatedAt: '2025-07-01T14:00:00Z',
+  },
+  {
+    slug: 'binary-search',
+    title: 'Binary Search',
+    statement: 'Given a sorted array of distinct integers and a target value, return the index if the target is found. If not, return -1.',
+    timeLimit: 1000,
+    memoryLimit: 128,
+    languageOverrides: [],
+    tags: ['algorithms', 'binary-search'],
+    status: 'PUBLISHED',
+    accessibility: 'PUBLIC',
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    createdAt: '2025-07-15T08:00:00Z',
+    updatedAt: '2025-08-01T12:00:00Z',
+    problemJudgingUpdatedAt: '2025-08-01T12:00:00Z',
+  },
+  {
+    slug: 'merge-sort',
+    title: 'Merge Sort',
+    statement: 'Implement the merge sort algorithm. Given an array of integers, sort them in non-decreasing order.',
+    timeLimit: 3000,
+    memoryLimit: 512,
+    languageOverrides: [{ language: 'java17', memoryLimit: 1024 }],
+    tags: ['sorting', 'divide-and-conquer'],
+    status: 'PUBLISHED',
+    accessibility: 'PRIVATE',
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
+    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: false },
+    createdAt: '2025-08-20T09:00:00Z',
+    updatedAt: '2025-09-05T11:00:00Z',
+    problemJudgingUpdatedAt: '2025-09-05T11:00:00Z',
+  },
+  {
+    slug: 'graph-bfs',
+    title: 'Graph BFS',
+    statement: 'Given an unweighted graph and a source vertex, find the shortest path from the source to all other vertices using BFS.',
+    timeLimit: 2000,
+    memoryLimit: 256,
+    languageOverrides: [],
+    tags: ['graphs', 'bfs'],
+    status: 'PUBLISHED',
+    accessibility: 'PUBLIC',
+    author: { nickname: 'diegomartinez', name: 'Diego Martínez' },
+    createdAt: '2025-09-10T14:00:00Z',
+    updatedAt: '2025-09-20T16:00:00Z',
+    problemJudgingUpdatedAt: '2025-09-20T16:00:00Z',
+  },
+  {
+    slug: 'dynamic-knapsack',
+    title: 'Dynamic Knapsack',
+    statement: 'Given weights and values of n items, put these items in a knapsack of capacity W to get the maximum total value.',
+    timeLimit: 2000,
+    memoryLimit: 256,
+    languageOverrides: [],
+    tags: ['dp', 'knapsack'],
+    status: 'PUBLISHED',
+    accessibility: 'PUBLIC',
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    createdAt: '2025-10-01T10:00:00Z',
+    updatedAt: '2025-10-15T12:00:00Z',
+    problemJudgingUpdatedAt: '2025-10-15T12:00:00Z',
+  },
+  {
+    slug: 'string-matching',
+    title: 'String Matching (KMP)',
+    statement: 'Implement the KMP string matching algorithm. Given a text and a pattern, find all occurrences of the pattern in the text.',
+    timeLimit: 1500,
+    memoryLimit: 256,
+    languageOverrides: [],
+    tags: ['strings', 'kmp'],
+    status: 'PUBLISHED',
+    accessibility: 'PRIVATE',
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
+    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: true },
+    createdAt: '2025-11-01T08:00:00Z',
+    updatedAt: '2025-11-10T10:00:00Z',
+    problemJudgingUpdatedAt: '2025-11-10T10:00:00Z',
+  },
+  {
+    slug: 'segment-tree-range',
+    title: 'Segment Tree Range Query',
+    statement: null,
+    timeLimit: 3000,
+    memoryLimit: 512,
+    languageOverrides: [],
+    tags: ['data-structures', 'segment-tree'],
+    status: 'DRAFT',
+    accessibility: 'PRIVATE',
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    modifiers: [{ nickname: 'luisadmin', name: 'Luis Admin' }],
+    files: { testCases: false, solutions: [], checker: false, validator: false },
+    createdAt: '2026-01-15T10:00:00Z',
+    updatedAt: '2026-01-15T10:00:00Z',
+    problemJudgingUpdatedAt: null,
+  },
+  {
+    slug: 'minimum-spanning-tree',
+    title: 'Minimum Spanning Tree',
+    statement: null,
+    timeLimit: null,
+    memoryLimit: null,
+    languageOverrides: [],
+    tags: [],
+    status: 'DRAFT',
+    accessibility: 'PRIVATE',
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
+    files: { testCases: false, solutions: [], checker: false, validator: false },
+    createdAt: '2026-02-20T14:00:00Z',
+    updatedAt: '2026-02-20T14:00:00Z',
+    problemJudgingUpdatedAt: null,
+  },
+]
+
+export function toListItem(p: ProblemDetail): ProblemListItem {
+  return {
+    slug: p.slug,
+    title: p.title,
+    tags: p.tags,
+    status: p.status,
+    accessibility: p.accessibility,
+    author: p.author,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  }
+}
+
+export function buildProblemList(params: {
+  page?: number
+  limit?: number
+  status?: string
+  accessibility?: string
+  tags?: string
+  author?: string
+  userNickname?: string
+}) {
+  let filtered = [...mockProblems]
+
+  // Visibility: PUBLISHED for everyone, DRAFT only for modifiers/admin
+  filtered = filtered.filter((p) => {
+    if (p.status === 'PUBLISHED') return true
+    if (params.userNickname === 'luisadmin') return true // admin sees all
+    if (p.modifiers?.some((m) => m.nickname === params.userNickname)) return true
+    return false
+  })
+
+  if (params.status) {
+    filtered = filtered.filter((p) => p.status === params.status)
+  }
+  if (params.accessibility) {
+    filtered = filtered.filter((p) => p.accessibility === params.accessibility)
+  }
+  if (params.tags) {
+    const requiredTags = params.tags.split(',').map((t) => t.trim())
+    filtered = filtered.filter((p) => requiredTags.every((t) => p.tags.includes(t)))
+  }
+  if (params.author) {
+    filtered = filtered.filter((p) => p.author.nickname === params.author)
+  }
+
+  // Sort by createdAt desc
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 20
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    problems: paged.map(toListItem),
+    pagination: {
+      totalCount: filtered.length,
+      currentPage: page,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      itemsPerPage: limit,
+    },
+  }
+}
+
+export const mockProblemStatistics: Record<string, ProblemStatistics> = {
+  'two-sum': {
+    totalSubmissions: 1250,
+    uniqueUsers: { attempted: 234, solved: 89 },
+    acceptanceRateByLanguage: [
+      { language: 'java17', usersAccepted: 35, usersAttempted: 50 },
+      { language: 'cpp20', usersAccepted: 30, usersAttempted: 110 },
+      { language: 'python310', usersAccepted: 24, usersAttempted: 74 },
+    ],
+    verdictDistribution: [
+      { verdict: 'ACCEPTED', count: 450 },
+      { verdict: 'WRONG_ANSWER', count: 520 },
+      { verdict: 'TIME_LIMIT_EXCEEDED', count: 180 },
+      { verdict: 'COMPILATION_ERROR', count: 65 },
+      { verdict: 'RUNTIME_EXCEPTION', count: 35 },
+    ],
+  },
+  'binary-search': {
+    totalSubmissions: 890,
+    uniqueUsers: { attempted: 180, solved: 120 },
+    acceptanceRateByLanguage: [
+      { language: 'cpp20', usersAccepted: 70, usersAttempted: 90 },
+      { language: 'python310', usersAccepted: 35, usersAttempted: 60 },
+      { language: 'java17', usersAccepted: 15, usersAttempted: 30 },
+    ],
+    verdictDistribution: [
+      { verdict: 'ACCEPTED', count: 600 },
+      { verdict: 'WRONG_ANSWER', count: 200 },
+      { verdict: 'RUNTIME_EXCEPTION', count: 50 },
+      { verdict: 'TIME_LIMIT_EXCEEDED', count: 40 },
+    ],
+  },
+}
