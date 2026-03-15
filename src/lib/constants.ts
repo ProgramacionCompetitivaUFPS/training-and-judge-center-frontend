@@ -51,6 +51,7 @@ export const ROUTES = {
   SUBMISSIONS: '/submissions',
   TEAMS: '/teams',
   PROFILE: '/profile',
+  PROFILE_PUBLIC: '/users/:nickname',
   SETTINGS: '/settings',
   ADMIN_USERS: '/admin/users',
 } as const

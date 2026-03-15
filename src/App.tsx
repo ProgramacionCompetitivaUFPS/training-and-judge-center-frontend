@@ -1,11 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/components/ui/ToastProvider'
-import { AppLayout } from '@/components/layout'
+import { AuthProvider } from '@/hooks/useAuth'
+import { AppLayout, ProtectedRoute } from '@/components/layout'
 import { ROUTES } from '@/lib/constants'
 
-// Existing pages
-import { DashboardPage } from '@/pages/DashboardPage'
+// Auth pages
+import { LoginPage } from '@/pages/auth/LoginPage'
+import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { RecoverPasswordPage } from '@/pages/auth/RecoverPasswordPage'
+
+// User pages
+import { UserDashboardPage } from '@/pages/users/UserDashboardPage'
+import { ProfilePage } from '@/pages/users/ProfilePage'
+import { EditProfilePage } from '@/pages/users/EditProfilePage'
+
+// Admin pages
+import { UsersListPage } from '@/pages/admin/UsersListPage'
+
+// Existing pages (legacy, will be replaced)
 import { ProblemsPage } from '@/pages/ProblemsPage'
 import { ProblemDetailPage } from '@/pages/ProblemDetailPage'
 
@@ -35,37 +48,58 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <AuthProvider>
+            <Routes>
+              {/* Redirect root to dashboard */}
+              <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-            {/* Main app routes */}
-            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-            <Route path={ROUTES.PROBLEMS} element={<ProblemsPage />} />
-            <Route path={ROUTES.PROBLEM_DETAIL} element={<ProblemDetailPage />} />
+              {/* Auth routes (public) */}
+              <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+              <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+              <Route path={ROUTES.RECOVER_PASSWORD} element={<RecoverPasswordPage />} />
 
-            {/* Placeholder routes — replaced in each phase */}
-            <Route path={ROUTES.GROUPS} element={<PlaceholderPage title="Grupos" />} />
-            <Route path={ROUTES.GROUP_DETAIL} element={<PlaceholderPage title="Detalle de Grupo" />} />
-            <Route path={ROUTES.CONTESTS} element={<PlaceholderPage title="Competencias" />} />
-            <Route path={ROUTES.CONTEST_DETAIL} element={<PlaceholderPage title="Detalle de Competencia" />} />
-            <Route path={ROUTES.SUBMISSIONS} element={<PlaceholderPage title="Submissions" />} />
-            <Route path={ROUTES.MATERIALS} element={<PlaceholderPage title="Materiales" />} />
-            <Route path={ROUTES.TEAMS} element={<PlaceholderPage title="Equipos" />} />
-            <Route path={ROUTES.PROFILE} element={<PlaceholderPage title="Mi Perfil" />} />
-            <Route path={ROUTES.SETTINGS} element={<PlaceholderPage title="Configuración" />} />
+              {/* Dashboard */}
+              <Route path={ROUTES.DASHBOARD} element={
+                <ProtectedRoute><UserDashboardPage /></ProtectedRoute>
+              } />
 
-            {/* Auth routes — replaced in Phase 1 */}
-            <Route path={ROUTES.LOGIN} element={<PlaceholderPage title="Iniciar Sesión" />} />
-            <Route path={ROUTES.REGISTER} element={<PlaceholderPage title="Registro" />} />
-            <Route path={ROUTES.RECOVER_PASSWORD} element={<PlaceholderPage title="Recuperar Contraseña" />} />
+              {/* Profile */}
+              <Route path={ROUTES.PROFILE} element={
+                <ProtectedRoute><ProfilePage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROFILE_PUBLIC} element={
+                <ProtectedRoute><ProfilePage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.SETTINGS} element={
+                <ProtectedRoute><EditProfilePage /></ProtectedRoute>
+              } />
 
-            {/* Admin routes — replaced in Phase 1 */}
-            <Route path={ROUTES.ADMIN_USERS} element={<PlaceholderPage title="Admin: Usuarios" />} />
+              {/* Problems (legacy, will be replaced in Phase 3) */}
+              <Route path={ROUTES.PROBLEMS} element={
+                <ProtectedRoute><ProblemsPage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROBLEM_DETAIL} element={
+                <ProtectedRoute><ProblemDetailPage /></ProtectedRoute>
+              } />
 
-            {/* 404 */}
-            <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />
-          </Routes>
+              {/* Admin routes */}
+              <Route path={ROUTES.ADMIN_USERS} element={
+                <ProtectedRoute roles={['ADMIN']}><UsersListPage /></ProtectedRoute>
+              } />
+
+              {/* Placeholder routes — replaced in each phase */}
+              <Route path={ROUTES.GROUPS} element={<ProtectedRoute><PlaceholderPage title="Grupos" /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Grupo" /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><PlaceholderPage title="Competencias" /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Competencia" /></ProtectedRoute>} />
+              <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><PlaceholderPage title="Submissions" /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><PlaceholderPage title="Materiales" /></ProtectedRoute>} />
+              <Route path={ROUTES.TEAMS} element={<ProtectedRoute><PlaceholderPage title="Equipos" /></ProtectedRoute>} />
+
+              {/* 404 */}
+              <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />
+            </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </ToastProvider>
     </QueryClientProvider>

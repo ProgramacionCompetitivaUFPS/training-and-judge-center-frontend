@@ -3,6 +3,7 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { Code2, User, Settings, LogOut, Menu, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
+import { useAuth } from '@/hooks/useAuth'
 
 interface NavbarProps {
   onMenuClick: () => void
@@ -17,6 +18,7 @@ const navLinks = [
 
 export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
   const location = useLocation()
+  const { user, logout } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-border bg-neutral-surface/95 backdrop-blur supports-[backdrop-filter]:bg-neutral-surface/60">
@@ -62,14 +64,16 @@ export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
                 <div className="h-8 w-8 rounded-full bg-brand-primary-muted flex items-center justify-center">
                   <User className="h-4 w-4 text-brand-primary" />
                 </div>
-                <span className="hidden md:inline text-sm font-medium">Usuario</span>
+                <span className="hidden md:inline text-sm font-medium">
+                  {user?.nickname || 'Usuario'}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">Usuario Demo</p>
-                  <p className="text-xs text-neutral-text-muted">usuario@example.com</p>
+                  <p className="text-sm font-medium">{user?.name || 'Usuario'}</p>
+                  <p className="text-xs text-neutral-text-muted">{user?.email || ''}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -80,7 +84,7 @@ export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
                 <Link to={ROUTES.SETTINGS}><Settings className="mr-2 h-4 w-4" />Configuración</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-status-error">
+              <DropdownMenuItem className="text-status-error" onClick={logout}>
                 <LogOut className="mr-2 h-4 w-4" />Cerrar sesión
               </DropdownMenuItem>
             </DropdownMenuContent>

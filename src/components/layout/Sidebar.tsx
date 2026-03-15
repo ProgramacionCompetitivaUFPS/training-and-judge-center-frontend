@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { Home, Code2, Trophy, Users, BookOpen, Settings, X, Send } from 'lucide-react'
+import { Home, Code2, Trophy, Users, BookOpen, Settings, X, Send, Shield } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
+import { useAuth } from '@/hooks/useAuth'
 
 interface SidebarProps {
   isOpen: boolean
@@ -31,6 +32,11 @@ const secondaryItems: NavItem[] = [
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
+  const { hasRole } = useAuth()
+
+  const adminItems: NavItem[] = hasRole('ADMIN')
+    ? [{ icon: Shield, label: 'Usuarios', to: ROUTES.ADMIN_USERS }]
+    : []
 
   const isActive = (to: string) =>
     to === ROUTES.DASHBOARD
@@ -86,6 +92,33 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </Link>
               )
             })}
+            {adminItems.length > 0 && (
+              <>
+                <div className="pt-4 pb-1 px-3 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
+                  Admin
+                </div>
+                {adminItems.map((item) => {
+                  const Icon = item.icon
+                  const active = isActive(item.to)
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={onClose}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-brand-primary-muted text-brand-primary'
+                          : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
+                      )}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </>
+            )}
           </nav>
 
           <div className="p-4 border-t border-neutral-border space-y-1">
