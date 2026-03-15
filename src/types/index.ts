@@ -16,6 +16,26 @@ export type {
   UserDashboard,
 } from './user'
 
+// Problem types
+export type {
+  ProblemStatus,
+  ProblemAccessibility,
+  ProblemAuthor,
+  ProblemModifier,
+  ProblemFiles,
+  LanguageOverride,
+  ProblemDetail,
+  ProblemListItem,
+  ProblemListParams,
+  ProblemListResponse,
+  CreateProblemRequest,
+  UpdateProblemRequest,
+  DeleteProblemRequest,
+  PublishResponse,
+  UnpublishResponse,
+  ProblemStatistics,
+} from './problem'
+
 // Group types
 export type {
   GroupVisibility,
@@ -63,27 +83,8 @@ export type SubmissionStatus =
 
 // ============================================================
 // Legacy types below — kept temporarily for existing components
-// Will be replaced module by module (Phases 1-7)
+// Will be replaced module by module (Phases 4-7)
 // ============================================================
-
-export interface Problem {
-  id: string
-  title: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  category: string[]
-  description: string
-  constraints: string[]
-  examples: Example[]
-  acceptanceRate: number
-  totalSubmissions: number
-  totalAccepted: number
-}
-
-export interface Example {
-  input: string
-  output: string
-  explanation?: string
-}
 
 export interface Submission {
   id: string
@@ -107,11 +108,4 @@ export interface User {
   solvedProblems: number
   totalSubmissions: number
   rank?: number
-}
-
-export interface ProblemFilters {
-  difficulty?: 'easy' | 'medium' | 'hard'
-  category?: string
-  status?: 'solved' | 'attempted' | 'unsolved'
-  search?: string
 }
