@@ -163,7 +163,7 @@ export function DataTable<T extends Record<string, any>>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((item, index) => {
+            {data.map((item) => {
               const itemId = getItemId(item)
               const isSelected = selectedItems.has(itemId)
               

@@ -4,7 +4,7 @@ import { SearchAndFilter, FilterConfig } from '@/components/patterns/SearchAndFi
 import { ProblemCard } from '@/components/features/ProblemCard'
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 import { Problem, ProblemFilters as Filters } from '@/types'
-import { Code2, Plus } from 'lucide-react'
+import { Code2 } from 'lucide-react'
 
 // Mock data
 const mockProblems: Problem[] = [

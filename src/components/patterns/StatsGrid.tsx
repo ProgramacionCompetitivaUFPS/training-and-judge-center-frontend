@@ -1,4 +1,3 @@
-import { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { LucideIcon } from 'lucide-react'
 

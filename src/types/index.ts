@@ -1,4 +1,28 @@
-// Problem types
+// Generic API types
+export type { ApiError, PaginatedResponse, PaginationParams } from './api'
+
+// Submission status (used across modules)
+export type SubmissionStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'ACCEPTED'
+  | 'WRONG_ANSWER'
+  | 'TIME_LIMIT_EXCEEDED'
+  | 'MEMORY_LIMIT_EXCEEDED'
+  | 'RUNTIME_EXCEPTION'
+  | 'COMPILATION_ERROR'
+  | 'PRESENTATION_ERROR'
+  | 'SYSTEM_ERROR'
+
+// User roles
+export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
+export type UserStatus = 'ACTIVE' | 'DEACTIVATED'
+
+// ============================================================
+// Legacy types below — kept temporarily for existing components
+// Will be replaced module by module (Phases 1-7)
+// ============================================================
+
 export interface Problem {
   id: string
   title: string
@@ -18,7 +42,6 @@ export interface Example {
   explanation?: string
 }
 
-// Submission types
 export interface Submission {
   id: string
   problemId: string
@@ -33,17 +56,6 @@ export interface Submission {
   totalTestCases?: number
 }
 
-export type SubmissionStatus = 
-  | 'AC'  // Accepted
-  | 'WA'  // Wrong Answer
-  | 'TLE' // Time Limit Exceeded
-  | 'MLE' // Memory Limit Exceeded
-  | 'RE'  // Runtime Error
-  | 'CE'  // Compilation Error
-  | 'PE'  // Presentation Error
-  | 'PENDING'
-
-// User types
 export interface User {
   id: string
   username: string
@@ -54,7 +66,6 @@ export interface User {
   rank?: number
 }
 
-// Filter types
 export interface ProblemFilters {
   difficulty?: 'easy' | 'medium' | 'hard'
   category?: string

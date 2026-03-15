@@ -62,7 +62,7 @@ You can return the answer in any order.`,
 const mockSubmissions = [
   {
     id: '1',
-    status: 'AC' as const,
+    status: 'ACCEPTED' as const,
     language: 'C++',
     runtime: '4ms',
     memory: '10.2MB',
@@ -70,7 +70,7 @@ const mockSubmissions = [
   },
   {
     id: '2',
-    status: 'WA' as const,
+    status: 'WRONG_ANSWER' as const,
     language: 'Python',
     runtime: '-',
     memory: '-',
@@ -78,7 +78,7 @@ const mockSubmissions = [
   },
   {
     id: '3',
-    status: 'TLE' as const,
+    status: 'TIME_LIMIT_EXCEEDED' as const,
     language: 'Java',
     runtime: '-',
     memory: '-',
