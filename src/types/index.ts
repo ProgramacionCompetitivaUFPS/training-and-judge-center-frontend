@@ -1,6 +1,21 @@
 // Generic API types
 export type { ApiError, PaginatedResponse, PaginationParams } from './api'
 
+// User types (new, from user.ts)
+export type {
+  UserRole,
+  UserStatus,
+  PublicUserProfile,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  AdminUserListParams,
+  AdminUserListResponse,
+  UserDashboard,
+} from './user'
+
 // Submission status (used across modules)
 export type SubmissionStatus =
   | 'PENDING'
@@ -13,10 +28,6 @@ export type SubmissionStatus =
   | 'COMPILATION_ERROR'
   | 'PRESENTATION_ERROR'
   | 'SYSTEM_ERROR'
-
-// User roles
-export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
-export type UserStatus = 'ACTIVE' | 'DEACTIVATED'
 
 // ============================================================
 // Legacy types below — kept temporarily for existing components
