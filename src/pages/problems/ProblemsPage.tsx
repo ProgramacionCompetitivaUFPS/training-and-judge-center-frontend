@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileCode2, Plus } from 'lucide-react'
+import { FileCode2, Plus, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge } from '@/components/ui'
-import { EmptyState, SearchAndFilter } from '@/components/patterns'
+import { EmptyState } from '@/components/patterns'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext } from '@/components/ui/Pagination'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -20,23 +21,14 @@ export function ProblemsPage() {
   const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const [filters, setFilters] = useState<ProblemListParams>({ page: 1, limit: 20 })
-  const [searchValue, setSearchValue] = useState('')
   const { data, isLoading } = useProblems(filters)
 
   const problems = data?.problems ?? []
   const pagination = data?.pagination
 
-  function handleSearch(value: string) {
-    setSearchValue(value)
-    // The backend doesn't have a search param in the spec, so we filter by author for now
-    // In a real implementation, this would be a server-side search
-  }
-
   function handlePageChange(page: number) {
     setFilters((prev) => ({ ...prev, page }))
   }
-
-  const activeFiltersCount = [filters.status, filters.accessibility, filters.tags].filter(Boolean).length
 
   const breadcrumbs = [{ label: 'Problemas' }]
 
@@ -60,51 +52,42 @@ export function ProblemsPage() {
         </div>
 
         {/* Search & Filters */}
-        <SearchAndFilter
-          searchValue={searchValue}
-          onSearchChange={handleSearch}
-          searchPlaceholder="Buscar por título o autor..."
-          activeFiltersCount={activeFiltersCount}
-          onClearFilters={() => setFilters({ page: 1, limit: 20 })}
-          filters={[
-            {
-              key: 'status',
-              label: 'Estado',
-              component: (
-                <Select
-                  value={filters.status || ''}
-                  onValueChange={(v) => setFilters((prev) => ({ ...prev, status: v as 'DRAFT' | 'PUBLISHED' || undefined, page: 1 }))}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PUBLISHED">Publicado</SelectItem>
-                    <SelectItem value="DRAFT">Borrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              ),
-            },
-            {
-              key: 'accessibility',
-              label: 'Acceso',
-              component: (
-                <Select
-                  value={filters.accessibility || ''}
-                  onValueChange={(v) => setFilters((prev) => ({ ...prev, accessibility: v as 'PUBLIC' | 'PRIVATE' || undefined, page: 1 }))}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Acceso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PUBLIC">Público</SelectItem>
-                    <SelectItem value="PRIVATE">Privado</SelectItem>
-                  </SelectContent>
-                </Select>
-              ),
-            },
-          ]}
-        />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <Input
+              placeholder="Filtrar por autor (nickname)..."
+              className="pl-9"
+              onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value || undefined, page: 1 }))}
+            />
+          </div>
+          {canCreate && (
+            <Select
+              onValueChange={(v) => setFilters((prev) => ({ ...prev, status: v === 'ALL' ? undefined : v as 'DRAFT' | 'PUBLISHED', page: 1 }))}
+              defaultValue="ALL"
+            >
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los estados</SelectItem>
+                <SelectItem value="PUBLISHED">Publicado</SelectItem>
+                <SelectItem value="DRAFT">Borrador</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {canCreate && (
+            <Select
+              onValueChange={(v) => setFilters((prev) => ({ ...prev, accessibility: v === 'ALL' ? undefined : v as 'PUBLIC' | 'PRIVATE', page: 1 }))}
+              defaultValue="ALL"
+            >
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Acceso" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todo el acceso</SelectItem>
+                <SelectItem value="PUBLIC">Público</SelectItem>
+                <SelectItem value="PRIVATE">Privado</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
 
         {/* Content */}
         {isLoading ? (
@@ -127,6 +110,7 @@ export function ProblemsPage() {
                 key={problem.slug}
                 problem={problem}
                 onClick={() => navigate(`/problems/${problem.slug}`)}
+                showManagementBadges={canCreate}
               />
             ))}
           </div>
@@ -166,7 +150,7 @@ export function ProblemsPage() {
 
 // === Sub-component ===
 
-function ProblemRow({ problem, onClick }: { problem: ProblemListItem; onClick: () => void }) {
+function ProblemRow({ problem, onClick, showManagementBadges }: { problem: ProblemListItem; onClick: () => void; showManagementBadges: boolean }) {
   return (
     <Card
       className="cursor-pointer hover:border-brand-primary/30 transition-colors"
@@ -176,12 +160,16 @@ function ProblemRow({ problem, onClick }: { problem: ProblemListItem; onClick: (
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-neutral-text truncate">{problem.title}</span>
-            <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-              {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-            </Badge>
-            <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-              {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-            </Badge>
+            {showManagementBadges && (
+              <>
+                <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+                  {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                </Badge>
+                <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+                  {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+                </Badge>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm text-neutral-text-muted">
             <span>{problem.author.name}</span>
