@@ -3,6 +3,7 @@ import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, A
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { LatexRenderer } from '@/components/features/LatexRenderer'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/ui/ToastProvider'
@@ -160,9 +161,10 @@ export function ProblemDetailPage() {
           </CardHeader>
           <CardContent>
             {problem.statement ? (
-              <div className="prose prose-sm max-w-none text-neutral-text whitespace-pre-wrap">
-                {problem.statement}
-              </div>
+              <LatexRenderer
+                content={problem.statement}
+                className="prose prose-sm max-w-none text-neutral-text"
+              />
             ) : (
               <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
             )}

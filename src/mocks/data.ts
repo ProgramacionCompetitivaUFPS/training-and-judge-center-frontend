@@ -512,7 +512,7 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'two-sum',
     title: 'Two Sum',
-    statement: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution.',
+    statement: 'Given an array of integers $nums$ and an integer $target$, return indices of the two numbers such that they add up to $target$.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\n$$nums[i] + nums[j] = target \\quad (i \\neq j)$$\n\nConstraints:\n- $2 \\leq nums.length \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$',
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [{ language: 'python310', timeLimit: 4000 }],
@@ -579,7 +579,7 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Given weights and values of n items, put these items in a knapsack of capacity W to get the maximum total value.',
+    statement: 'Given weights and values of $n$ items, put these items in a knapsack of capacity $W$ to get the maximum total value.\n\nThe recurrence relation is:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\nConstraints:\n- $1 \\leq n \\leq 1000$\n- $1 \\leq W \\leq 10^6$\n- $1 \\leq w_i, v_i \\leq 10^9$',
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [],
