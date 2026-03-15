@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileCode2, Plus, Search } from 'lucide-react'
+import { FileCode2, Plus, Search, Tag } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge } from '@/components/ui'
 import { EmptyState } from '@/components/patterns'
@@ -59,6 +59,14 @@ export function ProblemsPage() {
               placeholder="Filtrar por autor (nickname)..."
               className="pl-9"
               onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value || undefined, page: 1 }))}
+            />
+          </div>
+          <div className="relative sm:w-[220px]">
+            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <Input
+              placeholder="Tags (dp, graphs...)"
+              className="pl-9"
+              onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.trim() || undefined, page: 1 }))}
             />
           </div>
           {canCreate && (
