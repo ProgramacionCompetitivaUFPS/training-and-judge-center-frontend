@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design System – IA Training Center</title>
+
+  <!-- Tailwind CDN para demo rápida -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fuentes del sistema -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+
+    code,
+    .font-mono {
+      font-family: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+  </style>
+
+  <!-- Config Tailwind para mapear algunos tokens -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#e11d48',
+              primaryMuted: '#fff1f2',
+              dark: '#be123c',
+              accent: '#d97706',
+              accentMuted: '#fef3c7',
+            },
+            neutral: {
+              background: '#f8fafc',
+              surface: '#ffffff',
+              border: '#e2e8f0',
+              textPrimary: '#0f172a',
+              textMuted: '#64748b',
+            },
+            status: {
+              success: '#059669',
+              error: '#b91c1c',
+              warning: '#d97706',
+            },
+          },
+          borderRadius: {
+            'radius-sm': '0.375rem',  // 6px
+            'radius-md': '0.75rem',   // 12px
+            'radius-lg': '1.5rem',    // 24px
+            pill: '9999px',
+          },
+          boxShadow: {
+            'elevation-1': '0 1px 3px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06)',
+            'elevation-2': '0 4px 6px rgba(15, 23, 42, 0.12), 0 2px 4px rgba(15, 23, 42, 0.08)',
+            'elevation-3': '0 20px 25px rgba(15, 23, 42, 0.15), 0 10px 10px rgba(15, 23, 42, 0.10)',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+
+<body class="bg-neutral-background text-neutral-textPrimary p-4 md:p-12">
+  <div class="max-w-5xl mx-auto space-y-16">
+    <!-- Intro -->
+    <header class="space-y-3">
+      <p class="text-[10px] font-bold tracking-[0.25em] uppercase text-neutral-textMuted">
+        IA Training Center · Design System
+      </p>
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-neutral-textPrimary">
+        Tokens de diseño · Prototipo visual
+      </h1>
+      <p class="text-sm md:text-base text-neutral-textMuted leading-relaxed max-w-3xl">
+        Esta página HTML muestra los <span class="font-semibold text-brand-primary">design tokens base</span> del
+        sistema de entrenamiento (colores, tipografía, spacing y elevación) y un ejemplo de tarjeta de problema que los
+        usa de forma coherente.
+      </p>
+    </header>
+
+    <!-- 1. Color Tokens -->
+    <section>
+      <h2
+        class="text-xs font-bold text-neutral-textMuted uppercase tracking-widest mb-8 border-b border-neutral-border pb-2">
+        1. Color Tokens
+      </h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <!-- Marca principal -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-16 w-full bg-brand-primary rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-brand-primary uppercase tracking-wide">Brand / Primary</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.brand.primary</p>
+          <p class="text-[11px] text-neutral-textMuted">Botones primarios, acentos.</p>
+        </div>
+
+        <!-- Marca muted -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-16 w-full bg-brand-primaryMuted rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-brand-primary uppercase tracking-wide">Brand / Primary Muted</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.brand.primary-muted</p>
+          <p class="text-[11px] text-neutral-textMuted">Fondos suaves de tags.</p>
+        </div>
+
+        <!-- Accent -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-16 w-full bg-brand-accent rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-brand-accent uppercase tracking-wide">Brand / Accent</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.brand.accent</p>
+          <p class="text-[11px] text-neutral-textMuted">Dificultad, detalles cálidos.</p>
+        </div>
+
+        <!-- Fondo de página -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-16 w-full bg-neutral-background rounded-radius-md mb-2 border border-neutral-border"></div>
+          <p class="text-[10px] font-bold text-neutral-textMuted uppercase tracking-wide">BG / Page</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.bg.page</p>
+          <p class="text-[11px] text-neutral-textMuted">Fondo general de la app.</p>
+        </div>
+
+        <!-- Superficie -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-16 w-full bg-neutral-surface rounded-radius-md mb-2 border border-neutral-border"></div>
+          <p class="text-[10px] font-bold text-neutral-textMuted uppercase tracking-wide">BG / Surface</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.bg.surface</p>
+          <p class="text-[11px] text-neutral-textMuted">Cards y paneles.</p>
+        </div>
+
+        <!-- Estados juez -->
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-12 w-full bg-status-success rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-status-success uppercase tracking-wide">Status / Success (AC)</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.status.success</p>
+        </div>
+
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-12 w-full bg-status-error rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-status-error uppercase tracking-wide">Status / Error (WA)</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.status.error</p>
+        </div>
+
+        <div
+          class="bg-neutral-surface p-3 rounded-radius-lg border border-neutral-border shadow-elevation-1 flex flex-col gap-1.5">
+          <div class="h-12 w-full bg-status-warning rounded-radius-md mb-2"></div>
+          <p class="text-[10px] font-bold text-status-warning uppercase tracking-wide">Status / Warning (TLE)</p>
+          <p class="text-xs font-mono text-neutral-textMuted">token: color.status.warning</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Typography System -->
+    <section>
+      <h2
+        class="text-xs font-bold text-neutral-textMuted uppercase tracking-widest mb-8 border-b border-neutral-border pb-2">
+        2. Typography System
+      </h2>
+
+      <div class="bg-neutral-surface border border-neutral-border rounded-radius-lg overflow-hidden shadow-elevation-1">
+        <table class="w-full text-left">
+          <thead class="bg-neutral-background border-b border-neutral-border">
+            <tr>
+              <th class="px-6 py-4 text-[10px] font-bold text-neutral-textMuted uppercase">Token</th>
+              <th class="px-6 py-4 text-[10px] font-bold text-neutral-textMuted uppercase">Muestra</th>
+              <th class="px-6 py-4 text-[10px] font-bold text-neutral-textMuted uppercase">Uso</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-border">
+            <tr>
+              <td class="px-6 py-6 font-mono text-[10px] text-neutral-textMuted">type.heading.h1</td>
+              <td class="px-6 py-6 text-3xl font-extrabold tracking-tight text-neutral-textPrimary">
+                Encabezado Principal
+              </td>
+              <td class="px-6 py-6 text-xs text-neutral-textMuted">
+                Títulos de problemas y secciones clave.
+              </td>
+            </tr>
+            <tr>
+              <td class="px-6 py-6 font-mono text-[10px] text-neutral-textMuted">type.body.base</td>
+              <td class="px-6 py-6 text-base text-neutral-textPrimary leading-relaxed">
+                Lectura de enunciados de problemas y descripciones largas.
+              </td>
+              <td class="px-6 py-6 text-xs text-neutral-textMuted">
+                Contenido principal y texto de párrafo.
+              </td>
+            </tr>
+            <tr>
+              <td class="px-6 py-6 font-mono text-[10px] text-neutral-textMuted">type.label.tag</td>
+              <td class="px-6 py-6">
+                <span
+                  class="px-3 py-1 bg-brand-primaryMuted text-brand-primary text-[10px] font-bold rounded-pill uppercase tracking-[0.18em]">
+                  Recursión
+                </span>
+              </td>
+              <td class="px-6 py-6 text-[11px] text-neutral-textMuted">
+                Categorías, tags y metadatos compactos.
+              </td>
+            </tr>
+            <tr>
+              <td class="px-6 py-6 font-mono text-[10px] text-neutral-textMuted">type.code.inline</td>
+              <td class="px-6 py-6">
+                <span class="font-mono text-sm text-brand-accent bg-slate-900 px-3 py-1.5 rounded-radius-md">
+                  func main()
+                </span>
+              </td>
+              <td class="px-6 py-6 text-[11px] text-neutral-textMuted">
+                Snippets de código y ejemplos cortos.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 3. Layout & Effects -->
+    <section>
+      <h2
+        class="text-xs font-bold text-neutral-textMuted uppercase tracking-widest mb-8 border-b border-neutral-border pb-2">
+        3. Layout, Radius & Shadows
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Radius -->
+        <div class="space-y-4">
+          <p class="text-sm font-semibold text-neutral-textPrimary uppercase tracking-tight">Corner Radius</p>
+          <div class="flex items-center gap-4">
+            <div
+              class="w-16 h-16 bg-brand-primary rounded-radius-sm border border-neutral-border shadow-elevation-1 flex items-center justify-center text-[10px] text-white font-bold">
+              radius.sm
+            </div>
+            <div
+              class="w-16 h-16 bg-brand-primary rounded-radius-md border border-neutral-border shadow-elevation-1 flex items-center justify-center text-[10px] text-white font-bold">
+              radius.md
+            </div>
+            <div
+              class="w-16 h-16 bg-brand-primary rounded-radius-lg border border-neutral-border shadow-elevation-1 flex items-center justify-center text-[10px] text-white font-bold">
+              radius.lg
+            </div>
+          </div>
+          <p class="text-[10px] text-neutral-textMuted leading-relaxed">
+            <span class="font-bold">radius.lg</span> se reserva para las cartas principales del sistema (problemas,
+            editor).
+          </p>
+        </div>
+
+        <!-- Shadows -->
+        <div class="space-y-4">
+          <p class="text-sm font-semibold text-neutral-textPrimary uppercase tracking-tight">Elevación & Sombras</p>
+          <div class="flex items-center gap-4">
+            <div
+              class="w-16 h-16 bg-neutral-surface rounded-radius-md shadow-elevation-1 border border-neutral-border flex items-center justify-center text-[8px] font-bold text-neutral-textMuted">
+              elevation.1
+            </div>
+            <div
+              class="w-16 h-16 bg-neutral-surface rounded-radius-md shadow-elevation-2 border border-neutral-border flex items-center justify-center text-[8px] font-bold text-neutral-textMuted">
+              elevation.2
+            </div>
+            <div
+              class="w-16 h-16 bg-neutral-surface rounded-radius-md shadow-elevation-3 border border-neutral-border flex items-center justify-center text-[8px] font-bold text-neutral-textMuted">
+              elevation.3
+            </div>
+          </div>
+          <p class="text-[10px] text-neutral-textMuted leading-relaxed">
+            <span class="font-bold">elevation.3</span> se usa para el componente de Editor de Código o overlays muy
+            destacados.
+          </p>
+        </div>
+
+        <!-- Spacing -->
+        <div class="space-y-4">
+          <p class="text-sm font-semibold text-neutral-textPrimary uppercase tracking-tight">Inner Spacing</p>
+          <div class="flex flex-col gap-2">
+            <div
+              class="h-6 bg-brand-primaryMuted border-l-4 border-brand-primary flex items-center px-4 text-[10px] font-mono text-brand-primary">
+              spacing.4 → p-4 (1rem)
+            </div>
+            <div
+              class="h-8 bg-brand-primaryMuted border-l-4 border-brand-primary flex items-center px-8 text-[10px] font-mono text-brand-primary">
+              spacing.8 → px-8 (2rem)
+            </div>
+            <div
+              class="h-12 bg-brand-primaryMuted border-l-4 border-brand-primary flex items-center px-12 text-[10px] font-mono text-brand-primary">
+              spacing.12 → px-12 (3rem)
+            </div>
+          </div>
+          <p class="text-[10px] text-neutral-textMuted leading-relaxed">
+            La separación vertical base entre secciones es cercana a <span class="font-bold">spacing.16</span>, como se
+            ve en esta página.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Ejemplo aplicado con tokens -->
+    <section class="grid md:grid-cols-2 gap-12 pt-8">
+      <!-- Tarjeta de problema -->
+      <article
+        class="bg-neutral-surface border border-neutral-border rounded-radius-lg p-8 shadow-elevation-3 transform transition hover:scale-[1.01]">
+        <div class="flex justify-between items-start mb-6 gap-4">
+          <div class="space-y-2">
+            <span
+              class="inline-block px-3 py-1 bg-brand-primaryMuted text-brand-primary text-[10px] font-bold rounded-pill uppercase tracking-[0.18em]">
+              Estructuras de Datos
+            </span>
+            <h3 class="text-3xl font-extrabold text-neutral-textPrimary tracking-tight">
+              Validar Árbol BST
+            </h3>
+          </div>
+          <span
+            class="bg-brand-accentMuted text-brand-accent px-3 py-1 rounded-radius-md text-[10px] font-bold border border-brand-accent/10 uppercase italic">
+            Hard
+          </span>
+        </div>
+
+        <p class="text-neutral-textPrimary text-base leading-relaxed mb-8">
+          Verifica si un árbol binario cumple la condición de búsqueda.
+          <span
+            class="text-brand-primary font-semibold italic underline decoration-brand-primaryMuted underline-offset-4 decoration-2">
+            Usa recursión.
+          </span>
+        </p>
+
+        <div class="flex items-center justify-between pt-6 border-t border-neutral-border">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-neutral-textMuted uppercase font-bold">Resuelto por</span>
+            <span class="text-sm font-bold tracking-tight text-neutral-textPrimary">1,240 alumnos</span>
+          </div>
+          <button
+            class="bg-brand-primary hover:bg-brand-dark text-white px-8 py-3 rounded-radius-md font-bold shadow-elevation-2 transition-all hover:-translate-y-1 active:scale-95">
+            Resolver
+          </button>
+        </div>
+
+        <p class="mt-6 text-[11px] text-neutral-textMuted leading-relaxed">
+          Esta tarjeta utiliza tokens:
+          <span class="font-mono">
+            color.bg.surface, color.text.primary, color.badge.tag.*, color.button.primary.*, radius.lg, elevation.3,
+            spacing.{4,6,8}
+          </span>
+        </p>
+      </article>
+
+      <!-- Mini editor de código -->
+      <aside
+        class="bg-slate-900 rounded-radius-lg overflow-hidden shadow-elevation-3 border border-slate-800 flex flex-col">
+        <div class="bg-slate-800/60 px-5 py-4 flex items-center justify-between border-b border-slate-700">
+          <div class="flex gap-1.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-brand-primary/80 shadow-sm shadow-rose-900/40"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-brand-accent/80 shadow-sm shadow-amber-900/40"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-status-success/80 shadow-sm shadow-emerald-900/40"></div>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500 italic">solution.go</span>
+        </div>
+        <div class="p-8 text-sm leading-8 flex-grow">
+          <pre class="text-slate-300"><code><span class="text-brand-primary italic">type</span> Node <span class="text-pink-400">struct</span> {
+  Val   <span class="text-brand-accent font-medium">int</span>
+  Left  *Node
+  Right *Node
+}
+
+<span class="text-brand-primary italic">func</span> <span class="text-blue-400">isValidBST</span>(root *Node) <span class="text-brand-accent font-medium">bool</span> {
+  <span class="text-pink-400">return</span> <span class="text-brand-accent">true</span>
+}</code></pre>
+        </div>
+      </aside>
+    </section>
+  </div>
+</body>
+
+</html>
+
