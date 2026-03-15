@@ -4,7 +4,7 @@ export interface ToastMessage {
   id: string
   variant: 'default' | 'success' | 'error' | 'warning'
   title?: string
-  description: string
+  description?: string
   duration?: number
 }
 
