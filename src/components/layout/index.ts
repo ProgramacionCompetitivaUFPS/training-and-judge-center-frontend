@@ -5,5 +5,6 @@ export { Sidebar } from './Sidebar'
 export { Breadcrumbs } from './Breadcrumbs'
 export { ProblemLayout } from './ProblemLayout'
 export { Header } from './Header'
+export { ProtectedRoute } from './ProtectedRoute'
 
 export type { BreadcrumbItem } from './Breadcrumbs'

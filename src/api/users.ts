@@ -1,0 +1,98 @@
+import { apiClient } from './client'
+import type {
+  User,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  RequestEmailChangeRequest,
+  ConfirmEmailChangeRequest,
+  RecoverPasswordRequest,
+  ResetPasswordRequest,
+  RequestDeactivationRequest,
+  ConfirmDeactivationRequest,
+  AdminUpdateUserRequest,
+  AdminUserListParams,
+  AdminUserListResponse,
+  PublicUserProfile,
+  UserDashboard,
+} from '@/types/user'
+
+// === Auth ===
+
+export function register(data: RegisterRequest): Promise<User> {
+  return apiClient.post('/users', data)
+}
+
+export function login(data: LoginRequest): Promise<LoginResponse> {
+  return apiClient.post('/auth/login', data)
+}
+
+// === Profile ===
+
+export function getMe(): Promise<User> {
+  return apiClient.get('/users/me')
+}
+
+export function getUserByNickname(nickname: string): Promise<PublicUserProfile> {
+  return apiClient.get(`/users/${nickname}`)
+}
+
+export function updateProfile(data: UpdateProfileRequest): Promise<User> {
+  return apiClient.put('/users', data)
+}
+
+// === Password ===
+
+export function changePassword(data: ChangePasswordRequest): Promise<void> {
+  return apiClient.put('/users/password', data)
+}
+
+export function recoverPassword(data: RecoverPasswordRequest): Promise<void> {
+  return apiClient.post('/password/recovery', data)
+}
+
+export function resetPassword(data: ResetPasswordRequest): Promise<void> {
+  return apiClient.post('/password/reset', data)
+}
+
+// === Email Change ===
+
+export function requestEmailChange(data: RequestEmailChangeRequest): Promise<void> {
+  return apiClient.post('/users/email-change/request', data)
+}
+
+export function confirmEmailChange(data: ConfirmEmailChangeRequest): Promise<void> {
+  return apiClient.post('/users/email-change/confirm', data)
+}
+
+// === Deactivation ===
+
+export function requestDeactivation(data: RequestDeactivationRequest): Promise<void> {
+  return apiClient.post('/users/deactivation/request', data)
+}
+
+export function confirmDeactivation(data: ConfirmDeactivationRequest): Promise<void> {
+  return apiClient.post('/users/deactivation/confirm', data)
+}
+
+// === Admin ===
+
+export function adminListUsers(params?: AdminUserListParams): Promise<AdminUserListResponse> {
+  return apiClient.get('/admin/users', { params: params as Record<string, string | number | boolean | undefined> })
+}
+
+export function adminUpdateUser(id: string, data: AdminUpdateUserRequest): Promise<User> {
+  return apiClient.put(`/admin/users/${id}`, data)
+}
+
+export function adminDeactivateUser(id: string): Promise<void> {
+  return apiClient.post(`/admin/users/${id}/deactivate`)
+}
+
+// === Dashboard ===
+
+export function getDashboard(): Promise<UserDashboard> {
+  return apiClient.get('/users/me/dashboard')
+}
