@@ -683,8 +683,10 @@ export function buildProblemList(params: {
     filtered = filtered.filter((p) => p.accessibility === params.accessibility)
   }
   if (params.tags) {
-    const requiredTags = params.tags.split(',').map((t) => t.trim())
-    filtered = filtered.filter((p) => requiredTags.every((t) => p.tags.includes(t)))
+    const requiredTags = params.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+    filtered = filtered.filter((p) =>
+      requiredTags.every((t) => p.tags.some((tag) => tag.toLowerCase() === t)),
+    )
   }
   if (params.author) {
     filtered = filtered.filter((p) => p.author.nickname === params.author)
