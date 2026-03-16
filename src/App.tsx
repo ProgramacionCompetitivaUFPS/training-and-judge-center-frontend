@@ -24,8 +24,9 @@ import { GroupDetailPage } from '@/pages/groups/GroupDetailPage'
 import { GroupFormPage } from '@/pages/groups/GroupFormPage'
 
 // Existing pages (legacy, will be replaced)
-import { ProblemsPage } from '@/pages/ProblemsPage'
-import { ProblemDetailPage } from '@/pages/ProblemDetailPage'
+import { ProblemsPage } from '@/pages/problems/ProblemsPage'
+import { ProblemDetailPage } from '@/pages/problems/ProblemDetailPage'
+import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
 
 // Placeholder pages — will be replaced in each phase
 function PlaceholderPage({ title }: { title: string }) {
@@ -79,12 +80,18 @@ export default function App() {
                 <ProtectedRoute><EditProfilePage /></ProtectedRoute>
               } />
 
-              {/* Problems (legacy, will be replaced in Phase 3) */}
+              {/* Problems */}
               <Route path={ROUTES.PROBLEMS} element={
                 <ProtectedRoute><ProblemsPage /></ProtectedRoute>
               } />
+              <Route path={ROUTES.PROBLEM_NEW} element={
+                <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFormPage /></ProtectedRoute>
+              } />
               <Route path={ROUTES.PROBLEM_DETAIL} element={
                 <ProtectedRoute><ProblemDetailPage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROBLEM_EDIT} element={
+                <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFormPage /></ProtectedRoute>
               } />
 
               {/* Admin routes */}
