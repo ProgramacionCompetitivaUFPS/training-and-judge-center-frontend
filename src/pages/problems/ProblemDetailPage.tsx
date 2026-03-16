@@ -96,7 +96,7 @@ export function ProblemDetailPage() {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-semibold text-neutral-text">{problem.title}</h1>
+              <h1 className="text-2xl font-semibold text-neutral-text-primary">{problem.title}</h1>
               <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
                 {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
               </Badge>
@@ -163,7 +163,7 @@ export function ProblemDetailPage() {
             {problem.statement ? (
               <LatexRenderer
                 content={problem.statement}
-                className="prose prose-sm max-w-none text-neutral-text"
+                className="prose prose-sm max-w-none text-neutral-text-primary"
               />
             ) : (
               <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
@@ -238,11 +238,11 @@ export function ProblemDetailPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-semibold text-neutral-text">{stats.totalSubmissions}</div>
+                  <div className="text-2xl font-semibold text-neutral-text-primary">{stats.totalSubmissions}</div>
                   <div className="text-xs text-neutral-text-muted">Submissions</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-semibold text-neutral-text">{stats.uniqueUsers.attempted}</div>
+                  <div className="text-2xl font-semibold text-neutral-text-primary">{stats.uniqueUsers.attempted}</div>
                   <div className="text-xs text-neutral-text-muted">Intentaron</div>
                 </div>
                 <div className="text-center">
@@ -254,7 +254,7 @@ export function ProblemDetailPage() {
               {/* Verdict distribution */}
               {stats.verdictDistribution && (
                 <div>
-                  <h4 className="text-sm font-medium text-neutral-text mb-2">Distribución de veredictos</h4>
+                  <h4 className="text-sm font-medium text-neutral-text-primary mb-2">Distribución de veredictos</h4>
                   <div className="space-y-1">
                     {stats.verdictDistribution.map((v) => {
                       const config = SUBMISSION_STATUS_CONFIG[v.verdict as keyof typeof SUBMISSION_STATUS_CONFIG]
@@ -283,7 +283,7 @@ export function ProblemDetailPage() {
               {/* Acceptance by language */}
               {stats.acceptanceRateByLanguage && (
                 <div>
-                  <h4 className="text-sm font-medium text-neutral-text mb-2">Aceptación por lenguaje</h4>
+                  <h4 className="text-sm font-medium text-neutral-text-primary mb-2">Aceptación por lenguaje</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {stats.acceptanceRateByLanguage.map((lang) => {
                       const rate = lang.usersAttempted > 0 ? Math.round((lang.usersAccepted / lang.usersAttempted) * 100) : 0
@@ -343,7 +343,7 @@ function MetadataItem({ icon: Icon, label, value }: { icon: React.ElementType; l
       <Icon className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
       <div>
         <div className="text-neutral-text-muted text-xs">{label}</div>
-        <div className="text-neutral-text">{value}</div>
+        <div className="text-neutral-text-primary">{value}</div>
       </div>
     </div>
   )
@@ -354,7 +354,7 @@ function FileIndicator({ label, available, detail }: { label: string; available:
     <div className="flex items-center gap-2">
       <div className={`h-2 w-2 rounded-full ${available ? 'bg-status-success' : 'bg-neutral-border'}`} />
       <div>
-        <div className="text-neutral-text">{label}</div>
+        <div className="text-neutral-text-primary">{label}</div>
         {detail && <div className="text-xs text-neutral-text-muted">{detail}</div>}
       </div>
     </div>

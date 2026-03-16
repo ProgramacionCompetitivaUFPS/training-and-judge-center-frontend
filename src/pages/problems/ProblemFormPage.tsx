@@ -115,7 +115,7 @@ function CreateForm({ onSubmit, isSubmitting, onCancel }: {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-neutral-text">Crear problema</h1>
+        <h1 className="text-2xl font-semibold text-neutral-text-primary">Crear problema</h1>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button type="submit" variant="primary" isLoading={isSubmitting}>Crear</Button>
@@ -176,7 +176,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-neutral-text">Editar problema</h1>
+        <h1 className="text-2xl font-semibold text-neutral-text-primary">Editar problema</h1>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button type="submit" variant="primary" isLoading={isSubmitting}>Guardar</Button>
@@ -187,7 +187,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: {
         <CardHeader><CardTitle>Información básica</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-text mb-1">Slug</label>
+            <label className="block text-sm font-medium text-neutral-text-primary mb-1">Slug</label>
             <div className="font-mono text-sm text-neutral-text-muted bg-neutral-surface px-3 py-2 rounded-md">{problem.slug}</div>
             <p className="text-xs text-neutral-text-muted mt-1">El slug no se puede cambiar</p>
           </div>
@@ -209,7 +209,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: {
         <CardContent className="space-y-4">
           <Input label="Tags (separados por coma)" {...register('tags')} error={errors.tags?.message} />
           <div>
-            <label className="block text-sm font-medium text-neutral-text mb-1">Accesibilidad</label>
+            <label className="block text-sm font-medium text-neutral-text-primary mb-1">Accesibilidad</label>
             <Select value={accessibility} onValueChange={(v) => setValue('accessibility', v as 'PUBLIC' | 'PRIVATE')}>
               <SelectTrigger className="w-full">
                 <SelectValue />

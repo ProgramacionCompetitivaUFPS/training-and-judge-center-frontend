@@ -51,7 +51,7 @@ export function ProblemsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-neutral-text">Problemas</h1>
+            <h1 className="text-2xl font-semibold text-neutral-text-primary">Problemas</h1>
             <p className="text-sm text-neutral-text-muted mt-1">
               Explora y gestiona problemas de programación
             </p>
@@ -182,7 +182,7 @@ function ProblemRow({ problem, onClick, showManagementBadges }: { problem: Probl
       <CardContent className="flex items-center justify-between py-4 px-5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-neutral-text truncate">{problem.title}</span>
+            <span className="font-medium text-neutral-text-primary truncate">{problem.title}</span>
             {showManagementBadges && (
               <>
                 <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
