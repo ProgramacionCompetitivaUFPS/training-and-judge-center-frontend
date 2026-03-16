@@ -21,17 +21,17 @@ export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
   const { user, logout } = useAuth()
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-neutral-border bg-neutral-surface/95 backdrop-blur supports-[backdrop-filter]:bg-neutral-surface/60">
+    <header className="sticky top-0 z-50 w-full bg-brand-primary shadow-sm">
       <div className="flex h-16 items-center px-4 gap-4">
         {showMenuButton && (
-          <Button variant="ghost" size="sm" className="md:hidden" onClick={onMenuClick}>
+          <Button variant="ghost" size="sm" className="md:hidden text-neutral-text-inverse hover:bg-white/10" onClick={onMenuClick}>
             <Menu className="h-5 w-5" />
           </Button>
         )}
 
         <Link to={ROUTES.HOME} className="flex items-center gap-2">
-          <Code2 className="h-6 w-6 text-brand-primary" />
-          <span className="text-xl font-bold text-neutral-text-primary hidden sm:inline">
+          <Code2 className="h-6 w-6 text-neutral-text-inverse" />
+          <span className="text-xl font-bold text-neutral-text-inverse hidden sm:inline">
             Training Center
           </span>
         </Link>
@@ -44,8 +44,8 @@ export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
               className={cn(
                 'text-sm font-medium transition-colors',
                 location.pathname.startsWith(link.to)
-                  ? 'text-brand-primary'
-                  : 'text-neutral-text-muted hover:text-brand-primary'
+                  ? 'text-neutral-text-inverse'
+                  : 'text-neutral-text-inverse/70 hover:text-neutral-text-inverse'
               )}
             >
               {link.label}
@@ -54,15 +54,15 @@ export function Navbar({ onMenuClick, showMenuButton = true }: NavbarProps) {
         </nav>
 
         <div className="flex items-center gap-2 ml-auto">
-          <Button variant="ghost" size="sm" className="relative">
+          <Button variant="ghost" size="sm" className="relative text-neutral-text-inverse hover:bg-white/10">
             <Bell className="h-5 w-5" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <div className="h-8 w-8 rounded-full bg-brand-primary-muted flex items-center justify-center">
-                  <User className="h-4 w-4 text-brand-primary" />
+              <Button variant="ghost" size="sm" className="gap-2 text-neutral-text-inverse hover:bg-white/10">
+                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="h-4 w-4 text-neutral-text-inverse" />
                 </div>
                 <span className="hidden md:inline text-sm font-medium">
                   {user?.nickname || 'Usuario'}
