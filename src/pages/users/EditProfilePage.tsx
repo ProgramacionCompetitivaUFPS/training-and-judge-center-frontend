@@ -1,0 +1,293 @@
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AppLayout } from '@/components/layout'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Alert } from '@/components/ui/Alert'
+import { useAuth } from '@/hooks/useAuth'
+import {
+  useUpdateProfile,
+  useChangePassword,
+  useRequestEmailChange,
+  useRequestDeactivation,
+} from '@/hooks/api/useUsers'
+import {
+  updateProfileSchema,
+  changePasswordSchema,
+  changeEmailSchema,
+  type UpdateProfileFormData,
+  type ChangePasswordFormData,
+  type ChangeEmailFormData,
+} from '@/lib/schemas/user'
+import { ApiClientError } from '@/api/client'
+
+export function EditProfilePage() {
+  const { user } = useAuth()
+
+  if (!user) return null
+
+  return (
+    <AppLayout>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold text-neutral-text-primary">Configuración</h1>
+        <ProfileSection user={user} />
+        <PasswordSection />
+        <EmailSection />
+        <DeactivateSection />
+      </div>
+    </AppLayout>
+  )
+}
+
+function ProfileSection({ user }: { user: { name: string; nickname: string; country: string; city: string; institution: string } }) {
+  const updateMutation = useUpdateProfile()
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<UpdateProfileFormData>({
+    resolver: zodResolver(updateProfileSchema),
+    defaultValues: {
+      name: user.name,
+      nickname: user.nickname,
+      country: user.country,
+      city: user.city,
+      institution: user.institution,
+    },
+  })
+
+  const onSubmit = async (data: UpdateProfileFormData) => {
+    setMessage(null)
+    try {
+      await updateMutation.mutateAsync(data)
+      setMessage({ type: 'success', text: 'Perfil actualizado correctamente.' })
+    } catch (error) {
+      if (error instanceof ApiClientError && error.details) {
+        error.details.forEach((d) => setError(d.field as keyof UpdateProfileFormData, { message: d.message }))
+      } else {
+        setMessage({ type: 'error', text: 'Error al actualizar el perfil.' })
+      }
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <h2 className="text-lg font-semibold text-neutral-text-primary">Datos Personales</h2>
+      {message && <Alert variant={message.type}>{message.text}</Alert>}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium text-neutral-text-primary">Nombre</label>
+            <Input id="name" {...register('name')} />
+            {errors.name && <p className="text-sm text-status-error">{errors.name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="nickname" className="text-sm font-medium text-neutral-text-primary">Nickname</label>
+            <Input id="nickname" {...register('nickname')} />
+            {errors.nickname && <p className="text-sm text-status-error">{errors.nickname.message}</p>}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="institution" className="text-sm font-medium text-neutral-text-primary">Institución</label>
+          <Input id="institution" {...register('institution')} />
+          {errors.institution && <p className="text-sm text-status-error">{errors.institution.message}</p>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="country" className="text-sm font-medium text-neutral-text-primary">País</label>
+            <Input id="country" {...register('country')} />
+            {errors.country && <p className="text-sm text-status-error">{errors.country.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="city" className="text-sm font-medium text-neutral-text-primary">Ciudad</label>
+            <Input id="city" {...register('city')} />
+            {errors.city && <p className="text-sm text-status-error">{errors.city.message}</p>}
+          </div>
+        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+function PasswordSection() {
+  const changeMutation = useChangePassword()
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
+  })
+
+  const onSubmit = async (data: ChangePasswordFormData) => {
+    setMessage(null)
+    try {
+      await changeMutation.mutateAsync({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      })
+      setMessage({ type: 'success', text: 'Contraseña actualizada correctamente.' })
+      reset()
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof ApiClientError ? error.message : 'Error al cambiar la contraseña.',
+      })
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <h2 className="text-lg font-semibold text-neutral-text-primary">Cambiar Contraseña</h2>
+      {message && <Alert variant={message.type}>{message.text}</Alert>}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="currentPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
+          <Input id="currentPassword" type="password" {...register('currentPassword')} />
+          {errors.currentPassword && <p className="text-sm text-status-error">{errors.currentPassword.message}</p>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="newPassword" className="text-sm font-medium text-neutral-text-primary">Nueva contraseña</label>
+            <Input id="newPassword" type="password" {...register('newPassword')} />
+            {errors.newPassword && <p className="text-sm text-status-error">{errors.newPassword.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="confirmNewPassword" className="text-sm font-medium text-neutral-text-primary">Confirmar</label>
+            <Input id="confirmNewPassword" type="password" {...register('confirmNewPassword')} />
+            {errors.confirmNewPassword && <p className="text-sm text-status-error">{errors.confirmNewPassword.message}</p>}
+          </div>
+        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Cambiando...' : 'Cambiar Contraseña'}
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+function EmailSection() {
+  const emailMutation = useRequestEmailChange()
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<ChangeEmailFormData>({
+    resolver: zodResolver(changeEmailSchema),
+    defaultValues: { newEmail: '', password: '' },
+  })
+
+  const onSubmit = async (data: ChangeEmailFormData) => {
+    setMessage(null)
+    try {
+      await emailMutation.mutateAsync(data)
+      setMessage({ type: 'success', text: 'Se envió un código de confirmación a tu nuevo correo.' })
+      reset()
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof ApiClientError ? error.message : 'Error al solicitar cambio de email.',
+      })
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <h2 className="text-lg font-semibold text-neutral-text-primary">Cambiar Email</h2>
+      {message && <Alert variant={message.type}>{message.text}</Alert>}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="newEmail" className="text-sm font-medium text-neutral-text-primary">Nuevo correo</label>
+          <Input id="newEmail" type="email" placeholder="nuevo@correo.com" {...register('newEmail')} />
+          {errors.newEmail && <p className="text-sm text-status-error">{errors.newEmail.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="emailPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
+          <Input id="emailPassword" type="password" {...register('password')} />
+          {errors.password && <p className="text-sm text-status-error">{errors.password.message}</p>}
+        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+function DeactivateSection() {
+  const deactivateMutation = useRequestDeactivation()
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [password, setPassword] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const handleDeactivate = async () => {
+    setMessage(null)
+    try {
+      await deactivateMutation.mutateAsync({ password })
+      setMessage({ type: 'success', text: 'Se envió un código de confirmación a tu correo para desactivar la cuenta.' })
+      setShowConfirm(false)
+      setPassword('')
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof ApiClientError ? error.message : 'Error al solicitar desactivación.',
+      })
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4 border-status-error/20">
+      <h2 className="text-lg font-semibold text-status-error">Desactivar Cuenta</h2>
+      <p className="text-sm text-neutral-text-muted">
+        Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
+      </p>
+      {message && <Alert variant={message.type}>{message.text}</Alert>}
+      {!showConfirm ? (
+        <Button variant="outline" onClick={() => setShowConfirm(true)} className="text-status-error border-status-error/30">
+          Desactivar mi cuenta
+        </Button>
+      ) : (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label htmlFor="deactivatePassword" className="text-sm font-medium text-neutral-text-primary">
+              Confirma tu contraseña
+            </label>
+            <Input
+              id="deactivatePassword"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { setShowConfirm(false); setPassword('') }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDeactivate}
+              disabled={!password || deactivateMutation.isPending}
+              className="bg-status-error hover:bg-status-error/90"
+            >
+              {deactivateMutation.isPending ? 'Procesando...' : 'Confirmar Desactivación'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}

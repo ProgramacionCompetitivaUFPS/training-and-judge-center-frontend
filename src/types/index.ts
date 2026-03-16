@@ -1,24 +1,91 @@
+// Generic API types
+export type { ApiError, PaginatedResponse, PaginationParams } from './api'
+
+// User types (new, from user.ts)
+export type {
+  UserRole,
+  UserStatus,
+  PublicUserProfile,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  AdminUserListParams,
+  AdminUserListResponse,
+  UserDashboard,
+} from './user'
+
 // Problem types
-export interface Problem {
-  id: string
-  title: string
-  difficulty: 'easy' | 'medium' | 'hard'
-  category: string[]
-  description: string
-  constraints: string[]
-  examples: Example[]
-  acceptanceRate: number
-  totalSubmissions: number
-  totalAccepted: number
-}
+export type {
+  ProblemStatus,
+  ProblemAccessibility,
+  ProblemAuthor,
+  ProblemModifier,
+  ProblemFiles,
+  LanguageOverride,
+  ProblemDetail,
+  ProblemListItem,
+  ProblemListParams,
+  ProblemListResponse,
+  CreateProblemRequest,
+  UpdateProblemRequest,
+  DeleteProblemRequest,
+  PublishResponse,
+  UnpublishResponse,
+  ProblemStatistics,
+} from './problem'
 
-export interface Example {
-  input: string
-  output: string
-  explanation?: string
-}
+// Group types
+export type {
+  GroupVisibility,
+  GroupJoinPolicy,
+  GroupRole,
+  Group,
+  GroupListItem,
+  GroupListParams,
+  GroupListResponse,
+  GroupDetail,
+  GroupStatistics,
+  GroupLead,
+  UserMembership,
+  MyGroupItem,
+  MyGroupsParams,
+  MyGroupsResponse,
+  CreateGroupRequest,
+  UpdateGroupRequest,
+  DeleteGroupRequest,
+  GroupMember,
+  AddMemberRequest,
+  ChangeMemberRoleRequest,
+  JoinRequestStatus,
+  JoinRequest,
+  CreateJoinRequestBody,
+  ProcessJoinRequestBody,
+  CreateInvitationRequest,
+  InvitationResponse,
+  InvitationListItem,
+  InvitationListResponse,
+} from './group'
 
-// Submission types
+// Submission status (used across modules)
+export type SubmissionStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'ACCEPTED'
+  | 'WRONG_ANSWER'
+  | 'TIME_LIMIT_EXCEEDED'
+  | 'MEMORY_LIMIT_EXCEEDED'
+  | 'RUNTIME_EXCEPTION'
+  | 'COMPILATION_ERROR'
+  | 'PRESENTATION_ERROR'
+  | 'SYSTEM_ERROR'
+
+// ============================================================
+// Legacy types below — kept temporarily for existing components
+// Will be replaced module by module (Phases 4-7)
+// ============================================================
+
 export interface Submission {
   id: string
   problemId: string
@@ -33,17 +100,6 @@ export interface Submission {
   totalTestCases?: number
 }
 
-export type SubmissionStatus = 
-  | 'AC'  // Accepted
-  | 'WA'  // Wrong Answer
-  | 'TLE' // Time Limit Exceeded
-  | 'MLE' // Memory Limit Exceeded
-  | 'RE'  // Runtime Error
-  | 'CE'  // Compilation Error
-  | 'PE'  // Presentation Error
-  | 'PENDING'
-
-// User types
 export interface User {
   id: string
   username: string
@@ -52,12 +108,4 @@ export interface User {
   solvedProblems: number
   totalSubmissions: number
   rank?: number
-}
-
-// Filter types
-export interface ProblemFilters {
-  difficulty?: 'easy' | 'medium' | 'hard'
-  category?: string
-  status?: 'solved' | 'attempted' | 'unsolved'
-  search?: string
 }

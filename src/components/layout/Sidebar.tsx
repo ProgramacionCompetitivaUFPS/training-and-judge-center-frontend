@@ -1,15 +1,9 @@
+import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { 
-  Home, 
-  Code2, 
-  Trophy, 
-  TrendingUp, 
-  MessageSquare, 
-  BookOpen,
-  Settings,
-  X
-} from 'lucide-react'
+import { Home, Code2, Trophy, Users, BookOpen, Settings, X, Send, Shield } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { ROUTES } from '@/lib/constants'
+import { useAuth } from '@/hooks/useAuth'
 
 interface SidebarProps {
   isOpen: boolean
@@ -19,28 +13,38 @@ interface SidebarProps {
 interface NavItem {
   icon: React.ElementType
   label: string
-  href: string
+  to: string
   badge?: number
-  active?: boolean
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: 'Inicio', href: '#', active: true },
-  { icon: Code2, label: 'Problemas', href: '#' },
-  { icon: Trophy, label: 'Competencias', href: '#', badge: 2 },
-  { icon: TrendingUp, label: 'Ranking', href: '#' },
-  { icon: MessageSquare, label: 'Discusiones', href: '#' },
-  { icon: BookOpen, label: 'Recursos', href: '#' },
+  { icon: Home, label: 'Dashboard', to: ROUTES.DASHBOARD },
+  { icon: Code2, label: 'Problemas', to: ROUTES.PROBLEMS },
+  { icon: Users, label: 'Grupos', to: ROUTES.GROUPS },
+  { icon: Trophy, label: 'Competencias', to: ROUTES.CONTESTS },
+  { icon: Send, label: 'Submissions', to: ROUTES.SUBMISSIONS },
+  { icon: BookOpen, label: 'Materiales', to: ROUTES.MATERIALS },
 ]
 
 const secondaryItems: NavItem[] = [
-  { icon: Settings, label: 'Configuración', href: '#' },
+  { icon: Settings, label: 'Configuración', to: ROUTES.SETTINGS },
 ]
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const location = useLocation()
+  const { hasRole } = useAuth()
+
+  const adminItems: NavItem[] = hasRole('ADMIN')
+    ? [{ icon: Shield, label: 'Usuarios', to: ROUTES.ADMIN_USERS }]
+    : []
+
+  const isActive = (to: string) =>
+    to === ROUTES.DASHBOARD
+      ? location.pathname === ROUTES.DASHBOARD || location.pathname === '/'
+      : location.pathname.startsWith(to)
+
   return (
     <>
-      {/* Overlay (Mobile) */}
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-neutral-text-primary/80 backdrop-blur-sm md:hidden"
@@ -48,7 +52,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           'fixed top-0 left-0 z-50 h-full w-64 bg-neutral-surface border-r border-neutral-border transition-transform duration-300 md:sticky md:top-16 md:h-[calc(100vh-4rem)]',
@@ -56,7 +59,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Mobile Header */}
           <div className="flex items-center justify-between p-4 border-b border-neutral-border md:hidden">
             <span className="text-lg font-semibold">Menú</span>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -64,17 +66,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Button>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
+              const active = isActive(item.to)
               return (
-                <a
-                  key={item.label}
-                  href={item.href}
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onClose}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    item.active
+                    active
                       ? 'bg-brand-primary-muted text-brand-primary'
                       : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
                   )}
@@ -86,44 +89,53 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       {item.badge}
                     </span>
                   )}
-                </a>
+                </Link>
               )
             })}
+            {adminItems.length > 0 && (
+              <>
+                <div className="pt-4 pb-1 px-3 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
+                  Admin
+                </div>
+                {adminItems.map((item) => {
+                  const Icon = item.icon
+                  const active = isActive(item.to)
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={onClose}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-brand-primary-muted text-brand-primary'
+                          : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
+                      )}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </>
+            )}
           </nav>
 
-          {/* Secondary Navigation */}
           <div className="p-4 border-t border-neutral-border space-y-1">
             {secondaryItems.map((item) => {
               const Icon = item.icon
               return (
-                <a
-                  key={item.label}
-                  href={item.href}
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={onClose}
                   className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary transition-colors"
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   <span>{item.label}</span>
-                </a>
+                </Link>
               )
             })}
-          </div>
-
-          {/* User Stats (Optional) */}
-          <div className="p-4 border-t border-neutral-border bg-neutral-background">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-text-muted">Resueltos</span>
-                <span className="font-semibold text-neutral-text-primary">
-                  45/150
-                </span>
-              </div>
-              <div className="w-full bg-neutral-border rounded-full h-2">
-                <div
-                  className="bg-brand-primary h-2 rounded-full"
-                  style={{ width: '30%' }}
-                />
-              </div>
-            </div>
           </div>
         </div>
       </aside>
