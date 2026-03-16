@@ -155,9 +155,9 @@ export function GroupsPage() {
                 <Input placeholder="Buscar grupos..." className="pl-9" onChange={(e) => handleSearchAll(e.target.value)} />
               </div>
               <Select onValueChange={(v) => setAllParams((p) => ({ ...p, joinPolicy: v === 'ALL' ? undefined : v as GroupListParams['joinPolicy'], page: 1 }))} defaultValue="ALL">
-                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Política" /></SelectTrigger>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Política de ingreso" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Todas las políticas</SelectItem>
+                  <SelectItem value="ALL">Toda política</SelectItem>
                   <SelectItem value="OPEN">Abierto</SelectItem>
                   <SelectItem value="REQUEST">Solicitud</SelectItem>
                   <SelectItem value="INVITE">Invitación</SelectItem>
