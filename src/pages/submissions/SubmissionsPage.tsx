@@ -2,16 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileCode2, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge } from '@/components/ui'
-import { EmptyState } from '@/components/patterns'
+import { DataTable, EmptyState } from '@/components/patterns'
+import type { Column } from '@/components/patterns/DataTable'
 import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import {
   Pagination, PaginationContent, PaginationItem,
   PaginationLink, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Card, CardContent } from '@/components/ui/Card'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -28,6 +26,67 @@ const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'RUNNING', label: 'Running' },
+]
+
+const columns: Column<SubmissionListItem>[] = [
+  {
+    key: 'status',
+    label: 'Veredicto',
+    width: '160px',
+    render: (sub) => <SubmissionStatusBadge status={sub.status} />,
+  },
+  {
+    key: 'problem',
+    label: 'Problema',
+    render: (sub) => (
+      <div>
+        <span className="font-medium text-neutral-text-primary">{sub.problem.title}</span>
+        <span className="block text-xs text-neutral-text-muted font-mono">{sub.problem.slug}</span>
+      </div>
+    ),
+  },
+  {
+    key: 'language',
+    label: 'Lenguaje',
+    width: '120px',
+    render: (sub) => {
+      const label = PROGRAMMING_LANGUAGES.find((l) => l.value === sub.language)?.label ?? sub.language
+      return <span className="text-sm font-mono text-neutral-text-muted">{label}</span>
+    },
+  },
+  {
+    key: 'executionTime',
+    label: 'Tiempo',
+    width: '100px',
+    align: 'right',
+    render: (sub) => (
+      <span className="text-sm text-neutral-text-muted">
+        {sub.executionTime != null ? `${sub.executionTime} ms` : '—'}
+      </span>
+    ),
+  },
+  {
+    key: 'memoryUsed',
+    label: 'Memoria',
+    width: '100px',
+    align: 'right',
+    render: (sub) => (
+      <span className="text-sm text-neutral-text-muted">
+        {sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '—'}
+      </span>
+    ),
+  },
+  {
+    key: 'submittedAt',
+    label: 'Fecha',
+    width: '160px',
+    align: 'right',
+    render: (sub) => (
+      <span className="text-xs text-neutral-text-muted">
+        {new Date(sub.submittedAt).toLocaleString('es')}
+      </span>
+    ),
+  },
 ]
 
 export function SubmissionsPage() {
@@ -80,7 +139,7 @@ export function SubmissionsPage() {
             }
             defaultValue="ALL"
           >
-            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Veredicto" /></SelectTrigger>
+            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Veredicto" /></SelectTrigger>
             <SelectContent>
               {VERDICT_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -107,29 +166,21 @@ export function SubmissionsPage() {
           </Select>
         </div>
 
-        {/* Content */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : submissions.length === 0 ? (
+        {/* Table */}
+        {!isLoading && submissions.length === 0 ? (
           <EmptyState
             icon={FileCode2}
             title="No hay submissions"
             description="Aún no has enviado ninguna solución. Ve a un problema y envía tu código."
           />
         ) : (
-          <div className="space-y-2">
-            {submissions.map((sub) => (
-              <SubmissionRow
-                key={sub.id}
-                submission={sub}
-                onClick={() => navigate(`/submissions/${sub.id}`)}
-              />
-            ))}
-          </div>
+          <DataTable<SubmissionListItem>
+            columns={columns}
+            data={submissions}
+            isLoading={isLoading}
+            onRowClick={(sub) => navigate(`/submissions/${sub.id}`)}
+            emptyMessage="No hay submissions con los filtros seleccionados"
+          />
         )}
 
         {/* Pagination */}
@@ -161,39 +212,5 @@ export function SubmissionsPage() {
         )}
       </div>
     </AppLayout>
-  )
-}
-
-// === Sub-component ===
-
-function SubmissionRow({ submission, onClick }: { submission: SubmissionListItem; onClick: () => void }) {
-  const langLabel = PROGRAMMING_LANGUAGES.find((l) => l.value === submission.language)?.label ?? submission.language
-
-  return (
-    <Card className="cursor-pointer hover:border-brand-primary/30 transition-colors" onClick={onClick}>
-      <CardContent className="flex items-center justify-between py-3 px-5">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <SubmissionStatusBadge status={submission.status} />
-          <div className="min-w-0">
-            <span className="font-medium text-neutral-text-primary truncate block">
-              {submission.problem.title}
-            </span>
-            <span className="text-xs text-neutral-text-muted font-mono">{submission.problem.slug}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 text-sm text-neutral-text-muted shrink-0">
-          <Badge variant="outline">{langLabel}</Badge>
-          {submission.executionTime != null && (
-            <span>{submission.executionTime} ms</span>
-          )}
-          {submission.memoryUsed != null && (
-            <span>{submission.memoryUsed} MiB</span>
-          )}
-          <span className="text-xs">
-            {new Date(submission.submittedAt).toLocaleString('es')}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
