@@ -54,6 +54,7 @@ export const ROUTES = {
   CONTEST_DETAIL: '/contests/:id',
   MATERIALS: '/materials',
   SUBMISSIONS: '/submissions',
+  SUBMISSION_DETAIL: '/submissions/:id',
   TEAMS: '/teams',
   PROFILE: '/profile',
   PROFILE_PUBLIC: '/users/:nickname',
