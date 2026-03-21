@@ -926,3 +926,294 @@ export function buildMySubmissionsList(params: {
     },
   }
 }
+
+// === Mock Contests ===
+
+import type {
+  ContestDetail,
+  ContestListItem,
+  StandingEntry,
+  ContestSubmissionItem,
+} from '@/types/contest'
+
+// Helper to compute contest status
+function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
+  const now = Date.now()
+  const start = new Date(startTime).getTime()
+  const end = new Date(endTime).getTime()
+  if (now < start) return 'SCHEDULED'
+  if (now <= end) return 'ACTIVE'
+  return 'FINISHED'
+}
+
+const now = new Date()
+const inTwoDays = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)
+const inTwoDaysEnd = new Date(inTwoDays.getTime() + 5 * 60 * 60 * 1000)
+const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+const yesterdayEnd = new Date(yesterday.getTime() + 3 * 60 * 60 * 1000)
+const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
+
+export const mockContests: ContestDetail[] = [
+  {
+    id: 'contest-1',
+    name: 'Contest Semanal #12',
+    description: 'Contest de práctica semanal enfocado en programación dinámica y grafos.',
+    startTime: inTwoDays.toISOString(),
+    endTime: inTwoDaysEnd.toISOString(),
+    duration: 18000,
+    status: 'SCHEDULED',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 25,
+    isRegistered: false,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [],
+    createdAt: '2026-03-15T10:00:00Z',
+    updatedAt: '2026-03-15T10:00:00Z',
+  },
+  {
+    id: 'contest-2',
+    name: 'Práctica Grafos',
+    description: 'Problemas de grafos: BFS, DFS, Dijkstra, MST.',
+    startTime: oneHourAgo.toISOString(),
+    endTime: inFourHours.toISOString(),
+    duration: 18000,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: true,
+    locked: false,
+    participantCount: 18,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u1', nickname: 'luisadmin' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+      { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256 },
+    ],
+    createdAt: '2026-03-10T08:00:00Z',
+    updatedAt: '2026-03-18T12:00:00Z',
+  },
+  {
+    id: 'contest-3',
+    name: 'Challenge Algoritmos Clásicos',
+    description: 'Competencia de algoritmos clásicos: sorting, búsqueda, DP.',
+    startTime: yesterday.toISOString(),
+    endTime: yesterdayEnd.toISOString(),
+    duration: 10800,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: null,
+    enablePostContest: false,
+    locked: true,
+    participantCount: 42,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+      { position: 3, slug: 'dynamic-knapsack', title: 'Dynamic Knapsack', timeLimit: 2000, memoryLimit: 256 },
+      { position: 4, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256 },
+    ],
+    createdAt: '2026-03-01T10:00:00Z',
+    updatedAt: '2026-03-19T20:00:00Z',
+  },
+  {
+    id: 'contest-4',
+    name: 'Mini Contest DP',
+    description: null,
+    startTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
+    duration: 10800,
+    status: 'SCHEDULED',
+    penalty: 30,
+    freezeMinutes: 30,
+    enablePostContest: true,
+    locked: false,
+    participantCount: 5,
+    isRegistered: false,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-2', name: 'Entrenamiento Avanzado' },
+    owner: { id: 'u7', nickname: 'diegomartinez' },
+    problems: [],
+    createdAt: '2026-03-18T14:00:00Z',
+    updatedAt: '2026-03-18T14:00:00Z',
+  },
+]
+
+export function toContestListItem(c: ContestDetail): ContestListItem {
+  return {
+    id: c.id,
+    name: c.name,
+    description: c.description ? c.description.slice(0, 200) : null,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    duration: c.duration,
+    status: computeContestStatus(c.startTime, c.endTime),
+    penalty: c.penalty,
+    freezeMinutes: c.freezeMinutes,
+    enablePostContest: c.enablePostContest,
+    participantCount: c.participantCount,
+    isRegistered: c.isRegistered,
+    problemCount: c.problems.length,
+  }
+}
+
+export function buildContestList(params: {
+  groupId: string
+  page?: number
+  limit?: number
+  status?: string
+  sortBy?: string
+  sortOrder?: string
+}) {
+  let filtered = mockContests.filter((c) => c.group.id === params.groupId)
+
+  // Recompute status
+  filtered = filtered.map((c) => ({
+    ...c,
+    status: computeContestStatus(c.startTime, c.endTime),
+  }))
+
+  if (params.status) {
+    filtered = filtered.filter((c) => c.status === params.status)
+  }
+
+  const sortBy = params.sortBy || 'startTime'
+  const sortOrder = params.sortOrder || 'desc'
+  filtered.sort((a, b) => {
+    const aVal = sortBy === 'name' ? a.name : a[sortBy as keyof typeof a] as string
+    const bVal = sortBy === 'name' ? b.name : b[sortBy as keyof typeof b] as string
+    const cmp = String(aVal).localeCompare(String(bVal))
+    return sortOrder === 'desc' ? -cmp : cmp
+  })
+
+  const page = params.page || 1
+  const limit = params.limit || 20
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    data: paged.map(toContestListItem),
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
+
+// === Mock Standings ===
+
+export const mockStandings: StandingEntry[] = [
+  {
+    rank: 1,
+    participant: {
+      id: 'u3',
+      type: 'INDIVIDUAL',
+      displayName: 'carloscp',
+      nickname: 'carloscp',
+      country: 'Argentina',
+      city: 'Buenos Aires',
+      institution: 'UBA',
+    },
+    problemsSolved: 3,
+    totalPenalty: 125,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 30, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: 55, penalty: 20 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: 80, penalty: 0 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: {
+      id: 'u4',
+      type: 'INDIVIDUAL',
+      displayName: 'anagarcia',
+      nickname: 'anagarcia',
+      country: 'Chile',
+      city: 'Santiago',
+      institution: 'Universidad de Chile',
+    },
+    problemsSolved: 2,
+    totalPenalty: 90,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 25, penalty: 0 },
+      { position: 2, status: 'WRONG_ANSWER', attempts: 4, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 3, time: 65, penalty: 40 },
+    ],
+  },
+  {
+    rank: 3,
+    participant: {
+      id: 'u6',
+      type: 'INDIVIDUAL',
+      displayName: 'sofiarodriguez',
+      nickname: 'sofiarodriguez',
+      country: 'Colombia',
+      city: 'Medellín',
+      institution: 'EAFIT',
+    },
+    problemsSolved: 1,
+    totalPenalty: 45,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 2, time: 45, penalty: 20 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
+    ],
+  },
+]
+
+// === Mock Contest Submissions ===
+
+export const mockContestSubmissions: ContestSubmissionItem[] = [
+  {
+    id: 'csub-001',
+    problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
+    submittedBy: { type: 'INDIVIDUAL', nickname: 'carloscp', name: 'Carlos Pérez' },
+    language: 'cpp20',
+    submittedAt: new Date(oneHourAgo.getTime() + 30 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-002',
+    problem: { slug: 'binary-search', title: 'Binary Search', order: 2 },
+    submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
+    language: 'python310',
+    submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
+    status: 'WRONG_ANSWER',
+  },
+  {
+    id: 'csub-003',
+    problem: { slug: 'graph-bfs', title: 'Graph BFS', order: 3 },
+    submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
+    language: 'java17',
+    submittedAt: new Date(oneHourAgo.getTime() + 45 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-004',
+    problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
+    submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
+    language: 'python310',
+    submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+]

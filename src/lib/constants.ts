@@ -35,6 +35,12 @@ export const PROGRAMMING_LANGUAGES = [
   { value: 'python310', label: 'Python 3.10' },
 ] as const
 
+export const CONTEST_STATUS_CONFIG = {
+  SCHEDULED: { label: 'Programado', color: 'default' },
+  ACTIVE: { label: 'En curso', color: 'success' },
+  FINISHED: { label: 'Finalizado', color: 'outline' },
+} as const
+
 export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
@@ -51,7 +57,11 @@ export const ROUTES = {
   GROUP_DETAIL: '/groups/:id',
   GROUP_EDIT: '/groups/:id/edit',
   CONTESTS: '/contests',
+  CONTEST_NEW: '/groups/:groupId/contests/new',
   CONTEST_DETAIL: '/contests/:id',
+  CONTEST_EDIT: '/groups/:groupId/contests/:id/edit',
+  CONTEST_STANDINGS: '/contests/:id/standings',
+  CONTEST_SUBMISSIONS: '/contests/:id/submissions',
   MATERIALS: '/materials',
   SUBMISSIONS: '/submissions',
   SUBMISSION_DETAIL: '/submissions/:id',
