@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Clock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge } from '@/components/ui'
+import { Badge, Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { ContestContextBar } from '@/components/features/ContestContextBar'
+import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
 import type { ContestSubmissionsParams } from '@/types/contest'
 
@@ -16,6 +18,7 @@ function formatTime(iso: string): string {
 
 export function ContestSubmissionsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
 
   const { data: contest } = useContestDetail(id || '')
   const groupId = contest?.group.id || ''
@@ -34,28 +37,33 @@ export function ContestSubmissionsPage() {
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
   return (
-    <>
-      {contest && (
-        <ContestContextBar
-          contestId={id || ''}
-          contestName={contest.name}
-          status={contest.status}
-          endTime={contest.endTime}
-          currentView="Submissions"
-        />
-      )}
-      <AppLayout
-        showSidebar={false}
-        maxWidth="full"
-        breadcrumbs={[
-          { label: 'Competencias', href: '/contests' },
-          { label: contest?.name || '...', href: `/contests/${id}` },
-          { label: 'Submissions' },
-        ]}
-      >
-        <div className="space-y-4">
-          {/* Phase filter */}
-          <div className="flex items-center justify-end">
+    <AppLayout
+      breadcrumbs={[
+        { label: 'Competencias', href: '/contests' },
+        { label: contest?.name || '...', href: `/contests/${id}` },
+        { label: 'Submissions' },
+      ]}
+    >
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/contests/${id}`)}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-xl font-bold text-neutral-text">Submissions</h1>
+            {contest && <ContestStatusBadge status={contest.status} />}
+          </div>
+          <div className="flex items-center gap-4">
+            {contest?.status === 'ACTIVE' && contest.endTime && (
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-neutral-text-muted" />
+                <ContestCountdown
+                  targetTime={contest.endTime}
+                  className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
+                />
+              </div>
+            )}
             <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
               <SelectTrigger className="w-44">
                 <SelectValue placeholder="Fase" />
@@ -67,20 +75,22 @@ export function ContestSubmissionsPage() {
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          {data?.contest.inFreeze && (
-            <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
-              El contest está en periodo de freeze. Algunas submissions muestran estado pendiente.
-            </div>
-          )}
+        {data?.contest.inFreeze && (
+          <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
+            El contest está en periodo de freeze. Algunas submissions muestran estado pendiente.
+          </div>
+        )}
 
-          {isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : data && data.submissions.length > 0 ? (
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : data && data.submissions.length > 0 ? (
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -132,13 +142,13 @@ export function ContestSubmissionsPage() {
                 ))}
               </TableBody>
             </Table>
-          ) : (
-            <div className="text-center py-12 text-neutral-text-muted">
-              No hay submissions en este contest.
-            </div>
-          )}
-        </div>
-      </AppLayout>
-    </>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-neutral-text-muted">
+            No hay submissions en este contest.
+          </div>
+        )}
+      </div>
+    </AppLayout>
   )
 }
