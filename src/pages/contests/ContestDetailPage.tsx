@@ -42,8 +42,9 @@ function StatCell({ icon: Icon, label, value }: { icon: React.ElementType; label
   )
 }
 
-function ProblemsTable({ problems, showSubmit, onSubmit }: {
+function ProblemsTable({ problems, contestId, showSubmit, onSubmit }: {
   problems: Array<{ position: number; slug: string; title: string; timeLimit: number; memoryLimit: number }>
+  contestId?: string
   showSubmit?: boolean
   onSubmit?: (slug: string, title: string) => void
 }) {
@@ -67,7 +68,7 @@ function ProblemsTable({ problems, showSubmit, onSubmit }: {
           <TableRow key={p.slug}>
             <TableCell className="font-mono font-bold">{labels[p.position - 1] || p.position}</TableCell>
             <TableCell>
-              <Link to={`/problems/${p.slug}`} className="text-brand-primary hover:underline">
+              <Link to={`/problems/${p.slug}${contestId ? `?contest=${contestId}` : ''}`} className="text-brand-primary hover:underline">
                 {p.title}
               </Link>
             </TableCell>
@@ -243,6 +244,7 @@ export function ContestDetailPage() {
               <CardContent>
                 <ProblemsTable
                   problems={contest.problems}
+                  contestId={contest.id}
                   showSubmit={contest.isRegistered}
                   onSubmit={openSubmitDialog}
                 />
@@ -355,7 +357,7 @@ export function ContestDetailPage() {
         {
           id: 'problems',
           label: `Problemas (${contest.problems.length})`,
-          content: <ProblemsTable problems={contest.problems} />,
+          content: <ProblemsTable problems={contest.problems} contestId={contest.id} />,
         },
       ]
     : []

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Clock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button } from '@/components/ui'
@@ -111,7 +111,13 @@ export function ContestStandingsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <span className="font-medium">{entry.participant.displayName}</span>
+                        {entry.participant.nickname ? (
+                          <Link to={`/users/${entry.participant.nickname}`} className="font-medium text-brand-primary hover:underline">
+                            {entry.participant.displayName}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{entry.participant.displayName}</span>
+                        )}
                         {entry.participant.institution && (
                           <span className="text-xs text-neutral-text-muted ml-2">{entry.participant.institution}</span>
                         )}

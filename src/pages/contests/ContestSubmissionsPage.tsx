@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Clock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button } from '@/components/ui'
@@ -10,6 +10,7 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
+import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 
 function formatTime(iso: string): string {
@@ -19,22 +20,36 @@ function formatTime(iso: string): string {
 export function ContestSubmissionsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const { data: contest } = useContestDetail(id || '')
   const groupId = contest?.group.id || ''
 
   const [phase, setPhase] = useState<string>('all')
+  const [problemSlug, setProblemSlug] = useState<string>('all')
   const [page, setPage] = useState(1)
 
   const params: ContestSubmissionsParams = {
     page,
     limit: 50,
     phase: phase !== 'all' ? (phase as 'competition' | 'postcompetition') : undefined,
+    problemSlug: problemSlug !== 'all' ? problemSlug : undefined,
   }
 
   const { data, isLoading } = useContestSubmissions(groupId, id || '', params)
 
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
+
+  const selectedProblemLabel = problemSlug === 'all'
+    ? 'Todos'
+    : `Problema ${labels[(contest?.problems.find((p) => p.slug === problemSlug)?.position ?? 1) - 1] || '?'}`
+
+  // During ACTIVE contest, only own submissions are clickable
+  const canViewSubmission = (nickname: string) => {
+    if (!isActive) return true // FINISHED: all submissions viewable
+    return nickname === user?.nickname // ACTIVE: only own
+  }
 
   return (
     <AppLayout
@@ -63,6 +78,22 @@ export function ContestSubmissionsPage() {
                   className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
                 />
               </div>
+            )}
+            {/* Problem filter */}
+            {contest && contest.problems.length > 0 && (
+              <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
+                <SelectTrigger className="w-40">
+                  <span className="truncate">{selectedProblemLabel}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los problemas</SelectItem>
+                  {contest.problems.map((p) => (
+                    <SelectItem key={p.slug} value={p.slug}>
+                      {labels[p.position - 1] || p.position} - {p.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
             <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
               <SelectTrigger className="w-44">
@@ -108,38 +139,54 @@ export function ContestSubmissionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.submissions.map((sub) => (
-                  <TableRow key={sub.id}>
-                    <TableCell className="font-mono text-sm">{formatTime(sub.submittedAt)}</TableCell>
-                    <TableCell>
-                      {sub.submittedBy.type === 'INDIVIDUAL'
-                        ? sub.submittedBy.nickname
-                        : sub.submittedBy.teamName}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-mono font-bold mr-1">
-                        {labels[sub.problem.order - 1] || sub.problem.order}
-                      </span>
-                      {sub.problem.title}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{sub.language}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {sub.status === '?' ? (
-                        <Badge variant="default">?</Badge>
-                      ) : (
-                        <SubmissionStatusBadge status={sub.status as any} />
+                {data.submissions.map((sub) => {
+                  const nickname = sub.submittedBy.type === 'INDIVIDUAL' ? sub.submittedBy.nickname : null
+                  const displayName = sub.submittedBy.type === 'INDIVIDUAL'
+                    ? sub.submittedBy.nickname
+                    : sub.submittedBy.teamName
+                  const clickable = nickname && canViewSubmission(nickname)
+
+                  return (
+                    <TableRow key={sub.id}>
+                      <TableCell className="font-mono text-sm">
+                        {clickable ? (
+                          <Link to={`/submissions/${sub.id}`} className="text-brand-primary hover:underline">
+                            {formatTime(sub.submittedAt)}
+                          </Link>
+                        ) : formatTime(sub.submittedAt)}
+                      </TableCell>
+                      <TableCell>
+                        {nickname ? (
+                          <Link to={`/users/${nickname}`} className="text-brand-primary hover:underline">
+                            {displayName}
+                          </Link>
+                        ) : displayName}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono font-bold mr-1">
+                          {labels[sub.problem.order - 1] || sub.problem.order}
+                        </span>
+                        {sub.problem.title}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{sub.language}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sub.status === '?' ? (
+                          <Badge variant="default">?</Badge>
+                        ) : (
+                          <SubmissionStatusBadge status={sub.status as any} />
+                        )}
+                      </TableCell>
+                      {data.contest.status === 'FINISHED' && (
+                        <>
+                          <TableCell>{sub.executionTime != null ? `${sub.executionTime}ms` : '-'}</TableCell>
+                          <TableCell>{sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '-'}</TableCell>
+                        </>
                       )}
-                    </TableCell>
-                    {data.contest.status === 'FINISHED' && (
-                      <>
-                        <TableCell>{sub.executionTime != null ? `${sub.executionTime}ms` : '-'}</TableCell>
-                        <TableCell>{sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '-'}</TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))}
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
