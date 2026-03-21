@@ -68,44 +68,18 @@ export type {
   InvitationListResponse,
 } from './group'
 
-// Submission status (used across modules)
-export type SubmissionStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'ACCEPTED'
-  | 'WRONG_ANSWER'
-  | 'TIME_LIMIT_EXCEEDED'
-  | 'MEMORY_LIMIT_EXCEEDED'
-  | 'RUNTIME_EXCEPTION'
-  | 'COMPILATION_ERROR'
-  | 'PRESENTATION_ERROR'
-  | 'SYSTEM_ERROR'
-
-// ============================================================
-// Legacy types below — kept temporarily for existing components
-// Will be replaced module by module (Phases 4-7)
-// ============================================================
-
-export interface Submission {
-  id: string
-  problemId: string
-  userId: string
-  code: string
-  language: string
-  status: SubmissionStatus
-  runtime?: number
-  memory?: number
-  timestamp: Date
-  testCasesPassed?: number
-  totalTestCases?: number
-}
-
-export interface User {
-  id: string
-  username: string
-  email: string
-  avatar?: string
-  solvedProblems: number
-  totalSubmissions: number
-  rank?: number
-}
+// Submission types
+export type {
+  SubmissionStatus,
+  SubmissionVisibility,
+  SubmissionLanguage,
+  SubmissionCompiler,
+  SubmissionDetail,
+  SubmissionListItem,
+  MySubmissionsParams,
+  SubmissionListResponse,
+  ProblemSubmissionsParams,
+  SubmitSolutionResponse,
+  UpdateVisibilityRequest,
+  UpdateVisibilityResponse,
+} from './submission'
