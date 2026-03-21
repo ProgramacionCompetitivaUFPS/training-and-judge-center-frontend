@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, Users, Trophy, Lock } from 'lucide-react'
+import { Calendar, Clock, Users, Trophy, Lock, BarChart3, FileText } from 'lucide-react'
 import { EntityDetailPage } from '@/components/patterns'
 import { Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
@@ -117,6 +117,11 @@ export function ContestDetailPage() {
       ]
     : []
 
+  // Countdown goes in subtitle area (visible at the top, next to contest info)
+  const subtitle = contest
+    ? `${contest.group.name} · Organizador: @${contest.owner.nickname}`
+    : undefined
+
   const metadata = contest
     ? [
         { label: 'Inicio', value: formatDate(contest.startTime), icon: Calendar },
@@ -135,29 +140,15 @@ export function ContestDetailPage() {
           label: 'Información',
           content: (
             <div className="space-y-6">
-              {contest.status === 'SCHEDULED' && (
-                <ContestCountdown targetTime={contest.startTime} label="Comienza en" />
-              )}
-              {contest.status === 'ACTIVE' && (
-                <ContestCountdown targetTime={contest.endTime} label="Termina en" />
-              )}
               {contest.description && (
                 <div>
                   <h3 className="text-sm font-medium text-neutral-text-muted mb-2">Descripción</h3>
                   <p className="text-neutral-text whitespace-pre-wrap">{contest.description}</p>
                 </div>
               )}
-              <div>
-                <p className="text-sm text-neutral-text-muted">
-                  Grupo: <span className="text-neutral-text font-medium">{contest.group.name}</span>
-                </p>
-                <p className="text-sm text-neutral-text-muted">
-                  Organizador: <span className="text-neutral-text font-medium">@{contest.owner.nickname}</span>
-                </p>
-                {contest.enablePostContest && (
-                  <p className="text-sm text-status-success mt-1">Post-competencia habilitada</p>
-                )}
-              </div>
+              {contest.enablePostContest && (
+                <p className="text-sm text-status-success">Post-competencia habilitada</p>
+              )}
               {canRegister && (
                 <Button variant="primary" onClick={handleRegister} isLoading={registerMutation.isPending}>
                   Registrarse
@@ -176,44 +167,64 @@ export function ContestDetailPage() {
           label: `Problemas (${contest.problems.length})`,
           content: <ProblemsTable problems={contest.problems} />,
         },
-        {
-          id: 'standings',
-          label: 'Standings',
-          content: (
-            <div className="text-center py-8">
-              <Button variant="primary" onClick={() => navigate(`/contests/${contest.id}/standings`)}>
-                Ver standings completos
-              </Button>
-            </div>
-          ),
-        },
-        {
-          id: 'submissions',
-          label: 'Submissions',
-          content: (
-            <div className="text-center py-8">
-              <Button variant="outline" onClick={() => navigate(`/contests/${contest.id}/submissions`)}>
-                Ver submissions del contest
-              </Button>
-            </div>
-          ),
-        },
       ]
     : []
 
+  // Primary action: standings (most common action during/after contest)
+  const primaryAction = contest?.status !== 'SCHEDULED'
+    ? {
+        label: 'Standings',
+        onClick: () => navigate(`/contests/${contest!.id}/standings`),
+        icon: BarChart3,
+        variant: 'primary' as const,
+      }
+    : undefined
+
+  const additionalActions = contest
+    ? [
+        ...(contest.status !== 'SCHEDULED'
+          ? [{
+              label: 'Submissions',
+              onClick: () => navigate(`/contests/${contest.id}/submissions`),
+              icon: FileText,
+            }]
+          : []),
+      ]
+    : undefined
+
   return (
-    <EntityDetailPage
-      title={contest?.name || 'Cargando...'}
-      isLoading={isLoading}
-      breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
-        { label: contest?.name || '...' },
-      ]}
-      badges={badges}
-      metadata={metadata}
-      tabs={tabs}
-      onEdit={isLead && contest && !contest.locked ? () => navigate(`/groups/${contest.group.id}/contests/${contest.id}/edit`) : undefined}
-      onDelete={isLead && contest && !contest.locked ? handleDelete : undefined}
-    />
+    <>
+      {/* Countdown banner at the very top */}
+      {contest?.status === 'SCHEDULED' && (
+        <div className="bg-brand-primary/5 border-b border-brand-primary/20">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <ContestCountdown targetTime={contest.startTime} label="Comienza en" className="!text-left flex items-center gap-3 [&>p:first-child]:mb-0 [&>p:last-child]:text-lg" />
+          </div>
+        </div>
+      )}
+      {contest?.status === 'ACTIVE' && (
+        <div className="bg-status-success/5 border-b border-status-success/20">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <ContestCountdown targetTime={contest.endTime} label="Termina en" className="!text-left flex items-center gap-3 [&>p:first-child]:mb-0 [&>p:last-child]:text-lg" />
+          </div>
+        </div>
+      )}
+      <EntityDetailPage
+        title={contest?.name || 'Cargando...'}
+        subtitle={subtitle}
+        isLoading={isLoading}
+        breadcrumbs={[
+          { label: 'Competencias', href: '/contests' },
+          { label: contest?.name || '...' },
+        ]}
+        badges={badges}
+        metadata={metadata}
+        tabs={tabs}
+        primaryAction={primaryAction}
+        additionalActions={additionalActions}
+        onEdit={isLead && contest && !contest.locked ? () => navigate(`/groups/${contest.group.id}/contests/${contest.id}/edit`) : undefined}
+        onDelete={isLead && contest && !contest.locked ? handleDelete : undefined}
+      />
+    </>
   )
 }

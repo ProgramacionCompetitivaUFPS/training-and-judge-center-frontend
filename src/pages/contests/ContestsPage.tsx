@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Trophy, Plus, Calendar, Users, Clock } from 'lucide-react'
-import { EntityListPage, SearchAndFilter, EmptyState } from '@/components/patterns'
-import { Badge, Card, CardContent } from '@/components/ui'
+import { Trophy, Plus, Calendar, Users, Clock, Search } from 'lucide-react'
+import { EntityListPage, EmptyState } from '@/components/patterns'
+import { Badge, Card, CardContent, Input } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useContests } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
+import { useDebounce } from '@/hooks/useDebounce'
 import type { ContestListItem, ContestStatus } from '@/types/contest'
 
 function formatDate(iso: string): string {
@@ -79,6 +80,8 @@ export function ContestsPage() {
 
   const groupId = searchParams.get('groupId') || 'group-1'
   const [statusFilter, setStatusFilter] = useState<ContestStatus | 'ALL'>('ALL')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useContests(groupId, {
@@ -89,6 +92,11 @@ export function ContestsPage() {
 
   const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
+  // Client-side search filter (API doesn't support search yet)
+  const filteredItems = (data?.data || []).filter((c) =>
+    !debouncedSearch || c.name.toLowerCase().includes(debouncedSearch.toLowerCase()),
+  )
+
   return (
     <EntityListPage<ContestListItem>
       title="Competencias"
@@ -97,7 +105,7 @@ export function ContestsPage() {
         { label: 'Grupos', href: '/groups' },
         { label: 'Competencias' },
       ]}
-      items={data?.data || []}
+      items={filteredItems}
       isLoading={isLoading}
       renderItem={(contest) => (
         <ContestCard
@@ -112,37 +120,33 @@ export function ContestsPage() {
         <EmptyState
           icon={Trophy}
           title="No hay competencias"
-          description={statusFilter !== 'ALL' ? 'No hay competencias con ese filtro' : 'Aún no se han creado competencias en este grupo'}
+          description={statusFilter !== 'ALL' || debouncedSearch ? 'No hay competencias con esos filtros' : 'Aún no se han creado competencias en este grupo'}
           action={canCreate ? { label: 'Crear competencia', onClick: () => navigate(`/groups/${groupId}/contests/new`), icon: Plus } : undefined}
         />
       )}
       searchComponent={
-        <SearchAndFilter
-          searchValue=""
-          onSearchChange={() => {}}
-          searchPlaceholder="Buscar competencias..."
-          filters={[
-            {
-              key: 'status',
-              label: 'Estado',
-              component: (
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as ContestStatus | 'ALL'); setPage(1) }}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Todos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">Todos</SelectItem>
-                    <SelectItem value="SCHEDULED">Programados</SelectItem>
-                    <SelectItem value="ACTIVE">En curso</SelectItem>
-                    <SelectItem value="FINISHED">Finalizados</SelectItem>
-                  </SelectContent>
-                </Select>
-              ),
-            },
-          ]}
-          activeFiltersCount={statusFilter !== 'ALL' ? 1 : 0}
-          onClearFilters={() => setStatusFilter('ALL')}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <Input
+              placeholder="Buscar competencias..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as ContestStatus | 'ALL'); setPage(1) }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los estados</SelectItem>
+              <SelectItem value="SCHEDULED">Programados</SelectItem>
+              <SelectItem value="ACTIVE">En curso</SelectItem>
+              <SelectItem value="FINISHED">Finalizados</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       }
     />
   )
