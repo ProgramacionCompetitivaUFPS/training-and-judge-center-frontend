@@ -744,3 +744,185 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
     ],
   },
 }
+
+// === Mock Submissions ===
+
+import type { SubmissionListItem, SubmissionDetail } from '@/types/submission'
+
+export const mockSubmissions: SubmissionDetail[] = [
+  {
+    id: 'sub-001-aaaa-bbbb-cccc-ddddeeee0001',
+    status: 'ACCEPTED',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-14T18:30:00Z',
+    judgedAt: '2026-03-14T18:30:05Z',
+    problem: { slug: 'two-sum', title: 'Two Sum' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'cpp20',
+    compiler: 'g++',
+    executionTime: 45,
+    memoryUsed: 12,
+    sourceCode: '#include <iostream>\n#include <vector>\n#include <unordered_map>\nusing namespace std;\n\nint main() {\n    int n, target;\n    cin >> n >> target;\n    vector<int> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n\n    unordered_map<int, int> seen;\n    for (int i = 0; i < n; i++) {\n        int complement = target - nums[i];\n        if (seen.count(complement)) {\n            cout << seen[complement] << " " << i << endl;\n            return 0;\n        }\n        seen[nums[i]] = i;\n    }\n    return 0;\n}',
+  },
+  {
+    id: 'sub-002-aaaa-bbbb-cccc-ddddeeee0002',
+    status: 'WRONG_ANSWER',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-13T15:20:00Z',
+    judgedAt: '2026-03-13T15:20:08Z',
+    problem: { slug: 'binary-search', title: 'Binary Search' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'python310',
+    compiler: 'py',
+    executionTime: 120,
+    memoryUsed: 24,
+    sourceCode: 'def binary_search(arr, target):\n    lo, hi = 0, len(arr)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid\n    return -1\n\nn, t = map(int, input().split())\narr = list(map(int, input().split()))\nprint(binary_search(arr, t))',
+  },
+  {
+    id: 'sub-003-aaaa-bbbb-cccc-ddddeeee0003',
+    status: 'TIME_LIMIT_EXCEEDED',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-12T10:45:00Z',
+    judgedAt: '2026-03-12T10:45:12Z',
+    problem: { slug: 'merge-sort', title: 'Merge Sort' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'java17',
+    compiler: 'javac',
+    executionTime: 3000,
+    memoryUsed: 128,
+    sourceCode: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) arr[i] = sc.nextInt();\n        mergeSort(arr, 0, n - 1);\n        for (int x : arr) System.out.print(x + " ");\n    }\n\n    static void mergeSort(int[] a, int l, int r) {\n        if (l >= r) return;\n        int m = (l + r) / 2;\n        mergeSort(a, l, m);\n        mergeSort(a, m + 1, r);\n        merge(a, l, m, r);\n    }\n\n    static void merge(int[] a, int l, int m, int r) {\n        int[] tmp = Arrays.copyOfRange(a, l, r + 1);\n        int i = 0, j = m - l + 1, k = l;\n        while (i <= m - l && j <= r - l) {\n            a[k++] = tmp[i] <= tmp[j] ? tmp[i++] : tmp[j++];\n        }\n        while (i <= m - l) a[k++] = tmp[i++];\n        while (j <= r - l) a[k++] = tmp[j++];\n    }\n}',
+  },
+  {
+    id: 'sub-004-aaaa-bbbb-cccc-ddddeeee0004',
+    status: 'ACCEPTED',
+    visibility: 'PUBLIC',
+    submittedAt: '2026-03-11T20:00:00Z',
+    judgedAt: '2026-03-11T20:00:03Z',
+    problem: { slug: 'graph-bfs', title: 'Graph BFS' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'cpp20',
+    compiler: 'g++',
+    executionTime: 30,
+    memoryUsed: 8,
+    sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int n, m, s;\n    cin >> n >> m >> s;\n    vector<vector<int>> adj(n + 1);\n    for (int i = 0; i < m; i++) {\n        int u, v;\n        cin >> u >> v;\n        adj[u].push_back(v);\n        adj[v].push_back(u);\n    }\n    vector<int> dist(n + 1, -1);\n    queue<int> q;\n    dist[s] = 0;\n    q.push(s);\n    while (!q.empty()) {\n        int u = q.front(); q.pop();\n        for (int v : adj[u]) {\n            if (dist[v] == -1) {\n                dist[v] = dist[u] + 1;\n                q.push(v);\n            }\n        }\n    }\n    for (int i = 1; i <= n; i++) cout << dist[i] << " ";\n}',
+  },
+  {
+    id: 'sub-005-aaaa-bbbb-cccc-ddddeeee0005',
+    status: 'COMPILATION_ERROR',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-10T09:15:00Z',
+    judgedAt: '2026-03-10T09:15:01Z',
+    problem: { slug: 'dynamic-knapsack', title: 'Dynamic Knapsack' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'cpp20',
+    compiler: 'g++',
+    executionTime: null,
+    memoryUsed: null,
+    sourceCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n, W;\n    cin >> n >> W;\n    // missing closing brace\n    int dp[n+1][W+1];\n    for (int i = 0; i <= n; i++)\n        for (int w = 0; w <= W; w++)\n            dp[i][w] = 0;\n',
+  },
+  {
+    id: 'sub-006-aaaa-bbbb-cccc-ddddeeee0006',
+    status: 'ACCEPTED',
+    visibility: 'PUBLIC',
+    submittedAt: '2026-03-09T14:00:00Z',
+    judgedAt: '2026-03-09T14:00:04Z',
+    problem: { slug: 'two-sum', title: 'Two Sum' },
+    contest: null,
+    submittedBy: { id: 'u3', nickname: 'carloscp' },
+    language: 'python310',
+    compiler: 'py',
+    executionTime: 200,
+    memoryUsed: 32,
+    sourceCode: 'n, target = map(int, input().split())\nnums = list(map(int, input().split()))\nseen = {}\nfor i, x in enumerate(nums):\n    if target - x in seen:\n        print(seen[target - x], i)\n        break\n    seen[x] = i',
+  },
+  {
+    id: 'sub-007-aaaa-bbbb-cccc-ddddeeee0007',
+    status: 'RUNTIME_EXCEPTION',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-08T11:30:00Z',
+    judgedAt: '2026-03-08T11:30:02Z',
+    problem: { slug: 'binary-search', title: 'Binary Search' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'cpp20',
+    compiler: 'g++',
+    executionTime: 5,
+    memoryUsed: 4,
+    sourceCode: '#include <iostream>\nusing namespace std;\nint main() {\n    int n, t;\n    cin >> n >> t;\n    int a[n];\n    for (int i = 0; i < n; i++) cin >> a[i];\n    // bug: accessing out of bounds\n    cout << a[n] << endl;\n    return 0;\n}',
+  },
+  {
+    id: 'sub-008-aaaa-bbbb-cccc-ddddeeee0008',
+    status: 'PENDING',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-15T08:00:00Z',
+    judgedAt: null,
+    problem: { slug: 'dynamic-knapsack', title: 'Dynamic Knapsack' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'cpp20',
+    compiler: 'g++',
+    executionTime: null,
+    memoryUsed: null,
+    sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
+  },
+]
+
+export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
+  return {
+    id: s.id,
+    status: s.status,
+    visibility: s.visibility,
+    submittedAt: s.submittedAt,
+    problem: s.problem,
+    contest: s.contest,
+    submittedBy: s.submittedBy,
+    language: s.language,
+    executionTime: s.executionTime,
+    memoryUsed: s.memoryUsed,
+  }
+}
+
+export function buildMySubmissionsList(params: {
+  page?: number
+  limit?: number
+  verdict?: string
+  problemSlug?: string
+  language?: string
+  userNickname: string
+}) {
+  let filtered = mockSubmissions.filter((s) => s.submittedBy.nickname === params.userNickname)
+
+  if (params.verdict) {
+    filtered = filtered.filter((s) => s.status === params.verdict)
+  }
+  if (params.problemSlug) {
+    filtered = filtered.filter((s) => s.problem.slug.includes(params.problemSlug!))
+  }
+  if (params.language) {
+    filtered = filtered.filter((s) => s.language === params.language)
+  }
+
+  filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 20
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    submissions: paged.map(toSubmissionListItem),
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
