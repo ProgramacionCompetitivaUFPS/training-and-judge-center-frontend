@@ -1,21 +1,25 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { Calendar, Clock, Users, Trophy, Lock, BarChart3, FileText } from 'lucide-react'
+import { AppLayout } from '@/components/layout'
 import { EntityDetailPage } from '@/components/patterns'
-import { Button } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
+import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function formatDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('es', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 }
 
@@ -36,10 +40,10 @@ function ProblemsTable({ problems }: { problems: Array<{ position: number; slug:
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-16">#</TableHead>
+          <TableHead className="w-12">#</TableHead>
           <TableHead>Problema</TableHead>
-          <TableHead className="w-32">Tiempo</TableHead>
-          <TableHead className="w-32">Memoria</TableHead>
+          <TableHead className="w-24">Tiempo</TableHead>
+          <TableHead className="w-24">Memoria</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -109,18 +113,116 @@ export function ContestDetailPage() {
     )
   }
 
+  // === ACTIVE CONTEST: Competition mode layout ===
+  if (contest?.status === 'ACTIVE') {
+    return (
+      <AppLayout
+        showSidebar={false}
+        maxWidth="full"
+        breadcrumbs={[
+          { label: 'Competencias', href: '/contests' },
+          { label: contest.name },
+        ]}
+      >
+        <div className="space-y-6">
+          {/* Header row: title + status + actions */}
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-extrabold text-neutral-text-primary">{contest.name}</h1>
+                <ContestStatusBadge status={contest.status} />
+                {contest.isRegistered && <Badge variant="primary">Registrado</Badge>}
+              </div>
+              <p className="text-sm text-neutral-text-muted">
+                {contest.group.name} · @{contest.owner.nickname}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" className="gap-2" onClick={() => navigate(`/contests/${contest.id}/standings`)}>
+                <BarChart3 className="h-4 w-4" />
+                Standings
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => navigate(`/contests/${contest.id}/submissions`)}>
+                <FileText className="h-4 w-4" />
+                Submissions
+              </Button>
+            </div>
+          </div>
+
+          {/* Two-column: countdown+info | problems */}
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+            {/* Left: countdown + compact info */}
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <ContestCountdown targetTime={contest.endTime} label="Tiempo restante" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6 space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-neutral-text-muted" />
+                    <span className="text-neutral-text-muted">Duración:</span>
+                    <span className="font-medium">{formatDuration(contest.duration)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="h-4 w-4 text-neutral-text-muted" />
+                    <span className="text-neutral-text-muted">Participantes:</span>
+                    <span className="font-medium">{contest.participantCount}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Trophy className="h-4 w-4 text-neutral-text-muted" />
+                    <span className="text-neutral-text-muted">Penalización:</span>
+                    <span className="font-medium">{contest.penalty} min</span>
+                  </div>
+                  {contest.freezeMinutes != null && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Lock className="h-4 w-4 text-neutral-text-muted" />
+                      <span className="text-neutral-text-muted">Freeze:</span>
+                      <span className="font-medium">{contest.freezeMinutes} min antes</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-neutral-text-muted" />
+                    <span className="text-neutral-text-muted">Fin:</span>
+                    <span className="font-medium">{formatDateShort(contest.endTime)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {contest.description && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-neutral-text whitespace-pre-wrap">{contest.description}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right: problems table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Problemas ({contest.problems.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ProblemsTable problems={contest.problems} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // === SCHEDULED / FINISHED: Standard detail layout ===
   const badges = contest
     ? [
-        { label: contest.status === 'SCHEDULED' ? 'Programado' : contest.status === 'ACTIVE' ? 'En curso' : 'Finalizado', variant: contest.status === 'ACTIVE' ? 'success' as const : 'default' as const },
+        { label: contest.status === 'SCHEDULED' ? 'Programado' : 'Finalizado', variant: 'default' as const },
         ...(contest.isRegistered ? [{ label: 'Registrado', variant: 'primary' as const }] : []),
         ...(contest.locked ? [{ label: 'Bloqueado', variant: 'warning' as const }] : []),
       ]
     : []
-
-  // Countdown goes in subtitle area (visible at the top, next to contest info)
-  const subtitle = contest
-    ? `${contest.group.name} · Organizador: @${contest.owner.nickname}`
-    : undefined
 
   const metadata = contest
     ? [
@@ -140,15 +242,26 @@ export function ContestDetailPage() {
           label: 'Información',
           content: (
             <div className="space-y-6">
+              {contest.status === 'SCHEDULED' && (
+                <ContestCountdown targetTime={contest.startTime} label="Comienza en" />
+              )}
               {contest.description && (
                 <div>
                   <h3 className="text-sm font-medium text-neutral-text-muted mb-2">Descripción</h3>
                   <p className="text-neutral-text whitespace-pre-wrap">{contest.description}</p>
                 </div>
               )}
-              {contest.enablePostContest && (
-                <p className="text-sm text-status-success">Post-competencia habilitada</p>
-              )}
+              <div>
+                <p className="text-sm text-neutral-text-muted">
+                  Grupo: <span className="text-neutral-text font-medium">{contest.group.name}</span>
+                </p>
+                <p className="text-sm text-neutral-text-muted">
+                  Organizador: <span className="text-neutral-text font-medium">@{contest.owner.nickname}</span>
+                </p>
+                {contest.enablePostContest && (
+                  <p className="text-sm text-status-success mt-1">Post-competencia habilitada</p>
+                )}
+              </div>
               {canRegister && (
                 <Button variant="primary" onClick={handleRegister} isLoading={registerMutation.isPending}>
                   Registrarse
@@ -170,61 +283,30 @@ export function ContestDetailPage() {
       ]
     : []
 
-  // Primary action: standings (most common action during/after contest)
-  const primaryAction = contest?.status !== 'SCHEDULED'
-    ? {
-        label: 'Standings',
-        onClick: () => navigate(`/contests/${contest!.id}/standings`),
-        icon: BarChart3,
-        variant: 'primary' as const,
-      }
+  const primaryAction = contest?.status === 'FINISHED'
+    ? { label: 'Standings', onClick: () => navigate(`/contests/${contest.id}/standings`), icon: BarChart3, variant: 'primary' as const }
     : undefined
 
-  const additionalActions = contest
-    ? [
-        ...(contest.status !== 'SCHEDULED'
-          ? [{
-              label: 'Submissions',
-              onClick: () => navigate(`/contests/${contest.id}/submissions`),
-              icon: FileText,
-            }]
-          : []),
-      ]
+  const additionalActions = contest?.status === 'FINISHED'
+    ? [{ label: 'Submissions', onClick: () => navigate(`/contests/${contest.id}/submissions`), icon: FileText }]
     : undefined
 
   return (
-    <>
-      {/* Countdown banner at the very top */}
-      {contest?.status === 'SCHEDULED' && (
-        <div className="bg-brand-primary/5 border-b border-brand-primary/20">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <ContestCountdown targetTime={contest.startTime} label="Comienza en" className="!text-left flex items-center gap-3 [&>p:first-child]:mb-0 [&>p:last-child]:text-lg" />
-          </div>
-        </div>
-      )}
-      {contest?.status === 'ACTIVE' && (
-        <div className="bg-status-success/5 border-b border-status-success/20">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <ContestCountdown targetTime={contest.endTime} label="Termina en" className="!text-left flex items-center gap-3 [&>p:first-child]:mb-0 [&>p:last-child]:text-lg" />
-          </div>
-        </div>
-      )}
-      <EntityDetailPage
-        title={contest?.name || 'Cargando...'}
-        subtitle={subtitle}
-        isLoading={isLoading}
-        breadcrumbs={[
-          { label: 'Competencias', href: '/contests' },
-          { label: contest?.name || '...' },
-        ]}
-        badges={badges}
-        metadata={metadata}
-        tabs={tabs}
-        primaryAction={primaryAction}
-        additionalActions={additionalActions}
-        onEdit={isLead && contest && !contest.locked ? () => navigate(`/groups/${contest.group.id}/contests/${contest.id}/edit`) : undefined}
-        onDelete={isLead && contest && !contest.locked ? handleDelete : undefined}
-      />
-    </>
+    <EntityDetailPage
+      title={contest?.name || 'Cargando...'}
+      subtitle={contest ? `${contest.group.name} · Organizador: @${contest.owner.nickname}` : undefined}
+      isLoading={isLoading}
+      breadcrumbs={[
+        { label: 'Competencias', href: '/contests' },
+        { label: contest?.name || '...' },
+      ]}
+      badges={badges}
+      metadata={metadata}
+      tabs={tabs}
+      primaryAction={primaryAction}
+      additionalActions={additionalActions}
+      onEdit={isLead && contest && !contest.locked ? () => navigate(`/groups/${contest.group.id}/contests/${contest.id}/edit`) : undefined}
+      onDelete={isLead && contest && !contest.locked ? handleDelete : undefined}
+    />
   )
 }
