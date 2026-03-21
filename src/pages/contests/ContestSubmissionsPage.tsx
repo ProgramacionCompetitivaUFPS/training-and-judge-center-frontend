@@ -41,10 +41,6 @@ export function ContestSubmissionsPage() {
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
 
-  const selectedProblemLabel = problemSlug === 'all'
-    ? 'Todos'
-    : `Problema ${labels[(contest?.problems.find((p) => p.slug === problemSlug)?.position ?? 1) - 1] || '?'}`
-
   // During ACTIVE contest, only own submissions are clickable
   const canViewSubmission = (nickname: string) => {
     if (!isActive) return true // FINISHED: all submissions viewable
@@ -69,43 +65,44 @@ export function ContestSubmissionsPage() {
             <h1 className="text-xl font-bold text-neutral-text">Submissions</h1>
             {contest && <ContestStatusBadge status={contest.status} />}
           </div>
-          <div className="flex items-center gap-4">
-            {contest?.status === 'ACTIVE' && contest.endTime && (
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-neutral-text-muted" />
-                <ContestCountdown
-                  targetTime={contest.endTime}
-                  className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
-                />
-              </div>
-            )}
-            {/* Problem filter */}
-            {contest && contest.problems.length > 0 && (
-              <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
-                <SelectTrigger className="w-40">
-                  <span className="truncate">{selectedProblemLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los problemas</SelectItem>
-                  {contest.problems.map((p) => (
-                    <SelectItem key={p.slug} value={p.slug}>
-                      {labels[p.position - 1] || p.position} - {p.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Fase" />
+          {contest?.status === 'ACTIVE' && contest.endTime && (
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-neutral-text-muted" />
+              <ContestCountdown
+                targetTime={contest.endTime}
+                className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex items-center gap-3">
+          {contest && contest.problems.length > 0 && (
+            <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Todos los problemas" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las fases</SelectItem>
-                <SelectItem value="competition">Competencia</SelectItem>
-                <SelectItem value="postcompetition">Post-competencia</SelectItem>
+                <SelectItem value="all">Todos los problemas</SelectItem>
+                {contest.problems.map((p) => (
+                  <SelectItem key={p.slug} value={p.slug}>
+                    {labels[p.position - 1] || p.position} - {p.title}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-          </div>
+          )}
+          <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todas las fases" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las fases</SelectItem>
+              <SelectItem value="competition">Competencia</SelectItem>
+              <SelectItem value="postcompetition">Post-competencia</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {data?.contest.inFreeze && (
