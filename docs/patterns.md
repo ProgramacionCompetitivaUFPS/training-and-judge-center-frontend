@@ -389,6 +389,63 @@ function NoProblems() {
 
 ---
 
+## Patrones de UI
+
+### 8. Filter Bar
+
+**Uso:** Barra de filtros para vistas de listado o tablas con múltiples criterios de filtrado.
+
+**Características:**
+- Contenedor visual con fondo `neutral-surface`, borde y padding
+- Label "Filtrar:" como contexto visual
+- Selects con fondo `neutral-bg` para contraste contra la superficie
+- Triggers con ancho suficiente para evitar truncamiento (mínimo `w-48`, `w-56` para textos largos)
+- Se ubica en su propia fila debajo del header, nunca dentro del header
+
+**Estructura:**
+
+```tsx
+<div className="flex items-center gap-3 rounded-lg border border-neutral-border bg-neutral-surface px-4 py-2.5">
+  <span className="text-sm text-neutral-text-muted shrink-0">Filtrar:</span>
+  <Select value={filter1} onValueChange={setFilter1}>
+    <SelectTrigger className="w-56 bg-neutral-bg">
+      <SelectValue placeholder="Todos" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Todos</SelectItem>
+      {/* items */}
+    </SelectContent>
+  </Select>
+  <Select value={filter2} onValueChange={setFilter2}>
+    <SelectTrigger className="w-48 bg-neutral-bg">
+      <SelectValue placeholder="Todas las categorías" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Todas las categorías</SelectItem>
+      {/* items */}
+    </SelectContent>
+  </Select>
+</div>
+```
+
+**Reglas de diseño:**
+- Siempre usar `value="all"` como sentinel (Radix no permite `value=""`)
+- Usar `SelectValue` con placeholder, no texto manual con truncamiento
+- Dar ancho suficiente al trigger para que el texto más largo quepa sin truncar
+- Usar `bg-neutral-bg` en triggers para que contrasten contra `bg-neutral-surface` del contenedor
+- Ubicar la filter bar como elemento independiente, separado del header por `space-y-4`
+
+**Referencia:** `ContestSubmissionsPage.tsx` (implementación actual)
+
+**Páginas que necesitan adoptar este patrón:**
+- `ProblemsPage` — filtros de status, accessibility, tags
+- `SubmissionsPage` — filtros de status, lenguaje
+- `ContestsPage` — filtros de status
+- `UsersListPage` — filtros de rol, status
+- Cualquier vista futura con filtros
+
+---
+
 ## Beneficios de los Patrones
 
 1. **Consistencia:** Todas las páginas similares se ven y funcionan igual
@@ -410,6 +467,7 @@ function NoProblems() {
 | StatsGrid | Necesitas mostrar métricas/estadísticas |
 | SearchAndFilter | Necesitas búsqueda + múltiples filtros |
 | EmptyState | Necesitas mostrar un estado vacío |
+| Filter Bar | Necesitas filtros en una vista de listado/tabla |
 
 ---
 
