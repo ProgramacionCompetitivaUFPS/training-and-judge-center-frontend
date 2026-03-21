@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, Users, Trophy, Lock, BarChart3, FileText } from 'lucide-react'
+import { Calendar, Clock, Users, Trophy, Lock, BarChart3, FileText, Send } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { AppLayout } from '@/components/layout'
 import { EntityDetailPage } from '@/components/patterns'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -31,7 +34,11 @@ function formatDuration(seconds: number): string {
   return `${minutes}min`
 }
 
-function ProblemsTable({ problems }: { problems: Array<{ position: number; slug: string; title: string; timeLimit: number; memoryLimit: number }> }) {
+function ProblemsTable({ problems, showSubmit, onSubmit }: {
+  problems: Array<{ position: number; slug: string; title: string; timeLimit: number; memoryLimit: number }>
+  showSubmit?: boolean
+  onSubmit?: (slug: string, title: string) => void
+}) {
   if (problems.length === 0) {
     return <p className="text-neutral-text-muted text-sm py-4">Los problemas se mostrarán cuando el contest inicie.</p>
   }
@@ -44,15 +51,28 @@ function ProblemsTable({ problems }: { problems: Array<{ position: number; slug:
           <TableHead>Problema</TableHead>
           <TableHead className="w-24">Tiempo</TableHead>
           <TableHead className="w-24">Memoria</TableHead>
+          {showSubmit && <TableHead className="w-24" />}
         </TableRow>
       </TableHeader>
       <TableBody>
         {problems.map((p) => (
           <TableRow key={p.slug}>
             <TableCell className="font-mono font-bold">{labels[p.position - 1] || p.position}</TableCell>
-            <TableCell>{p.title}</TableCell>
+            <TableCell>
+              <Link to={`/problems/${p.slug}`} className="text-brand-primary hover:underline">
+                {p.title}
+              </Link>
+            </TableCell>
             <TableCell>{p.timeLimit}ms</TableCell>
             <TableCell>{p.memoryLimit} MiB</TableCell>
+            {showSubmit && (
+              <TableCell>
+                <Button variant="ghost" size="sm" className="gap-1" onClick={() => onSubmit?.(p.slug, p.title)}>
+                  <Send className="h-3.5 w-3.5" />
+                  Enviar
+                </Button>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
@@ -76,6 +96,15 @@ export function ContestDetailPage() {
   const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
   const canRegister = user?.role === 'CONTESTANT' && contest?.status === 'SCHEDULED' && !contest?.isRegistered
   const canUnregister = contest?.status === 'SCHEDULED' && contest?.isRegistered
+
+  // Submit dialog state
+  const [submitOpen, setSubmitOpen] = useState(false)
+  const [submitProblem, setSubmitProblem] = useState<{ slug: string; title: string } | null>(null)
+
+  const openSubmitDialog = (slug: string, title: string) => {
+    setSubmitProblem({ slug, title })
+    setSubmitOpen(true)
+  }
 
   const handleRegister = () => {
     if (!contest) return
@@ -117,8 +146,6 @@ export function ContestDetailPage() {
   if (contest?.status === 'ACTIVE') {
     return (
       <AppLayout
-        showSidebar={false}
-        maxWidth="full"
         breadcrumbs={[
           { label: 'Competencias', href: '/contests' },
           { label: contest.name },
@@ -206,11 +233,27 @@ export function ContestDetailPage() {
                 <CardTitle>Problemas ({contest.problems.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <ProblemsTable problems={contest.problems} />
+                <ProblemsTable
+                  problems={contest.problems}
+                  showSubmit={contest.isRegistered}
+                  onSubmit={openSubmitDialog}
+                />
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Submit dialog */}
+        {submitProblem && (
+          <SubmitSolutionDialog
+            open={submitOpen}
+            onOpenChange={setSubmitOpen}
+            problemSlug={submitProblem.slug}
+            problemTitle={submitProblem.title}
+            contestId={contest.id}
+            groupId={contest.group.id}
+          />
+        )}
       </AppLayout>
     )
   }

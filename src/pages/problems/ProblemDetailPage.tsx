@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3 } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { LatexRenderer } from '@/components/features/LatexRenderer'
+import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/ui/ToastProvider'
@@ -26,6 +27,7 @@ export function ProblemDetailPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -108,8 +110,15 @@ export function ProblemDetailPage() {
           </div>
 
           {/* Actions */}
-          {canEdit && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {problem.status === 'PUBLISHED' && (
+              <Button variant="primary" onClick={() => setSubmitDialogOpen(true)}>
+                <Send className="h-4 w-4 mr-2" />
+                Enviar solución
+              </Button>
+            )}
+            {canEdit && (
+              <>
               {problem.status === 'DRAFT' && (
                 <Button variant="primary" onClick={handlePublish} isLoading={publishMutation.isPending}>
                   <ArrowUpCircle className="h-4 w-4 mr-2" />
@@ -132,8 +141,9 @@ export function ProblemDetailPage() {
                   Eliminar
                 </Button>
               )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Metadata grid */}
@@ -331,6 +341,14 @@ export function ProblemDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Submit solution dialog */}
+      <SubmitSolutionDialog
+        open={submitDialogOpen}
+        onOpenChange={setSubmitDialogOpen}
+        problemSlug={problem.slug}
+        problemTitle={problem.title}
+      />
     </AppLayout>
   )
 }
