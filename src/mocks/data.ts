@@ -1403,7 +1403,27 @@ Practica estos problemas en orden de dificultad:
 - [CSES Problem Set — DP Section](https://cses.fi/problemset/)
 - [Competitive Programming Handbook, Cap. 7](https://cses.fi/book/book.pdf)
 
-**La próxima semana** veremos DP sobre árboles y DP con bitmask. ¡Prepárense!`,
+**La próxima semana** veremos DP sobre árboles y DP con bitmask. ¡Prepárense!
+
+---
+
+## Apéndice: Análisis de Complejidad
+
+La complejidad del Knapsack 0/1 se puede expresar formalmente:
+
+$$T(n, W) = O(n \\cdot W)$$
+
+Donde $n$ es el número de objetos y $W$ la capacidad máxima. Esto es **pseudo-polinomial** porque $W$ no es polinomial en el tamaño de la entrada (número de bits).
+
+Para Fibonacci con memoización, la recurrencia satisface:
+
+$$F(n) = F(n-1) + F(n-2), \\quad F(0) = 0, \\quad F(1) = 1$$
+
+Y la forma cerrada (fórmula de Binet) es:
+
+$$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\frac{1 + \\sqrt{5}}{2}$$
+
+> **Nota**: En competencia, rara vez necesitas la forma cerrada. Pero entender que $F(n) \\in O(\\phi^n)$ te ayuda a estimar si una solución recursiva sin memo es viable.`,
     tags: ['algorithms', 'dp', 'competitive-programming', 'tutorial', 'resources'],
     status: 'PUBLISHED',
     pinned: false,

@@ -1,9 +1,12 @@
 import { useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
 import type { Components } from 'react-markdown'
 import { cn } from '@/lib/utils'
+import 'katex/dist/katex.min.css'
 import 'highlight.js/styles/stackoverflow-light.css'
 import './markdown.css'
 
@@ -55,14 +58,27 @@ const components: Components = {
   },
 }
 
+/**
+ * Normalizes LaTeX delimiters to the $...$ / $$...$$ format
+ * that remark-math expects.
+ * Handles \(...\) → $...$ and \[...\] → $$...$$
+ * Supports both single and double backslash variants.
+ */
+function normalizeLatex(text: string): string {
+  return text
+    .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (_match, p1) => `$$${p1.trim()}$$`)
+    .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_match, p1) => `$${p1.trim()}$`)
+}
+
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
-  const plugins = useMemo(() => [remarkGfm], [])
-  const rehypePlugins = useMemo(() => [rehypeHighlight], [])
+  const remarkPlugins = useMemo(() => [remarkGfm, remarkMath], [])
+  const rehypePlugins = useMemo(() => [rehypeKatex, rehypeHighlight], [])
+  const normalized = useMemo(() => normalizeLatex(content), [content])
 
   return (
     <div className={cn('markdown-body', className)}>
-      <ReactMarkdown remarkPlugins={plugins} rehypePlugins={rehypePlugins} components={components}>
-        {content}
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
+        {normalized}
       </ReactMarkdown>
     </div>
   )

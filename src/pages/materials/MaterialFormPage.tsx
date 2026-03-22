@@ -17,7 +17,7 @@ import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,
 } from '@/lib/schemas/material'
-import { BookOpen, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -142,9 +142,14 @@ export function MaterialFormPage() {
               placeholder={'# Mi Material\n\nEscribe aquí el contenido en Markdown...'}
               className="font-mono text-sm"
             />
-            <p className="text-xs text-neutral-text-muted mt-1">
-              {content.length} / 50000 caracteres
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-neutral-text-muted">
+                Soporta Markdown, código con sintaxis y fórmulas matemáticas con <code className="bg-brand-primary-muted text-brand-primary px-1 rounded">$...$</code> (inline) y <code className="bg-brand-primary-muted text-brand-primary px-1 rounded">$$...$$</code> (bloque).
+              </p>
+              <p className="text-xs text-neutral-text-muted">
+                {content.length} / 50000
+              </p>
+            </div>
           </TabsContent>
           <TabsContent value="preview">
             <div className="min-h-[300px] rounded-lg border border-neutral-border p-4">
@@ -167,7 +172,7 @@ export function MaterialFormPage() {
       breadcrumbs={[
         { label: 'Grupos', href: '/groups' },
         { label: 'Grupo', href: `/groups/${groupId}` },
-        { label: 'Materiales', href: `/groups/${groupId}/materials`, icon: BookOpen },
+        { label: 'Materiales', href: `/groups/${groupId}/materials` },
         { label: isEditing ? 'Editar' : 'Nuevo' },
       ]}
       onSubmit={form.handleSubmit(onSubmit)}
