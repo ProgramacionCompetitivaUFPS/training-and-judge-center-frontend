@@ -118,3 +118,23 @@ export type {
   CreateMaterialRequest,
   UpdateMaterialRequest,
 } from './material'
+
+// Team types
+export type {
+  TeamMember,
+  TeamDetail,
+  MyTeamItem,
+  MyTeamsParams,
+  MyTeamsResponse,
+  TeamInvitationItem,
+  TeamInvitationsResponse,
+  CreateTeamRequest,
+  CreateTeamResponse,
+  InviteTeamMemberRequest,
+  TeamInvitationResponse,
+  AcceptInvitationResponse,
+  RegisterTeamToContestRequest,
+  ContestTeamRegistration,
+  UpdateTeamRegistrationRequest,
+  ContestTeamRegistrationsResponse,
+} from './team'
