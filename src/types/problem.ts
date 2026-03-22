@@ -28,12 +28,21 @@ export interface LanguageOverride {
   memoryLimit?: number
 }
 
+export interface ProblemExample {
+  input: string
+  output: string
+  explanation?: string
+}
+
 // === Detalle completo (GET /problems/:slug) ===
 
 export interface ProblemDetail {
   slug: string
   title: string
   statement: string | null
+  inputFormat: string | null
+  outputFormat: string | null
+  examples: ProblemExample[]
   timeLimit: number | null
   memoryLimit: number | null
   languageOverrides: LanguageOverride[]

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock } from 'lucide-react'
+import { ArrowLeft, Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
@@ -158,7 +158,12 @@ export function ContestSubmissionsPage() {
                           <Link to={`/users/${nickname}`} className="text-brand-primary hover:underline">
                             {displayName}
                           </Link>
-                        ) : displayName}
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <UsersRound className="h-3.5 w-3.5 text-brand-accent" />
+                            {displayName}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="font-mono font-bold mr-1">

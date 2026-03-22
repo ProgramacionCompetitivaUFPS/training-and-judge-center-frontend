@@ -1,12 +1,12 @@
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, ArrowLeft } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, ArrowLeft, Copy, Check } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { LatexRenderer } from '@/components/features/LatexRenderer'
-import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
+import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
+import { useContestSession } from '@/components/layout/ContestSessionProvider'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
@@ -14,24 +14,30 @@ import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG } from '@/lib/constants'
 
 export function ProblemDetailPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, contestId, letter } = useParams<{ slug: string; contestId?: string; letter?: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const contestId = searchParams.get('contest')
   const { user } = useAuth()
+  const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
   const { toast } = useToastContext()
 
-  const { data: problem, isLoading, error } = useProblemDetail(slug || '')
-  const { data: stats } = useProblemStatistics(slug || '')
+  // In contest context, resolve letter → slug from contest problems list
+  const isContestContext = !!contestId
+  const resolvedSlug = isContestContext
+    ? activeContest?.problems.find(
+        (p) => ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)) === letter?.toUpperCase()
+      )?.slug
+    : slug
+
+  const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
+  const { data: stats } = useProblemStatistics(resolvedSlug || '')
   const publishMutation = usePublishProblem()
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
-  const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
-  if (isLoading) {
+  if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
       <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: '...' }]}>
         <div className="space-y-4">
@@ -91,8 +97,8 @@ export function ProblemDetailPage() {
   const breadcrumbs = contestId
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: 'Contest', href: `/contests/${contestId}` },
-        { label: problem.title },
+        { label: activeContest?.name || 'Contest', href: `/contests/${contestId}` },
+        { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
     : [
         { label: 'Problemas', href: '/problems' },
@@ -114,25 +120,40 @@ export function ProblemDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-semibold text-neutral-text-primary">{problem.title}</h1>
-              <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-                {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-              </Badge>
-              <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-                {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-              </Badge>
+              {!isContestContext && (
+                <>
+                  <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+                    {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                  </Badge>
+                  <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+                    {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+                  </Badge>
+                </>
+              )}
+              {isContestContext && letter && (
+                <Badge variant="primary">{letter.toUpperCase()}</Badge>
+              )}
             </div>
-            <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
+            {!isContestContext && (
+              <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
+            )}
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2">
             {problem.status === 'PUBLISHED' && (
-              <Button variant="primary" onClick={() => setSubmitDialogOpen(true)}>
+              <Button variant="primary" onClick={() => {
+                if (isContestContext && contestId && letter) {
+                  navigate(`/contests/${contestId}/submit?problem=${letter.toUpperCase()}`)
+                } else {
+                  navigate(`/submit?problem=${problem.slug}`)
+                }
+              }}>
                 <Send className="h-4 w-4 mr-2" />
                 Enviar solución
               </Button>
             )}
-            {canEdit && (
+            {canEdit && !isContestContext && (
               <>
               {problem.status === 'DRAFT' && (
                 <Button variant="primary" onClick={handlePublish} isLoading={publishMutation.isPending}>
@@ -169,8 +190,8 @@ export function ProblemDetailPage() {
           <MetadataItem icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
         </div>
 
-        {/* Tags */}
-        {problem.tags.length > 0 && (
+        {/* Tags — hidden in contest context to prevent spoilers */}
+        {!isContestContext && problem.tags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             <Tag className="h-4 w-4 text-neutral-text-muted" />
             {problem.tags.map((tag) => (
@@ -184,17 +205,42 @@ export function ProblemDetailPage() {
           <CardHeader>
             <CardTitle>Enunciado</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-0">
             {problem.statement ? (
-              <LatexRenderer
-                content={problem.statement}
-                className="prose prose-sm max-w-none text-neutral-text-primary"
-              />
+              <MarkdownRenderer content={problem.statement} />
             ) : (
               <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
             )}
+
+            {/* Input / Output format — inline sections */}
+            {problem.inputFormat && (
+              <div className="mt-6 pt-5 border-t border-neutral-border">
+                <h3 className="text-sm font-semibold text-neutral-text-primary uppercase tracking-wider mb-2">Entrada</h3>
+                <MarkdownRenderer content={problem.inputFormat} />
+              </div>
+            )}
+            {problem.outputFormat && (
+              <div className="mt-4 pt-5 border-t border-neutral-border">
+                <h3 className="text-sm font-semibold text-neutral-text-primary uppercase tracking-wider mb-2">Salida</h3>
+                <MarkdownRenderer content={problem.outputFormat} />
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Examples */}
+        {problem.examples && problem.examples.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ejemplos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {problem.examples.map((ex, idx) => (
+                <ExampleBlock key={idx} index={idx + 1} input={ex.input} output={ex.output} explanation={ex.explanation} />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Language overrides */}
         {problem.languageOverrides.length > 0 && (
@@ -357,13 +403,6 @@ export function ProblemDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Submit solution dialog */}
-      <SubmitSolutionDialog
-        open={submitDialogOpen}
-        onOpenChange={setSubmitDialogOpen}
-        problemSlug={problem.slug}
-        problemTitle={problem.title}
-      />
     </AppLayout>
   )
 }
@@ -391,5 +430,56 @@ function FileIndicator({ label, available, detail }: { label: string; available:
         {detail && <div className="text-xs text-neutral-text-muted">{detail}</div>}
       </div>
     </div>
+  )
+}
+
+function ExampleBlock({ index, input, output, explanation }: { index: number; input: string; output: string; explanation?: string }) {
+  return (
+    <div className="border border-neutral-border rounded-lg overflow-hidden">
+      <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+        <span className="text-sm font-semibold text-neutral-text-primary">Ejemplo {index}</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+            <CopyButton text={input} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{input}</pre>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+            <CopyButton text={output} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{output}</pre>
+        </div>
+      </div>
+      {explanation && (
+        <div className="px-4 py-3 border-t border-neutral-border bg-brand-primary-muted/30">
+          <MarkdownRenderer content={`**Nota:** ${explanation}`} className="text-sm" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded hover:bg-neutral-border/50 transition-colors text-neutral-text-muted hover:text-neutral-text-primary"
+      title="Copiar"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
   )
 }

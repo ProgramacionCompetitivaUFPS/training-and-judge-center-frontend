@@ -512,7 +512,14 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'two-sum',
     title: 'Two Sum',
-    statement: 'Given an array of integers $nums$ and an integer $target$, return indices of the two numbers such that they add up to $target$.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\n$$nums[i] + nums[j] = target \\quad (i \\neq j)$$\n\nConstraints:\n- $2 \\leq nums.length \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$',
+    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.',
+    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
+    outputFormat: 'Imprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
+    examples: [
+      { input: '4 9\n2 7 11 15', output: '0 1', explanation: '$nums[0] + nums[1] = 2 + 7 = 9$' },
+      { input: '3 6\n3 2 4', output: '1 2' },
+      { input: '2 6\n3 3', output: '0 1' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [{ language: 'python310', timeLimit: 4000 }],
@@ -532,7 +539,13 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'binary-search',
     title: 'Binary Search',
-    statement: 'Given a sorted array of distinct integers and a target value, return the index if the target is found. If not, return -1.',
+    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.',
+    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.',
+    outputFormat: 'Imprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
+    examples: [
+      { input: '6 9\n-1 0 3 5 9 12', output: '4' },
+      { input: '6 2\n-1 0 3 5 9 12', output: '-1' },
+    ],
     timeLimit: 1000,
     memoryLimit: 128,
     languageOverrides: [],
@@ -547,7 +560,13 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'merge-sort',
     title: 'Merge Sort',
-    statement: 'Implement the merge sort algorithm. Given an array of integers, sort them in non-decreasing order.',
+    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$',
+    inputFormat: 'La primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
+    outputFormat: 'Imprime $n$ enteros separados por espacios: el arreglo ordenado.',
+    examples: [
+      { input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
+      { input: '3\n-1 -5 3', output: '-5 -1 3' },
+    ],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [{ language: 'java17', memoryLimit: 1024 }],
@@ -564,7 +583,13 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'graph-bfs',
     title: 'Graph BFS',
-    statement: 'Given an unweighted graph and a source vertex, find the shortest path from the source to all other vertices using BFS.',
+    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $0 \\leq m \\leq 2 \\times 10^5$\n- $1 \\leq s \\leq n$',
+    inputFormat: 'La primera línea contiene tres enteros $n$, $m$ y $s$.\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ representando una arista.',
+    outputFormat: 'Imprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed). Imprime $-1$ si no es alcanzable.',
+    examples: [
+      { input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2', explanation: 'Desde el vértice 1: distancia a 2 es 1, a 3 es 1, a 4 es 2.' },
+      { input: '3 1 1\n1 2', output: '0 1 -1' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [],
@@ -579,7 +604,13 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Given weights and values of $n$ items, put these items in a knapsack of capacity $W$ to get the maximum total value.\n\nThe recurrence relation is:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\nConstraints:\n- $1 \\leq n \\leq 1000$\n- $1 \\leq W \\leq 10^6$\n- $1 \\leq w_i, v_i \\leq 10^9$',
+    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n### Restricciones\n\n- $1 \\leq n \\leq 100$\n- $1 \\leq W \\leq 10^5$\n- $1 \\leq w_i, v_i \\leq 10^3$',
+    inputFormat: 'La primera línea contiene dos enteros $n$ y $W$.\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$.',
+    outputFormat: 'Imprime un entero: el valor máximo que se puede obtener.',
+    examples: [
+      { input: '3 50\n10 60\n20 100\n30 120', output: '220', explanation: 'Se toman los objetos 2 y 3 (peso total 50, valor 100+120=220).' },
+      { input: '2 10\n5 10\n5 10', output: '20' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [],
@@ -594,7 +625,13 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'string-matching',
     title: 'String Matching (KMP)',
-    statement: 'Implement the KMP string matching algorithm. Given a text and a pattern, find all occurrences of the pattern in the text.',
+    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.',
+    inputFormat: 'La primera línea contiene la cadena $t$ (el texto).\n\nLa segunda línea contiene la cadena $p$ (el patrón).',
+    outputFormat: 'Imprime en la primera línea el número de ocurrencias.\n\nEn la segunda línea, imprime las posiciones (0-indexed) donde comienza cada ocurrencia, separadas por espacios.',
+    examples: [
+      { input: 'abcabcabc\nabc', output: '3\n0 3 6' },
+      { input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
+    ],
     timeLimit: 1500,
     memoryLimit: 256,
     languageOverrides: [],
@@ -612,6 +649,9 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'segment-tree-range',
     title: 'Segment Tree Range Query',
     statement: null,
+    inputFormat: null,
+    outputFormat: null,
+    examples: [],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [],
@@ -629,6 +669,9 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'minimum-spanning-tree',
     title: 'Minimum Spanning Tree',
     statement: null,
+    inputFormat: null,
+    outputFormat: null,
+    examples: [],
     timeLimit: null,
     memoryLimit: null,
     languageOverrides: [],
@@ -969,8 +1012,10 @@ export const mockContests: ContestDetail[] = [
     locked: false,
     participantCount: 25,
     isRegistered: false,
-    participationMode: 'INDIVIDUAL',
-    showTeamMembers: false,
+    participationMode: 'MIXED',
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    showTeamMembers: true,
     group: { id: 'group-1', name: 'ICPC Colombia' },
     owner: { id: 'u2', nickname: 'mariacoach' },
     problems: [],
@@ -1044,8 +1089,10 @@ export const mockContests: ContestDetail[] = [
     locked: false,
     participantCount: 5,
     isRegistered: false,
-    participationMode: 'INDIVIDUAL',
-    showTeamMembers: false,
+    participationMode: 'TEAM',
+    teamSizeMin: 2,
+    teamSizeMax: 4,
+    showTeamMembers: true,
     group: { id: 'group-2', name: 'Entrenamiento Avanzado' },
     owner: { id: 'u7', nickname: 'diegomartinez' },
     problems: [],
@@ -1125,6 +1172,22 @@ export const mockStandings: StandingEntry[] = [
   {
     rank: 1,
     participant: {
+      id: 'team-1',
+      type: 'TEAM',
+      displayName: 'Competitive Coders',
+      members: ['luisadmin', 'carloscp', 'anagarcia'],
+    },
+    problemsSolved: 3,
+    totalPenalty: 110,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: {
       id: 'u3',
       type: 'INDIVIDUAL',
       displayName: 'carloscp',
@@ -1142,7 +1205,7 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
   {
-    rank: 2,
+    rank: 3,
     participant: {
       id: 'u4',
       type: 'INDIVIDUAL',
@@ -1161,7 +1224,23 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
   {
-    rank: 3,
+    rank: 4,
+    participant: {
+      id: 'team-2',
+      type: 'TEAM',
+      displayName: 'Algorithm Masters',
+      members: ['pedromartinez', 'sofiarodriguez'],
+    },
+    problemsSolved: 2,
+    totalPenalty: 95,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: 60, penalty: 40 },
+      { position: 3, status: 'WRONG_ANSWER', attempts: 1, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: 5,
     participant: {
       id: 'u6',
       type: 'INDIVIDUAL',
@@ -1195,13 +1274,21 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
   {
     id: 'csub-002',
     problem: { slug: 'binary-search', title: 'Binary Search', order: 2 },
+    submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
+    language: 'cpp20',
+    submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-003',
+    problem: { slug: 'binary-search', title: 'Binary Search', order: 2 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
     status: 'WRONG_ANSWER',
   },
   {
-    id: 'csub-003',
+    id: 'csub-004',
     problem: { slug: 'graph-bfs', title: 'Graph BFS', order: 3 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
@@ -1209,7 +1296,15 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     status: 'ACCEPTED',
   },
   {
-    id: 'csub-004',
+    id: 'csub-005',
+    problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
+    submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
+    language: 'java17',
+    submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-006',
     problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
@@ -1516,3 +1611,69 @@ export function buildMaterialList(params: {
     },
   }
 }
+
+// === Teams ===
+
+import type { MyTeamItem, TeamDetail, TeamInvitationItem } from '@/types/team'
+
+export const mockMyTeams: MyTeamItem[] = [
+  {
+    id: 'team-1',
+    name: 'Competitive Coders',
+    memberCount: 3,
+    joinedAt: '2026-01-15T10:00:00Z',
+    createdAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'team-2',
+    name: 'Algorithm Masters',
+    memberCount: 4,
+    joinedAt: '2026-02-01T14:00:00Z',
+    createdAt: '2026-01-20T12:00:00Z',
+  },
+]
+
+export const mockTeamDetails: Record<string, TeamDetail> = {
+  'team-1': {
+    id: 'team-1',
+    name: 'Competitive Coders',
+    createdBy: { id: 'u1', nickname: 'luisadmin' },
+    createdAt: '2026-01-10T08:00:00Z',
+    members: [
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-01-10T08:00:00Z' },
+      { id: 'u3', nickname: 'carloscp', joinedAt: '2026-01-15T10:00:00Z' },
+      { id: 'u4', nickname: 'anagarcia', joinedAt: '2026-01-20T14:00:00Z' },
+    ],
+    pendingInvitations: [
+      {
+        id: 'tinv-1',
+        invitee: { id: 'u6', nickname: 'sofiarodriguez' },
+        invitedBy: { id: 'u1', nickname: 'luisadmin' },
+        invitedAt: '2026-03-10T10:00:00Z',
+      },
+    ],
+  },
+  'team-2': {
+    id: 'team-2',
+    name: 'Algorithm Masters',
+    createdBy: { id: 'u3', nickname: 'carloscp' },
+    createdAt: '2026-01-20T12:00:00Z',
+    members: [
+      { id: 'u3', nickname: 'carloscp', joinedAt: '2026-01-20T12:00:00Z' },
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-02-01T14:00:00Z' },
+      { id: 'u4', nickname: 'anagarcia', joinedAt: '2026-02-05T09:00:00Z' },
+      { id: 'u5', nickname: 'pedromartinez', joinedAt: '2026-02-10T11:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+}
+
+export const mockTeamInvitations: TeamInvitationItem[] = [
+  {
+    id: 'tinv-recv-1',
+    team: { id: 'team-3', name: 'Code Warriors' },
+    invitedBy: { id: 'u5', nickname: 'pedromartinez' },
+    invitedAt: '2026-03-18T10:00:00Z',
+    expiresAt: null,
+  },
+]
