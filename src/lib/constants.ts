@@ -69,6 +69,7 @@ export const ROUTES = {
   SUBMISSIONS: '/submissions',
   SUBMISSION_DETAIL: '/submissions/:id',
   TEAMS: '/teams',
+  TEAM_DETAIL: '/teams/:teamId',
   PROFILE: '/profile',
   PROFILE_PUBLIC: '/users/:nickname',
   SETTINGS: '/settings',

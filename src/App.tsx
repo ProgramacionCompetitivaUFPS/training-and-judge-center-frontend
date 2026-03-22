@@ -44,6 +44,10 @@ import { MaterialsPage } from '@/pages/materials/MaterialsPage'
 import { MaterialDetailPage } from '@/pages/materials/MaterialDetailPage'
 import { MaterialFormPage } from '@/pages/materials/MaterialFormPage'
 
+// Team pages
+import { TeamsPage } from '@/pages/teams/TeamsPage'
+import { TeamDetailPage } from '@/pages/teams/TeamDetailPage'
+
 // Placeholder pages — will be replaced in each phase
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -132,7 +136,8 @@ export default function App() {
               <Route path={ROUTES.MATERIAL_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.MATERIAL_DETAIL} element={<ProtectedRoute><MaterialDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.MATERIAL_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
-              <Route path={ROUTES.TEAMS} element={<ProtectedRoute><PlaceholderPage title="Equipos" /></ProtectedRoute>} />
+              <Route path={ROUTES.TEAMS} element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.TEAM_DETAIL} element={<ProtectedRoute><TeamDetailPage /></ProtectedRoute>} />
 
               {/* 404 */}
               <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />

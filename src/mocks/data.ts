@@ -1125,6 +1125,22 @@ export const mockStandings: StandingEntry[] = [
   {
     rank: 1,
     participant: {
+      id: 'team-1',
+      type: 'TEAM',
+      displayName: 'Competitive Coders',
+      members: ['luisadmin', 'carloscp', 'anagarcia'],
+    },
+    problemsSolved: 3,
+    totalPenalty: 110,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: {
       id: 'u3',
       type: 'INDIVIDUAL',
       displayName: 'carloscp',
@@ -1142,7 +1158,7 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
   {
-    rank: 2,
+    rank: 3,
     participant: {
       id: 'u4',
       type: 'INDIVIDUAL',
@@ -1161,7 +1177,23 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
   {
-    rank: 3,
+    rank: 4,
+    participant: {
+      id: 'team-2',
+      type: 'TEAM',
+      displayName: 'Algorithm Masters',
+      members: ['pedromartinez', 'sofiarodriguez'],
+    },
+    problemsSolved: 2,
+    totalPenalty: 95,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: 60, penalty: 40 },
+      { position: 3, status: 'WRONG_ANSWER', attempts: 1, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: 5,
     participant: {
       id: 'u6',
       type: 'INDIVIDUAL',
@@ -1195,13 +1227,21 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
   {
     id: 'csub-002',
     problem: { slug: 'binary-search', title: 'Binary Search', order: 2 },
+    submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
+    language: 'cpp20',
+    submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-003',
+    problem: { slug: 'binary-search', title: 'Binary Search', order: 2 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
     status: 'WRONG_ANSWER',
   },
   {
-    id: 'csub-003',
+    id: 'csub-004',
     problem: { slug: 'graph-bfs', title: 'Graph BFS', order: 3 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
@@ -1209,7 +1249,15 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     status: 'ACCEPTED',
   },
   {
-    id: 'csub-004',
+    id: 'csub-005',
+    problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
+    submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
+    language: 'java17',
+    submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
+    status: 'ACCEPTED',
+  },
+  {
+    id: 'csub-006',
     problem: { slug: 'two-sum', title: 'Two Sum', order: 1 },
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
@@ -1516,3 +1564,69 @@ export function buildMaterialList(params: {
     },
   }
 }
+
+// === Teams ===
+
+import type { MyTeamItem, TeamDetail, TeamInvitationItem } from '@/types/team'
+
+export const mockMyTeams: MyTeamItem[] = [
+  {
+    id: 'team-1',
+    name: 'Competitive Coders',
+    memberCount: 3,
+    joinedAt: '2026-01-15T10:00:00Z',
+    createdAt: '2026-01-10T08:00:00Z',
+  },
+  {
+    id: 'team-2',
+    name: 'Algorithm Masters',
+    memberCount: 4,
+    joinedAt: '2026-02-01T14:00:00Z',
+    createdAt: '2026-01-20T12:00:00Z',
+  },
+]
+
+export const mockTeamDetails: Record<string, TeamDetail> = {
+  'team-1': {
+    id: 'team-1',
+    name: 'Competitive Coders',
+    createdBy: { id: 'u1', nickname: 'luisadmin' },
+    createdAt: '2026-01-10T08:00:00Z',
+    members: [
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-01-10T08:00:00Z' },
+      { id: 'u3', nickname: 'carloscp', joinedAt: '2026-01-15T10:00:00Z' },
+      { id: 'u4', nickname: 'anagarcia', joinedAt: '2026-01-20T14:00:00Z' },
+    ],
+    pendingInvitations: [
+      {
+        id: 'tinv-1',
+        invitee: { id: 'u6', nickname: 'sofiarodriguez' },
+        invitedBy: { id: 'u1', nickname: 'luisadmin' },
+        invitedAt: '2026-03-10T10:00:00Z',
+      },
+    ],
+  },
+  'team-2': {
+    id: 'team-2',
+    name: 'Algorithm Masters',
+    createdBy: { id: 'u3', nickname: 'carloscp' },
+    createdAt: '2026-01-20T12:00:00Z',
+    members: [
+      { id: 'u3', nickname: 'carloscp', joinedAt: '2026-01-20T12:00:00Z' },
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-02-01T14:00:00Z' },
+      { id: 'u4', nickname: 'anagarcia', joinedAt: '2026-02-05T09:00:00Z' },
+      { id: 'u5', nickname: 'pedromartinez', joinedAt: '2026-02-10T11:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+}
+
+export const mockTeamInvitations: TeamInvitationItem[] = [
+  {
+    id: 'tinv-recv-1',
+    team: { id: 'team-3', name: 'Code Warriors' },
+    invitedBy: { id: 'u5', nickname: 'pedromartinez' },
+    invitedAt: '2026-03-18T10:00:00Z',
+    expiresAt: null,
+  },
+]
