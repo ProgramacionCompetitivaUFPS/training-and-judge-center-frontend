@@ -104,7 +104,8 @@ export function ContestDetailPage() {
   if (!id) return null
 
   const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
-  const canRegister = user?.role === 'CONTESTANT' && contest?.status === 'SCHEDULED' && !contest?.isRegistered
+  const canRegisterIndividual = contest?.status === 'SCHEDULED' && !contest?.isRegistered &&
+    (contest?.participationMode === 'INDIVIDUAL' || contest?.participationMode === 'MIXED')
   const canUnregister = contest?.status === 'SCHEDULED' && contest?.isRegistered
 
   // Submit dialog state
@@ -341,7 +342,7 @@ export function ContestDetailPage() {
                 )}
               </div>
               <div className="flex gap-3">
-                {canRegister && (
+                {canRegisterIndividual && (
                   <Button variant="primary" onClick={handleRegister} isLoading={registerMutation.isPending}>
                     Registrarse
                   </Button>
