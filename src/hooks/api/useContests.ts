@@ -68,6 +68,10 @@ export function useStandings(contestId: string, params?: StandingsParams) {
     queryKey: contestKeys.standings(contestId, params),
     queryFn: () => contestsApi.getStandings(contestId, params),
     enabled: !!contestId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.contest?.status
+      return status === 'ACTIVE' ? 30_000 : false
+    },
   })
 }
 
@@ -80,6 +84,10 @@ export function useContestSubmissions(
     queryKey: contestKeys.submissions(groupId, contestId, params),
     queryFn: () => contestsApi.getContestSubmissions(groupId, contestId, params),
     enabled: !!groupId && !!contestId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.contest?.status
+      return status === 'ACTIVE' ? 15_000 : false
+    },
   })
 }
 
