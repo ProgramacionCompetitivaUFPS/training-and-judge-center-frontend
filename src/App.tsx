@@ -32,6 +32,13 @@ import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
 import { SubmissionsPage } from '@/pages/submissions/SubmissionsPage'
 import { SubmissionDetailPage } from '@/pages/submissions/SubmissionDetailPage'
 
+// Contest pages
+import { ContestsPage } from '@/pages/contests/ContestsPage'
+import { ContestDetailPage } from '@/pages/contests/ContestDetailPage'
+import { ContestFormPage } from '@/pages/contests/ContestFormPage'
+import { ContestStandingsPage } from '@/pages/contests/ContestStandingsPage'
+import { ContestSubmissionsPage } from '@/pages/contests/ContestSubmissionsPage'
+
 // Placeholder pages — will be replaced in each phase
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -108,8 +115,12 @@ export default function App() {
               <Route path={ROUTES.GROUP_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
-              <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><PlaceholderPage title="Competencias" /></ProtectedRoute>} />
-              <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Competencia" /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><ContestsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><ContestDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><SubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSION_DETAIL} element={<ProtectedRoute><SubmissionDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><PlaceholderPage title="Materiales" /></ProtectedRoute>} />

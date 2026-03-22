@@ -68,6 +68,31 @@ export type {
   InvitationListResponse,
 } from './group'
 
+// Contest types
+export type {
+  ContestStatus,
+  ParticipationMode,
+  ContestProblem,
+  ContestDetail,
+  ContestListItem,
+  ContestListParams,
+  ContestListResponse,
+  CreateContestRequest,
+  UpdateContestRequest,
+  RegistrationStatus,
+  RegistrationListItem,
+  RegistrationListResponse,
+  StandingProblemStatus,
+  StandingProblemResult,
+  StandingParticipant,
+  StandingEntry,
+  StandingsResponse,
+  StandingsParams,
+  ContestSubmissionItem,
+  ContestSubmissionsResponse,
+  ContestSubmissionsParams,
+} from './contest'
+
 // Submission types
 export type {
   SubmissionStatus,
