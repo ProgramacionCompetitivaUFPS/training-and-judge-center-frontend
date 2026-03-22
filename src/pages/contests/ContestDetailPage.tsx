@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
+import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -351,6 +352,16 @@ export function ContestDetailPage() {
                   </Button>
                 )}
               </div>
+              {contest.status === 'SCHEDULED' && contest.participationMode !== 'INDIVIDUAL' && (
+                <TeamContestRegistration
+                  contestId={contest.id}
+                  contestStatus={contest.status}
+                  participationMode={contest.participationMode}
+                  teamSizeMin={contest.teamSizeMin}
+                  teamSizeMax={contest.teamSizeMax}
+                  isRegistered={contest.isRegistered}
+                />
+              )}
             </div>
           ),
         },

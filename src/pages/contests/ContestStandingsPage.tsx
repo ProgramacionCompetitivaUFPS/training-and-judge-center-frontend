@@ -1,7 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock } from 'lucide-react'
+import { ArrowLeft, Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button } from '@/components/ui'
+import { Button, Badge } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
@@ -111,15 +111,32 @@ export function ContestStandingsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        {entry.participant.nickname ? (
-                          <Link to={`/users/${entry.participant.nickname}`} className="font-medium text-brand-primary hover:underline">
-                            {entry.participant.displayName}
-                          </Link>
+                        {entry.participant.type === 'TEAM' ? (
+                          <div>
+                            <span className="font-medium text-neutral-text-primary flex items-center gap-1.5">
+                              <UsersRound className="h-3.5 w-3.5 text-brand-primary" />
+                              {entry.participant.displayName}
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">Equipo</Badge>
+                            </span>
+                            {entry.participant.members && entry.participant.members.length > 0 && (
+                              <span className="text-xs text-neutral-text-muted">
+                                {entry.participant.members.join(', ')}
+                              </span>
+                            )}
+                          </div>
                         ) : (
-                          <span className="font-medium">{entry.participant.displayName}</span>
-                        )}
-                        {entry.participant.institution && (
-                          <span className="text-xs text-neutral-text-muted ml-2">{entry.participant.institution}</span>
+                          <div>
+                            {entry.participant.nickname ? (
+                              <Link to={`/users/${entry.participant.nickname}`} className="font-medium text-brand-primary hover:underline">
+                                {entry.participant.displayName}
+                              </Link>
+                            ) : (
+                              <span className="font-medium">{entry.participant.displayName}</span>
+                            )}
+                            {entry.participant.institution && (
+                              <span className="text-xs text-neutral-text-muted ml-2">{entry.participant.institution}</span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </TableCell>
