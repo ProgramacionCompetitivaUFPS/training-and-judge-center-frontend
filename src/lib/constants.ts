@@ -62,6 +62,7 @@ export const ROUTES = {
   CONTEST_EDIT: '/groups/:groupId/contests/:id/edit',
   CONTEST_STANDINGS: '/contests/:id/standings',
   CONTEST_SUBMISSIONS: '/contests/:id/submissions',
+  CONTEST_PROBLEM: '/contests/:contestId/problems/:letter',
   MATERIALS: '/groups/:groupId/materials',
   MATERIAL_NEW: '/groups/:groupId/materials/new',
   MATERIAL_DETAIL: '/groups/:groupId/materials/:materialId',

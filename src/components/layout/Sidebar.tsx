@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound } from 'lucide-react'
+import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from './AuthProvider'
+import { useContestSession } from './ContestSessionProvider'
+import { ContestCountdown } from '@/components/features/ContestCountdown'
 
 interface SidebarProps {
   isOpen: boolean
@@ -33,6 +35,7 @@ const secondaryItems: NavItem[] = [
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
   const { hasRole } = useAuth()
+  const { contest: activeContest } = useContestSession()
 
   const adminItems: NavItem[] = hasRole('ADMIN')
     ? [{ icon: Shield, label: 'Usuarios', to: ROUTES.ADMIN_USERS }]
@@ -67,6 +70,86 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+            {/* Contest Mode */}
+            {activeContest && activeContest.status === 'ACTIVE' && (
+              <div className="mb-4 pb-4 border-b border-neutral-border space-y-3">
+                {/* Contest name + timer */}
+                <div className="px-1">
+                  <Link
+                    to={`/contests/${activeContest.id}`}
+                    onClick={onClose}
+                    className="text-xs font-semibold text-brand-primary hover:underline uppercase tracking-wider"
+                  >
+                    {activeContest.name}
+                  </Link>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-neutral-text-muted flex-shrink-0" />
+                    <ContestCountdown targetTime={activeContest.endTime} className="text-left [&_p]:text-xs [&_p]:mb-0 [&_.font-mono]:text-sm" />
+                  </div>
+                </div>
+
+                {/* Problem pills */}
+                {activeContest.problems.length > 0 && (
+                  <div className="px-1">
+                    <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-1.5">Problemas</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeContest.problems.map((p) => {
+                        const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)
+                        const problemPath = `/contests/${activeContest.id}/problems/${letter}`
+                        const isCurrent = location.pathname === problemPath
+                        return (
+                          <Link
+                            key={p.slug}
+                            to={problemPath}
+                            onClick={onClose}
+                            className={cn(
+                              'w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors',
+                              isCurrent
+                                ? 'bg-brand-primary text-white'
+                                : 'bg-neutral-background text-neutral-text-primary hover:bg-brand-primary-muted hover:text-brand-primary'
+                            )}
+                            title={p.title}
+                          >
+                            {letter}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick contest links */}
+                <div className="space-y-0.5">
+                  <Link
+                    to={`/contests/${activeContest.id}/standings`}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      location.pathname === `/contests/${activeContest.id}/standings`
+                        ? 'bg-brand-primary-muted text-brand-primary'
+                        : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
+                    )}
+                  >
+                    <BarChart3 className="h-4 w-4 flex-shrink-0" />
+                    <span>Standings</span>
+                  </Link>
+                  <Link
+                    to={`/contests/${activeContest.id}/submissions`}
+                    onClick={onClose}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      location.pathname === `/contests/${activeContest.id}/submissions`
+                        ? 'bg-brand-primary-muted text-brand-primary'
+                        : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
+                    )}
+                  >
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span>Envíos</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {navItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.to)

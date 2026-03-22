@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
@@ -7,6 +7,7 @@ import { LatexRenderer } from '@/components/features/LatexRenderer'
 import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
+import { useContestSession } from '@/components/layout/ContestSessionProvider'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
@@ -14,15 +15,22 @@ import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG } from '@/lib/constants'
 
 export function ProblemDetailPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, contestId, letter } = useParams<{ slug: string; contestId?: string; letter?: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const contestId = searchParams.get('contest')
   const { user } = useAuth()
+  const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
   const { toast } = useToastContext()
 
-  const { data: problem, isLoading, error } = useProblemDetail(slug || '')
-  const { data: stats } = useProblemStatistics(slug || '')
+  // In contest context, resolve letter → slug from contest problems list
+  const isContestContext = !!contestId
+  const resolvedSlug = isContestContext
+    ? activeContest?.problems.find(
+        (p) => ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)) === letter?.toUpperCase()
+      )?.slug
+    : slug
+
+  const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
+  const { data: stats } = useProblemStatistics(resolvedSlug || '')
   const publishMutation = usePublishProblem()
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
@@ -31,7 +39,7 @@ export function ProblemDetailPage() {
   const [confirmSlug, setConfirmSlug] = useState('')
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
-  if (isLoading) {
+  if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
       <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: '...' }]}>
         <div className="space-y-4">
@@ -91,8 +99,8 @@ export function ProblemDetailPage() {
   const breadcrumbs = contestId
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: 'Contest', href: `/contests/${contestId}` },
-        { label: problem.title },
+        { label: activeContest?.name || 'Contest', href: `/contests/${contestId}` },
+        { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
     : [
         { label: 'Problemas', href: '/problems' },
@@ -114,14 +122,23 @@ export function ProblemDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-semibold text-neutral-text-primary">{problem.title}</h1>
-              <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-                {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-              </Badge>
-              <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-                {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-              </Badge>
+              {!isContestContext && (
+                <>
+                  <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+                    {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                  </Badge>
+                  <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+                    {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+                  </Badge>
+                </>
+              )}
+              {isContestContext && letter && (
+                <Badge variant="primary">{letter.toUpperCase()}</Badge>
+              )}
             </div>
-            <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
+            {!isContestContext && (
+              <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
+            )}
           </div>
 
           {/* Actions */}
@@ -132,7 +149,7 @@ export function ProblemDetailPage() {
                 Enviar solución
               </Button>
             )}
-            {canEdit && (
+            {canEdit && !isContestContext && (
               <>
               {problem.status === 'DRAFT' && (
                 <Button variant="primary" onClick={handlePublish} isLoading={publishMutation.isPending}>
@@ -169,8 +186,8 @@ export function ProblemDetailPage() {
           <MetadataItem icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
         </div>
 
-        {/* Tags */}
-        {problem.tags.length > 0 && (
+        {/* Tags — hidden in contest context to prevent spoilers */}
+        {!isContestContext && problem.tags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             <Tag className="h-4 w-4 text-neutral-text-muted" />
             {problem.tags.map((tag) => (
@@ -363,6 +380,8 @@ export function ProblemDetailPage() {
         onOpenChange={setSubmitDialogOpen}
         problemSlug={problem.slug}
         problemTitle={problem.title}
+        contestId={contestId}
+        groupId={activeContest?.group.id}
       />
     </AppLayout>
   )

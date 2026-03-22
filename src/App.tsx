@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/components/ui/ToastProvider'
-import { AuthProvider } from '@/hooks/useAuth'
+import { AuthProvider } from '@/components/layout/AuthProvider'
+import { ContestSessionProvider } from '@/components/layout/ContestSessionProvider'
 import { AppLayout, ProtectedRoute } from '@/components/layout'
 import { ROUTES } from '@/lib/constants'
 
@@ -75,6 +76,7 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <AuthProvider>
+            <ContestSessionProvider>
             <Routes>
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
@@ -130,6 +132,7 @@ export default function App() {
               <Route path={ROUTES.CONTEST_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_PROBLEM} element={<ProtectedRoute><ProblemDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><SubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSION_DETAIL} element={<ProtectedRoute><SubmissionDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><MaterialsPage /></ProtectedRoute>} />
@@ -142,6 +145,7 @@ export default function App() {
               {/* 404 */}
               <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />
             </Routes>
+            </ContestSessionProvider>
           </AuthProvider>
         </BrowserRouter>
       </ToastProvider>
