@@ -108,3 +108,13 @@ export type {
   UpdateVisibilityRequest,
   UpdateVisibilityResponse,
 } from './submission'
+
+// Material types
+export type {
+  MaterialStatus,
+  Material,
+  MaterialListParams,
+  MaterialListResponse,
+  CreateMaterialRequest,
+  UpdateMaterialRequest,
+} from './material'

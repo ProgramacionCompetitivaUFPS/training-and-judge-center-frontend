@@ -39,6 +39,11 @@ import { ContestFormPage } from '@/pages/contests/ContestFormPage'
 import { ContestStandingsPage } from '@/pages/contests/ContestStandingsPage'
 import { ContestSubmissionsPage } from '@/pages/contests/ContestSubmissionsPage'
 
+// Material pages
+import { MaterialsPage } from '@/pages/materials/MaterialsPage'
+import { MaterialDetailPage } from '@/pages/materials/MaterialDetailPage'
+import { MaterialFormPage } from '@/pages/materials/MaterialFormPage'
+
 // Placeholder pages — will be replaced in each phase
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -123,7 +128,10 @@ export default function App() {
               <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><SubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSION_DETAIL} element={<ProtectedRoute><SubmissionDetailPage /></ProtectedRoute>} />
-              <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><PlaceholderPage title="Materiales" /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><MaterialsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_DETAIL} element={<ProtectedRoute><MaterialDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.TEAMS} element={<ProtectedRoute><PlaceholderPage title="Equipos" /></ProtectedRoute>} />
 
               {/* 404 */}

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { Home, Code2, Trophy, Users, BookOpen, Settings, X, Send, Shield } from 'lucide-react'
+import { Home, Code2, Trophy, Users, Settings, X, Send, Shield } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
@@ -23,7 +23,6 @@ const navItems: NavItem[] = [
   { icon: Users, label: 'Grupos', to: ROUTES.GROUPS },
   { icon: Trophy, label: 'Competencias', to: ROUTES.CONTESTS },
   { icon: Send, label: 'Submissions', to: ROUTES.SUBMISSIONS },
-  { icon: BookOpen, label: 'Materiales', to: ROUTES.MATERIALS },
 ]
 
 const secondaryItems: NavItem[] = [
