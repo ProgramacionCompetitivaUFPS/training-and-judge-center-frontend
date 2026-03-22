@@ -43,13 +43,13 @@ import {
   useAddMember,
   useCreateInvitation,
 } from '@/hooks/api/useGroups'
+import { useMaterials } from '@/hooks/api/useMaterials'
+import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { ROUTES } from '@/lib/constants'
 import type { GroupRole } from '@/types/group'
 import {
-  Users,
   Shield,
-  Trophy,
   BookOpen,
   LogOut,
   UserPlus,
@@ -68,6 +68,7 @@ export function GroupDetailPage() {
   const isLead = group?.userMembership.role === 'LEAD'
   const isMember = group?.userMembership.isMember ?? false
   const { data: requestsData } = useJoinRequests(id!, { status: 'PENDING' })
+  const { data: materialsData } = useMaterials(id!, { limit: 5 })
 
   const joinMutation = useJoinGroup()
   const requestMutation = useCreateJoinRequest()
@@ -225,12 +226,7 @@ export function GroupDetailPage() {
 
   const policyLabels: Record<string, string> = { OPEN: 'Abierto', REQUEST: 'Solicitud', INVITE: 'Invitación' }
 
-  const metadata = group ? [
-    { label: 'Miembros', value: String(group.statistics.memberCount), icon: Users },
-    { label: 'Líderes', value: String(group.statistics.leadCount), icon: Shield },
-    { label: 'Contests', value: String(group.statistics.contestCount), icon: Trophy },
-    { label: 'Materiales', value: String(group.statistics.materialCount), icon: BookOpen },
-  ] : []
+  const metadata: never[] = []
 
   const badges = group ? [
     { label: group.visibility === 'VISIBLE' ? 'Visible' : 'No visible', variant: group.visibility === 'VISIBLE' ? 'primary' as const : 'default' as const },
@@ -371,12 +367,59 @@ export function GroupDetailPage() {
           </CardContent>
         </Card>
       )}
+
     </div>
   ) : null
+
+  const materialsTab = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-text-muted">
+          Últimos materiales publicados en este grupo
+        </p>
+        <div className="flex items-center gap-2">
+          {isLead && (
+            <Button size="sm" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+              Nuevo material
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/materials`)}>
+            Ver todos
+          </Button>
+        </div>
+      </div>
+      {materialsData?.materials && materialsData.materials.length > 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-neutral-border">
+              {materialsData.materials.map((m) => (
+                <MaterialListItem
+                  key={m.id}
+                  material={m}
+                  onClick={() => navigate(`/groups/${id}/materials/${m.id}`)}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="py-8 text-center text-neutral-text-muted">
+          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No hay materiales en este grupo</p>
+          {isLead && (
+            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+              Crear primer material
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 
   const tabs = [
     { id: 'info', label: 'Información', content: infoTab },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
+    { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
     ...(isLead ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
   ]
 

@@ -1217,3 +1217,302 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     status: 'ACCEPTED',
   },
 ]
+
+// === Mock Materials ===
+
+import type { Material, MaterialListResponse } from '@/types/material'
+
+export const mockMaterials: Material[] = [
+  {
+    id: 'mat-001',
+    title: 'Bienvenidos al grupo de entrenamiento',
+    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en los contests semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
+    tags: ['announcement', 'welcome'],
+    status: 'PUBLISHED',
+    pinned: true,
+    pinnedAt: '2026-02-10T10:00:00Z',
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    createdAt: '2026-02-01T10:00:00Z',
+    updatedAt: '2026-02-10T10:00:00Z',
+    publishedAt: '2026-02-01T12:00:00Z',
+  },
+  {
+    id: 'mat-002',
+    title: 'Semana 1: Introducción a Grafos',
+    content: '# Grafos - Semana 1\n\nEsta semana cubriremos los fundamentos de grafos.\n\n## Temas\n\n- Representación de grafos (lista de adyacencia, matriz)\n- BFS y DFS\n- Componentes conexas\n\n## Código de ejemplo\n\n```cpp\n#include <bits/stdc++.h>\nusing namespace std;\n\nvoid bfs(int start, vector<vector<int>>& adj) {\n    queue<int> q;\n    vector<bool> visited(adj.size(), false);\n    q.push(start);\n    visited[start] = true;\n    while (!q.empty()) {\n        int u = q.front(); q.pop();\n        for (int v : adj[u]) {\n            if (!visited[v]) {\n                visited[v] = true;\n                q.push(v);\n            }\n        }\n    }\n}\n```\n\n## Problemas recomendados\n\n| Problema | Dificultad | Tema |\n|----------|-----------|------|\n| Graph BFS | Fácil | BFS |\n| Connected Components | Medio | DFS |\n| Shortest Path | Medio | BFS |',
+    tags: ['algorithms', 'data-structures', 'week1'],
+    status: 'PUBLISHED',
+    pinned: false,
+    pinnedAt: null,
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    createdAt: '2026-02-05T14:00:00Z',
+    updatedAt: '2026-02-05T14:00:00Z',
+    publishedAt: '2026-02-05T14:30:00Z',
+  },
+  {
+    id: 'mat-003',
+    title: 'Guía Completa: Programación Dinámica',
+    content: `# Programación Dinámica
+
+La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de un contest típico de ICPC.
+
+> "Those who cannot remember the past are condemned to repeat it." — Esta frase resume perfectamente la idea detrás de DP: **recordar resultados previos** para no recalcularlos.
+
+---
+
+## Conceptos Fundamentales
+
+Antes de ver código, asegúrate de entender estos dos pilares:
+
+1. **Subestructura óptima**: la solución óptima del problema se construye a partir de soluciones óptimas de subproblemas.
+2. **Superposición de subproblemas**: los mismos subproblemas se resuelven múltiples veces.
+
+Si un problema tiene ambas propiedades, DP es probablemente el approach correcto.
+
+### Memoización vs Tabulación
+
+| Aspecto | Memoización (Top-Down) | Tabulación (Bottom-Up) |
+|---------|----------------------|----------------------|
+| Dirección | Del problema grande al pequeño | Del caso base al problema |
+| Implementación | Recursión + cache | Loops iterativos |
+| Stack overflow | Posible en problemas grandes | No aplica |
+| Subproblemas visitados | Solo los necesarios | Todos |
+| Facilidad | Más intuitiva | Más eficiente |
+
+---
+
+## Ejemplo 1: Fibonacci
+
+El ejemplo clásico para entender la diferencia:
+
+### Top-Down (Memoización)
+
+\`\`\`python
+def fib(n, memo={}):
+    if n <= 1:
+        return n
+    if n not in memo:
+        memo[n] = fib(n - 1) + fib(n - 2)
+    return memo[n]
+
+# Complejidad: O(n) tiempo, O(n) espacio
+print(fib(50))  # 12586269025
+\`\`\`
+
+### Bottom-Up (Tabulación)
+
+\`\`\`cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    
+    vector<long long> dp(n + 1);
+    dp[0] = 0;
+    dp[1] = 1;
+    
+    for (int i = 2; i <= n; i++) {
+        dp[i] = dp[i - 1] + dp[i - 2];
+    }
+    
+    cout << dp[n] << endl;
+    return 0;
+}
+\`\`\`
+
+> **Tip**: En contests, bottom-up suele ser más seguro porque evita stack overflow. Usa memoización cuando la recurrencia es compleja y no todos los estados se visitan.
+
+---
+
+## Ejemplo 2: Knapsack 0/1
+
+El problema clásico de la mochila. Dados \`n\` objetos con peso \`w[i]\` y valor \`v[i]\`, maximizar el valor total sin exceder capacidad \`W\`.
+
+### Recurrencia
+
+La decisión para cada objeto es binaria: **tomarlo o dejarlo**.
+
+\`\`\`
+dp[i][w] = max(
+    dp[i-1][w],              // no tomar objeto i
+    dp[i-1][w - w[i]] + v[i] // tomar objeto i (si w >= w[i])
+)
+\`\`\`
+
+### Implementación optimizada (1D)
+
+\`\`\`java
+import java.util.*;
+
+public class Knapsack {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt(), W = sc.nextInt();
+        int[] w = new int[n], v = new int[n];
+        
+        for (int i = 0; i < n; i++) {
+            w[i] = sc.nextInt();
+            v[i] = sc.nextInt();
+        }
+        
+        // Truco: iterar W de derecha a izquierda
+        // para simular dp[i-1][...] con un solo array
+        int[] dp = new int[W + 1];
+        for (int i = 0; i < n; i++) {
+            for (int j = W; j >= w[i]; j--) {
+                dp[j] = Math.max(dp[j], dp[j - w[i]] + v[i]);
+            }
+        }
+        
+        System.out.println(dp[W]);
+    }
+}
+\`\`\`
+
+---
+
+## Problemas Recomendados
+
+Practica estos problemas en orden de dificultad:
+
+| # | Problema | Dificultad | Tema | Link |
+|---|----------|-----------|------|------|
+| 1 | Fibonacci | Fácil | DP lineal | [Resolver](https://cses.fi/problemset/task/1746) |
+| 2 | Coin Change | Fácil | DP sobre conjuntos | [Resolver](https://cses.fi/problemset/task/1634) |
+| 3 | 0/1 Knapsack | Medio | DP clásico | [Resolver](https://cses.fi/problemset/task/1158) |
+| 4 | LIS | Medio | DP + Binary Search | [Resolver](https://cses.fi/problemset/task/1145) |
+| 5 | Edit Distance | Medio | DP 2D | [Resolver](https://cses.fi/problemset/task/1639) |
+| 6 | Counting Towers | Difícil | DP combinatorio | [Resolver](https://cses.fi/problemset/task/2413) |
+
+### Checklist de práctica
+
+- [ ] Resuelve al menos 3 problemas esta semana
+- [ ] Intenta cada problema **sin ver la solución** por al menos 30 minutos
+- [ ] Si te atascas, dibuja la tabla de DP en papel
+- [ ] Después de resolver, optimiza el espacio si es posible
+
+---
+
+## Recursos Adicionales
+
+- [CP Algorithms — Dynamic Programming](https://cp-algorithms.com/)
+- [CSES Problem Set — DP Section](https://cses.fi/problemset/)
+- [Competitive Programming Handbook, Cap. 7](https://cses.fi/book/book.pdf)
+
+**La próxima semana** veremos DP sobre árboles y DP con bitmask. ¡Prepárense!
+
+---
+
+## Apéndice: Análisis de Complejidad
+
+La complejidad del Knapsack 0/1 se puede expresar formalmente:
+
+$$T(n, W) = O(n \\cdot W)$$
+
+Donde $n$ es el número de objetos y $W$ la capacidad máxima. Esto es **pseudo-polinomial** porque $W$ no es polinomial en el tamaño de la entrada (número de bits).
+
+Para Fibonacci con memoización, la recurrencia satisface:
+
+$$F(n) = F(n-1) + F(n-2), \\quad F(0) = 0, \\quad F(1) = 1$$
+
+Y la forma cerrada (fórmula de Binet) es:
+
+$$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\frac{1 + \\sqrt{5}}{2}$$
+
+> **Nota**: En competencia, rara vez necesitas la forma cerrada. Pero entender que $F(n) \\in O(\\phi^n)$ te ayuda a estimar si una solución recursiva sin memo es viable.`,
+    tags: ['algorithms', 'dp', 'competitive-programming', 'tutorial', 'resources'],
+    status: 'PUBLISHED',
+    pinned: false,
+    pinnedAt: null,
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    createdAt: '2026-02-12T09:00:00Z',
+    updatedAt: '2026-02-12T09:00:00Z',
+    publishedAt: '2026-02-12T10:00:00Z',
+  },
+  {
+    id: 'mat-004',
+    title: 'Borrador: Semana 3 - Segment Trees',
+    content: '# Segment Trees\n\nTODO: completar contenido sobre segment trees y lazy propagation.',
+    tags: ['algorithms'],
+    status: 'DRAFT',
+    pinned: false,
+    pinnedAt: null,
+    author: { nickname: 'mariacoach', name: 'María Coach' },
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    createdAt: '2026-02-18T16:00:00Z',
+    updatedAt: '2026-02-18T16:00:00Z',
+    publishedAt: null,
+  },
+  {
+    id: 'mat-005',
+    title: 'Anuncio: Contest Regional',
+    content: '# Contest Regional 2026\n\nSe acerca el contest regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Contest**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
+    tags: ['announcement'],
+    status: 'PUBLISHED',
+    pinned: true,
+    pinnedAt: '2026-02-20T08:00:00Z',
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    createdAt: '2026-02-19T11:00:00Z',
+    updatedAt: '2026-02-20T08:00:00Z',
+    publishedAt: '2026-02-19T12:00:00Z',
+  },
+]
+
+export function buildMaterialList(params: {
+  groupId: string
+  page?: number
+  limit?: number
+  pinned?: string
+  tags?: string
+  q?: string
+}): MaterialListResponse {
+  let filtered = mockMaterials.filter((m) => m.group.id === params.groupId)
+
+  if (params.pinned === 'true') filtered = filtered.filter((m) => m.pinned)
+  if (params.pinned === 'false') filtered = filtered.filter((m) => !m.pinned)
+
+  if (params.tags) {
+    const requiredTags = params.tags.split(',')
+    filtered = filtered.filter((m) => requiredTags.every((t) => m.tags.includes(t)))
+  }
+
+  if (params.q) {
+    const q = params.q.toLowerCase()
+    filtered = filtered.filter(
+      (m) => m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q),
+    )
+  }
+
+  // Sort: pinned first by pinnedAt DESC, then by publishedAt DESC
+  filtered.sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    if (a.pinned && b.pinned) {
+      return new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()
+    }
+    const aDate = a.publishedAt ?? a.createdAt
+    const bDate = b.publishedAt ?? b.createdAt
+    return new Date(bDate).getTime() - new Date(aDate).getTime()
+  })
+
+  const page = params.page || 1
+  const limit = params.limit || 20
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    materials: paged,
+    pagination: {
+      totalCount: filtered.length,
+      currentPage: page,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      itemsPerPage: limit,
+    },
+  }
+}
