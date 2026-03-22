@@ -90,7 +90,7 @@ export function MaterialDetailPage() {
   const breadcrumbs = [
     { label: 'Grupos', href: '/groups' },
     { label: material?.group.name ?? 'Grupo', href: `/groups/${groupId}` },
-    { label: 'Materiales', href: `/groups/${groupId}/materials`, icon: BookOpen },
+    { label: 'Materiales', href: `/groups/${groupId}/materials` },
     { label: material?.title ?? 'Cargando...' },
   ]
 
@@ -248,12 +248,9 @@ export function MaterialDetailPage() {
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {material.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1.5 bg-neutral-surface-hover text-neutral-text-secondary rounded-lg text-xs font-medium"
-                        >
+                        <Badge key={tag} variant="outline">
                           {tag}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </CardContent>

@@ -1,6 +1,6 @@
 .markdown-body {
   color: #1e293b;
-  font-size: 1rem;
+  font-size: 0.875rem;
   line-height: 1.75;
   word-wrap: break-word;
 }
@@ -131,7 +131,7 @@
   color: #e11d48;
   padding: 0.15em 0.4em;
   border-radius: 6px;
-  font-size: 0.875em;
+  font-size: 0.8125em;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
 }
 
@@ -143,7 +143,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow-x: auto;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.7;
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
 }

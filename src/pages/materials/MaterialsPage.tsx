@@ -14,7 +14,6 @@ import {
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
-import { BookOpen } from 'lucide-react'
 import type { Material, MaterialListParams } from '@/types/material'
 
 export function MaterialsPage() {
@@ -121,7 +120,7 @@ export function MaterialsPage() {
       breadcrumbs={[
         { label: 'Grupos', href: '/groups' },
         { label: 'Grupo', href: `/groups/${groupId}` },
-        { label: 'Materiales', icon: BookOpen },
+        { label: 'Materiales' },
       ]}
       onCreateNew={isLead ? () => navigate(`/groups/${groupId}/materials/new`) : undefined}
       createButtonLabel="Nuevo Material"
