@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, ArrowLeft } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Tag, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, ArrowLeft, Copy, Check } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { LatexRenderer } from '@/components/features/LatexRenderer'
+import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useContestSession } from '@/components/layout/ContestSessionProvider'
@@ -207,15 +207,48 @@ export function ProblemDetailPage() {
           </CardHeader>
           <CardContent>
             {problem.statement ? (
-              <LatexRenderer
-                content={problem.statement}
-                className="prose prose-sm max-w-none text-neutral-text-primary"
-              />
+              <MarkdownRenderer content={problem.statement} />
             ) : (
               <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
             )}
           </CardContent>
         </Card>
+
+        {/* Input / Output format */}
+        {(problem.inputFormat || problem.outputFormat) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {problem.inputFormat && (
+              <Card>
+                <CardHeader><CardTitle>Formato de entrada</CardTitle></CardHeader>
+                <CardContent>
+                  <MarkdownRenderer content={problem.inputFormat} />
+                </CardContent>
+              </Card>
+            )}
+            {problem.outputFormat && (
+              <Card>
+                <CardHeader><CardTitle>Formato de salida</CardTitle></CardHeader>
+                <CardContent>
+                  <MarkdownRenderer content={problem.outputFormat} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Examples */}
+        {problem.examples && problem.examples.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ejemplos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {problem.examples.map((ex, idx) => (
+                <ExampleBlock key={idx} index={idx + 1} input={ex.input} output={ex.output} explanation={ex.explanation} />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Language overrides */}
         {problem.languageOverrides.length > 0 && (
@@ -405,5 +438,56 @@ function FileIndicator({ label, available, detail }: { label: string; available:
         {detail && <div className="text-xs text-neutral-text-muted">{detail}</div>}
       </div>
     </div>
+  )
+}
+
+function ExampleBlock({ index, input, output, explanation }: { index: number; input: string; output: string; explanation?: string }) {
+  return (
+    <div className="border border-neutral-border rounded-lg overflow-hidden">
+      <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+        <span className="text-sm font-semibold text-neutral-text-primary">Ejemplo {index}</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+            <CopyButton text={input} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{input}</pre>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+            <CopyButton text={output} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{output}</pre>
+        </div>
+      </div>
+      {explanation && (
+        <div className="px-4 py-3 border-t border-neutral-border bg-brand-primary-muted/30">
+          <MarkdownRenderer content={`**Nota:** ${explanation}`} className="text-sm" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded hover:bg-neutral-border/50 transition-colors text-neutral-text-muted hover:text-neutral-text-primary"
+      title="Copiar"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
   )
 }
