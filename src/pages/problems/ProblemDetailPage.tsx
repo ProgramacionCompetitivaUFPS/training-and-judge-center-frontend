@@ -4,7 +4,6 @@ import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { LatexRenderer } from '@/components/features/LatexRenderer'
-import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useContestSession } from '@/components/layout/ContestSessionProvider'
@@ -37,7 +36,6 @@ export function ProblemDetailPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
-  const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
   if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
@@ -144,7 +142,13 @@ export function ProblemDetailPage() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             {problem.status === 'PUBLISHED' && (
-              <Button variant="primary" onClick={() => setSubmitDialogOpen(true)}>
+              <Button variant="primary" onClick={() => {
+                if (isContestContext && contestId && letter) {
+                  navigate(`/contests/${contestId}/submit?problem=${letter.toUpperCase()}`)
+                } else {
+                  navigate(`/submit?problem=${problem.slug}`)
+                }
+              }}>
                 <Send className="h-4 w-4 mr-2" />
                 Enviar solución
               </Button>
@@ -374,15 +378,6 @@ export function ProblemDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Submit solution dialog */}
-      <SubmitSolutionDialog
-        open={submitDialogOpen}
-        onOpenChange={setSubmitDialogOpen}
-        problemSlug={problem.slug}
-        problemTitle={problem.title}
-        contestId={contestId}
-        groupId={activeContest?.group.id}
-      />
     </AppLayout>
   )
 }

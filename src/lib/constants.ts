@@ -67,6 +67,8 @@ export const ROUTES = {
   MATERIAL_NEW: '/groups/:groupId/materials/new',
   MATERIAL_DETAIL: '/groups/:groupId/materials/:materialId',
   MATERIAL_EDIT: '/groups/:groupId/materials/:materialId/edit',
+  SUBMIT_SOLUTION: '/submit',
+  CONTEST_SUBMIT: '/contests/:contestId/submit',
   SUBMISSIONS: '/submissions',
   SUBMISSION_DETAIL: '/submissions/:id',
   TEAMS: '/teams',

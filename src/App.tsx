@@ -32,6 +32,7 @@ import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
 // Submission pages
 import { SubmissionsPage } from '@/pages/submissions/SubmissionsPage'
 import { SubmissionDetailPage } from '@/pages/submissions/SubmissionDetailPage'
+import { SubmitSolutionPage } from '@/pages/submissions/SubmitSolutionPage'
 
 // Contest pages
 import { ContestsPage } from '@/pages/contests/ContestsPage'
@@ -133,6 +134,8 @@ export default function App() {
               <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_PROBLEM} element={<ProtectedRoute><ProblemDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.SUBMIT_SOLUTION} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_SUBMIT} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><SubmissionsPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMISSION_DETAIL} element={<ProtectedRoute><SubmissionDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><MaterialsPage /></ProtectedRoute>} />

@@ -1,13 +1,11 @@
-import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Send, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
-import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
@@ -46,10 +44,6 @@ export function ContestDetailPage() {
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
 
-  // Submit dialog state
-  const [submitOpen, setSubmitOpen] = useState(false)
-  const [submitProblem, setSubmitProblem] = useState<{ slug: string; title: string } | null>(null)
-
   if (!id) return null
 
   if (isLoading) {
@@ -68,11 +62,6 @@ export function ContestDetailPage() {
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered
-
-  const openSubmitDialog = (slug: string, title: string) => {
-    setSubmitProblem({ slug, title })
-    setSubmitOpen(true)
-  }
 
   const handleRegister = () => {
     registerMutation.mutate(
@@ -157,7 +146,6 @@ export function ContestDetailPage() {
                     problems={contest.problems}
                     contestId={contest.id}
                     showSubmit={contest.isRegistered}
-                    onSubmit={openSubmitDialog}
                   />
                 </CardContent>
               </Card>
@@ -198,17 +186,6 @@ export function ContestDetailPage() {
             </aside>
           </div>
         </div>
-
-        {submitProblem && (
-          <SubmitSolutionDialog
-            open={submitOpen}
-            onOpenChange={setSubmitOpen}
-            problemSlug={submitProblem.slug}
-            problemTitle={submitProblem.title}
-            contestId={contest.id}
-            groupId={contest.group.id}
-          />
-        )}
       </AppLayout>
     )
   }

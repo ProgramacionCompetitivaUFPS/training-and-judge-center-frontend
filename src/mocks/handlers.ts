@@ -708,6 +708,24 @@ export const handlers = [
     }, { status: 201 })
   }),
 
+  // Submit solution (contest)
+  http.post(url('/groups/:groupId/contests/:contestId/problems/:slug/submissions'), async ({ params }) => {
+    await delay(500)
+    const { slug } = params as { groupId: string; contestId: string; slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    return HttpResponse.json({
+      id: newId,
+      status: 'PENDING',
+      submittedAt: new Date().toISOString(),
+      problem: { slug, title: problem?.title || slug },
+      language: 'cpp20',
+      compiler: 'g++',
+      fileSize: 1024,
+      fileHash: 'mock-hash-' + newId,
+    }, { status: 201 })
+  }),
+
   // === Contests ===
 
   // List contests in group
