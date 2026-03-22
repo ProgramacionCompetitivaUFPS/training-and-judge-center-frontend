@@ -44,9 +44,12 @@ import {
   useCreateInvitation,
 } from '@/hooks/api/useGroups'
 import { useMaterials } from '@/hooks/api/useMaterials'
+import { useContests } from '@/hooks/api/useContests'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
+import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { ROUTES } from '@/lib/constants'
+import { formatDuration } from '@/lib/utils'
 import type { GroupRole } from '@/types/group'
 import {
   Shield,
@@ -56,6 +59,9 @@ import {
   UserMinus,
   Check,
   X,
+  Trophy,
+  Clock,
+  Users,
 } from 'lucide-react'
 
 export function GroupDetailPage() {
@@ -69,6 +75,7 @@ export function GroupDetailPage() {
   const isMember = group?.userMembership.isMember ?? false
   const { data: requestsData } = useJoinRequests(id!, { status: 'PENDING' })
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
+  const { data: contestsData } = useContests(id!, { limit: 10, sortBy: 'startTime', sortOrder: 'desc' })
 
   const joinMutation = useJoinGroup()
   const requestMutation = useCreateJoinRequest()
@@ -416,8 +423,67 @@ export function GroupDetailPage() {
     </div>
   )
 
+  const contestsTab = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-text-muted">
+          Competencias de este grupo
+        </p>
+        {isLead && (
+          <Button size="sm" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+            Nueva competencia
+          </Button>
+        )}
+      </div>
+      {contestsData?.data && contestsData.data.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {contestsData.data.map((c) => (
+            <Card
+              key={c.id}
+              className="cursor-pointer hover:border-brand-primary/40 transition-colors"
+              onClick={() => navigate(`/contests/${c.id}`)}
+            >
+              <CardContent className="pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <ContestStatusBadge status={c.status} />
+                  <span className="text-xs text-neutral-text-muted">{formatDuration(c.duration)}</span>
+                </div>
+                <h3 className="font-semibold text-neutral-text-primary leading-tight">{c.name}</h3>
+                <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    {new Date(c.startTime).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {c.participantCount}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Trophy className="h-3.5 w-3.5" />
+                    {c.problemCount} problemas
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="py-8 text-center text-neutral-text-muted">
+          <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No hay competencias en este grupo</p>
+          {isLead && (
+            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+              Crear primera competencia
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
   const tabs = [
     { id: 'info', label: 'Información', content: infoTab },
+    { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.data?.length },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
     ...(isLead ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
