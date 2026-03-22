@@ -77,10 +77,11 @@ export function ContestSubmissionsPage() {
         </div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 rounded-lg border border-neutral-border bg-neutral-surface px-4 py-2.5">
+          <span className="text-sm text-neutral-text-muted shrink-0">Filtrar:</span>
           {contest && contest.problems.length > 0 && (
             <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
-              <SelectTrigger className="w-56">
+              <SelectTrigger className="w-56 bg-neutral-bg">
                 <SelectValue placeholder="Todos los problemas" />
               </SelectTrigger>
               <SelectContent>
@@ -94,7 +95,7 @@ export function ContestSubmissionsPage() {
             </Select>
           )}
           <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48 bg-neutral-bg">
               <SelectValue placeholder="Todas las fases" />
             </SelectTrigger>
             <SelectContent>
