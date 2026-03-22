@@ -28,6 +28,8 @@ interface TeamContestRegistrationProps {
   teamSizeMin?: number
   teamSizeMax?: number
   isRegistered: boolean
+  /** "card" renders the full Card wrapper (default). "inline" renders just a Button suitable for hero sections. */
+  variant?: 'card' | 'inline'
 }
 
 export function TeamContestRegistration({
@@ -37,6 +39,7 @@ export function TeamContestRegistration({
   teamSizeMin = 1,
   teamSizeMax = 5,
   isRegistered,
+  variant = 'card',
 }: TeamContestRegistrationProps) {
   const { toast } = useToastContext()
   const [showDialog, setShowDialog] = useState(false)
@@ -84,26 +87,34 @@ export function TeamContestRegistration({
 
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax
 
+  const triggerButton = (
+    <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'default'} onClick={() => setShowDialog(true)}>
+      <UsersRound className="h-4 w-4 mr-2" />
+      Registrar equipo
+    </Button>
+  )
+
   return (
     <>
-      <Card className="border-brand-accent/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <UsersRound className="h-4 w-4 text-brand-accent" />
-            Registro por equipo
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-neutral-text-muted mb-3">
-            Este contest permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
-            Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
-          </p>
-          <Button variant="primary" onClick={() => setShowDialog(true)}>
-            <UsersRound className="h-4 w-4 mr-2" />
-            Registrar equipo
-          </Button>
-        </CardContent>
-      </Card>
+      {variant === 'inline' ? (
+        triggerButton
+      ) : (
+        <Card className="border-brand-accent/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UsersRound className="h-4 w-4 text-brand-accent" />
+              Registro por equipo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-neutral-text-muted mb-3">
+              Este contest permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
+              Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
+            </p>
+            {triggerButton}
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">

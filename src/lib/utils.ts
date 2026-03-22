@@ -29,3 +29,28 @@ export function formatDateTz(iso: string, options?: { short?: boolean }): string
   })
   return `${formatted} ${tz}`
 }
+
+
+/**
+ * Format a duration in seconds to a human-readable string.
+ * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min"
+ */
+export function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`
+  if (hours > 0) return `${hours}h`
+  return `${minutes}min`
+}
+
+/**
+ * Map a participation mode code to its Spanish label.
+ */
+export function participationModeLabel(mode: string): string {
+  switch (mode) {
+    case 'INDIVIDUAL': return 'Individual'
+    case 'TEAM': return 'Por equipos'
+    case 'MIXED': return 'Mixto'
+    default: return mode
+  }
+}

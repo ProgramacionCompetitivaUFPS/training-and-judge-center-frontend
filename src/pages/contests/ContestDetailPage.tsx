@@ -1,92 +1,37 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, BarChart3, FileText, Send, Globe, Swords } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Clock, Users, Trophy, Lock, Send, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { EntityDetailPage } from '@/components/patterns'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
+import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { SubmitSolutionDialog } from '@/components/features/SubmitSolutionDialog'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { formatDateTz } from '@/lib/utils'
+import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
 
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`
-  if (hours > 0) return `${hours}h`
-  return `${minutes}min`
-}
-
-function participationModeLabel(mode: string): string {
-  switch (mode) {
-    case 'INDIVIDUAL': return 'Individual'
-    case 'TEAM': return 'Por equipos'
-    case 'MIXED': return 'Mixto'
-    default: return mode
-  }
-}
-
-function StatCell({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+function LockedProblemsPlaceholder() {
   return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-neutral-text-muted shrink-0" />
-      <div className="min-w-0">
-        <p className="text-xs text-neutral-text-muted leading-none mb-0.5">{label}</p>
-        <p className="text-sm font-semibold text-neutral-text leading-tight">{value}</p>
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <div className="w-16 h-16 bg-neutral-background rounded-full flex items-center justify-center mb-4">
+        <EyeOff className="h-7 w-7 text-neutral-text-muted" />
+      </div>
+      <h4 className="text-base font-bold text-neutral-text-primary mb-1">
+        Los problemas se revelarán al iniciar el contest
+      </h4>
+      <p className="text-sm text-neutral-text-muted max-w-sm">
+        Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.
+      </p>
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-lg">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-16 bg-neutral-background rounded-lg animate-pulse" />
+        ))}
       </div>
     </div>
-  )
-}
-
-function ProblemsTable({ problems, contestId, showSubmit, onSubmit }: {
-  problems: Array<{ position: number; slug: string; title: string; timeLimit: number; memoryLimit: number }>
-  contestId?: string
-  showSubmit?: boolean
-  onSubmit?: (slug: string, title: string) => void
-}) {
-  if (problems.length === 0) {
-    return <p className="text-neutral-text-muted text-sm py-4">Los problemas se mostrarán cuando el contest inicie.</p>
-  }
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-12">#</TableHead>
-          <TableHead>Problema</TableHead>
-          <TableHead className="w-24">Tiempo</TableHead>
-          <TableHead className="w-24">Memoria</TableHead>
-          {showSubmit && <TableHead className="w-24" />}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {problems.map((p) => (
-          <TableRow key={p.slug}>
-            <TableCell className="font-mono font-bold">{labels[p.position - 1] || p.position}</TableCell>
-            <TableCell>
-              <Link to={`/problems/${p.slug}${contestId ? `?contest=${contestId}` : ''}`} className="text-brand-primary hover:underline">
-                {p.title}
-              </Link>
-            </TableCell>
-            <TableCell>{p.timeLimit}ms</TableCell>
-            <TableCell>{p.memoryLimit} MiB</TableCell>
-            {showSubmit && (
-              <TableCell>
-                <Button variant="ghost" size="sm" className="gap-1" onClick={() => onSubmit?.(p.slug, p.title)}>
-                  <Send className="h-3.5 w-3.5" />
-                  Enviar
-                </Button>
-              </TableCell>
-            )}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   )
 }
 
@@ -101,16 +46,28 @@ export function ContestDetailPage() {
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
 
-  if (!id) return null
-
-  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
-  const canRegisterIndividual = contest?.status === 'SCHEDULED' && !contest?.isRegistered &&
-    (contest?.participationMode === 'INDIVIDUAL' || contest?.participationMode === 'MIXED')
-  const canUnregister = contest?.status === 'SCHEDULED' && contest?.isRegistered
-
   // Submit dialog state
   const [submitOpen, setSubmitOpen] = useState(false)
   const [submitProblem, setSubmitProblem] = useState<{ slug: string; title: string } | null>(null)
+
+  if (!id) return null
+
+  if (isLoading) {
+    return (
+      <AppLayout breadcrumbs={[{ label: 'Competencias', href: '/contests' }, { label: '...' }]}>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (!contest) return null
+
+  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+  const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
+    (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
+  const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered
 
   const openSubmitDialog = (slug: string, title: string) => {
     setSubmitProblem({ slug, title })
@@ -118,7 +75,6 @@ export function ContestDetailPage() {
   }
 
   const handleRegister = () => {
-    if (!contest) return
     registerMutation.mutate(
       { groupId: contest.group.id, contestId: contest.id },
       {
@@ -129,7 +85,6 @@ export function ContestDetailPage() {
   }
 
   const handleUnregister = () => {
-    if (!contest) return
     unregisterMutation.mutate(
       { groupId: contest.group.id, contestId: contest.id },
       {
@@ -140,7 +95,6 @@ export function ContestDetailPage() {
   }
 
   const handleDelete = () => {
-    if (!contest) return
     deleteMutation.mutate(
       { groupId: contest.group.id, contestId: contest.id },
       {
@@ -153,105 +107,95 @@ export function ContestDetailPage() {
     )
   }
 
-  // === ACTIVE CONTEST: Competition mode layout ===
-  if (contest?.status === 'ACTIVE') {
+  const breadcrumbs = [
+    { label: 'Competencias', href: '/contests' },
+    { label: contest.name },
+  ]
+
+  // ═══════════════════════════════════════════════
+  // ACTIVE: Competition mode layout
+  // ═══════════════════════════════════════════════
+  if (contest.status === 'ACTIVE') {
     return (
-      <AppLayout
-        breadcrumbs={[
-          { label: 'Competencias', href: '/contests' },
-          { label: contest.name },
-        ]}
-      >
+      <AppLayout breadcrumbs={breadcrumbs}>
         <div className="space-y-6">
-          {/* Header row */}
-          <div className="flex items-start justify-between">
+          {/* Header with compact timer */}
+          <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-extrabold text-neutral-text-primary">{contest.name}</h1>
+              <div className="flex items-center gap-3 mb-2">
                 <ContestStatusBadge status={contest.status} />
-                {contest.isRegistered && <Badge variant="primary">Registrado</Badge>}
+                <span className="text-sm font-medium text-neutral-text-muted">{contest.group.name}</span>
               </div>
-              <p className="text-sm text-neutral-text-muted">
-                {contest.group.name} · @{contest.owner.nickname}
-              </p>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-text-primary tracking-tight">
+                {contest.name}
+              </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="primary" className="gap-2" onClick={() => navigate(`/contests/${contest.id}/standings`)}>
-                <BarChart3 className="h-4 w-4" />
-                Standings
-              </Button>
-              <Button variant="outline" className="gap-2" onClick={() => navigate(`/contests/${contest.id}/submissions`)}>
-                <FileText className="h-4 w-4" />
-                Submissions
-              </Button>
+            <div className="flex items-center gap-4 bg-neutral-surface border border-neutral-border rounded-xl px-5 py-3 shadow-sm">
+              <div className="flex items-center gap-2.5">
+                <Clock className="h-4 w-4 text-brand-primary flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Tiempo restante</p>
+                  <ContestCountdown targetTime={contest.endTime} />
+                </div>
+              </div>
+              <div className="h-8 w-px bg-neutral-border" />
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Participantes</p>
+                <p className="text-lg font-extrabold text-neutral-text-primary">{contest.participantCount}</p>
+              </div>
             </div>
-          </div>
+          </header>
 
-          {/* Two-column: info | problems */}
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-            {/* Left column */}
-            <div className="space-y-4">
-              {/* Countdown card with accent border */}
-              <Card className="border-brand-primary/30 bg-brand-primary/5">
-                <CardContent className="pt-6">
-                  <ContestCountdown targetTime={contest.endTime} label="Tiempo restante" />
-                </CardContent>
-              </Card>
-
-              {/* Schedule card: start/end side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section className="lg:col-span-8">
               <Card>
-                <CardContent className="pt-5 pb-4">
-                  <div className="grid grid-cols-2 divide-x divide-neutral-border">
-                    <div className="pr-3 text-center">
-                      <p className="text-xs text-neutral-text-muted mb-1">Inicio</p>
-                      <p className="text-sm font-semibold text-neutral-text">{formatDateTz(contest.startTime, { short: true })}</p>
-                    </div>
-                    <div className="pl-3 text-center">
-                      <p className="text-xs text-neutral-text-muted mb-1">Fin</p>
-                      <p className="text-sm font-semibold text-neutral-text">{formatDateTz(contest.endTime, { short: true })}</p>
-                    </div>
-                  </div>
+                <CardHeader>
+                  <CardTitle>Problemas del concurso</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ContestProblemsTable
+                    problems={contest.problems}
+                    contestId={contest.id}
+                    showSubmit={contest.isRegistered}
+                    onSubmit={openSubmitDialog}
+                  />
                 </CardContent>
               </Card>
+            </section>
 
-              {/* Stats grid */}
-              <Card>
-                <CardContent className="pt-5 pb-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <StatCell icon={Clock} label="Duración" value={formatDuration(contest.duration)} />
-                    <StatCell icon={Users} label="Participantes" value={String(contest.participantCount)} />
-                    <StatCell icon={Trophy} label="Penalización" value={`${contest.penalty} min`} />
-                    <StatCell icon={Swords} label="Modalidad" value={participationModeLabel(contest.participationMode)} />
-                    {contest.freezeMinutes != null && (
-                      <StatCell icon={Lock} label="Freeze" value={`${contest.freezeMinutes} min`} />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+            <aside className="lg:col-span-4 space-y-4">
+              {/* User position — first in sidebar for visibility */}
+              {contest.isRegistered && (
+                <Card>
+                  <CardContent className="pt-5">
+                    <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-3">Tu posición actual</p>
+                    <div className="flex items-baseline gap-1.5 mb-3">
+                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#3</span>
+                      <span className="text-sm text-neutral-text-muted font-medium">/ {contest.participantCount}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="px-2.5 py-1 bg-status-success/10 text-status-success text-xs font-bold rounded-md">
+                        2 Resueltos
+                      </span>
+                      <span className="px-2.5 py-1 bg-neutral-background text-neutral-text-muted text-xs font-bold rounded-md">
+                        85 min
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <ContestInfoSidebar contest={contest} />
+              <ContestQuickLinks contestId={contest.id} />
 
               {contest.description && (
                 <Card>
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-5">
                     <p className="text-sm text-neutral-text whitespace-pre-wrap">{contest.description}</p>
                   </CardContent>
                 </Card>
               )}
-            </div>
-
-            {/* Right: problems table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Problemas ({contest.problems.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ProblemsTable
-                  problems={contest.problems}
-                  contestId={contest.id}
-                  showSubmit={contest.isRegistered}
-                  onSubmit={openSubmitDialog}
-                />
-              </CardContent>
-            </Card>
+            </aside>
           </div>
         </div>
 
@@ -269,134 +213,263 @@ export function ContestDetailPage() {
     )
   }
 
-  // === SCHEDULED / FINISHED: Standard detail layout ===
-  const badges = contest
-    ? [
-        { label: contest.status === 'SCHEDULED' ? 'Programado' : 'Finalizado', variant: 'default' as const },
-        ...(contest.isRegistered ? [{ label: 'Registrado', variant: 'primary' as const }] : []),
-        ...(contest.locked ? [{ label: 'Bloqueado', variant: 'warning' as const }] : []),
-      ]
-    : []
+  // ═══════════════════════════════════════════════
+  // SCHEDULED: Hero countdown layout
+  // ═══════════════════════════════════════════════
+  if (contest.status === 'SCHEDULED') {
+    const showTeamRegistration = contest.participationMode !== 'INDIVIDUAL'
 
-  const tabs = contest
-    ? [
-        {
-          id: 'info',
-          label: 'Información',
-          content: (
-            <div className="space-y-4">
-              {contest.status === 'SCHEDULED' && (
-                <Card className="border-brand-primary/30 bg-brand-primary/5">
-                  <CardContent className="pt-6">
-                    <ContestCountdown targetTime={contest.startTime} label="Comienza en" />
-                  </CardContent>
-                </Card>
-              )}
-              {/* Schedule + stats compact */}
-              <Card>
-                <CardContent className="pt-5 pb-4 space-y-4">
-                  {/* Dates row */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-neutral-text-muted mb-0.5">Inicio</p>
-                      <p className="text-sm font-semibold text-neutral-text">{formatDateTz(contest.startTime)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-neutral-text-muted mb-0.5">Fin</p>
-                      <p className="text-sm font-semibold text-neutral-text">{formatDateTz(contest.endTime)}</p>
-                    </div>
-                  </div>
-                  <div className="border-t border-neutral-border" />
-                  {/* Stats grid */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <StatCell icon={Clock} label="Duración" value={formatDuration(contest.duration)} />
-                    <StatCell icon={Users} label="Participantes" value={String(contest.participantCount)} />
-                    <StatCell icon={Trophy} label="Penalización" value={`${contest.penalty} min`} />
-                    <StatCell icon={Swords} label="Modalidad" value={participationModeLabel(contest.participationMode)} />
-                    {contest.freezeMinutes != null && (
-                      <StatCell icon={Lock} label="Freeze" value={`${contest.freezeMinutes} min`} />
-                    )}
-                    {contest.enablePostContest && (
-                      <StatCell icon={Globe} label="Post-contest" value="Habilitada" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              {contest.description && (
-                <div>
-                  <h3 className="text-sm font-medium text-neutral-text-muted mb-2">Descripción</h3>
-                  <p className="text-neutral-text whitespace-pre-wrap">{contest.description}</p>
-                </div>
-              )}
-              <div className="space-y-1">
-                <p className="text-sm text-neutral-text-muted">
-                  Grupo: <span className="text-neutral-text font-medium">{contest.group.name}</span>
-                </p>
-                <p className="text-sm text-neutral-text-muted">
-                  Organizador: <span className="text-neutral-text font-medium">@{contest.owner.nickname}</span>
-                </p>
-                {contest.participationMode !== 'INDIVIDUAL' && contest.teamSizeMin && contest.teamSizeMax && (
-                  <p className="text-sm text-neutral-text-muted">
-                    Tamaño de equipo: <span className="text-neutral-text font-medium">{contest.teamSizeMin}–{contest.teamSizeMax} miembros</span>
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-3">
+    return (
+      <AppLayout breadcrumbs={breadcrumbs}>
+        <div className="space-y-8">
+          {/* Hero Countdown */}
+          <section className="relative overflow-hidden rounded-lg bg-neutral-surface border border-neutral-border p-8 md:p-12 text-center">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-brand-primary/5 to-transparent pointer-events-none" />
+            <div className="relative">
+              <ContestStatusBadge status={contest.status} />
+              <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-text-primary mt-4 mb-6 tracking-tight">
+                {contest.name}
+              </h1>
+              <ContestCountdown
+                targetTime={contest.startTime}
+                label="Comienza en"
+                variant="hero"
+              />
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
                 {canRegisterIndividual && (
-                  <Button variant="primary" onClick={handleRegister} isLoading={registerMutation.isPending}>
+                  <Button variant="primary" size="lg" onClick={handleRegister} isLoading={registerMutation.isPending}>
+                    <User className="h-4 w-4 mr-2" />
                     Registrarse
                   </Button>
                 )}
+                {showTeamRegistration && !contest.isRegistered && (
+                  <TeamContestRegistration
+                    contestId={contest.id}
+                    contestStatus={contest.status}
+                    participationMode={contest.participationMode}
+                    teamSizeMin={contest.teamSizeMin}
+                    teamSizeMax={contest.teamSizeMax}
+                    isRegistered={contest.isRegistered}
+                    variant="inline"
+                  />
+                )}
                 {canUnregister && (
-                  <Button variant="outline" onClick={handleUnregister} isLoading={unregisterMutation.isPending}>
+                  <Button variant="outline" size="lg" onClick={handleUnregister} isLoading={unregisterMutation.isPending}>
                     Cancelar registro
                   </Button>
                 )}
+                {contest.isRegistered && (
+                  <Badge variant="success" className="self-center text-sm px-4 py-2">Registrado</Badge>
+                )}
               </div>
-              {contest.status === 'SCHEDULED' && contest.participationMode !== 'INDIVIDUAL' && (
-                <TeamContestRegistration
+            </div>
+          </section>
+
+          {/* Bento grid: info + sidebar */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+            <div className="space-y-6">
+              {/* Info card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Información del concurso</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 bg-neutral-background rounded-lg">
+                        <Calendar className="h-5 w-5 text-neutral-text-muted" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Fecha y hora</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{formatDateTz(contest.startTime)}</p>
+                        <p className="text-xs text-neutral-text-muted">hasta {formatDateTz(contest.endTime, { short: true })}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 bg-neutral-background rounded-lg">
+                        <Clock className="h-5 w-5 text-neutral-text-muted" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Duración</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{formatDuration(contest.duration)}</p>
+                        <p className="text-xs text-neutral-text-muted">Tiempo continuo</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 bg-neutral-background rounded-lg">
+                        <Users className="h-5 w-5 text-neutral-text-muted" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Participantes</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{contest.participantCount} inscritos</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 bg-neutral-background rounded-lg">
+                        <Trophy className="h-5 w-5 text-neutral-text-muted" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Penalización</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{contest.penalty} minutos</p>
+                        <p className="text-xs text-neutral-text-muted">Por envío incorrecto</p>
+                      </div>
+                    </div>
+                  </div>
+                  {contest.description && (
+                    <>
+                      <div className="border-t border-neutral-border" />
+                      <div>
+                        <h4 className="text-sm font-semibold text-neutral-text-primary mb-2">Descripción</h4>
+                        <p className="text-sm text-neutral-text-muted whitespace-pre-wrap leading-relaxed">{contest.description}</p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Problems: locked or visible */}
+              <Card className={contest.problems.length === 0 ? 'border-dashed border-neutral-border' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    Problemas
+                    {contest.problems.length === 0 && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                  </CardTitle>
+                  {contest.problems.length === 0 && (
+                    <Badge variant="default">Acceso restringido</Badge>
+                  )}
+                </CardHeader>
+                <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
+                  {contest.problems.length === 0 ? (
+                    <LockedProblemsPlaceholder />
+                  ) : (
+                    <ContestProblemsTable problems={contest.problems} contestId={contest.id} />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Modalidad</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
+                    <Swords className="h-4 w-4 text-brand-primary" />
+                    <span className="text-sm font-semibold">{participationModeLabel(contest.participationMode)}</span>
+                  </div>
+                  {contest.participationMode !== 'INDIVIDUAL' && contest.teamSizeMin && contest.teamSizeMax && (
+                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
+                      <UsersRound className="h-4 w-4 text-brand-primary" />
+                      <span className="text-sm font-semibold">{contest.teamSizeMin}–{contest.teamSizeMax} miembros por equipo</span>
+                    </div>
+                  )}
+                  {contest.freezeMinutes != null && (
+                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
+                      <Lock className="h-4 w-4 text-brand-primary" />
+                      <span className="text-sm font-semibold">Freeze: {contest.freezeMinutes} min</span>
+                    </div>
+                  )}
+                  {contest.enablePostContest && (
+                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
+                      <Globe className="h-4 w-4 text-brand-primary" />
+                      <span className="text-sm font-semibold">Post-contest habilitado</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+
+              {isLead && !contest.locked && (
+                <ContestAdminActions
                   contestId={contest.id}
-                  contestStatus={contest.status}
-                  participationMode={contest.participationMode}
-                  teamSizeMin={contest.teamSizeMin}
-                  teamSizeMax={contest.teamSizeMax}
-                  isRegistered={contest.isRegistered}
+                  groupId={contest.group.id}
+                  onDelete={handleDelete}
+                  isDeleting={deleteMutation.isPending}
                 />
               )}
             </div>
-          ),
-        },
-        {
-          id: 'problems',
-          label: `Problemas (${contest.problems.length})`,
-          content: <ProblemsTable problems={contest.problems} contestId={contest.id} />,
-        },
-      ]
-    : []
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
-  const primaryAction = contest?.status === 'FINISHED'
-    ? { label: 'Standings', onClick: () => navigate(`/contests/${contest.id}/standings`), icon: BarChart3, variant: 'primary' as const }
-    : undefined
-
-  const additionalActions = contest?.status === 'FINISHED'
-    ? [{ label: 'Submissions', onClick: () => navigate(`/contests/${contest.id}/submissions`), icon: FileText }]
-    : undefined
-
+  // ═══════════════════════════════════════════════
+  // FINISHED: Post-contest layout (same structure as ACTIVE)
+  // ═══════════════════════════════════════════════
   return (
-    <EntityDetailPage
-      title={contest?.name || 'Cargando...'}
-      subtitle={contest ? `${contest.group.name} · Organizador: @${contest.owner.nickname}` : undefined}
-      isLoading={isLoading}
-      breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
-        { label: contest?.name || '...' },
-      ]}
-      badges={badges}
-      tabs={tabs}
-      primaryAction={primaryAction}
-      additionalActions={additionalActions}
-      onEdit={isLead && contest && !contest.locked ? () => navigate(`/groups/${contest.group.id}/contests/${contest.id}/edit`) : undefined}
-      onDelete={isLead && contest && !contest.locked ? handleDelete : undefined}
-    />
+    <AppLayout breadcrumbs={breadcrumbs}>
+      <div className="space-y-6">
+        {/* Header with finished indicator */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <ContestStatusBadge status={contest.status} />
+              <span className="text-sm font-medium text-neutral-text-muted">{contest.group.name}</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-text-primary tracking-tight">
+              {contest.name}
+            </h1>
+          </div>
+          {/* Finished indicator — same container style as ACTIVE timer */}
+          <div className="flex items-center gap-4 bg-neutral-surface border border-neutral-border rounded-xl px-5 py-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <Flag className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Finalizado</p>
+                <p className="text-sm font-semibold text-neutral-text-primary">{formatDateTz(contest.endTime, { short: true })}</p>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-neutral-border" />
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Participantes</p>
+              <p className="text-lg font-extrabold text-neutral-text-primary">{contest.participantCount}</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main content */}
+          <section className="lg:col-span-8 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Problemas del concurso</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ContestProblemsTable problems={contest.problems} contestId={contest.id} />
+              </CardContent>
+            </Card>
+
+            {contest.description && (
+              <Card>
+                <CardContent className="pt-5">
+                  <h4 className="text-sm font-semibold text-neutral-text-primary mb-2">Descripción</h4>
+                  <p className="text-sm text-neutral-text whitespace-pre-wrap leading-relaxed">{contest.description}</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+
+          {/* Sidebar */}
+          <aside className="lg:col-span-4 space-y-4">
+            <ContestInfoSidebar contest={contest} />
+            <ContestQuickLinks contestId={contest.id} />
+            <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+
+            {isLead && !contest.locked && (
+              <ContestAdminActions
+                contestId={contest.id}
+                groupId={contest.group.id}
+                onDelete={handleDelete}
+                isDeleting={deleteMutation.isPending}
+              />
+            )}
+          </aside>
+        </div>
+      </div>
+    </AppLayout>
   )
 }
