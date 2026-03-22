@@ -205,36 +205,28 @@ export function ProblemDetailPage() {
           <CardHeader>
             <CardTitle>Enunciado</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-0">
             {problem.statement ? (
               <MarkdownRenderer content={problem.statement} />
             ) : (
               <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Input / Output format */}
-        {(problem.inputFormat || problem.outputFormat) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Input / Output format — inline sections */}
             {problem.inputFormat && (
-              <Card>
-                <CardHeader><CardTitle>Formato de entrada</CardTitle></CardHeader>
-                <CardContent>
-                  <MarkdownRenderer content={problem.inputFormat} />
-                </CardContent>
-              </Card>
+              <div className="mt-6 pt-5 border-t border-neutral-border">
+                <h3 className="text-sm font-semibold text-neutral-text-primary uppercase tracking-wider mb-2">Entrada</h3>
+                <MarkdownRenderer content={problem.inputFormat} />
+              </div>
             )}
             {problem.outputFormat && (
-              <Card>
-                <CardHeader><CardTitle>Formato de salida</CardTitle></CardHeader>
-                <CardContent>
-                  <MarkdownRenderer content={problem.outputFormat} />
-                </CardContent>
-              </Card>
+              <div className="mt-4 pt-5 border-t border-neutral-border">
+                <h3 className="text-sm font-semibold text-neutral-text-primary uppercase tracking-wider mb-2">Salida</h3>
+                <MarkdownRenderer content={problem.outputFormat} />
+              </div>
             )}
-          </div>
-        )}
+          </CardContent>
+        </Card>
 
         {/* Examples */}
         {problem.examples && problem.examples.length > 0 && (

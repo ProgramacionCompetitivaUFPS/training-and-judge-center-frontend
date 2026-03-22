@@ -196,3 +196,9 @@
   border-radius: 12px;
   margin: 1.5em 0;
 }
+
+/* KaTeX — inline math: bold to distinguish from regular text */
+.markdown-body .katex:not(.katex-display .katex) {
+  font-weight: 600;
+  color: #0f172a;
+}
