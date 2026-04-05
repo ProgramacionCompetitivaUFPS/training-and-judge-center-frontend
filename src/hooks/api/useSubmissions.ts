@@ -99,3 +99,9 @@ export function useUpdateSubmissionVisibility() {
     },
   })
 }
+
+export function useDownloadSubmission() {
+  return useMutation({
+    mutationFn: (id: string) => submissionsApi.downloadSubmission(id),
+  })
+}

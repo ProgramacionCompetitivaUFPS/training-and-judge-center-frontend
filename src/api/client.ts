@@ -110,6 +110,20 @@ class ApiClient {
     })
     return this.handleResponse<T>(response)
   }
+
+  async getBlob(path: string, config?: RequestConfig): Promise<Blob> {
+    const response = await fetch(this.buildUrl(path, config?.params), {
+      headers: { ...this.getAuthHeaders(), ...config?.headers },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: 'UNKNOWN',
+        message: response.statusText,
+      }))
+      throw new ApiClientError(response.status, error.error, error.message, error.details)
+    }
+    return response.blob()
+  }
 }
 
 import { ApiClientError } from '@/lib/errors'

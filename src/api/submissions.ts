@@ -80,15 +80,6 @@ export function updateSubmissionVisibility(
 
 // === Download ===
 
-export async function downloadSubmission(id: string): Promise<Blob> {
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('auth_token')
-  const response = await fetch(`${API_BASE_URL}/submissions/${id}/download`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'UNKNOWN', message: response.statusText }))
-    throw new Error(error.message || 'Error al descargar')
-  }
-  return response.blob()
+export function downloadSubmission(id: string): Promise<Blob> {
+  return apiClient.getBlob(`/submissions/${id}/download`)
 }
