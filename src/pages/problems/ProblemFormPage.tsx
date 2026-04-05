@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { useCreateProblem, useUpdateProblem, useProblemDetail } from '@/hooks/api/useProblems'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function ProblemFormPage() {
   const { slug } = useParams<{ slug: string }>()

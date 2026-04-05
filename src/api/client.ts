@@ -112,16 +112,8 @@ class ApiClient {
   }
 }
 
-export class ApiClientError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-    public details?: Array<{ field: string; message: string }>
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
-  }
-}
+import { ApiClientError } from '@/lib/errors'
+
+export { ApiClientError } from '@/lib/errors'
 
 export const apiClient = new ApiClient(API_BASE_URL)

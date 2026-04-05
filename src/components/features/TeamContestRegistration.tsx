@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/Select'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useToastContext } from '@/components/ui/ToastProvider'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 interface TeamContestRegistrationProps {
   contestId: string

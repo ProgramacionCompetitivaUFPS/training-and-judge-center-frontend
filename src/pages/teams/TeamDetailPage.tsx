@@ -26,7 +26,7 @@ import { useTeamDetail, useInviteTeamMember, useLeaveTeam } from '@/hooks/api/us
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/ui/ToastProvider'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>()

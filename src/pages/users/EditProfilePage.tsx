@@ -21,7 +21,7 @@ import {
   type ChangePasswordFormData,
   type ChangeEmailFormData,
 } from '@/lib/schemas/user'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function EditProfilePage() {
   const { user } = useAuth()

@@ -14,7 +14,7 @@ import {
   type ResetPasswordFormData,
 } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function RecoverPasswordPage() {
   const [step, setStep] = useState<'request' | 'reset' | 'done'>('request')
