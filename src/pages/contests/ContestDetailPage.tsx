@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
@@ -8,7 +8,7 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useLockContest, useUnlockContest } from '@/hooks/api/useContests'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -46,6 +46,8 @@ export function ContestDetailPage() {
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
+  const lockMutation = useLockContest()
+  const unlockMutation = useUnlockContest()
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
@@ -101,6 +103,25 @@ export function ContestDetailPage() {
           navigate('/contests')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
+      },
+    )
+  }
+
+  const handleLockToggle = () => {
+    const mutation = contest.locked ? unlockMutation : lockMutation
+    mutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id },
+      {
+        onSuccess: () => toast({
+          variant: 'success',
+          title: contest.locked ? 'Desbloqueado' : 'Bloqueado',
+          description: contest.locked ? 'El contest fue desbloqueado' : 'El contest fue bloqueado',
+        }),
+        onError: () => toast({
+          variant: 'error',
+          title: 'Error',
+          description: contest.locked ? 'No se pudo desbloquear' : 'No se pudo bloquear',
+        }),
       },
     )
   }
@@ -399,6 +420,22 @@ export function ContestDetailPage() {
 
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
+              {isLead && (
+                <Card>
+                  <CardContent className="pt-5 space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleLockToggle}
+                      isLoading={lockMutation.isPending || unlockMutation.isPending}
+                    >
+                      {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                      {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
               {isLead && !contest.locked && (
                 <ContestAdminActions
                   contestId={contest.id}
@@ -475,6 +512,22 @@ export function ContestDetailPage() {
             <ContestInfoSidebar contest={contest} />
             <ContestQuickLinks contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+
+            {isLead && (
+              <Card>
+                <CardContent className="pt-5 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleLockToggle}
+                    isLoading={lockMutation.isPending || unlockMutation.isPending}
+                  >
+                    {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                    {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {isLead && !contest.locked && (
               <ContestAdminActions
