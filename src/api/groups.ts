@@ -35,7 +35,16 @@ export function getMyGroups(params?: MyGroupsParams): Promise<MyGroupsResponse> 
 }
 
 export function createGroup(data: CreateGroupRequest): Promise<Group> {
-  return apiClient.post('/groups', data)
+  // Transform camelCase fields to snake_case for backend compatibility
+  const payload: Record<string, unknown> = {
+    name: data.name,
+    visibility: data.visibility,
+    join_policy: data.joinPolicy,
+    ...(data.description !== undefined && { description: data.description }),
+    ...(data.initialLeadNicknames !== undefined && { initial_lead_nicknames: data.initialLeadNicknames }),
+    ...(data.initialMemberNicknames !== undefined && { initial_member_nicknames: data.initialMemberNicknames }),
+  }
+  return apiClient.post('/groups', payload)
 }
 
 export function updateGroup(id: string, data: UpdateGroupRequest): Promise<Group> {

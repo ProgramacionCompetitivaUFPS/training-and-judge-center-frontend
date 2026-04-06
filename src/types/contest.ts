@@ -37,6 +37,7 @@ export interface ContestDetail {
   group: { id: string; name: string }
   owner: { id: string; nickname: string }
   problems: ContestProblem[]
+  problemCount: number
   createdAt: string
   updatedAt: string
 }

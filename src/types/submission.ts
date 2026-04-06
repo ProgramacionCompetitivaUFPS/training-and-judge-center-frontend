@@ -17,7 +17,10 @@ export type SubmissionStatus =
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
 
 export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310'
-export type SubmissionCompiler = 'g++' | 'javac' | 'py'
+export type SubmissionCompiler = 'g++' | 'javac' | 'pypy3'
+
+// Display type that includes '?' for frozen contest submissions
+export type SubmissionStatusDisplay = SubmissionStatus | '?'
 
 // === Submission Detail (GET /submissions/:id) ===
 

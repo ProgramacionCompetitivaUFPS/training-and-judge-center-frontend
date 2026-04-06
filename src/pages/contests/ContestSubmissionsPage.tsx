@@ -12,6 +12,7 @@ import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
+import type { SubmissionStatus } from '@/types/submission'
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -178,7 +179,7 @@ export function ContestSubmissionsPage() {
                         {sub.status === '?' ? (
                           <Badge variant="default">?</Badge>
                         ) : (
-                          <SubmissionStatusBadge status={sub.status as any} />
+                          <SubmissionStatusBadge status={sub.status as SubmissionStatus} />
                         )}
                       </TableCell>
                       {data.contest.status === 'FINISHED' && (

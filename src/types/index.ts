@@ -14,6 +14,10 @@ export type {
   AdminUserListParams,
   AdminUserListResponse,
   UserDashboard,
+  DashboardMaterial,
+  DashboardContestResult,
+  UserStreak,
+  UserRanking,
 } from './user'
 
 // Problem types
@@ -99,6 +103,7 @@ export type {
   SubmissionVisibility,
   SubmissionLanguage,
   SubmissionCompiler,
+  SubmissionStatusDisplay,
   SubmissionDetail,
   SubmissionListItem,
   MySubmissionsParams,
