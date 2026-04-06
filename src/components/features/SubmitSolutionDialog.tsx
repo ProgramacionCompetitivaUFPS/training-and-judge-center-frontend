@@ -4,8 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/Button'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
-import { useSubmitSolution, useSubmitContestSolution } from '@/hooks/api/useSubmissions'
-import { useToast } from '@/hooks/useToast'
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {
   cpp20: 'g++',
@@ -24,28 +22,20 @@ interface SubmitSolutionDialogProps {
   onOpenChange: (open: boolean) => void
   problemSlug: string
   problemTitle: string
-  // Contest context (optional)
-  contestId?: string
-  groupId?: string
+  onSubmit: (file: File, language: string, compiler: string) => void
+  isSubmitting: boolean
 }
 
 export function SubmitSolutionDialog({
   open,
   onOpenChange,
-  problemSlug,
   problemTitle,
-  contestId,
-  groupId,
+  onSubmit,
+  isSubmitting,
 }: SubmitSolutionDialogProps) {
-  const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [language, setLanguage] = useState('')
   const [file, setFile] = useState<File | null>(null)
-
-  const submitMutation = useSubmitSolution()
-  const contestSubmitMutation = useSubmitContestSolution()
-  const isSubmitting = submitMutation.isPending || contestSubmitMutation.isPending
-  const isContest = !!contestId && !!groupId
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
@@ -67,30 +57,7 @@ export function SubmitSolutionDialog({
   const handleSubmit = () => {
     if (!file || !language) return
     const compiler = LANGUAGE_COMPILER_MAP[language] || language
-
-    if (isContest) {
-      contestSubmitMutation.mutate(
-        { groupId: groupId!, contestId: contestId!, problemSlug, file, language, compiler },
-        {
-          onSuccess: (res) => {
-            toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id} creada` })
-            handleClose()
-          },
-          onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' }),
-        },
-      )
-    } else {
-      submitMutation.mutate(
-        { problemSlug, file, language, compiler },
-        {
-          onSuccess: (res) => {
-            toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id} creada` })
-            handleClose()
-          },
-          onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' }),
-        },
-      )
-    }
+    onSubmit(file, language, compiler)
   }
 
   const handleClose = () => {
@@ -106,7 +73,7 @@ export function SubmitSolutionDialog({
         <DialogHeader>
           <DialogTitle>Enviar solución</DialogTitle>
           <DialogDescription>
-            {problemTitle}{isContest && ' (en contest)'}
+            {problemTitle}
           </DialogDescription>
         </DialogHeader>
 

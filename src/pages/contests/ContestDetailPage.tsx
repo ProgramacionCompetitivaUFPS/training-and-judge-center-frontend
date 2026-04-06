@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -8,8 +9,10 @@ import { ContestProblemsTable } from '@/components/features/ContestProblemsTable
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
+import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { ApiClientError } from '@/lib/errors'
 import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
 
 function LockedProblemsPlaceholder() {
@@ -43,6 +46,12 @@ export function ContestDetailPage() {
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
+  const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
+  const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const registerTeamMutation = useRegisterTeamToContest()
+  const unregisterTeamMutation = useUnregisterTeamFromContest()
 
   if (!id) return null
 
@@ -92,6 +101,26 @@ export function ContestDetailPage() {
           navigate('/contests')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
+      },
+    )
+  }
+
+  const handleRegisterTeam = (teamId: string, selectedMembers: string[]) => {
+    registerTeamMutation.mutate(
+      { contestId: contest.id, data: { teamId, selectedMembers } },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
+      },
+    )
+  }
+
+  const handleUnregisterTeam = (teamId: string) => {
+    unregisterTeamMutation.mutate(
+      { contestId: contest.id, teamId },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
       },
     )
   }
@@ -228,6 +257,17 @@ export function ContestDetailPage() {
                     teamSizeMax={contest.teamSizeMax}
                     isRegistered={contest.isRegistered}
                     variant="inline"
+                    teams={teamsData?.teams ?? []}
+                    isLoadingTeams={isLoadingTeams}
+                    selectedTeamDetail={teamDetail}
+                    isLoadingTeamDetail={isLoadingTeamDetail}
+                    registeredTeamId={undefined}
+                    onRegisterTeam={handleRegisterTeam}
+                    onUnregisterTeam={handleUnregisterTeam}
+                    isRegistering={registerTeamMutation.isPending}
+                    isUnregistering={unregisterTeamMutation.isPending}
+                    registrationError={registerTeamMutation.error?.message}
+                    onTeamSelect={setSelectedTeamId}
                   />
                 )}
                 {canUnregister && (
