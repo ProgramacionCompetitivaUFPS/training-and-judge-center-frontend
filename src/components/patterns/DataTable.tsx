@@ -46,7 +46,7 @@ interface DataTableProps<T> {
   isLoading?: boolean
 }
 
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
   selectable = false,
