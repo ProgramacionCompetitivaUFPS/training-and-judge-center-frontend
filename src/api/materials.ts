@@ -16,6 +16,7 @@ export async function getMaterials(
   return apiClient.get(`/groups/${groupId}/materials`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 
+// Orphan endpoint decision: kept — needed for the material detail page
 export async function getMaterial(
   groupId: string,
   materialId: string,

@@ -127,7 +127,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post(url('/password/recovery'), async () => {
+  http.post(url('/password/forgot'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -151,7 +151,7 @@ export const handlers = [
 
   // === Deactivation ===
 
-  http.post(url('/users/deactivation/request'), async () => {
+  http.post(url('/users/deactivation'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),

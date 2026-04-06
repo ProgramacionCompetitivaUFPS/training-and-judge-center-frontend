@@ -48,6 +48,7 @@ export function deleteGroup(id: string, data: DeleteGroupRequest): Promise<void>
 
 // === Members ===
 
+// Orphan endpoint decision: kept — needed for the group members management UI
 export function getGroupMembers(groupId: string, params?: { page?: number; limit?: number }): Promise<{ members: GroupMember[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
   return apiClient.get(`/groups/${groupId}/members`, { params: params as Record<string, string | number | boolean | undefined> })
 }

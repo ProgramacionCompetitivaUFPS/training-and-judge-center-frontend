@@ -26,6 +26,7 @@ export function register(data: RegisterRequest): Promise<User> {
   return apiClient.post('/users', data)
 }
 
+// Orphan endpoint decision: kept as auth infrastructure — required for user authentication flow
 export function login(data: LoginRequest): Promise<LoginResponse> {
   return apiClient.post('/auth/login', data)
 }
@@ -51,7 +52,7 @@ export function changePassword(data: ChangePasswordRequest): Promise<void> {
 }
 
 export function recoverPassword(data: RecoverPasswordRequest): Promise<void> {
-  return apiClient.post('/password/recovery', data)
+  return apiClient.post('/password/forgot', data)
 }
 
 export function resetPassword(data: ResetPasswordRequest): Promise<void> {
@@ -71,7 +72,7 @@ export function confirmEmailChange(data: ConfirmEmailChangeRequest): Promise<voi
 // === Deactivation ===
 
 export function requestDeactivation(data: RequestDeactivationRequest): Promise<void> {
-  return apiClient.post('/users/deactivation/request', data)
+  return apiClient.post('/users/deactivation', data)
 }
 
 export function confirmDeactivation(data: ConfirmDeactivationRequest): Promise<void> {
