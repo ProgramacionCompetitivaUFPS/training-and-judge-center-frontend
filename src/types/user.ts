@@ -120,6 +120,12 @@ export interface AdminUserListParams extends PaginationParams {
 
 export type AdminUserListResponse = PaginatedResponse<User>
 
+// === Role Change ===
+
+export interface ChangeUserRoleRequest {
+  role: UserRole
+}
+
 // === Dashboard ===
 
 export interface UserDashboard {

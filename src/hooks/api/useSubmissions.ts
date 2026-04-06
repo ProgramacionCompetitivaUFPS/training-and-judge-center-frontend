@@ -105,3 +105,27 @@ export function useDownloadSubmission() {
     mutationFn: (id: string) => submissionsApi.downloadSubmission(id),
   })
 }
+
+// === Rejudge ===
+
+export function useRejudgeSubmission() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (submissionId: string) => submissionsApi.rejudgeSubmission(submissionId),
+    onSuccess: (_, submissionId) => {
+      queryClient.invalidateQueries({ queryKey: submissionKeys.detail(submissionId) })
+      queryClient.invalidateQueries({ queryKey: submissionKeys.all })
+    },
+  })
+}
+
+export function useAdminRejudgeSubmission() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (submissionId: string) => submissionsApi.adminRejudgeSubmission(submissionId),
+    onSuccess: (_, submissionId) => {
+      queryClient.invalidateQueries({ queryKey: submissionKeys.detail(submissionId) })
+      queryClient.invalidateQueries({ queryKey: submissionKeys.all })
+    },
+  })
+}

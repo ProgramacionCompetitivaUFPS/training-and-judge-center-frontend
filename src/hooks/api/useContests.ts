@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as contestsApi from '@/api/contests'
 import type {
@@ -6,6 +7,8 @@ import type {
   UpdateContestRequest,
   StandingsParams,
   ContestSubmissionsParams,
+  StandingsResponse,
+  AddContestProblemRequest,
 } from '@/types/contest'
 
 // === Query Keys ===
@@ -23,6 +26,8 @@ export const contestKeys = {
     ['contests', 'standings', contestId, params] as const,
   submissions: (groupId: string, contestId: string, params?: ContestSubmissionsParams) =>
     ['contests', 'submissions', groupId, contestId, params] as const,
+  standingsStream: (contestId: string) =>
+    ['contests', 'standingsStream', contestId] as const,
 }
 
 // === Queries ===
@@ -156,4 +161,142 @@ export function useUnregisterFromContest() {
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
     },
   })
+}
+
+// === Lock / Unlock ===
+
+export function useLockContest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, contestId }: { groupId: string; contestId: string }) =>
+      contestsApi.lockContest(groupId, contestId),
+    onSuccess: (_, { contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
+    },
+  })
+}
+
+export function useUnlockContest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, contestId }: { groupId: string; contestId: string }) =>
+      contestsApi.unlockContest(groupId, contestId),
+    onSuccess: (_, { contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
+    },
+  })
+}
+
+// === Contest Problem Management ===
+
+export function useAddContestProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      contestId,
+      data,
+    }: {
+      groupId: string
+      contestId: string
+      data: AddContestProblemRequest
+    }) => contestsApi.addContestProblem(groupId, contestId, data),
+    onSuccess: (_, { contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
+    },
+  })
+}
+
+export function useRemoveContestProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      contestId,
+      problemSlug,
+    }: {
+      groupId: string
+      contestId: string
+      problemSlug: string
+    }) => contestsApi.removeContestProblem(groupId, contestId, problemSlug),
+    onSuccess: (_, { contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
+    },
+  })
+}
+
+// === Rejudge ===
+
+export function useRejudgeContestProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      contestId,
+      problemSlug,
+    }: {
+      groupId: string
+      contestId: string
+      problemSlug: string
+    }) => contestsApi.rejudgeContestProblem(groupId, contestId, problemSlug),
+    onSuccess: (_, { contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(contestId) })
+    },
+  })
+}
+
+// === SSE ===
+
+export function useStandingsStream(contestId: string, enabled = false) {
+  const [standings, setStandings] = useState<StandingsResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
+
+  const close = useCallback(() => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled || !contestId) {
+      close()
+      return
+    }
+
+    const connect = () => {
+      const es = contestsApi.getStandingsStream(contestId)
+      eventSourceRef.current = es
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as StandingsResponse
+          setStandings(data)
+          setError(null)
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      es.onerror = () => {
+        es.close()
+        setError('Connection lost. Reconnecting...')
+        // Auto-reconnect after 5 seconds
+        setTimeout(() => {
+          if (enabled) {
+            connect()
+          }
+        }, 5000)
+      }
+    }
+
+    connect()
+
+    return () => {
+      close()
+    }
+  }, [contestId, enabled, close])
+
+  return { standings, error, close }
 }

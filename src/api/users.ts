@@ -17,6 +17,7 @@ import type {
   AdminUserListResponse,
   PublicUserProfile,
   UserDashboard,
+  ChangeUserRoleRequest,
 } from '@/types/user'
 
 // === Auth ===
@@ -89,6 +90,10 @@ export function adminUpdateUser(id: string, data: AdminUpdateUserRequest): Promi
 
 export function adminDeactivateUser(id: string): Promise<void> {
   return apiClient.post(`/admin/users/${id}/deactivate`)
+}
+
+export function adminChangeUserRole(id: string, data: ChangeUserRoleRequest): Promise<User> {
+  return apiClient.patch(`/admin/users/${id}/role`, data)
 }
 
 // === Dashboard ===

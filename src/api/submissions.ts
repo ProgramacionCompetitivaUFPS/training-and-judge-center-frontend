@@ -83,3 +83,13 @@ export function updateSubmissionVisibility(
 export function downloadSubmission(id: string): Promise<Blob> {
   return apiClient.getBlob(`/submissions/${id}/download`)
 }
+
+// === Rejudge ===
+
+export function rejudgeSubmission(submissionId: string): Promise<void> {
+  return apiClient.post(`/submissions/${submissionId}/rejudge`)
+}
+
+export function adminRejudgeSubmission(submissionId: string): Promise<void> {
+  return apiClient.post(`/admin/submissions/${submissionId}/rejudge`)
+}

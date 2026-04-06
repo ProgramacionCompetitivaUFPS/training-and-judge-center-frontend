@@ -106,6 +106,13 @@ export interface UpdateContestRequest {
   locked?: boolean
 }
 
+// === Contest Problem Management ===
+
+export interface AddContestProblemRequest {
+  problemSlug: string
+  order?: number
+}
+
 // === Registration ===
 
 export interface RegistrationStatus {
