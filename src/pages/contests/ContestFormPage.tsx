@@ -50,8 +50,10 @@ export function ContestFormPage() {
     }
 
     if (isEditing && groupId && id) {
+      // Exclude problems from update payload — update uses a different shape
+      const { problems: _problems, ...updatePayload } = payload
       updateMutation.mutate(
-        { groupId, contestId: id, data: payload },
+        { groupId, contestId: id, data: updatePayload },
         {
           onSuccess: () => {
             toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })

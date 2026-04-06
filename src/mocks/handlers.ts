@@ -696,7 +696,8 @@ export const handlers = [
 
     const auth = request.headers.get('Authorization')
     const token = auth?.replace('Bearer ', '') || ''
-    const userNickname = token.replace('mock-jwt-token-', '')
+    // userNickname available for future use
+    void token
 
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
     return HttpResponse.json({
@@ -1149,9 +1150,8 @@ export const handlers = [
   }),
 
   // Accept team invitation
-  http.post(url('/team-invitations/:invitationId/accept'), async ({ params }) => {
+  http.post(url('/team-invitations/:invitationId/accept'), async ({ params: _params }) => {
     await delay(300)
-    const { invitationId } = params as { invitationId: string }
     return HttpResponse.json({
       team: mockTeamDetails['team-1'],
       joinedAt: new Date().toISOString(),

@@ -21,7 +21,7 @@ export interface Column<T> {
   align?: 'left' | 'center' | 'right'
 }
 
-interface DataTableProps<T> {
+interface DataTableProps<T extends object> {
   columns: Column<T>[]
   data: T[]
   
@@ -46,13 +46,13 @@ interface DataTableProps<T> {
   isLoading?: boolean
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   data,
   selectable = false,
   selectedItems = new Set(),
   onSelectionChange,
-  getItemId = (item) => item.id,
+  getItemId = (item) => (item as Record<string, unknown>).id as string,
   sortBy,
   sortDirection,
   onSort,
@@ -188,7 +188,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       key={column.key}
                       className={`${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
                     >
-                      {column.render ? column.render(item) : item[column.key]}
+                      {column.render ? column.render(item) : ((item as Record<string, unknown>)[column.key] as ReactNode)}
                     </TableCell>
                   ))}
                 </TableRow>
