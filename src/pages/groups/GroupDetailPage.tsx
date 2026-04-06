@@ -48,6 +48,7 @@ import { useContests } from '@/hooks/api/useContests'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/components/layout/ToastProvider'
+import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import type { GroupRole } from '@/types/group'
@@ -68,10 +69,12 @@ export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  const { user } = useAuth()
 
   const { data: group, isLoading } = useGroupDetail(id!)
   const { data: membersData } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
+  const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
   const { data: requestsData } = useJoinRequests(id!, { status: 'PENDING' })
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
@@ -219,10 +222,10 @@ export function GroupDetailPage() {
 
   const buildAdditionalActions = () => {
     const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
-    if (isMember && !isLead) {
+    if (isMember && !canManage) {
       actions.push({ label: 'Salir del grupo', onClick: handleLeave, icon: LogOut, variant: 'danger' })
     }
-    if (isLead) {
+    if (canManage) {
       actions.push({ label: 'Agregar miembro', onClick: () => setAddMemberOpen(true), icon: UserPlus })
       if (group?.joinPolicy === 'INVITE') {
         actions.push({ label: 'Invitar usuario', onClick: () => setInviteOpen(true), icon: UserPlus })
@@ -251,7 +254,7 @@ export function GroupDetailPage() {
               <TableHead>Usuario</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Desde</TableHead>
-              {isLead && <TableHead className="text-right">Acciones</TableHead>}
+              {canManage && <TableHead className="text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -267,7 +270,7 @@ export function GroupDetailPage() {
                   <Badge variant={m.role === 'LEAD' ? 'warning' : 'outline'}>{m.role === 'LEAD' ? 'Líder' : 'Miembro'}</Badge>
                 </TableCell>
                 <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString()}</TableCell>
-                {isLead && (
+                {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')} title={m.role === 'LEAD' ? 'Hacer miembro' : 'Hacer líder'}>
@@ -282,7 +285,7 @@ export function GroupDetailPage() {
               </TableRow>
             ))}
             {(!membersData || membersData.members.length === 0) && (
-              <TableRow><TableCell colSpan={isLead ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -290,7 +293,7 @@ export function GroupDetailPage() {
     </Card>
   )
 
-  const requestsTab = isLead ? (
+  const requestsTab = canManage ? (
     <Card>
       <CardContent className="pt-4">
         <Table>
@@ -385,7 +388,7 @@ export function GroupDetailPage() {
           Últimos materiales publicados en este grupo
         </p>
         <div className="flex items-center gap-2">
-          {isLead && (
+          {canManage && (
             <Button size="sm" onClick={() => navigate(`/groups/${id}/materials/new`)}>
               Nuevo material
             </Button>
@@ -413,7 +416,7 @@ export function GroupDetailPage() {
         <div className="py-8 text-center text-neutral-text-muted">
           <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p>No hay materiales en este grupo</p>
-          {isLead && (
+          {canManage && (
             <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/materials/new`)}>
               Crear primer material
             </Button>
@@ -429,7 +432,7 @@ export function GroupDetailPage() {
         <p className="text-sm text-neutral-text-muted">
           Competencias de este grupo
         </p>
-        {isLead && (
+        {canManage && (
           <Button size="sm" onClick={() => navigate(`/groups/${id}/contests/new`)}>
             Nueva competencia
           </Button>
@@ -471,7 +474,7 @@ export function GroupDetailPage() {
         <div className="py-8 text-center text-neutral-text-muted">
           <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p>No hay competencias en este grupo</p>
-          {isLead && (
+          {canManage && (
             <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/contests/new`)}>
               Crear primera competencia
             </Button>
@@ -486,7 +489,7 @@ export function GroupDetailPage() {
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.data?.length },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
-    ...(isLead ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
+    ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
   ]
 
   return (
@@ -500,8 +503,8 @@ export function GroupDetailPage() {
         metadata={metadata}
         tabs={tabs}
         defaultTab="info"
-        onEdit={isLead ? () => navigate(`/groups/${id}/edit`) : undefined}
-        onDelete={isLead ? () => setDeleteOpen(true) : undefined}
+        onEdit={canManage ? () => navigate(`/groups/${id}/edit`) : undefined}
+        onDelete={canManage ? () => setDeleteOpen(true) : undefined}
         primaryAction={buildPrimaryAction()}
         additionalActions={buildAdditionalActions()}
       />

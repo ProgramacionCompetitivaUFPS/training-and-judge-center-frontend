@@ -63,6 +63,7 @@ export function ProblemDetailPage() {
   const isModifier = problem.modifiers?.some((m) => m.nickname === user?.nickname)
   const canEdit = isAdmin || isModifier
   const canDelete = isAdmin || problem.author.nickname === user?.nickname
+  const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   function handlePublish() {
     if (!problem) return
@@ -120,7 +121,7 @@ export function ProblemDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-semibold text-neutral-text-primary">{problem.title}</h1>
-              {!isContestContext && (
+              {!isContestContext && canSeeManagement && (
                 <>
                   <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
                     {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
@@ -263,7 +264,7 @@ export function ProblemDetailPage() {
         )}
 
         {/* Files (only for modifiers) */}
-        {problem.files && (
+        {canEdit && problem.files && (
           <Card>
             <CardHeader>
               <CardTitle>Archivos</CardTitle>
@@ -280,7 +281,7 @@ export function ProblemDetailPage() {
         )}
 
         {/* Modifiers (only for modifiers) */}
-        {problem.modifiers && problem.modifiers.length > 0 && (
+        {canEdit && problem.modifiers && problem.modifiers.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Modificadores</CardTitle>
