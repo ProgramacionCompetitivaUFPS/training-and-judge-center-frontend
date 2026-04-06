@@ -14,7 +14,7 @@ import {
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
-import type { Material, MaterialListParams } from '@/types/material'
+import type { Material, MaterialListParams, MaterialStatus } from '@/types/material'
 
 export function MaterialsPage() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -25,6 +25,7 @@ export function MaterialsPage() {
   const [search, setSearch] = useState('')
   const [pinnedFilter, setPinnedFilter] = useState('all')
   const [tagFilter, setTagFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
   const debouncedSearch = useDebounce(search, 300)
 
@@ -34,13 +35,14 @@ export function MaterialsPage() {
     ...(debouncedSearch && { q: debouncedSearch }),
     ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
     ...(tagFilter !== 'all' && { tags: tagFilter }),
+    ...(statusFilter !== 'all' && { status: statusFilter as MaterialStatus }),
   }
 
   const { data, isLoading } = useMaterials(groupId!, params)
   const materials = data?.materials ?? []
   const pagination = data?.pagination
 
-  const activeFilters = [pinnedFilter, tagFilter].filter((f) => f !== 'all').length
+  const activeFilters = [pinnedFilter, tagFilter, ...(isLead ? [statusFilter] : [])].filter((f) => f !== 'all').length
 
   const searchComponent = (
     <SearchAndFilter
@@ -48,7 +50,7 @@ export function MaterialsPage() {
       onSearchChange={(v) => { setSearch(v); setPage(1) }}
       searchPlaceholder="Buscar materiales..."
       activeFiltersCount={activeFilters}
-      onClearFilters={() => { setPinnedFilter('all'); setTagFilter('all'); setPage(1) }}
+      onClearFilters={() => { setPinnedFilter('all'); setTagFilter('all'); setStatusFilter('all'); setPage(1) }}
     />
   )
 
@@ -77,6 +79,18 @@ export function MaterialsPage() {
           <SelectItem value="resources">resources</SelectItem>
         </SelectContent>
       </Select>
+      {isLead && (
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+          <SelectTrigger className="w-48 bg-neutral-bg">
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="PUBLISHED">Publicados</SelectItem>
+            <SelectItem value="DRAFT">Borrador</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
     </div>
   )
 
