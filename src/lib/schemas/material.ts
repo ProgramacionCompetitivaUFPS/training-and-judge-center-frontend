@@ -28,7 +28,8 @@ export const updateMaterialSchema = z.object({
   title: z
     .string()
     .min(1, 'El título es requerido')
-    .max(200, 'El título debe tener máximo 200 caracteres'),
+    .max(200, 'El título debe tener máximo 200 caracteres')
+    .optional(),
   content: z
     .string()
     .max(50000, 'El contenido debe tener máximo 50000 caracteres')

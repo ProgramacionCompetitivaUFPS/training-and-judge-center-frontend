@@ -25,6 +25,7 @@ export const createContestSchema = z.object({
     .nullable()
     .optional(),
   enablePostContest: z.boolean().optional(),
+  problems: z.array(z.string()).optional(),
 })
 
 export type CreateContestFormData = z.infer<typeof createContestSchema>
