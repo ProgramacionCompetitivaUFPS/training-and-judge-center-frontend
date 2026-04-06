@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, Plus, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useLockContest, useUnlockContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useLockContest, useUnlockContest, useAddContestProblem, useRemoveContestProblem } from '@/hooks/api/useContests'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -48,6 +48,10 @@ export function ContestDetailPage() {
   const deleteMutation = useDeleteContest()
   const lockMutation = useLockContest()
   const unlockMutation = useUnlockContest()
+
+  const addProblemMutation = useAddContestProblem()
+  const removeProblemMutation = useRemoveContestProblem()
+  const [problemSlug, setProblemSlug] = useState('')
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
@@ -142,6 +146,31 @@ export function ContestDetailPage() {
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
+      },
+    )
+  }
+
+  const handleAddProblem = () => {
+    const slug = problemSlug.trim()
+    if (!slug) return
+    addProblemMutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id, data: { problemSlug: slug } },
+      {
+        onSuccess: () => {
+          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
+          setProblemSlug('')
+        },
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
+      },
+    )
+  }
+
+  const handleRemoveProblem = (slug: string) => {
+    removeProblemMutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id, problemSlug: slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" del contest` }),
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
       },
     )
   }
@@ -384,6 +413,56 @@ export function ContestDetailPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Problem management — Lead/Admin only, unlocked contest */}
+              {isLead && !contest.locked && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Gestión de problemas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Slug del problema"
+                        value={problemSlug}
+                        onChange={(e) => setProblemSlug(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddProblem() }}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleAddProblem}
+                        isLoading={addProblemMutation.isPending}
+                        disabled={!problemSlug.trim()}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Agregar
+                      </Button>
+                    </div>
+                    {contest.problems.length > 0 && (
+                      <ul className="divide-y divide-neutral-border">
+                        {contest.problems.map((p) => (
+                          <li key={p.slug} className="flex items-center justify-between py-2">
+                            <span className="text-sm font-medium text-neutral-text-primary">
+                              {p.position}. {p.title} <span className="text-neutral-text-muted">({p.slug})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProblem(p.slug)}
+                              disabled={removeProblemMutation.isPending}
+                              className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                              aria-label={`Remover ${p.title}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Sidebar */}
