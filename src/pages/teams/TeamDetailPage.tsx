@@ -24,7 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useTeamDetail, useInviteTeamMember, useLeaveTeam } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
 

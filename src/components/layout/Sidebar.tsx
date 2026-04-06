@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
-import { useAuth } from './AuthProvider'
+import { useAuth } from '@/hooks/useAuth'
 import { useContestSession } from './ContestSessionProvider'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 

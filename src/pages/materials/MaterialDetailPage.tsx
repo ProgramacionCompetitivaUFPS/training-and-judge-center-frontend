@@ -18,7 +18,7 @@ import {
   useUnpublishMaterial, usePinMaterial, useUnpinMaterial,
 } from '@/hooks/api/useMaterials'
 import { useAuth } from '@/hooks/useAuth'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import {
   BookOpen, Edit, Trash2, MoreVertical, Pin, Loader2,
   User, Calendar,

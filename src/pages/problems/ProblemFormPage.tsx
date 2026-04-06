@@ -6,7 +6,7 @@ import { Button, Input, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Textarea } from '@/components/ui/Textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import { useCreateProblem, useUpdateProblem, useProblemDetail } from '@/hooks/api/useProblems'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
 import { ApiClientError } from '@/lib/errors'

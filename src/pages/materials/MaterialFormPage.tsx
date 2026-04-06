@@ -12,7 +12,7 @@ import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import {
   useMaterialDetail, useCreateMaterial, useUpdateMaterial,
 } from '@/hooks/api/useMaterials'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,

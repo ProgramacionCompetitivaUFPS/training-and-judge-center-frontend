@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/Select'
 import { useGroupDetail, useCreateGroup, useUpdateGroup } from '@/hooks/api/useGroups'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import { createGroupSchema, type CreateGroupFormData } from '@/lib/schemas/group'
 import { ROUTES } from '@/lib/constants'
 import type { GroupVisibility, GroupJoinPolicy } from '@/types/group'

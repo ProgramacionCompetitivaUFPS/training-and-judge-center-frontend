@@ -9,7 +9,7 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { useContestSession } from '@/components/layout/ContestSessionProvider'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution } from '@/hooks/api/useSubmissions'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/components/layout/ToastProvider'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {

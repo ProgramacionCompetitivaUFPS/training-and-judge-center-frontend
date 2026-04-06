@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { useToast, ToastMessage } from '@/hooks/useToast'
-import { Toast, ToastContainer, ToastTitle, ToastDescription } from './Toast'
+import { Toast, ToastContainer, ToastTitle, ToastDescription } from '@/components/ui/Toast'
 
 interface ToastContextType {
   toast: (props: Omit<ToastMessage, 'id'>) => string
