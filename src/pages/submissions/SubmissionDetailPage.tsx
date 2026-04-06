@@ -1,10 +1,10 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission } from '@/hooks/api/useSubmissions'
+import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/layout/ToastProvider'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
@@ -18,6 +18,7 @@ export function SubmissionDetailPage() {
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
   const downloadMutation = useDownloadSubmission()
+  const rejudgeMutation = useRejudgeSubmission()
 
   if (isLoading) {
     return (
@@ -73,6 +74,14 @@ export function SubmissionDetailPage() {
     }
   }
 
+  function handleRejudge() {
+    if (!submission) return
+    rejudgeMutation.mutate(submission.id, {
+      onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
+      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar submission' }),
+    })
+  }
+
   const breadcrumbs = [
     { label: 'Submissions', href: '/submissions' },
     { label: `#${submission.id.slice(0, 8)}` },
@@ -119,6 +128,16 @@ export function SubmissionDetailPage() {
                 ) : (
                   <><Eye className="h-4 w-4 mr-2" />Hacer público</>
                 )}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={handleRejudge}
+                isLoading={rejudgeMutation.isPending}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Rejuzgar
               </Button>
             )}
             <Button variant="outline" onClick={handleDownload} isLoading={downloadMutation.isPending}>
