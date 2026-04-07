@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -10,7 +11,6 @@ import {
   CardContent,
   Checkbox,
 } from '@/components/ui'
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 export interface Column<T> {
   key: string

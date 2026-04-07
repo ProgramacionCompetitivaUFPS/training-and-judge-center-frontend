@@ -41,7 +41,9 @@ export function EditProfilePage() {
   )
 }
 
-function ProfileSection({ user }: { user: { name: string; nickname: string; country: string; city: string; institution: string } }) {
+interface ProfileSectionProps { user: { name: string; nickname: string; country: string; city: string; institution: string } }
+
+function ProfileSection({ user }: ProfileSectionProps) {
   const updateMutation = useUpdateProfile()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 

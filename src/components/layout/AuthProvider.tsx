@@ -4,7 +4,11 @@ import { useCurrentUser, userKeys } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
 import type { UserRole } from '@/types/user'
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  children: ReactNode
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const token = localStorage.getItem('auth_token')
   const queryClient = useQueryClient()
   const { data: user, isLoading } = useCurrentUser(!!token)

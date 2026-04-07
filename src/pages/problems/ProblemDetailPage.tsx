@@ -410,7 +410,9 @@ export function ProblemDetailPage() {
 
 // === Sub-components ===
 
-function MetadataItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+interface MetadataItemProps { icon: React.ElementType; label: string; value: string }
+
+function MetadataItem({ icon: Icon, label, value }: MetadataItemProps) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Icon className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
@@ -422,7 +424,9 @@ function MetadataItem({ icon: Icon, label, value }: { icon: React.ElementType; l
   )
 }
 
-function FileIndicator({ label, available, detail }: { label: string; available: boolean; detail?: string }) {
+interface FileIndicatorProps { label: string; available: boolean; detail?: string }
+
+function FileIndicator({ label, available, detail }: FileIndicatorProps) {
   return (
     <div className="flex items-center gap-2">
       <div className={`h-2 w-2 rounded-full ${available ? 'bg-status-success' : 'bg-neutral-border'}`} />
@@ -434,7 +438,9 @@ function FileIndicator({ label, available, detail }: { label: string; available:
   )
 }
 
-function ExampleBlock({ index, input, output, explanation }: { index: number; input: string; output: string; explanation?: string }) {
+interface ExampleBlockProps { index: number; input: string; output: string; explanation?: string }
+
+function ExampleBlock({ index, input, output, explanation }: ExampleBlockProps) {
   return (
     <div className="border border-neutral-border rounded-lg overflow-hidden">
       <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
@@ -465,7 +471,9 @@ function ExampleBlock({ index, input, output, explanation }: { index: number; in
   )
 }
 
-function CopyButton({ text }: { text: string }) {
+interface CopyButtonProps { text: string }
+
+function CopyButton({ text }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {

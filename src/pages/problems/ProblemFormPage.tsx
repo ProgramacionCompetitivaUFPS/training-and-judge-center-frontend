@@ -102,11 +102,13 @@ export function ProblemFormPage() {
 
 // === Create Form ===
 
-function CreateForm({ onSubmit, isSubmitting, onCancel }: {
+interface CreateFormProps {
   onSubmit: (data: CreateProblemFormData) => void
   isSubmitting: boolean
   onCancel: () => void
-}) {
+}
+
+function CreateForm({ onSubmit, isSubmitting, onCancel }: CreateFormProps) {
   const { register, handleSubmit, formState: { errors } } = useForm<CreateProblemFormData>({
     resolver: zodResolver(createProblemSchema),
     defaultValues: { slug: '', title: '', statement: '', tags: '' },
@@ -153,12 +155,14 @@ function CreateForm({ onSubmit, isSubmitting, onCancel }: {
 
 import type { ProblemDetail } from '@/types/problem'
 
-function EditForm({ problem, onSubmit, isSubmitting, onCancel }: {
+interface EditFormProps {
   problem: ProblemDetail
   onSubmit: (data: UpdateProblemFormData) => void
   isSubmitting: boolean
   onCancel: () => void
-}) {
+}
+
+function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) {
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<UpdateProblemFormData>({
     resolver: zodResolver(updateProblemSchema),
     defaultValues: {

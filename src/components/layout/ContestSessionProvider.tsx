@@ -26,7 +26,11 @@ function useContestIdFromUrl(): string | null {
   return null
 }
 
-export function ContestSessionProvider({ children }: { children: ReactNode }) {
+interface ContestSessionProviderProps {
+  children: ReactNode
+}
+
+export function ContestSessionProvider({ children }: ContestSessionProviderProps) {
   const contestId = useContestIdFromUrl()
   const { data: contest, isLoading } = useContestDetail(contestId || '')
 

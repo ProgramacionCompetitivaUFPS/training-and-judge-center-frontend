@@ -10,7 +10,11 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+interface ToastProviderProps {
+  children: ReactNode
+}
+
+export function ToastProvider({ children }: ToastProviderProps) {
   const { toasts, toast, dismiss, dismissAll } = useToast()
 
   return (

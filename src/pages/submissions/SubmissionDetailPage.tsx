@@ -197,7 +197,9 @@ export function SubmissionDetailPage() {
   )
 }
 
-function MetaItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+interface MetaItemProps { icon: React.ElementType; label: string; value: string }
+
+function MetaItem({ icon: Icon, label, value }: MetaItemProps) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Icon className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />

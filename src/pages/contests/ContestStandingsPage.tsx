@@ -12,7 +12,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import type { StandingProblemResult } from '@/types/contest'
 
-function ProblemCell({ result }: { result: StandingProblemResult }) {
+interface ProblemCellProps { result: StandingProblemResult }
+
+function ProblemCell({ result }: ProblemCellProps) {
   if (result.status === 'NOT_ATTEMPTED') {
     return <span className="text-neutral-text-muted">-</span>
   }

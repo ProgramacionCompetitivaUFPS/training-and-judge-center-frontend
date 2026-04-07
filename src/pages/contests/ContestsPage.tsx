@@ -39,7 +39,9 @@ const STATUS_FILTERS = [
   { value: 'FINISHED' as const, label: 'Finalizados' },
 ]
 
-function ContestCard({ contest, onClick }: { contest: ContestListItem; onClick: () => void }) {
+interface ContestCardProps { contest: ContestListItem; onClick: () => void }
+
+function ContestCard({ contest, onClick }: ContestCardProps) {
   const isActive = contest.status === 'ACTIVE'
   const isFinished = contest.status === 'FINISHED'
 
