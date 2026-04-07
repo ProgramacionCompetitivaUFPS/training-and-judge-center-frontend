@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { EntityFormPage } from '@/components/patterns'
 import { Input } from '@/components/ui/Input'
@@ -12,7 +12,7 @@ import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import {
   useMaterialDetail, useCreateMaterial, useUpdateMaterial,
 } from '@/hooks/api/useMaterials'
-import { useToastContext } from '@/components/layout/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,
@@ -38,8 +38,8 @@ export function MaterialFormPage() {
   })
 
   const [tagInput, setTagInput] = useState('')
-  const tags = form.watch('tags') ?? []
-  const content = form.watch('content') ?? ''
+  const tags = useWatch({ control: form.control, name: 'tags' }) ?? []
+  const content = useWatch({ control: form.control, name: 'content' }) ?? ''
 
   useEffect(() => {
     if (existing && isEditing) {

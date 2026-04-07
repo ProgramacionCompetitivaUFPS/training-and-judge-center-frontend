@@ -38,7 +38,7 @@ export function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null)
     try {
-      const { confirmPassword: _, ...requestData } = data
+      const { confirmPassword: _confirmPassword, ...requestData } = data
       await registerMutation.mutateAsync(requestData)
       navigate(ROUTES.LOGIN, { state: { registered: true } })
     } catch (error) {

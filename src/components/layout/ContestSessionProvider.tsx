@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, useMemo, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useContestDetail } from '@/hooks/api/useContests'
 import type { ContestDetail } from '@/types/contest'
@@ -14,6 +14,7 @@ const ContestSessionContext = createContext<ContestSessionValue>({
   contest: undefined,
   isLoading: false,
 })
+export { ContestSessionContext }
 
 /** Extract contest ID from current URL if user is in a contest context */
 function useContestIdFromUrl(): string | null {
@@ -44,8 +45,4 @@ export function ContestSessionProvider({ children }: ContestSessionProviderProps
       {children}
     </ContestSessionContext.Provider>
   )
-}
-
-export function useContestSession(): ContestSessionValue {
-  return useContext(ContestSessionContext)
 }

@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { useAuth } from '@/hooks/useAuth'
-import { useToastContext } from '@/components/layout/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 
 export function SubmissionDetailPage() {

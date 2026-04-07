@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AppLayout } from '@/components/layout'
 import { Button, Input, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useToastContext } from '@/components/layout/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail } from '@/hooks/api/useProblems'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
 import { ApiClientError } from '@/lib/errors'
@@ -163,7 +163,7 @@ interface EditFormProps {
 }
 
 function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) {
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<UpdateProblemFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, control } = useForm<UpdateProblemFormData>({
     resolver: zodResolver(updateProblemSchema),
     defaultValues: {
       title: problem.title,
@@ -175,7 +175,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
     },
   })
 
-  const accessibility = watch('accessibility')
+  const accessibility = useWatch({ control, name: 'accessibility' })
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

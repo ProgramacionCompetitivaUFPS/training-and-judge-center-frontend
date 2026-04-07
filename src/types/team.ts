@@ -39,7 +39,7 @@ export interface MyTeamItem {
   createdAt: string
 }
 
-export interface MyTeamsParams extends PaginationParams {}
+export type MyTeamsParams = PaginationParams
 
 export interface MyTeamsResponse {
   teams: MyTeamItem[]

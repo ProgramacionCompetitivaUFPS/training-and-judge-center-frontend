@@ -4,7 +4,7 @@ import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarC
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
-import { useContestSession } from './ContestSessionProvider'
+import { useContestSession } from '@/hooks/useContestSession'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 
 interface SidebarProps {

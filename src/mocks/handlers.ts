@@ -456,7 +456,7 @@ export const handlers = [
     const isAdmin = userNickname === 'luisadmin'
     const isModifier = problem.modifiers?.some((m) => m.nickname === userNickname)
     if (!isAdmin && !isModifier) {
-      const { modifiers, files, ...publicData } = problem
+      const { modifiers: _modifiers, files: _files, ...publicData } = problem
       return HttpResponse.json(publicData)
     }
 
@@ -1150,7 +1150,7 @@ export const handlers = [
   }),
 
   // Accept team invitation
-  http.post(url('/team-invitations/:invitationId/accept'), async ({ params: _params }) => {
+  http.post(url('/team-invitations/:invitationId/accept'), async () => {
     await delay(300)
     return HttpResponse.json({
       team: mockTeamDetails['team-1'],

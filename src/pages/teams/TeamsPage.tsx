@@ -14,7 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/patterns'
-import { useToastContext } from '@/components/layout/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import { useMyTeams, useMyTeamInvitations, useCreateTeam, useAcceptTeamInvitation, useRejectTeamInvitation } from '@/hooks/api/useTeams'
 import { createTeamSchema, type CreateTeamFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
