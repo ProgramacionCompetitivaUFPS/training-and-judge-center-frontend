@@ -231,7 +231,8 @@ function ProblemPage() {
 ### Toast con Provider
 
 ```tsx
-import { ToastProvider, useToastContext } from '@/components/ui'
+import { ToastProvider } from '@/components/layout/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 
 function App() {
   return (
