@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { EntityFormPage } from '@/components/patterns'
 import { Input, Textarea, Checkbox } from '@/components/ui'
@@ -50,8 +50,10 @@ export function ContestFormPage() {
     }
 
     if (isEditing && groupId && id) {
+      // Exclude problems from update payload — update uses a different shape
+      const { problems: _unusedProblems, ...updatePayload } = payload
       updateMutation.mutate(
-        { groupId, contestId: id, data: payload },
+        { groupId, contestId: id, data: updatePayload },
         {
           onSuccess: () => {
             toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })
@@ -74,7 +76,8 @@ export function ContestFormPage() {
     }
   }
 
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = form
+  const { register, handleSubmit, formState: { errors }, setValue } = form
+  const enablePostContest = useWatch({ control: form.control, name: 'enablePostContest' })
 
   return (
     <EntityFormPage
@@ -149,7 +152,7 @@ export function ContestFormPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
-                  checked={watch('enablePostContest') || false}
+                  checked={enablePostContest || false}
                   onCheckedChange={(checked) => setValue('enablePostContest', !!checked)}
                 />
                 <label className="text-sm text-neutral-text">

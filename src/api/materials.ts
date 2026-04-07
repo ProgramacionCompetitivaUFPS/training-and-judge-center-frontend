@@ -16,6 +16,7 @@ export async function getMaterials(
   return apiClient.get(`/groups/${groupId}/materials`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 
+// Orphan endpoint decision: kept — needed for the material detail page
 export async function getMaterial(
   groupId: string,
   materialId: string,
@@ -29,7 +30,18 @@ export async function createMaterial(
   groupId: string,
   data: CreateMaterialRequest,
 ): Promise<Material> {
-  return apiClient.post(`/groups/${groupId}/materials`, data)
+  const response = await apiClient.post<Record<string, unknown>>(`/groups/${groupId}/materials`, data)
+  // The backend may return groupId/authorId as plain UUID strings instead of
+  // the nested objects { id, name } / { nickname, name } expected by the Material interface.
+  // Transform the response if needed to match the frontend Material shape.
+  const raw = response as Record<string, unknown>
+  if (typeof raw.groupId === 'string' && !raw.group) {
+    (raw as Record<string, unknown>).group = { id: raw.groupId, name: '' }
+  }
+  if (typeof raw.authorId === 'string' && !raw.author) {
+    (raw as Record<string, unknown>).author = { nickname: '', name: '' }
+  }
+  return raw as unknown as Material
 }
 
 export async function updateMaterial(

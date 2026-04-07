@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Trophy, Code2, CheckCircle, Calendar } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -7,7 +8,6 @@ import { Alert } from '@/components/ui/Alert'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
 import { SUBMISSION_STATUS_CONFIG, ROUTES } from '@/lib/constants'
-import { Trophy, Code2, CheckCircle, Calendar } from 'lucide-react'
 import type { SubmissionStatus } from '@/types'
 
 export function UserDashboardPage() {
@@ -133,7 +133,9 @@ export function UserDashboardPage() {
   )
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+interface StatCardProps { icon: React.ReactNode; label: string; value: number }
+
+function StatCard({ icon, label, value }: StatCardProps) {
   return (
     <Card className="p-4 flex items-center gap-4">
       <div className="p-2 rounded-lg bg-neutral-surface">{icon}</div>

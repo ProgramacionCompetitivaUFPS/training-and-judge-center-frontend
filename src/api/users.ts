@@ -17,6 +17,7 @@ import type {
   AdminUserListResponse,
   PublicUserProfile,
   UserDashboard,
+  ChangeUserRoleRequest,
 } from '@/types/user'
 
 // === Auth ===
@@ -25,6 +26,7 @@ export function register(data: RegisterRequest): Promise<User> {
   return apiClient.post('/users', data)
 }
 
+// Orphan endpoint decision: kept as auth infrastructure — required for user authentication flow
 export function login(data: LoginRequest): Promise<LoginResponse> {
   return apiClient.post('/auth/login', data)
 }
@@ -50,7 +52,7 @@ export function changePassword(data: ChangePasswordRequest): Promise<void> {
 }
 
 export function recoverPassword(data: RecoverPasswordRequest): Promise<void> {
-  return apiClient.post('/password/recovery', data)
+  return apiClient.post('/password/forgot', data)
 }
 
 export function resetPassword(data: ResetPasswordRequest): Promise<void> {
@@ -70,7 +72,7 @@ export function confirmEmailChange(data: ConfirmEmailChangeRequest): Promise<voi
 // === Deactivation ===
 
 export function requestDeactivation(data: RequestDeactivationRequest): Promise<void> {
-  return apiClient.post('/users/deactivation/request', data)
+  return apiClient.post('/users/deactivation', data)
 }
 
 export function confirmDeactivation(data: ConfirmDeactivationRequest): Promise<void> {
@@ -89,6 +91,10 @@ export function adminUpdateUser(id: string, data: AdminUpdateUserRequest): Promi
 
 export function adminDeactivateUser(id: string): Promise<void> {
   return apiClient.post(`/admin/users/${id}/deactivate`)
+}
+
+export function adminChangeUserRole(id: string, data: ChangeUserRoleRequest): Promise<User> {
+  return apiClient.patch(`/admin/users/${id}/role`, data)
 }
 
 // === Dashboard ===

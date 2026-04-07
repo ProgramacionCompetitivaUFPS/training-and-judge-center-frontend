@@ -1,15 +1,18 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2 } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, Plus, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useLockContest, useUnlockContest, useAddContestProblem, useRemoveContestProblem } from '@/hooks/api/useContests'
+import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { ApiClientError } from '@/lib/errors'
 import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
 
 function LockedProblemsPlaceholder() {
@@ -43,6 +46,18 @@ export function ContestDetailPage() {
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
+  const lockMutation = useLockContest()
+  const unlockMutation = useUnlockContest()
+
+  const addProblemMutation = useAddContestProblem()
+  const removeProblemMutation = useRemoveContestProblem()
+  const [problemSlug, setProblemSlug] = useState('')
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('')
+  const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
+  const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const registerTeamMutation = useRegisterTeamToContest()
+  const unregisterTeamMutation = useUnregisterTeamFromContest()
 
   if (!id) return null
 
@@ -92,6 +107,70 @@ export function ContestDetailPage() {
           navigate('/contests')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
+      },
+    )
+  }
+
+  const handleLockToggle = () => {
+    const mutation = contest.locked ? unlockMutation : lockMutation
+    mutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id },
+      {
+        onSuccess: () => toast({
+          variant: 'success',
+          title: contest.locked ? 'Desbloqueado' : 'Bloqueado',
+          description: contest.locked ? 'El contest fue desbloqueado' : 'El contest fue bloqueado',
+        }),
+        onError: () => toast({
+          variant: 'error',
+          title: 'Error',
+          description: contest.locked ? 'No se pudo desbloquear' : 'No se pudo bloquear',
+        }),
+      },
+    )
+  }
+
+  const handleRegisterTeam = (teamId: string, selectedMembers: string[]) => {
+    registerTeamMutation.mutate(
+      { contestId: contest.id, data: { teamId, selectedMembers } },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
+      },
+    )
+  }
+
+  const handleUnregisterTeam = (teamId: string) => {
+    unregisterTeamMutation.mutate(
+      { contestId: contest.id, teamId },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
+      },
+    )
+  }
+
+  const handleAddProblem = () => {
+    const slug = problemSlug.trim()
+    if (!slug) return
+    addProblemMutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id, data: { problemSlug: slug } },
+      {
+        onSuccess: () => {
+          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
+          setProblemSlug('')
+        },
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
+      },
+    )
+  }
+
+  const handleRemoveProblem = (slug: string) => {
+    removeProblemMutation.mutate(
+      { groupId: contest.group.id, contestId: contest.id, problemSlug: slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" del contest` }),
+        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
       },
     )
   }
@@ -228,6 +307,17 @@ export function ContestDetailPage() {
                     teamSizeMax={contest.teamSizeMax}
                     isRegistered={contest.isRegistered}
                     variant="inline"
+                    teams={teamsData?.teams ?? []}
+                    isLoadingTeams={isLoadingTeams}
+                    selectedTeamDetail={teamDetail}
+                    isLoadingTeamDetail={isLoadingTeamDetail}
+                    registeredTeamId={undefined}
+                    onRegisterTeam={handleRegisterTeam}
+                    onUnregisterTeam={handleUnregisterTeam}
+                    isRegistering={registerTeamMutation.isPending}
+                    isUnregistering={unregisterTeamMutation.isPending}
+                    registrationError={registerTeamMutation.error?.message}
+                    onTeamSelect={setSelectedTeamId}
                   />
                 )}
                 {canUnregister && (
@@ -323,6 +413,56 @@ export function ContestDetailPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Problem management — Lead/Admin only, unlocked contest */}
+              {isLead && !contest.locked && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Gestión de problemas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Slug del problema"
+                        value={problemSlug}
+                        onChange={(e) => setProblemSlug(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddProblem() }}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleAddProblem}
+                        isLoading={addProblemMutation.isPending}
+                        disabled={!problemSlug.trim()}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Agregar
+                      </Button>
+                    </div>
+                    {contest.problems.length > 0 && (
+                      <ul className="divide-y divide-neutral-border">
+                        {contest.problems.map((p) => (
+                          <li key={p.slug} className="flex items-center justify-between py-2">
+                            <span className="text-sm font-medium text-neutral-text-primary">
+                              {p.position}. {p.title} <span className="text-neutral-text-muted">({p.slug})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProblem(p.slug)}
+                              disabled={removeProblemMutation.isPending}
+                              className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                              aria-label={`Remover ${p.title}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Sidebar */}
@@ -358,6 +498,22 @@ export function ContestDetailPage() {
               </Card>
 
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+
+              {isLead && (
+                <Card>
+                  <CardContent className="pt-5 space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleLockToggle}
+                      isLoading={lockMutation.isPending || unlockMutation.isPending}
+                    >
+                      {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                      {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               {isLead && !contest.locked && (
                 <ContestAdminActions
@@ -435,6 +591,22 @@ export function ContestDetailPage() {
             <ContestInfoSidebar contest={contest} />
             <ContestQuickLinks contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+
+            {isLead && (
+              <Card>
+                <CardContent className="pt-5 space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleLockToggle}
+                    isLoading={lockMutation.isPending || unlockMutation.isPending}
+                  >
+                    {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                    {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {isLead && !contest.locked && (
               <ContestAdminActions

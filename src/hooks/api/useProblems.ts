@@ -5,6 +5,7 @@ import type {
   CreateProblemRequest,
   UpdateProblemRequest,
   DeleteProblemRequest,
+  ProblemAccessibility,
 } from '@/types/problem'
 
 // === Query Keys ===
@@ -14,6 +15,7 @@ export const problemKeys = {
   list: (params?: ProblemListParams) => ['problems', 'list', params] as const,
   detail: (slug: string) => ['problems', 'detail', slug] as const,
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
+  modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
 }
 
 // === Queries ===
@@ -139,5 +141,49 @@ export function useRemoveModifier() {
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
     },
+  })
+}
+
+// === Import ===
+
+export function useImportProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => problemsApi.importProblem(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: problemKeys.all })
+    },
+  })
+}
+
+// === Accessibility ===
+
+export function useUpdateAccessibility() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ slug, accessibility }: { slug: string; accessibility: ProblemAccessibility }) =>
+      problemsApi.updateAccessibility(slug, accessibility),
+    onSuccess: (_, { slug }) => {
+      queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.all })
+    },
+  })
+}
+
+// === Modifiers (read) ===
+
+export function useGetModifiers(slug: string) {
+  return useQuery({
+    queryKey: problemKeys.modifiers(slug),
+    queryFn: () => problemsApi.getModifiers(slug),
+    enabled: !!slug,
+  })
+}
+
+// === Admin Rejudge ===
+
+export function useAdminRejudgeProblem() {
+  return useMutation({
+    mutationFn: (slug: string) => problemsApi.adminRejudgeProblem(slug),
   })
 }

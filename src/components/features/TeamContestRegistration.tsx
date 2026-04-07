@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UsersRound, Check, ChevronDown } from 'lucide-react'
+import { UsersRound, Check } from 'lucide-react'
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Checkbox } from '@/components/ui/Checkbox'
 import {
@@ -17,9 +17,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/Select'
-import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
-import { useToastContext } from '@/components/ui/ToastProvider'
-import { ApiClientError } from '@/api/client'
+import type { MyTeamItem, TeamDetail } from '@/types/team'
 
 interface TeamContestRegistrationProps {
   contestId: string
@@ -30,28 +28,36 @@ interface TeamContestRegistrationProps {
   isRegistered: boolean
   /** "card" renders the full Card wrapper (default). "inline" renders just a Button suitable for hero sections. */
   variant?: 'card' | 'inline'
+  teams: MyTeamItem[]
+  isLoadingTeams: boolean
+  selectedTeamDetail: TeamDetail | undefined
+  isLoadingTeamDetail: boolean
+  registeredTeamId: string | undefined
+  onRegisterTeam: (teamId: string, selectedMembers: string[]) => void
+  onUnregisterTeam: (teamId: string) => void
+  isRegistering: boolean
+  isUnregistering: boolean
+  registrationError: string | undefined
+  onTeamSelect: (teamId: string) => void
 }
 
 export function TeamContestRegistration({
-  contestId,
   contestStatus,
   participationMode,
   teamSizeMin = 1,
   teamSizeMax = 5,
   isRegistered,
   variant = 'card',
+  teams,
+  selectedTeamDetail,
+  onRegisterTeam,
+  isRegistering,
+  onTeamSelect,
 }: TeamContestRegistrationProps) {
-  const { toast } = useToastContext()
   const [showDialog, setShowDialog] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
 
-  const { data: teamsData } = useMyTeams()
-  const { data: teamDetail } = useTeamDetail(selectedTeamId)
-  const registerTeam = useRegisterTeamToContest()
-  const unregisterTeam = useUnregisterTeamFromContest()
-
-  const teams = teamsData?.teams ?? []
   const canRegisterTeam = contestStatus === 'SCHEDULED' && !isRegistered &&
     (participationMode === 'TEAM' || participationMode === 'MIXED')
 
@@ -67,28 +73,24 @@ export function TeamContestRegistration({
     )
   }
 
-  const handleRegister = async () => {
+  const handleTeamSelect = (teamId: string) => {
+    setSelectedTeamId(teamId)
+    setSelectedMembers([])
+    onTeamSelect(teamId)
+  }
+
+  const handleRegister = () => {
     if (!selectedTeamId || selectedMembers.length === 0) return
-    try {
-      await registerTeam.mutateAsync({
-        contestId,
-        data: { teamId: selectedTeamId, selectedMembers },
-      })
-      toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' })
-      setShowDialog(false)
-      setSelectedTeamId('')
-      setSelectedMembers([])
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
-      }
-    }
+    onRegisterTeam(selectedTeamId, selectedMembers)
+    setShowDialog(false)
+    setSelectedTeamId('')
+    setSelectedMembers([])
   }
 
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax
 
   const triggerButton = (
-    <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'default'} onClick={() => setShowDialog(true)}>
+    <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={() => setShowDialog(true)}>
       <UsersRound className="h-4 w-4 mr-2" />
       Registrar equipo
     </Button>
@@ -132,7 +134,7 @@ export function TeamContestRegistration({
               {teams.length === 0 ? (
                 <p className="text-sm text-neutral-text-muted">No tienes equipos. Crea uno primero en la sección de Equipos.</p>
               ) : (
-                <Select value={selectedTeamId} onValueChange={(val) => { setSelectedTeamId(val); setSelectedMembers([]) }}>
+                <Select value={selectedTeamId} onValueChange={handleTeamSelect}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar equipo" />
                   </SelectTrigger>
@@ -148,7 +150,7 @@ export function TeamContestRegistration({
             </div>
 
             {/* Member selection */}
-            {selectedTeamId && teamDetail && (
+            {selectedTeamId && selectedTeamDetail && (
               <div>
                 <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">
                   Miembros participantes
@@ -157,7 +159,7 @@ export function TeamContestRegistration({
                   </Badge>
                 </label>
                 <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-neutral-border p-2">
-                  {teamDetail.members.map((member) => {
+                  {selectedTeamDetail.members.map((member) => {
                     const isSelected = selectedMembers.includes(member.id)
                     const isDisabled = !isSelected && selectedMembers.length >= teamSizeMax
                     return (
@@ -194,7 +196,7 @@ export function TeamContestRegistration({
             <Button
               variant="primary"
               onClick={handleRegister}
-              isLoading={registerTeam.isPending}
+              isLoading={isRegistering}
               disabled={!isValidSelection || !selectedTeamId}
             >
               Registrar equipo

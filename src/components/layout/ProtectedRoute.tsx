@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from './AuthProvider'
+import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { UserRole } from '@/types/user'

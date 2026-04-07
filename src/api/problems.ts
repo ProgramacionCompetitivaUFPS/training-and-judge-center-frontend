@@ -9,6 +9,8 @@ import type {
   PublishResponse,
   UnpublishResponse,
   ProblemStatistics,
+  ProblemModifier,
+  ProblemAccessibility,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -71,4 +73,30 @@ export function removeModifier(slug: string, nickname: string): Promise<void> {
 
 export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
   return apiClient.get(`/problems/${slug}/statistics`)
+}
+
+// === Import ===
+
+export function importProblem(file: File): Promise<ProblemDetail> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiClient.postFormData('/problems/import', formData)
+}
+
+// === Accessibility ===
+
+export function updateAccessibility(slug: string, accessibility: ProblemAccessibility): Promise<void> {
+  return apiClient.patch(`/problems/${slug}/accessibility`, { accessibility })
+}
+
+// === Modifiers (read) ===
+
+export function getModifiers(slug: string): Promise<ProblemModifier[]> {
+  return apiClient.get(`/problems/${slug}/modifiers`)
+}
+
+// === Admin Rejudge ===
+
+export function adminRejudgeProblem(slug: string): Promise<void> {
+  return apiClient.post(`/admin/problems/${slug}/rejudge`)
 }

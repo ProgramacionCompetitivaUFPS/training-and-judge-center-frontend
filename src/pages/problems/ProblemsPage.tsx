@@ -173,7 +173,9 @@ export function ProblemsPage() {
 
 // === Sub-component ===
 
-function ProblemRow({ problem, onClick, showManagementBadges }: { problem: ProblemListItem; onClick: () => void; showManagementBadges: boolean }) {
+interface ProblemRowProps { problem: ProblemListItem; onClick: () => void; showManagementBadges: boolean }
+
+function ProblemRow({ problem, onClick, showManagementBadges }: ProblemRowProps) {
   return (
     <Card
       className="cursor-pointer hover:border-brand-primary/30 transition-colors"

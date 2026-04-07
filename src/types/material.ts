@@ -31,6 +31,7 @@ export interface MaterialListParams extends PaginationParams {
   publishedFrom?: string // YYYY-MM-DD
   publishedTo?: string   // YYYY-MM-DD
   sort?: 'relevance' | 'publishedAt' | 'title'
+  status?: MaterialStatus
 }
 
 export interface MaterialListResponse {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -6,11 +7,14 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Skeleton } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
-import { useStandings } from '@/hooks/api/useContests'
+import { useStandings, useStandingsStream } from '@/hooks/api/useContests'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import type { StandingProblemResult } from '@/types/contest'
 
-function ProblemCell({ result }: { result: StandingProblemResult }) {
+interface ProblemCellProps { result: StandingProblemResult }
+
+function ProblemCell({ result }: ProblemCellProps) {
   if (result.status === 'NOT_ATTEMPTED') {
     return <span className="text-neutral-text-muted">-</span>
   }
@@ -32,7 +36,14 @@ function ProblemCell({ result }: { result: StandingProblemResult }) {
 export function ContestStandingsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+  const [realtimeMode, setRealtimeMode] = useState(false)
+
   const { data, isLoading } = useStandings(id || '')
+  const streamData = useStandingsStream(id || '', realtimeMode && isLead)
+
+  const displayData = realtimeMode && streamData.standings ? streamData.standings : data
 
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -40,7 +51,7 @@ export function ContestStandingsPage() {
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: data?.contest.name || '...', href: `/contests/${id}` },
+        { label: displayData?.contest.name || '...', href: `/contests/${id}` },
         { label: 'Standings' },
       ]}
     >
@@ -52,13 +63,13 @@ export function ContestStandingsPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-bold text-neutral-text">Standings</h1>
-            {data && <ContestStatusBadge status={data.contest.status} />}
+            {displayData && <ContestStatusBadge status={displayData.contest.status} />}
           </div>
-          {data?.contest.status === 'ACTIVE' && (
+          {displayData?.contest.status === 'ACTIVE' && (
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-neutral-text-muted" />
               <ContestCountdown
-                targetTime={data.contest.endTime}
+                targetTime={displayData.contest.endTime}
                 className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
               />
             </div>
@@ -66,8 +77,32 @@ export function ContestStandingsPage() {
         </div>
 
         {data?.contest.isFrozen && (
-          <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
-            Los standings están congelados. Los resultados finales se revelarán al terminar el contest.
+          <div className={cn(
+            'border rounded-md p-3 text-sm',
+            realtimeMode
+              ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
+              : 'bg-status-warning/10 border-status-warning/30 text-status-warning',
+          )}>
+            <div className="flex items-center justify-between">
+              <span>
+                {realtimeMode
+                  ? 'Mostrando standings en tiempo real (solo visible para ti).'
+                  : 'Los standings están congelados. Los resultados finales se revelarán al terminar el contest.'}
+              </span>
+              {isLead && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRealtimeMode(!realtimeMode)}
+                  className="ml-3 shrink-0"
+                >
+                  {realtimeMode ? 'Ver standings congelados' : 'Ver standings en tiempo real'}
+                </Button>
+              )}
+            </div>
+            {realtimeMode && streamData.error && (
+              <p className="mt-1 text-xs text-status-warning">{streamData.error}</p>
+            )}
           </div>
         )}
 
@@ -78,7 +113,7 @@ export function ContestStandingsPage() {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : data && data.standings.length > 0 ? (
+        ) : displayData && displayData.standings.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -87,7 +122,7 @@ export function ContestStandingsPage() {
                   <TableHead>Participante</TableHead>
                   <TableHead className="w-20 text-center">Resueltos</TableHead>
                   <TableHead className="w-20 text-center">Penalización</TableHead>
-                  {data.problems.map((p) => (
+                  {displayData.problems.map((p) => (
                     <TableHead key={p.slug} className="w-20 text-center">
                       {labels[p.position - 1] || p.position}
                     </TableHead>
@@ -95,7 +130,7 @@ export function ContestStandingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.standings.map((entry) => (
+                {displayData.standings.map((entry) => (
                   <TableRow key={entry.participant.id}>
                     <TableCell className="text-center font-bold">
                       {entry.rank <= 3 ? (

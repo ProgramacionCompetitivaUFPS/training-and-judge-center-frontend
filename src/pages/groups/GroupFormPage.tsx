@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { EntityFormPage } from '@/components/patterns'
 import { Input } from '@/components/ui/Input'
@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/Select'
 import { useGroupDetail, useCreateGroup, useUpdateGroup } from '@/hooks/api/useGroups'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import { createGroupSchema, type CreateGroupFormData } from '@/lib/schemas/group'
 import { ROUTES } from '@/lib/constants'
 import type { GroupVisibility, GroupJoinPolicy } from '@/types/group'
@@ -35,7 +35,7 @@ export function GroupFormPage() {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<CreateGroupFormData>({
@@ -48,8 +48,8 @@ export function GroupFormPage() {
     },
   })
 
-  const visibility = watch('visibility')
-  const joinPolicy = watch('joinPolicy')
+  const visibility = useWatch({ control, name: 'visibility' })
+  const joinPolicy = useWatch({ control, name: 'joinPolicy' })
 
   useEffect(() => {
     if (isEdit && group) {

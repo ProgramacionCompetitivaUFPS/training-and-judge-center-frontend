@@ -6,10 +6,10 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/compo
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { useContestSession } from '@/components/layout/ContestSessionProvider'
+import { useContestSession } from '@/hooks/useContestSession'
+import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution } from '@/hooks/api/useSubmissions'
-import { useToastContext } from '@/components/ui/ToastProvider'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {

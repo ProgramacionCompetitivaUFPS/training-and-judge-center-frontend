@@ -1,5 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { cn } from '@/lib/utils'
+
+function useNow() {
+  return useSyncExternalStore(
+    (cb) => { const id = setInterval(cb, 1000); return () => clearInterval(id) },
+    () => Date.now(),
+  )
+}
 
 interface ContestCountdownProps {
   targetTime: string
@@ -75,11 +82,12 @@ function TimeSeparator() {
 
 export function ContestCountdown({ targetTime, label, className, variant = 'default', startTime, onComplete }: ContestCountdownProps) {
   const timeLeft = useTimeLeft(targetTime, onComplete)
+  const now = useNow()
 
   if (variant === 'competition') {
     const { days, hours, minutes, seconds } = parseTimeLeft(timeLeft)
     const progress = startTime
-      ? Math.max(0, Math.min(1, (Date.now() - new Date(startTime).getTime()) / (new Date(targetTime).getTime() - new Date(startTime).getTime())))
+      ? Math.max(0, Math.min(1, (now - new Date(startTime).getTime()) / (new Date(targetTime).getTime() - new Date(startTime).getTime())))
       : 0
     return (
       <div className={cn('text-center', className)}>

@@ -4,10 +4,10 @@ import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
+import { useContestSession } from '@/hooks/useContestSession'
+import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
-import { useContestSession } from '@/components/layout/ContestSessionProvider'
-import { useToastContext } from '@/components/ui/ToastProvider'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
@@ -63,6 +63,7 @@ export function ProblemDetailPage() {
   const isModifier = problem.modifiers?.some((m) => m.nickname === user?.nickname)
   const canEdit = isAdmin || isModifier
   const canDelete = isAdmin || problem.author.nickname === user?.nickname
+  const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   function handlePublish() {
     if (!problem) return
@@ -120,7 +121,7 @@ export function ProblemDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-semibold text-neutral-text-primary">{problem.title}</h1>
-              {!isContestContext && (
+              {!isContestContext && canSeeManagement && (
                 <>
                   <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
                     {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
@@ -263,7 +264,7 @@ export function ProblemDetailPage() {
         )}
 
         {/* Files (only for modifiers) */}
-        {problem.files && (
+        {canEdit && problem.files && (
           <Card>
             <CardHeader>
               <CardTitle>Archivos</CardTitle>
@@ -280,7 +281,7 @@ export function ProblemDetailPage() {
         )}
 
         {/* Modifiers (only for modifiers) */}
-        {problem.modifiers && problem.modifiers.length > 0 && (
+        {canEdit && problem.modifiers && problem.modifiers.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Modificadores</CardTitle>
@@ -409,7 +410,9 @@ export function ProblemDetailPage() {
 
 // === Sub-components ===
 
-function MetadataItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+interface MetadataItemProps { icon: React.ElementType; label: string; value: string }
+
+function MetadataItem({ icon: Icon, label, value }: MetadataItemProps) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Icon className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
@@ -421,7 +424,9 @@ function MetadataItem({ icon: Icon, label, value }: { icon: React.ElementType; l
   )
 }
 
-function FileIndicator({ label, available, detail }: { label: string; available: boolean; detail?: string }) {
+interface FileIndicatorProps { label: string; available: boolean; detail?: string }
+
+function FileIndicator({ label, available, detail }: FileIndicatorProps) {
   return (
     <div className="flex items-center gap-2">
       <div className={`h-2 w-2 rounded-full ${available ? 'bg-status-success' : 'bg-neutral-border'}`} />
@@ -433,7 +438,9 @@ function FileIndicator({ label, available, detail }: { label: string; available:
   )
 }
 
-function ExampleBlock({ index, input, output, explanation }: { index: number; input: string; output: string; explanation?: string }) {
+interface ExampleBlockProps { index: number; input: string; output: string; explanation?: string }
+
+function ExampleBlock({ index, input, output, explanation }: ExampleBlockProps) {
   return (
     <div className="border border-neutral-border rounded-lg overflow-hidden">
       <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
@@ -464,7 +471,9 @@ function ExampleBlock({ index, input, output, explanation }: { index: number; in
   )
 }
 
-function CopyButton({ text }: { text: string }) {
+interface CopyButtonProps { text: string }
+
+function CopyButton({ text }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {

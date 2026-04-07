@@ -1,15 +1,13 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { useSubmissionDetail, useUpdateSubmissionVisibility } from '@/hooks/api/useSubmissions'
-import { downloadSubmission } from '@/api/submissions'
+import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { useAuth } from '@/hooks/useAuth'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
-import { useState } from 'react'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -19,7 +17,8 @@ export function SubmissionDetailPage() {
 
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
-  const [isDownloading, setIsDownloading] = useState(false)
+  const downloadMutation = useDownloadSubmission()
+  const rejudgeMutation = useRejudgeSubmission()
 
   if (isLoading) {
     return (
@@ -61,9 +60,8 @@ export function SubmissionDetailPage() {
 
   async function handleDownload() {
     if (!submission) return
-    setIsDownloading(true)
     try {
-      const blob = await downloadSubmission(submission.id)
+      const blob = await downloadMutation.mutateAsync(submission.id)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -73,9 +71,15 @@ export function SubmissionDetailPage() {
       URL.revokeObjectURL(url)
     } catch {
       toast({ variant: 'error', title: 'Error al descargar' })
-    } finally {
-      setIsDownloading(false)
     }
+  }
+
+  function handleRejudge() {
+    if (!submission) return
+    rejudgeMutation.mutate(submission.id, {
+      onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
+      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar submission' }),
+    })
   }
 
   const breadcrumbs = [
@@ -126,7 +130,17 @@ export function SubmissionDetailPage() {
                 )}
               </Button>
             )}
-            <Button variant="outline" onClick={handleDownload} isLoading={isDownloading}>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={handleRejudge}
+                isLoading={rejudgeMutation.isPending}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Rejuzgar
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleDownload} isLoading={downloadMutation.isPending}>
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
@@ -183,7 +197,9 @@ export function SubmissionDetailPage() {
   )
 }
 
-function MetaItem({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+interface MetaItemProps { icon: React.ElementType; label: string; value: string }
+
+function MetaItem({ icon: Icon, label, value }: MetaItemProps) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <Icon className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />

@@ -18,7 +18,7 @@ import {
   useUnpublishMaterial, usePinMaterial, useUnpinMaterial,
 } from '@/hooks/api/useMaterials'
 import { useAuth } from '@/hooks/useAuth'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useToastContext } from '@/hooks/useToastContext'
 import {
   BookOpen, Edit, Trash2, MoreVertical, Pin, Loader2,
   User, Calendar,
@@ -43,6 +43,7 @@ export function MaterialDetailPage() {
   const isAuthor = material?.author.nickname === user?.nickname
   const canEdit = isAdmin || isAuthor
   const canPin = isAdmin || user?.role === 'COACH'
+  const canSeeStatus = isAdmin || user?.role === 'COACH'
 
   const handleDelete = async () => {
     try {
@@ -120,9 +121,11 @@ export function MaterialDetailPage() {
                   <div className="space-y-3">
                     <h1 className="text-3xl font-extrabold text-neutral-text-primary leading-tight flex items-center gap-3">
                       {material.title}
-                      <Badge variant={material.status === 'DRAFT' ? 'warning' : 'success'}>
-                        {material.status === 'DRAFT' ? 'Borrador' : 'Publicado'}
-                      </Badge>
+                      {canSeeStatus && (
+                        <Badge variant={material.status === 'DRAFT' ? 'warning' : 'success'}>
+                          {material.status === 'DRAFT' ? 'Borrador' : 'Publicado'}
+                        </Badge>
+                      )}
                       {material.pinned && (
                         <Badge variant="primary" className="flex items-center gap-1">
                           <Pin className="h-3 w-3" />

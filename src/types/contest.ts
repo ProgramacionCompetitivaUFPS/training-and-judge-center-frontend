@@ -37,6 +37,7 @@ export interface ContestDetail {
   group: { id: string; name: string }
   owner: { id: string; nickname: string }
   problems: ContestProblem[]
+  problemCount: number
   createdAt: string
   updatedAt: string
 }
@@ -104,6 +105,13 @@ export interface UpdateContestRequest {
   enablePostContest?: boolean
   problems?: Array<{ slug: string; order: number }>
   locked?: boolean
+}
+
+// === Contest Problem Management ===
+
+export interface AddContestProblemRequest {
+  problemSlug: string
+  order?: number
 }
 
 // === Registration ===

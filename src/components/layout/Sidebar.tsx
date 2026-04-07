@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils'
 import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES } from '@/lib/constants'
-import { useAuth } from './AuthProvider'
-import { useContestSession } from './ContestSessionProvider'
+import { useAuth } from '@/hooks/useAuth'
+import { useContestSession } from '@/hooks/useContestSession'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 
 interface SidebarProps {
@@ -17,6 +17,62 @@ interface NavItem {
   label: string
   to: string
   badge?: number
+}
+
+interface SidebarNavItemProps {
+  item: NavItem
+  isActive: boolean
+  onClose: () => void
+}
+
+interface SidebarNavGroupProps {
+  label: string
+  items: NavItem[]
+  isActive: (to: string) => boolean
+  onClose: () => void
+}
+
+function SidebarNavItem({ item, isActive, onClose }: SidebarNavItemProps) {
+  const Icon = item.icon
+  return (
+    <Link
+      to={item.to}
+      onClick={onClose}
+      className={cn(
+        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+        isActive
+          ? 'bg-brand-primary-muted text-brand-primary'
+          : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
+      )}
+    >
+      <Icon className="h-5 w-5 flex-shrink-0" />
+      <span className="flex-1">{item.label}</span>
+      {item.badge && (
+        <span className="px-2 py-0.5 text-xs font-bold rounded-pill bg-brand-primary text-neutral-surface">
+          {item.badge}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+function SidebarNavGroup({ label, items, isActive, onClose }: SidebarNavGroupProps) {
+  if (items.length === 0) return null
+  return (
+    <>
+      <div className="pt-4 pb-1 px-3 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
+        {label}
+      </div>
+      {items.map((item) => (
+        <SidebarNavItem
+          key={item.to}
+          item={item}
+          isActive={isActive(item.to)}
+          onClose={onClose}
+        />
+      ))}
+    </>
+  )
 }
 
 const navItems: NavItem[] = [
@@ -150,75 +206,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             )}
 
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.to)
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={onClose}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-brand-primary-muted text-brand-primary'
-                      : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
-                  )}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className="px-2 py-0.5 text-xs font-bold rounded-pill bg-brand-primary text-neutral-surface">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              )
-            })}
-            {adminItems.length > 0 && (
-              <>
-                <div className="pt-4 pb-1 px-3 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
-                  Admin
-                </div>
-                {adminItems.map((item) => {
-                  const Icon = item.icon
-                  const active = isActive(item.to)
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={onClose}
-                      className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                        active
-                          ? 'bg-brand-primary-muted text-brand-primary'
-                          : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
-                      )}
-                    >
-                      <Icon className="h-5 w-5 flex-shrink-0" />
-                      <span>{item.label}</span>
-                    </Link>
-                  )
-                })}
-              </>
-            )}
+            {navItems.map((item) => (
+              <SidebarNavItem
+                key={item.to}
+                item={item}
+                isActive={isActive(item.to)}
+                onClose={onClose}
+              />
+            ))}
+
+            <SidebarNavGroup
+              label="Admin"
+              items={adminItems}
+              isActive={isActive}
+              onClose={onClose}
+            />
           </nav>
 
           <div className="p-4 border-t border-neutral-border space-y-1">
-            {secondaryItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary transition-colors"
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
+            {secondaryItems.map((item) => (
+              <SidebarNavItem
+                key={item.to}
+                item={item}
+                isActive={isActive(item.to)}
+                onClose={onClose}
+              />
+            ))}
           </div>
         </div>
       </aside>

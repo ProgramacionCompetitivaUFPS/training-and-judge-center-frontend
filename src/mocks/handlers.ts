@@ -127,7 +127,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post(url('/password/recovery'), async () => {
+  http.post(url('/password/forgot'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -151,7 +151,7 @@ export const handlers = [
 
   // === Deactivation ===
 
-  http.post(url('/users/deactivation/request'), async () => {
+  http.post(url('/users/deactivation'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -456,7 +456,7 @@ export const handlers = [
     const isAdmin = userNickname === 'luisadmin'
     const isModifier = problem.modifiers?.some((m) => m.nickname === userNickname)
     if (!isAdmin && !isModifier) {
-      const { modifiers, files, ...publicData } = problem
+      const { modifiers: _modifiers, files: _files, ...publicData } = problem
       return HttpResponse.json(publicData)
     }
 
@@ -696,7 +696,8 @@ export const handlers = [
 
     const auth = request.headers.get('Authorization')
     const token = auth?.replace('Bearer ', '') || ''
-    const userNickname = token.replace('mock-jwt-token-', '')
+    // userNickname available for future use
+    void token
 
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
     return HttpResponse.json({
@@ -1149,9 +1150,8 @@ export const handlers = [
   }),
 
   // Accept team invitation
-  http.post(url('/team-invitations/:invitationId/accept'), async ({ params }) => {
+  http.post(url('/team-invitations/:invitationId/accept'), async () => {
     await delay(300)
-    const { invitationId } = params as { invitationId: string }
     return HttpResponse.json({
       team: mockTeamDetails['team-1'],
       joinedAt: new Date().toISOString(),

@@ -3,6 +3,7 @@ import type { PaginatedResponse, PaginationParams } from './api'
 // === Entidad principal ===
 
 export interface User {
+  id?: string
   email: string
   name: string
   nickname: string
@@ -14,6 +15,7 @@ export interface User {
   preferences?: UserPreferences
   createdAt: string
   updatedAt?: string
+  deactivatedAt?: string
 }
 
 export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
@@ -106,6 +108,8 @@ export interface ConfirmDeactivationRequest {
 
 export interface AdminUpdateUserRequest {
   name?: string
+  email?: string
+  nickname?: string
   role?: UserRole
   institution?: string
 }
@@ -120,6 +124,12 @@ export interface AdminUserListParams extends PaginationParams {
 
 export type AdminUserListResponse = PaginatedResponse<User>
 
+// === Role Change ===
+
+export interface ChangeUserRoleRequest {
+  role: UserRole
+}
+
 // === Dashboard ===
 
 export interface UserDashboard {
@@ -129,6 +139,11 @@ export interface UserDashboard {
   contestsParticipated: number
   recentSubmissions: DashboardSubmission[]
   upcomingContests: DashboardContest[]
+  activeContests: DashboardContest[]
+  recentMaterials: DashboardMaterial[]
+  streak: UserStreak
+  ranking: UserRanking
+  recentContestResults: DashboardContestResult[]
 }
 
 export interface DashboardSubmission {
@@ -146,4 +161,28 @@ export interface DashboardContest {
   startTime: string
   endTime: string
   groupName: string
+}
+
+export interface DashboardMaterial {
+  id: string
+  title: string
+  groupId: string
+  groupName: string
+}
+
+export interface DashboardContestResult {
+  contestId: string
+  contestName: string
+  rank: number
+  totalParticipants: number
+}
+
+export interface UserStreak {
+  currentStreak: number
+  longestStreak: number
+}
+
+export interface UserRanking {
+  position: number
+  totalUsers: number
 }

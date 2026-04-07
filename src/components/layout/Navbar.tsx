@@ -3,7 +3,7 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { Code2, User, Settings, LogOut, Menu, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
-import { useAuth } from './AuthProvider'
+import { useAuth } from '@/hooks/useAuth'
 
 interface NavbarProps {
   onMenuClick: () => void

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Search, Plus, Users, Globe, Lock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -27,7 +28,6 @@ import { useGroups, useMyGroups } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
 import type { GroupListParams, GroupListItem, MyGroupItem, MyGroupsParams } from '@/types/group'
-import { Search, Plus, Users, Globe, Lock } from 'lucide-react'
 
 const JOIN_POLICY_LABELS: Record<string, string> = {
   OPEN: 'Abierto',
@@ -40,7 +40,9 @@ const VISIBILITY_ICON = {
   NOT_VISIBLE: Lock,
 } as const
 
-function GroupCard({ group, onClick }: { group: GroupListItem; onClick: () => void }) {
+interface GroupCardProps { group: GroupListItem; onClick: () => void }
+
+function GroupCard({ group, onClick }: GroupCardProps) {
   const VisIcon = VISIBILITY_ICON[group.visibility]
   return (
     <Card className="cursor-pointer hover:shadow-elevation-2 transition-shadow" onClick={onClick}>
@@ -74,7 +76,9 @@ function GroupCard({ group, onClick }: { group: GroupListItem; onClick: () => vo
   )
 }
 
-function MyGroupCard({ group, onClick }: { group: MyGroupItem; onClick: () => void }) {
+interface MyGroupCardProps { group: MyGroupItem; onClick: () => void }
+
+function MyGroupCard({ group, onClick }: MyGroupCardProps) {
   return (
     <Card className="cursor-pointer hover:shadow-elevation-2 transition-shadow" onClick={onClick}>
       <CardContent className="py-4">
