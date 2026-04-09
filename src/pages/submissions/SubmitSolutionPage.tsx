@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { Send, Upload, FileText, Clock, HardDrive, Lightbulb } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
@@ -29,7 +29,6 @@ const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 export function SubmitSolutionPage() {
   const { contestId } = useParams<{ contestId?: string }>()
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   const { toast } = useToastContext()
   const { contest: activeContest } = useContestSession()
 
