@@ -61,7 +61,12 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
           <ContestStatusBadge status={contest.status} />
           <div className="flex items-center gap-2">
             {contest.isRegistered && (
-              <CheckCircle className="h-4 w-4 text-brand-primary" title={isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'} />
+              <span className="flex items-center gap-1 text-brand-primary">
+                <CheckCircle className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'}
+                </span>
+              </span>
             )}
             <span className="text-xs font-medium text-neutral-text-muted font-mono">
               {isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}
