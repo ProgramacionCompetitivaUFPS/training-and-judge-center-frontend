@@ -95,10 +95,10 @@ export function MaterialsPage() {
               />
             </div>
             <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPage(1) }}>
-              <SelectTrigger className="w-36 shrink-0"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectTrigger className="w-36 shrink-0"><SelectValue placeholder="Fijados" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="pinned">Fijados</SelectItem>
+                <SelectItem value="all">Todos los materiales</SelectItem>
+                <SelectItem value="pinned">Solo fijados</SelectItem>
                 <SelectItem value="unpinned">No fijados</SelectItem>
               </SelectContent>
             </Select>
@@ -106,7 +106,7 @@ export function MaterialsPage() {
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
                 <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="all">Todos los estados</SelectItem>
                   <SelectItem value="PUBLISHED">Publicados</SelectItem>
                   <SelectItem value="DRAFT">Borrador</SelectItem>
                 </SelectContent>

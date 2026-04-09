@@ -14,7 +14,7 @@ export function MaterialListItem({ material, onClick, showPreview = false }: Mat
     <div
       className={cn(
         'flex items-center gap-4 py-4 px-5 cursor-pointer hover:bg-neutral-surface-hover transition-colors',
-        material.pinned && 'border-l-4 border-brand-primary'
+        material.pinned && 'bg-brand-primary-muted'
       )}
       onClick={onClick}
     >
