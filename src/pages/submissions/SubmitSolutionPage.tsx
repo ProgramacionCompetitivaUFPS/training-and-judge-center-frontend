@@ -222,14 +222,37 @@ export function SubmitSolutionPage() {
               <Card>
                 <CardContent className="pt-5 space-y-3">
                   <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Límites del problema</p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-neutral-text-muted" />
-                    <span className="text-neutral-text-primary">{problemDetail.timeLimit ? `${problemDetail.timeLimit} ms` : 'No definido'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <HardDrive className="h-4 w-4 text-neutral-text-muted" />
-                    <span className="text-neutral-text-primary">{problemDetail.memoryLimit ? `${problemDetail.memoryLimit} MiB` : 'No definido'}</span>
-                  </div>
+                  {(() => {
+                    const override = language
+                      ? problemDetail.languageOverrides.find((lo) => lo.language === language)
+                      : undefined
+                    const effectiveTime = override?.timeLimit ?? problemDetail.timeLimit
+                    const effectiveMemory = override?.memoryLimit ?? problemDetail.memoryLimit
+                    const hasTimeOverride = override?.timeLimit != null
+                    const hasMemoryOverride = override?.memoryLimit != null
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="h-4 w-4 text-neutral-text-muted" />
+                          <span className="text-neutral-text-primary">
+                            {effectiveTime ? `${effectiveTime} ms` : 'No definido'}
+                          </span>
+                          {hasTimeOverride && (
+                            <Badge variant="outline" className="text-[10px] py-0">override</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <HardDrive className="h-4 w-4 text-neutral-text-muted" />
+                          <span className="text-neutral-text-primary">
+                            {effectiveMemory ? `${effectiveMemory} MiB` : 'No definido'}
+                          </span>
+                          {hasMemoryOverride && (
+                            <Badge variant="outline" className="text-[10px] py-0">override</Badge>
+                          )}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </CardContent>
               </Card>
             )}

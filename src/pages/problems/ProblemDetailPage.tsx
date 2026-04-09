@@ -196,26 +196,6 @@ export function ProblemDetailPage() {
             </Card>
           )}
 
-          {/* Language overrides */}
-          {problem.languageOverrides.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Límites por lenguaje</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {problem.languageOverrides.map((lo) => (
-                    <div key={lo.language} className="flex items-center gap-4 text-sm">
-                      <Badge variant="outline">{lo.language}</Badge>
-                      {lo.timeLimit && <span>Tiempo: {lo.timeLimit} ms</span>}
-                      {lo.memoryLimit && <span>Memoria: {lo.memoryLimit} MiB</span>}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Files (only for modifiers) */}
           {canEdit && problem.files && (
             <Card>
@@ -285,6 +265,21 @@ export function ProblemDetailPage() {
               <MetadataRow icon={User} label="Autor" value={problem.author.name} />
               <MetadataRow icon={Clock} label="Tiempo límite" value={problem.timeLimit ? `${problem.timeLimit} ms` : 'No definido'} />
               <MetadataRow icon={HardDrive} label="Memoria" value={problem.memoryLimit ? `${problem.memoryLimit} MiB` : 'No definido'} />
+              {problem.languageOverrides.length > 0 && (
+                <div className="pt-2 mt-2 border-t border-neutral-border">
+                  <p className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Overrides por lenguaje</p>
+                  <div className="space-y-1.5">
+                    {problem.languageOverrides.map((lo) => (
+                      <div key={lo.language} className="flex items-center justify-between text-xs">
+                        <Badge variant="outline" className="text-[10px] py-0">{lo.language}</Badge>
+                        <span className="text-neutral-text-muted font-mono">
+                          {[lo.timeLimit && `${lo.timeLimit}ms`, lo.memoryLimit && `${lo.memoryLimit}MiB`].filter(Boolean).join(' / ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <MetadataRow icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
             </CardContent>
           </Card>
