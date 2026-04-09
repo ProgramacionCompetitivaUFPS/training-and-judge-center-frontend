@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, UsersRound } from 'lucide-react'
+import { useParams, Link } from 'react-router-dom'
+import { Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Badge } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
@@ -35,7 +35,6 @@ function ProblemCell({ result }: ProblemCellProps) {
 
 export function ContestStandingsPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
   const [realtimeMode, setRealtimeMode] = useState(false)
@@ -59,10 +58,7 @@ export function ContestStandingsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/contests/${id}`)}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-bold text-neutral-text">Standings</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Standings</h1>
             {displayData && <ContestStatusBadge status={displayData.contest.status} />}
           </div>
           {displayData?.contest.status === 'ACTIVE' && (
