@@ -91,6 +91,7 @@ export function GroupFormPage() {
       description={isEdit ? 'Modifica la configuración del grupo' : 'Configura un nuevo grupo de entrenamiento'}
       breadcrumbs={[
         { label: 'Grupos', href: ROUTES.GROUPS },
+        ...(isEdit && group ? [{ label: group.name, href: `/groups/${id}` }] : []),
         { label: isEdit ? 'Editar' : 'Crear' },
       ]}
       onSubmit={handleSubmit(onSubmit)}
