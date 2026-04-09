@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Trophy, Plus, Users, Clock, Code2, Search, ArrowRight, BarChart3, CheckCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { EmptyState } from '@/components/patterns'
-import { Button, Card, CardContent, Input, Badge } from '@/components/ui'
+import { Button, Card, CardContent, Input } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useContests } from '@/hooks/api/useContests'
 import { useAuth } from '@/hooks/useAuth'
@@ -58,18 +58,15 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
       <CardContent className="p-5 flex flex-col flex-1">
         {/* Top: badges + date */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex flex-col gap-1.5">
-            <ContestStatusBadge status={contest.status} />
+          <ContestStatusBadge status={contest.status} />
+          <div className="flex items-center gap-2">
             {contest.isRegistered && (
-              <Badge variant="primary" className="gap-1 w-fit">
-                <CheckCircle className="h-3 w-3" />
-                {isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'}
-              </Badge>
+              <CheckCircle className="h-4 w-4 text-brand-primary" title={isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'} />
             )}
+            <span className="text-xs font-medium text-neutral-text-muted font-mono">
+              {isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}
+            </span>
           </div>
-          <span className="text-xs font-medium text-neutral-text-muted font-mono">
-            {isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}
-          </span>
         </div>
 
         {/* Title + description */}
