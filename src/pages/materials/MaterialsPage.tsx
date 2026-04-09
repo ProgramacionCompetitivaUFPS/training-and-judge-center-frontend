@@ -12,6 +12,7 @@ import {
   PaginationLink, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
 import { useMaterials } from '@/hooks/api/useMaterials'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import type { Material, MaterialListParams, MaterialStatus } from '@/types/material'
@@ -21,6 +22,7 @@ export function MaterialsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+  const { data: groupDetail } = useGroupDetail(groupId!)
 
   const [search, setSearch] = useState('')
   const [pinnedFilter, setPinnedFilter] = useState('all')
@@ -133,7 +135,7 @@ export function MaterialsPage() {
       description="Recursos y anuncios del grupo"
       breadcrumbs={[
         { label: 'Grupos', href: '/groups' },
-        { label: 'Grupo', href: `/groups/${groupId}` },
+        { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
         { label: 'Materiales' },
       ]}
       onCreateNew={isLead ? () => navigate(`/groups/${groupId}/materials/new`) : undefined}

@@ -12,6 +12,7 @@ import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import {
   useMaterialDetail, useCreateMaterial, useUpdateMaterial,
 } from '@/hooks/api/useMaterials'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
   createMaterialSchema, updateMaterialSchema,
@@ -23,6 +24,7 @@ export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  const { data: groupDetail } = useGroupDetail(groupId!)
   const isEditing = !!materialId
 
   const { data: existing, isLoading: isLoadingDetail } = useMaterialDetail(
@@ -171,7 +173,7 @@ export function MaterialFormPage() {
       description={isEditing ? 'Modifica el contenido del material' : 'Crea un nuevo material para el grupo'}
       breadcrumbs={[
         { label: 'Grupos', href: '/groups' },
-        { label: 'Grupo', href: `/groups/${groupId}` },
+        { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
         { label: 'Materiales', href: `/groups/${groupId}/materials` },
         { label: isEditing ? 'Editar' : 'Nuevo' },
       ]}
