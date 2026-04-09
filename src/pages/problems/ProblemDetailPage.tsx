@@ -21,6 +21,7 @@ export function ProblemDetailPage() {
   const { toast } = useToastContext()
 
   const isContestContext = !!contestId
+  const isContestActive = isContestContext && activeContest?.status === 'ACTIVE'
   const resolvedSlug = isContestContext
     ? activeContest?.problems.find(
         (p) => ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)) === letter?.toUpperCase()
@@ -110,8 +111,8 @@ export function ProblemDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
         {/* === Left Column: Content === */}
         <div className="space-y-6 min-w-0">
-          {/* Tags above title */}
-          {!isContestContext && problem.tags.length > 0 && (
+          {/* Tags above title — hidden during active contest to prevent spoilers */}
+          {!isContestActive && problem.tags.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {problem.tags.map((tag) => (
                 <Badge key={tag} variant="default" className="text-[10px]">{tag}</Badge>
@@ -284,8 +285,8 @@ export function ProblemDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Statistics summary */}
-          {stats && stats.totalSubmissions > 0 && stats.uniqueUsers && (
+          {/* Statistics — hidden during active contest */}
+          {!isContestActive && stats && stats.totalSubmissions > 0 && stats.uniqueUsers && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted flex items-center gap-2">
