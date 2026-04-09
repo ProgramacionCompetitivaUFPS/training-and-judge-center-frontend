@@ -588,9 +588,9 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'graph-bfs',
     title: 'Graph BFS',
-    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $0 \\leq m \\leq 2 \\times 10^5$\n- $1 \\leq s \\leq n$',
-    inputFormat: 'La primera línea contiene tres enteros $n$, $m$ y $s$.\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ representando una arista.',
-    outputFormat: 'Imprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed). Imprime $-1$ si no es alcanzable.',
+    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.',
+    inputFormat: 'La primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.',
+    outputFormat: 'Imprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
     examples: [
       { input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2', explanation: 'Desde el vértice 1: distancia a 2 es 1, a 3 es 1, a 4 es 2.' },
       { input: '3 1 1\n1 2', output: '0 1 -1' },
@@ -609,8 +609,8 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n### Restricciones\n\n- $1 \\leq n \\leq 100$\n- $1 \\leq W \\leq 10^5$\n- $1 \\leq w_i, v_i \\leq 10^3$',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $W$.\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$.',
+    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$',
+    inputFormat: 'La primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.',
     outputFormat: 'Imprime un entero: el valor máximo que se puede obtener.',
     examples: [
       { input: '3 50\n10 60\n20 100\n30 120', output: '220', explanation: 'Se toman los objetos 2 y 3 (peso total 50, valor 100+120=220).' },
@@ -631,8 +631,8 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'string-matching',
     title: 'String Matching (KMP)',
     statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.',
-    inputFormat: 'La primera línea contiene la cadena $t$ (el texto).\n\nLa segunda línea contiene la cadena $p$ (el patrón).',
-    outputFormat: 'Imprime en la primera línea el número de ocurrencias.\n\nEn la segunda línea, imprime las posiciones (0-indexed) donde comienza cada ocurrencia, separadas por espacios.',
+    inputFormat: '```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.',
+    outputFormat: '```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
     examples: [
       { input: 'abcabcabc\nabc', output: '3\n0 3 6' },
       { input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
