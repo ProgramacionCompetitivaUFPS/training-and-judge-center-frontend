@@ -42,9 +42,12 @@ export function MaterialListItem({ material, onClick, showPreview = false }: Mat
           )}
           {material.tags.length > 0 && (
             <div className="flex items-center gap-1">
-              {material.tags.map((tag) => (
+              {material.tags.slice(0, 3).map((tag) => (
                 <Badge key={tag} variant="default" className="text-[10px]">{tag}</Badge>
               ))}
+              {material.tags.length > 3 && (
+                <span className="text-[10px] text-neutral-text-muted font-medium">+{material.tags.length - 3}</span>
+              )}
             </div>
           )}
         </div>
