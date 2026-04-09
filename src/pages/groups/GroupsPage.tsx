@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Users, Globe, Lock, Filter } from 'lucide-react'
+import { Search, Plus, Globe, Lock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -64,7 +64,6 @@ export function GroupsPage() {
   const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 10 })
   const [allSearchInput, setAllSearchInput] = useState('')
   const [mySearchInput, setMySearchInput] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
 
   const debouncedAllSearch = useDebounce(allSearchInput)
   const debouncedMySearch = useDebounce(mySearchInput)
@@ -84,15 +83,13 @@ export function GroupsPage() {
   const allPagination = allGroups.data?.pagination
   const myPagination = myGroups.data?.pagination
 
-  const activeFiltersCount = allParams.joinPolicy ? 1 : 0
-
   return (
     <AppLayout breadcrumbs={[{ label: 'Grupos' }]}>
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-extrabold text-neutral-text-primary mb-1">Grupos</h1>
-            <p className="text-neutral-text-muted">Explora grupos de entrenamiento o gestiona los tuyos</p>
+            <p className="text-sm text-neutral-text-muted">Explora grupos de entrenamiento o gestiona los tuyos</p>
           </div>
           {isCoachOrAdmin && (
             <Button onClick={() => navigate(ROUTES.GROUP_NEW)} className="gap-2">
@@ -109,55 +106,35 @@ export function GroupsPage() {
 
           {/* === All Groups Tab === */}
           <TabsContent value="all" className="mt-4 space-y-4">
-            {/* Search + collapsible filters */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
-                  <Input
-                    placeholder="Buscar grupos..."
-                    className="pl-9"
-                    value={allSearchInput}
-                    onChange={(e) => { setAllSearchInput(e.target.value); setAllParams((p) => ({ ...p, page: 1 })) }}
-                  />
-                </div>
-                <button
-                  onClick={() => setShowFilters((prev) => !prev)}
-                  className="flex items-center gap-2 text-sm font-medium text-neutral-text-primary hover:text-brand-primary transition-colors"
-                >
-                  <Filter className="h-4 w-4" />
-                  Filtros
-                  {activeFiltersCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-pill bg-brand-primary text-neutral-surface">
-                      {activeFiltersCount}
-                    </span>
-                  )}
-                </button>
+            {/* Search + filter inline */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+                <Input
+                  placeholder="Buscar grupos..."
+                  className="pl-9"
+                  value={allSearchInput}
+                  onChange={(e) => { setAllSearchInput(e.target.value); setAllParams((p) => ({ ...p, page: 1 })) }}
+                />
               </div>
-
-              {showFilters && (
-                <div className="flex items-center gap-3 rounded-lg border border-neutral-border bg-neutral-surface px-4 py-2.5">
-                  <span className="text-sm text-neutral-text-muted shrink-0">Filtrar:</span>
-                  <Select
-                    onValueChange={(v) => setAllParams((p) => ({ ...p, joinPolicy: v === 'ALL' ? undefined : v as GroupListParams['joinPolicy'], page: 1 }))}
-                    defaultValue="ALL"
-                  >
-                    <SelectTrigger className="w-48 bg-neutral-bg"><SelectValue placeholder="Política de ingreso" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">Toda política</SelectItem>
-                      <SelectItem value="OPEN">Abierto</SelectItem>
-                      <SelectItem value="REQUEST">Solicitud</SelectItem>
-                      <SelectItem value="INVITE">Invitación</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <Select
+                onValueChange={(v) => setAllParams((p) => ({ ...p, joinPolicy: v === 'ALL' ? undefined : v as GroupListParams['joinPolicy'], page: 1 }))}
+                defaultValue="ALL"
+              >
+                <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Política" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Toda política</SelectItem>
+                  <SelectItem value="OPEN">Abierto</SelectItem>
+                  <SelectItem value="REQUEST">Solicitud</SelectItem>
+                  <SelectItem value="INVITE">Invitación</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Results count */}
             {allPagination && !allGroups.isLoading && (allGroups.data?.groups.length ?? 0) > 0 && (
               <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-                <span>{allPagination.total} grupos en total</span>
+                <span>{allPagination.total} grupos</span>
                 <span>Página {allPagination.page} de {allPagination.totalPages}</span>
               </div>
             )}
@@ -206,16 +183,23 @@ export function GroupsPage() {
 
             {myGroups.error && <Alert variant="error">Error al cargar tus grupos.</Alert>}
 
+            {/* Results count */}
+            {myPagination && !myGroups.isLoading && (myGroups.data?.groups.length ?? 0) > 0 && (
+              <div className="flex items-center justify-between text-xs text-neutral-text-muted">
+                <span>{myPagination.total} grupos</span>
+                <span>Página {myPagination.page} de {myPagination.totalPages}</span>
+              </div>
+            )}
+
             {myGroups.isLoading ? (
-              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
             ) : myGroups.data?.groups.length === 0 ? (
               <Card><CardContent className="py-12 text-center"><p className="text-neutral-text-muted">Aún no perteneces a ningún grupo</p></CardContent></Card>
             ) : (
-              <div className="space-y-3">
-                {myGroups.data?.groups.map((g) => (
-                  <MyGroupCard key={g.id} group={g} onClick={() => navigate(`/groups/${g.id}`)} />
-                ))}
-              </div>
+              <MyGroupsTable
+                groups={myGroups.data?.groups ?? []}
+                onRowClick={(g) => navigate(`/groups/${g.id}`)}
+              />
             )}
 
             {myPagination && myPagination.totalPages > 1 && (
@@ -327,37 +311,70 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
   )
 }
 
-interface MyGroupCardProps { group: MyGroupItem; onClick: () => void }
+interface MyGroupsTableProps {
+  groups: MyGroupItem[]
+  onRowClick: (group: MyGroupItem) => void
+}
 
-function MyGroupCard({ group, onClick }: MyGroupCardProps) {
+function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
   return (
-    <Card className="cursor-pointer hover:shadow-elevation-2 transition-shadow" onClick={onClick}>
-      <CardContent className="py-4">
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            'w-10 h-10 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
-            getInitialColor(group.name)
-          )}>
-            {group.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-neutral-text-primary truncate">{group.name}</h3>
-              <Badge variant={group.myRole === 'LEAD' ? 'warning' : 'success'} className="text-[10px]">
-                {group.myRole === 'LEAD' ? 'Líder' : 'Miembro'}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
-              <span className="flex items-center gap-1"><Users className="h-3 w-3" />{group.memberCount} miembros</span>
-              {group.activeContestCount > 0 && (
-                <Badge variant="success" className="text-[10px]">{group.activeContestCount} activo{group.activeContestCount > 1 ? 's' : ''}</Badge>
-              )}
-              {group.materialCount > 0 && (
-                <span>{group.materialCount} materiales</span>
-              )}
-            </div>
-          </div>
-        </div>
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Grupo</TableHead>
+              <TableHead>Tu rol</TableHead>
+              <TableHead className="text-center">Miembros</TableHead>
+              <TableHead className="text-center">Contests activos</TableHead>
+              <TableHead className="text-center">Materiales</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {groups.map((group) => (
+              <TableRow
+                key={group.id}
+                className="cursor-pointer hover:bg-neutral-bg/50"
+                onClick={() => onRowClick(group)}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs shrink-0',
+                      getInitialColor(group.name)
+                    )}>
+                      {group.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-medium text-neutral-text-primary truncate block">{group.name}</span>
+                      {group.description && (
+                        <p className="text-xs text-neutral-text-muted truncate max-w-xs">{group.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={group.myRole === 'LEAD' ? 'warning' : 'default'} className="text-[10px]">
+                    {group.myRole === 'LEAD' ? 'Líder' : 'Miembro'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className="text-sm font-mono font-medium">{group.memberCount}</span>
+                </TableCell>
+                <TableCell className="text-center">
+                  {group.activeContestCount > 0 ? (
+                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
+                  ) : (
+                    <span className="text-xs text-neutral-text-muted">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className="text-sm font-mono font-medium">{group.materialCount}</span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )
