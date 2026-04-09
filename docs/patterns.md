@@ -446,6 +446,65 @@ function NoProblems() {
 
 ---
 
+### 9. Collapsible Filter Bar
+
+**Uso:** Filtros colapsables para vistas donde el contenido principal (tabla, lista) debe ser visible de inmediato sin scroll. Extiende el patrón Filter Bar (#8) envolviéndolo en un toggle.
+
+**Cuándo preferirlo sobre Filter Bar fijo:**
+- La página tiene 3+ filtros que ocupan espacio vertical significativo
+- Los filtros son secundarios (no se usan en cada visita)
+- El contenido principal (tabla) debe ser visible above-the-fold
+- Hay tag chips u otros controles adicionales que suman altura
+
+**Atributo de calidad:** Content-first layout — El principio de "progressive disclosure" (revelación progresiva) dicta que la interfaz debe mostrar solo lo esencial por defecto y revelar opciones avanzadas bajo demanda. Los filtros son herramientas de refinamiento, no el objetivo principal de la visita. Ocultarlos por defecto prioriza el contenido que el usuario vino a ver.
+
+**Características:**
+- Botón toggle con icono `Filter` y texto "Filtros"
+- Badge con conteo de filtros activos (visible cuando > 0)
+- Panel colapsable con animación sutil (`animate-in fade-in slide-in-from-top-1`)
+- Cerrado por defecto, se abre al hacer click
+- Contiene la Filter Bar (#8) y cualquier control adicional (tag chips, etc.)
+
+**Estructura:**
+
+```tsx
+const [showFilters, setShowFilters] = useState(false)
+
+const activeFiltersCount = /* calcular filtros activos */
+
+<div className="space-y-3">
+  <button
+    onClick={() => setShowFilters((prev) => !prev)}
+    className="flex items-center gap-2 text-sm font-medium text-neutral-text-primary hover:text-brand-primary transition-colors"
+  >
+    <Filter className="h-4 w-4" />
+    Filtros
+    {activeFiltersCount > 0 && (
+      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-pill bg-brand-primary text-neutral-surface">
+        {activeFiltersCount}
+      </span>
+    )}
+  </button>
+
+  {showFilters && (
+    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+      {/* Filter Bar (patrón #8) */}
+      {/* Tag Chips u otros controles */}
+    </div>
+  )}
+</div>
+```
+
+**Reglas de diseño:**
+- El badge de conteo solo aparece cuando hay filtros activos
+- El panel se cierra/abre sin perder el estado de los filtros
+- Los filtros activos siguen aplicándose aunque el panel esté cerrado
+- Usar animación sutil para la apertura (no abrupta)
+
+**Referencia:** `ProblemsPage.tsx` (implementación actual)
+
+---
+
 ## Beneficios de los Patrones
 
 1. **Consistencia:** Todas las páginas similares se ven y funcionan igual
@@ -468,6 +527,7 @@ function NoProblems() {
 | SearchAndFilter | Necesitas búsqueda + múltiples filtros |
 | EmptyState | Necesitas mostrar un estado vacío |
 | Filter Bar | Necesitas filtros en una vista de listado/tabla |
+| Collapsible Filter Bar | Necesitas filtros que no compitan con el contenido principal |
 
 ---
 
