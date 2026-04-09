@@ -253,6 +253,14 @@ export function ProblemDetailPage() {
                   <Send className="h-4 w-4" />
                   Enviar solución
                 </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 mt-2"
+                  onClick={() => navigate(`/problems/${problem.slug}/submissions`)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Ver submissions
+                </Button>
               </CardContent>
             </Card>
           )}

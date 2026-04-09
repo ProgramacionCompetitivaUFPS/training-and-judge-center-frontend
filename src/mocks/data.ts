@@ -975,6 +975,47 @@ export function buildMySubmissionsList(params: {
   }
 }
 
+export function buildProblemSubmissionsList(params: {
+  problemSlug: string
+  page?: number
+  limit?: number
+  verdict?: string
+  language?: string
+  mine?: boolean
+  userNickname?: string
+}) {
+  let filtered = mockSubmissions.filter((s) => s.problem.slug === params.problemSlug)
+
+  if (params.mine && params.userNickname) {
+    filtered = filtered.filter((s) => s.submittedBy.nickname === params.userNickname)
+  }
+  if (params.verdict) {
+    filtered = filtered.filter((s) => s.status === params.verdict)
+  }
+  if (params.language) {
+    filtered = filtered.filter((s) => s.language === params.language)
+  }
+
+  filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 20
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    submissions: paged.map(toSubmissionListItem),
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
+
 // === Mock Contests ===
 
 import type {

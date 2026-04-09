@@ -15,6 +15,7 @@ import {
   mockProblemStatistics,
   mockSubmissions,
   buildMySubmissionsList,
+  buildProblemSubmissionsList,
   mockContests,
   buildContestList,
   mockStandings,
@@ -680,6 +681,26 @@ export const handlers = [
     const body = (await request.json()) as { visibility: 'PUBLIC' | 'PRIVATE' }
     submission.visibility = body.visibility
     return HttpResponse.json({ id: submission.id, visibility: submission.visibility, message: 'Visibilidad actualizada' })
+  }),
+
+  // List problem submissions
+  http.get(url('/problems/:slug/submissions'), async ({ params, request }) => {
+    await delay(200)
+    const { slug } = params as { slug: string }
+    const searchParams = new URL(request.url).searchParams
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+    const result = buildProblemSubmissionsList({
+      problemSlug: slug,
+      page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+      verdict: searchParams.get('verdict') || undefined,
+      language: searchParams.get('language') || undefined,
+      mine: searchParams.get('mine') === 'true',
+      userNickname: userNickname || undefined,
+    })
+    return HttpResponse.json(result)
   }),
 
   // Submit solution (practice)
