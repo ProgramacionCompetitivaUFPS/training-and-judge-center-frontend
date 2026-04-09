@@ -255,7 +255,7 @@ export function ProblemDetailPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full gap-2"
+                  className="w-full gap-2 mt-2"
                   onClick={() => navigate(`/problems/${problem.slug}/submissions`)}
                 >
                   <BarChart3 className="h-4 w-4" />
