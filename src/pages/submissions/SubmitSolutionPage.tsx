@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, ArrowLeft } from 'lucide-react'
+import { Send, Upload, FileText, Clock, HardDrive, Lightbulb } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
@@ -134,6 +134,8 @@ export function SubmitSolutionPage() {
         { label: 'Enviar solución' },
       ]
     : [
+        { label: 'Problemas', href: '/problems' },
+        ...(problemDetail ? [{ label: problemDetail.title, href: `/problems/${problemDetail.slug}` }] : []),
         { label: 'Enviar solución' },
       ]
 
@@ -144,14 +146,6 @@ export function SubmitSolutionPage() {
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <div className="space-y-6">
-        {/* Back nav */}
-        {isContestContext && (
-          <Button variant="ghost" size="sm" className="gap-2 -mb-2" onClick={() => navigate(`/contests/${contestId}`)}>
-            <ArrowLeft className="h-4 w-4" />
-            Volver al contest
-          </Button>
-        )}
-
         <h1 className="text-2xl font-semibold text-neutral-text-primary">Enviar solución</h1>
 
         {/* Main grid: left panel (selectors) + right panel (code area) */}
