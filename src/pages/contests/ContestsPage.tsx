@@ -61,10 +61,10 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
           <div className="flex flex-col gap-1.5">
             <ContestStatusBadge status={contest.status} />
             {contest.isRegistered && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-brand-primary-muted text-brand-primary text-[10px] font-bold uppercase tracking-wider rounded-md w-fit">
+              <Badge variant="primary" className="gap-1 w-fit">
                 <CheckCircle className="h-3 w-3" />
                 {isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'}
-              </span>
+              </Badge>
             )}
           </div>
           <span className="text-xs font-medium text-neutral-text-muted font-mono">
