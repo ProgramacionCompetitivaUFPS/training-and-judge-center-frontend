@@ -112,7 +112,7 @@ export function SubmissionsPage() {
     <AppLayout breadcrumbs={[{ label: 'Mis Submissions' }]}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-text-primary">Mis Submissions</h1>
+          <h1 className="text-2xl font-extrabold text-neutral-text-primary">Mis Submissions</h1>
           <p className="text-sm text-neutral-text-muted mt-1">
             Historial de todas tus soluciones enviadas
           </p>
@@ -158,13 +158,21 @@ export function SubmissionsPage() {
           >
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Lenguaje" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Todos</SelectItem>
+              <SelectItem value="ALL">Todos los lenguajes</SelectItem>
               {PROGRAMMING_LANGUAGES.map((lang) => (
                 <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+
+        {/* Results count */}
+        {pagination && !isLoading && submissions.length > 0 && (
+          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
+            <span>{pagination.total} submissions</span>
+            <span>Página {pagination.page} de {pagination.totalPages}</span>
+          </div>
+        )}
 
         {/* Table */}
         {!isLoading && submissions.length === 0 ? (
