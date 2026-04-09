@@ -58,18 +58,20 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
       <CardContent className="p-5 flex flex-col flex-1">
         {/* Top: badges + date */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex flex-col gap-1.5">
-            <ContestStatusBadge status={contest.status} />
+          <ContestStatusBadge status={contest.status} />
+          <div className="flex items-center gap-2">
             {contest.isRegistered && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-brand-primary-muted text-brand-primary text-[10px] font-bold uppercase tracking-wider rounded-md w-fit">
-                <CheckCircle className="h-3 w-3" />
-                {isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'}
+              <span className="flex items-center gap-1 text-brand-primary">
+                <CheckCircle className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {isActive ? 'Participando' : isFinished ? 'Participado' : 'Inscrito'}
+                </span>
               </span>
             )}
+            <span className="text-xs font-medium text-neutral-text-muted font-mono">
+              {isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}
+            </span>
           </div>
-          <span className="text-xs font-medium text-neutral-text-muted font-mono">
-            {isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}
-          </span>
         </div>
 
         {/* Title + description */}

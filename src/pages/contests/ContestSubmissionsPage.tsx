@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, UsersRound } from 'lucide-react'
+import { useParams, Link } from 'react-router-dom'
+import { Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button } from '@/components/ui'
+import { Badge, Card, CardContent } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
@@ -20,7 +20,6 @@ function formatTime(iso: string): string {
 
 export function ContestSubmissionsPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const { user } = useAuth()
 
   const { data: contest } = useContestDetail(id || '')
@@ -60,10 +59,7 @@ export function ContestSubmissionsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/contests/${id}`)}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-bold text-neutral-text">Submissions</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Submissions</h1>
             {contest && <ContestStatusBadge status={contest.status} />}
           </div>
           {contest?.status === 'ACTIVE' && contest.endTime && (
@@ -77,12 +73,11 @@ export function ContestSubmissionsPage() {
           )}
         </div>
 
-        {/* Filter bar */}
-        <div className="flex items-center gap-3 rounded-lg border border-neutral-border bg-neutral-surface px-4 py-2.5">
-          <span className="text-sm text-neutral-text-muted shrink-0">Filtrar:</span>
+        {/* Filters inline */}
+        <div className="flex items-center gap-3 flex-wrap">
           {contest && contest.problems.length > 0 && (
             <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
-              <SelectTrigger className="w-56 bg-neutral-bg">
+              <SelectTrigger className="w-56 shrink-0">
                 <SelectValue placeholder="Todos los problemas" />
               </SelectTrigger>
               <SelectContent>
@@ -96,7 +91,7 @@ export function ContestSubmissionsPage() {
             </Select>
           )}
           <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
-            <SelectTrigger className="w-48 bg-neutral-bg">
+            <SelectTrigger className="w-48 shrink-0">
               <SelectValue placeholder="Todas las fases" />
             </SelectTrigger>
             <SelectContent>
@@ -120,8 +115,10 @@ export function ContestSubmissionsPage() {
             ))}
           </div>
         ) : data && data.submissions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <Table>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Hora</TableHead>
@@ -192,8 +189,10 @@ export function ContestSubmissionsPage() {
                   )
                 })}
               </TableBody>
-            </Table>
-          </div>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <div className="text-center py-12 text-neutral-text-muted">
             No hay submissions en este contest.
