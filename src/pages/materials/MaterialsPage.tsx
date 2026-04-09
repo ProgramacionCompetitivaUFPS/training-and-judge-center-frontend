@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { EntityListPage } from '@/components/patterns'
-import { SearchAndFilter } from '@/components/patterns/SearchAndFilter'
-import { Card } from '@/components/ui/Card'
-import { MaterialListItem } from '@/components/features/MaterialListItem'
+import { Search, Plus } from 'lucide-react'
+import { AppLayout } from '@/components/layout'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
+import { Skeleton } from '@/components/ui/Skeleton'
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@/components/ui/Select'
@@ -11,22 +13,30 @@ import {
   Pagination, PaginationContent, PaginationItem,
   PaginationLink, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
+import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
-import type { Material, MaterialListParams, MaterialStatus } from '@/types/material'
+import { cn } from '@/lib/utils'
+import type { MaterialListParams, MaterialStatus } from '@/types/material'
+
+const MATERIAL_TAGS = [
+  'announcement', 'algorithms', 'data-structures', 'resources',
+  'dp', 'competitive-programming', 'tutorial',
+] as const
 
 export function MaterialsPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+
   const { data: groupDetail } = useGroupDetail(groupId!)
 
   const [search, setSearch] = useState('')
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [pinnedFilter, setPinnedFilter] = useState('all')
-  const [tagFilter, setTagFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
   const debouncedSearch = useDebounce(search, 300)
@@ -36,7 +46,7 @@ export function MaterialsPage() {
     limit: 12,
     ...(debouncedSearch && { q: debouncedSearch }),
     ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
-    ...(tagFilter !== 'all' && { tags: tagFilter }),
+    ...(selectedTag && { tags: selectedTag }),
     ...(statusFilter !== 'all' && { status: statusFilter as MaterialStatus }),
   }
 
@@ -44,108 +54,154 @@ export function MaterialsPage() {
   const materials = data?.materials ?? []
   const pagination = data?.pagination
 
-  const activeFilters = [pinnedFilter, tagFilter, ...(isLead ? [statusFilter] : [])].filter((f) => f !== 'all').length
+  function handleTagClick(tag: string) {
+    setSelectedTag((prev) => (prev === tag ? null : tag))
+    setPage(1)
+  }
 
-  const searchComponent = (
-    <SearchAndFilter
-      searchValue={search}
-      onSearchChange={(v) => { setSearch(v); setPage(1) }}
-      searchPlaceholder="Buscar materiales..."
-      activeFiltersCount={activeFilters}
-      onClearFilters={() => { setPinnedFilter('all'); setTagFilter('all'); setStatusFilter('all'); setPage(1) }}
-    />
-  )
-
-  const filtersComponent = (
-    <div className="flex items-center gap-3 rounded-lg border border-neutral-border bg-neutral-surface px-4 py-2.5">
-      <span className="text-sm text-neutral-text-muted shrink-0">Filtrar:</span>
-      <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPage(1) }}>
-        <SelectTrigger className="w-48 bg-neutral-bg">
-          <SelectValue placeholder="Todos" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos</SelectItem>
-          <SelectItem value="pinned">Fijados</SelectItem>
-          <SelectItem value="unpinned">No fijados</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={tagFilter} onValueChange={(v) => { setTagFilter(v); setPage(1) }}>
-        <SelectTrigger className="w-56 bg-neutral-bg">
-          <SelectValue placeholder="Todos los tags" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todos los tags</SelectItem>
-          <SelectItem value="announcement">announcement</SelectItem>
-          <SelectItem value="algorithms">algorithms</SelectItem>
-          <SelectItem value="data-structures">data-structures</SelectItem>
-          <SelectItem value="resources">resources</SelectItem>
-        </SelectContent>
-      </Select>
-      {isLead && (
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-          <SelectTrigger className="w-48 bg-neutral-bg">
-            <SelectValue placeholder="Todos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="PUBLISHED">Publicados</SelectItem>
-            <SelectItem value="DRAFT">Borrador</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-    </div>
-  )
-
-  const renderItem = (material: Material) => (
-    <Card
-      key={material.id}
-      className="cursor-pointer hover:shadow-elevation-2 transition-shadow"
-    >
-      <MaterialListItem
-        material={material}
-        onClick={() => navigate(`/groups/${groupId}/materials/${material.id}`)}
-        showPreview
-      />
-    </Card>
-  )
-
-  const paginationComponent = pagination && pagination.totalPages > 1 ? (
-    <Pagination>
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious onClick={() => setPage((p) => Math.max(1, p - 1))} />
-        </PaginationItem>
-        {Array.from({ length: pagination.totalPages }, (_, i) => (
-          <PaginationItem key={i + 1}>
-            <PaginationLink isActive={page === i + 1} onClick={() => setPage(i + 1)}>
-              {i + 1}
-            </PaginationLink>
-          </PaginationItem>
-        ))}
-        <PaginationItem>
-          <PaginationNext onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))} />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
-  ) : null
+  const breadcrumbs = [
+    { label: 'Grupos', href: '/groups' },
+    { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
+    { label: 'Materiales' },
+  ]
 
   return (
-    <EntityListPage<Material>
-      title="Materiales"
-      description="Recursos y anuncios del grupo"
-      breadcrumbs={[
-        { label: 'Grupos', href: '/groups' },
-        { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
-        { label: 'Materiales' },
-      ]}
-      onCreateNew={isLead ? () => navigate(`/groups/${groupId}/materials/new`) : undefined}
-      createButtonLabel="Nuevo Material"
-      searchComponent={searchComponent}
-      filtersComponent={filtersComponent}
-      items={materials}
-      isLoading={isLoading}
-      renderItem={renderItem}
-      paginationComponent={paginationComponent}
-    />
+    <AppLayout breadcrumbs={breadcrumbs}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Materiales</h1>
+            <p className="text-sm text-neutral-text-muted mt-1">Recursos y anuncios del grupo</p>
+          </div>
+          {isLead && (
+            <Button onClick={() => navigate(`/groups/${groupId}/materials/new`)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nuevo Material
+            </Button>
+          )}
+        </div>
+
+        {/* Search + filters inline */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+              <Input
+                placeholder="Buscar materiales..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              />
+            </div>
+            <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPage(1) }}>
+              <SelectTrigger className="w-36 shrink-0"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="pinned">Fijados</SelectItem>
+                <SelectItem value="unpinned">No fijados</SelectItem>
+              </SelectContent>
+            </Select>
+            {isLead && (
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Estado" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="PUBLISHED">Publicados</SelectItem>
+                  <SelectItem value="DRAFT">Borrador</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Tag chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-neutral-text-muted">Tags:</span>
+            {MATERIAL_TAGS.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => handleTagClick(tag)}
+                className={cn(
+                  'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                  selectedTag === tag
+                    ? 'bg-brand-primary text-neutral-surface'
+                    : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                )}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Results count */}
+        {pagination && !isLoading && materials.length > 0 && (
+          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
+            <span>{pagination.totalCount} materiales</span>
+            <span>Página {pagination.currentPage} de {pagination.totalPages}</span>
+          </div>
+        )}
+
+        {/* Content */}
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : materials.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-neutral-text-muted">No se encontraron materiales</p>
+              {isLead && (
+                <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${groupId}/materials/new`)}>
+                  Crear primer material
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y divide-neutral-border">
+                {materials.map((material) => (
+                  <MaterialListItem
+                    key={material.id}
+                    material={material}
+                    onClick={() => navigate(`/groups/${groupId}/materials/${material.id}`)}
+                    showPreview
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <Pagination>
+            <PaginationContent>
+              {pagination.currentPage > 1 && (
+                <PaginationItem>
+                  <PaginationPrevious onClick={() => setPage((p) => p - 1)} />
+                </PaginationItem>
+              )}
+              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((p) => (
+                <PaginationItem key={p}>
+                  <PaginationLink isActive={page === p} onClick={() => setPage(p)}>
+                    {p}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              {pagination.currentPage < pagination.totalPages && (
+                <PaginationItem>
+                  <PaginationNext onClick={() => setPage((p) => p + 1)} />
+                </PaginationItem>
+              )}
+            </PaginationContent>
+          </Pagination>
+        )}
+      </div>
+    </AppLayout>
   )
 }

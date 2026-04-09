@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge'
 import { Pin, User, Calendar } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { Material } from '@/types/material'
 
 interface MaterialListItemProps {
@@ -11,7 +12,10 @@ interface MaterialListItemProps {
 export function MaterialListItem({ material, onClick, showPreview = false }: MaterialListItemProps) {
   return (
     <div
-      className="flex items-center gap-4 py-4 px-5 cursor-pointer hover:bg-neutral-surface-hover transition-colors"
+      className={cn(
+        'flex items-center gap-4 py-4 px-5 cursor-pointer hover:bg-neutral-surface-hover transition-colors',
+        material.pinned && 'border-l-4 border-brand-primary'
+      )}
       onClick={onClick}
     >
       <div className="min-w-0 flex-1">
@@ -25,25 +29,23 @@ export function MaterialListItem({ material, onClick, showPreview = false }: Mat
             {material.content.replace(/[#*`[\]]/g, '').slice(0, 150)}
           </p>
         )}
-        <div className="flex items-center gap-1 mt-0.5 text-xs text-neutral-text-muted truncate">
-          <span className="flex items-center gap-1">
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          <span className="flex items-center gap-1 text-xs text-neutral-text-muted">
             <User className="h-3 w-3" />
             @{material.author.nickname}
           </span>
           {material.publishedAt && (
-            <>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {new Date(material.publishedAt).toLocaleDateString()}
-              </span>
-            </>
+            <span className="flex items-center gap-1 text-xs text-neutral-text-muted">
+              <Calendar className="h-3 w-3" />
+              {new Date(material.publishedAt).toLocaleDateString('es')}
+            </span>
           )}
           {material.tags.length > 0 && (
-            <>
-              <span>·</span>
-              <span className="truncate">{material.tags.join(' · ')}</span>
-            </>
+            <div className="flex items-center gap-1">
+              {material.tags.map((tag) => (
+                <Badge key={tag} variant="default" className="text-[10px]">{tag}</Badge>
+              ))}
+            </div>
           )}
         </div>
       </div>
