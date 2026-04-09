@@ -146,21 +146,21 @@ export function UsersListPage() {
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Select
-                            value={user.role}
-                            onValueChange={(value) => handleRoleChange(user.nickname, value as UserRole)}
-                          >
-                            <SelectTrigger className="w-[130px] h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="ADMIN">Admin</SelectItem>
-                              <SelectItem value="COACH">Coach</SelectItem>
-                              <SelectItem value="CONTESTANT">Contestant</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {user.status === 'ACTIVE' && (
+                        {user.status === 'ACTIVE' && (
+                          <div className="flex items-center justify-end gap-2">
+                            <Select
+                              value={user.role}
+                              onValueChange={(value) => handleRoleChange(user.nickname, value as UserRole)}
+                            >
+                              <SelectTrigger className="w-[130px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ADMIN">Admin</SelectItem>
+                                <SelectItem value="COACH">Coach</SelectItem>
+                                <SelectItem value="CONTESTANT">Contestant</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -169,8 +169,8 @@ export function UsersListPage() {
                             >
                               <UserX className="h-4 w-4 text-status-error" />
                             </Button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
