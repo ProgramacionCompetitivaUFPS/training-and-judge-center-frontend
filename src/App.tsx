@@ -28,6 +28,7 @@ import { GroupFormPage } from '@/pages/groups/GroupFormPage'
 import { ProblemsPage } from '@/pages/problems/ProblemsPage'
 import { ProblemDetailPage } from '@/pages/problems/ProblemDetailPage'
 import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
+import { ProblemSubmissionsPage } from '@/pages/problems/ProblemSubmissionsPage'
 
 // Submission pages
 import { SubmissionsPage } from '@/pages/submissions/SubmissionsPage'
@@ -115,6 +116,9 @@ export default function App() {
               } />
               <Route path={ROUTES.PROBLEM_EDIT} element={
                 <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFormPage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROBLEM_SUBMISSIONS} element={
+                <ProtectedRoute><ProblemSubmissionsPage /></ProtectedRoute>
               } />
 
               {/* Admin routes */}

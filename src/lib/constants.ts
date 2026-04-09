@@ -52,6 +52,7 @@ export const ROUTES = {
   PROBLEM_NEW: '/problems/new',
   PROBLEM_EDIT: '/problems/:slug/edit',
   PROBLEM_STATISTICS: '/problems/:slug/statistics',
+  PROBLEM_SUBMISSIONS: '/problems/:slug/submissions',
   GROUPS: '/groups',
   GROUP_NEW: '/groups/new',
   GROUP_DETAIL: '/groups/:id',
