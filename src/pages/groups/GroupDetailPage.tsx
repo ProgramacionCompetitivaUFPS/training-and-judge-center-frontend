@@ -49,6 +49,7 @@ import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
+import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import type { GroupRole } from '@/types/group'
@@ -63,7 +64,25 @@ import {
   Trophy,
   Clock,
   Users,
+  FileText,
+  Calendar,
 } from 'lucide-react'
+
+// Deterministic color from name initial
+const INITIAL_COLORS = [
+  'bg-rose-50 text-rose-700',
+  'bg-amber-50 text-amber-700',
+  'bg-emerald-50 text-emerald-700',
+  'bg-indigo-50 text-indigo-700',
+  'bg-violet-50 text-violet-700',
+  'bg-cyan-50 text-cyan-700',
+  'bg-orange-50 text-orange-700',
+] as const
+
+function getInitialColor(name: string) {
+  const code = name.charCodeAt(0) || 0
+  return INITIAL_COLORS[code % INITIAL_COLORS.length]
+}
 
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -339,45 +358,95 @@ export function GroupDetailPage() {
 
   const infoTab = group ? (
     <div className="space-y-4">
+      {/* Description */}
       <Card>
-        <CardHeader><CardTitle>Información</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Descripción</CardTitle></CardHeader>
         <CardContent>
           <p className="text-neutral-text-muted">{group.description || 'Sin descripción'}</p>
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-neutral-text-muted">Creado:</span>{' '}
-              <span className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</span>
+        </CardContent>
+      </Card>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.memberCount}</div>
+            <div className="text-xs text-neutral-text-muted">Miembros</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-status-success">{group.statistics.activeContestCount}</div>
+            <div className="text-xs text-neutral-text-muted">Contests activos</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.contestCount}</div>
+            <div className="text-xs text-neutral-text-muted">Contests totales</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.materialCount}</div>
+            <div className="text-xs text-neutral-text-muted">Materiales</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Metadata */}
+      <Card>
+        <CardContent className="pt-5">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Calendar className="h-4 w-4" />
+              <span>Creado: <span className="font-medium text-neutral-text-primary">{new Date(group.createdAt).toLocaleDateString('es')}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests activos:</span>{' '}
-              <span className="font-medium">{group.statistics.activeContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Clock className="h-4 w-4" />
+              <span>Programados: <span className="font-medium text-neutral-text-primary">{group.statistics.scheduledContestCount}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests programados:</span>{' '}
-              <span className="font-medium">{group.statistics.scheduledContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Trophy className="h-4 w-4" />
+              <span>Finalizados: <span className="font-medium text-neutral-text-primary">{group.statistics.finishedContestCount}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests finalizados:</span>{' '}
-              <span className="font-medium">{group.statistics.finishedContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <FileText className="h-4 w-4" />
+              <span>Materiales: <span className="font-medium text-neutral-text-primary">{group.statistics.materialCount}</span></span>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Leaders with initial avatars */}
       {group.leads.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Líderes</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
               {group.leads.map((l) => (
-                <Badge key={l.userId} variant="outline" className="cursor-pointer" onClick={() => navigate(`/users/${l.nickname}`)}>
-                  <Shield className="h-3 w-3 mr-1" />{l.name} (@{l.nickname})
-                </Badge>
+                <div
+                  key={l.userId}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-neutral-bg/50 rounded-lg p-2 -mx-2 transition-colors"
+                  onClick={() => navigate(`/users/${l.nickname}`)}
+                >
+                  <div className={cn(
+                    'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
+                    getInitialColor(l.name)
+                  )}>
+                    {l.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
+                    <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
+                  </div>
+                  <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
+                </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
-
     </div>
   ) : null
 
