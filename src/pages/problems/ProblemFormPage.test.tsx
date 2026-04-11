@@ -1,0 +1,182 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { renderWithProviders, screen, waitFor } from '@/test/test-utils'
+import userEvent from '@testing-library/user-event'
+import { ProblemFormPage } from './ProblemFormPage'
+import { ToastProvider } from '@/components/layout/ToastProvider'
+
+/**
+ * Helper: renders ProblemFormPage (create mode) wrapped with ToastProvider.
+ * Sets localStorage auth token for ADMIN so MSW handlers resolve correctly.
+ */
+function renderCreateForm() {
+  return renderWithProviders(
+    <ToastProvider>
+      <ProblemFormPage />
+    </ToastProvider>,
+    { role: 'ADMIN', initialRoute: '/problems/new' },
+  )
+}
+
+describe('ProblemFormPage — form validation UX', () => {
+  beforeEach(() => {
+    localStorage.setItem('auth_token', 'mock-jwt-token-luisadmin')
+  })
+
+  // Requirement 6.1: submitting empty required fields shows error messages
+  describe('empty required fields', () => {
+    it('shows error messages for slug and title when submitting empty form', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      // Wait for the form heading to render
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Crear problema' })).toBeInTheDocument()
+      })
+
+      // Click the submit button (the one with type="submit" text "Crear")
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      // Slug and title are required — errors should appear
+      await waitFor(() => {
+        expect(screen.getByText('El slug debe tener al menos 3 caracteres')).toBeInTheDocument()
+      })
+      expect(screen.getByText('El título es requerido')).toBeInTheDocument()
+    })
+  })
+
+  // Requirement 6.2: submitting values exceeding length constraints shows Zod error
+  describe('length constraint violations', () => {
+    it('shows error when title exceeds 200 characters', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument()
+      })
+
+      const slugInput = screen.getByLabelText('Slug')
+      const titleInput = screen.getByLabelText('Título')
+
+      await user.type(slugInput, 'valid-slug')
+      await user.type(titleInput, 'a'.repeat(201))
+
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('El título no puede exceder 200 caracteres')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when slug exceeds 70 characters', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument()
+      })
+
+      const slugInput = screen.getByLabelText('Slug')
+      const titleInput = screen.getByLabelText('Título')
+
+      // 71 chars of valid slug characters
+      await user.type(slugInput, 'a'.repeat(71))
+      await user.type(titleInput, 'Valid Title')
+
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('El slug no puede exceder 70 caracteres')).toBeInTheDocument()
+      })
+    })
+  })
+
+  // Requirement 6.3: correcting an invalid field and re-submitting clears the error
+  describe('error clearing on correction', () => {
+    it('clears slug error after correcting and re-submitting', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument()
+      })
+
+      const slugInput = screen.getByLabelText('Slug')
+      const titleInput = screen.getByLabelText('Título')
+
+      // Submit empty to trigger errors
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('El slug debe tener al menos 3 caracteres')).toBeInTheDocument()
+      })
+      expect(screen.getByText('El título es requerido')).toBeInTheDocument()
+
+      // Correct both fields
+      await user.type(slugInput, 'valid-slug')
+      await user.type(titleInput, 'Valid Title')
+
+      // Re-submit
+      await user.click(submitButton)
+
+      // The slug and title errors should be cleared
+      await waitFor(() => {
+        expect(screen.queryByText('El slug debe tener al menos 3 caracteres')).not.toBeInTheDocument()
+      })
+      expect(screen.queryByText('El título es requerido')).not.toBeInTheDocument()
+    })
+  })
+
+  // Requirement 6.4: displayed error messages match Zod schema messages
+  describe('error messages match Zod schema', () => {
+    it('displays the exact Zod slug regex error for invalid slug format', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument()
+      })
+
+      const slugInput = screen.getByLabelText('Slug')
+      const titleInput = screen.getByLabelText('Título')
+
+      // Slug with uppercase letters (invalid per regex)
+      await user.type(slugInput, 'INVALID')
+      await user.type(titleInput, 'Valid Title')
+
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Solo letras minúsculas, números y guiones. No puede iniciar/terminar con guión.'),
+        ).toBeInTheDocument()
+      })
+    })
+
+    it('displays the exact Zod error for slug with consecutive hyphens', async () => {
+      const user = userEvent.setup()
+      renderCreateForm()
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument()
+      })
+
+      const slugInput = screen.getByLabelText('Slug')
+      const titleInput = screen.getByLabelText('Título')
+
+      await user.type(slugInput, 'bad--slug')
+      await user.type(titleInput, 'Valid Title')
+
+      const submitButton = screen.getByRole('button', { name: 'Crear' })
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('No puede contener guiones consecutivos')).toBeInTheDocument()
+      })
+    })
+  })
+})
