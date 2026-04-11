@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import fc from 'fast-check'
 import { renderWithProviders, screen, waitFor } from '@/test/test-utils'
 import { ProblemsPage } from './ProblemsPage'
+import type { UserRole } from '@/types/user'
 
 describe('ProblemsPage', () => {
   describe('role-based visibility', () => {
@@ -162,6 +164,54 @@ describe('ProblemsPage', () => {
         // mariacoach is a modifier on "Minimum Spanning Tree" (DRAFT)
         expect(screen.getByText('Minimum Spanning Tree')).toBeInTheDocument()
       })
+    })
+  })
+
+  // Feature: frontend-testing, Property 2: Role-based UI element visibility
+  // **Validates: Requirements 4.1, 4.4**
+  describe('Property 2: Role-based UI element visibility', () => {
+    const roleArbitrary = fc.constantFrom<UserRole>('ADMIN', 'COACH', 'CONTESTANT')
+
+    const roleCanCreate: Record<UserRole, boolean> = {
+      ADMIN: true,
+      COACH: true,
+      CONTESTANT: false,
+    }
+
+    it('action button visibility matches role permissions for any role', async () => {
+      await fc.assert(
+        fc.asyncProperty(roleArbitrary, async (role) => {
+          // Set auth token matching the role for MSW handler resolution
+          if (role === 'ADMIN') {
+            localStorage.setItem('auth_token', 'mock-jwt-token-luisadmin')
+          } else if (role === 'COACH') {
+            localStorage.setItem('auth_token', 'mock-jwt-token-mariacoach')
+          } else {
+            localStorage.removeItem('auth_token')
+          }
+
+          const { unmount } = renderWithProviders(<ProblemsPage />, { role })
+
+          // Wait for the page to render
+          await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Problemas' })).toBeInTheDocument()
+          })
+
+          if (roleCanCreate[role]) {
+            // ADMIN and COACH should see the "Crear problema" button
+            await waitFor(() => {
+              expect(screen.getByText('Crear problema')).toBeInTheDocument()
+            })
+          } else {
+            // CONTESTANT should NOT see the "Crear problema" button
+            expect(screen.queryByText('Crear problema')).not.toBeInTheDocument()
+          }
+
+          // Clean up to avoid leaking DOM state between iterations
+          unmount()
+        }),
+        { numRuns: 100 },
+      )
     })
   })
 })
