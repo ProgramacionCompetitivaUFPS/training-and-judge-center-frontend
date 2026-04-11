@@ -313,3 +313,74 @@ describe('ProblemFormPage — Property 6: Form displays Zod validation errors in
     )
   })
 })
+
+
+// Feature: frontend-testing, Property 7: Form error clearing on correction
+// **Validates: Requirements 6.3**
+
+describe('ProblemFormPage — Property 7: Form error clearing on correction', () => {
+  beforeEach(() => {
+    localStorage.setItem('auth_token', 'mock-jwt-token-luisadmin')
+  })
+
+  /**
+   * Arbitrary: valid slug (3–20 chars, lowercase alphanumeric + single hyphens, no leading/trailing hyphen).
+   * Kept short to avoid slow typing in userEvent.
+   */
+  const arbValidSlug = fc
+    .tuple(
+      fc.stringMatching(/^[a-z][a-z0-9]{1,8}$/),
+      fc.stringMatching(/^[a-z][a-z0-9]{1,8}$/),
+    )
+    .map(([a, b]) => `${a}-${b}`)
+
+  /**
+   * Arbitrary: valid title (1–50 chars of printable text).
+   * Kept short to avoid slow typing.
+   */
+  const arbValidTitle = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{0,30}$/)
+
+  it('clears slug and title errors after correcting with valid values and re-submitting', { timeout: 120_000 }, async () => {
+    await fc.assert(
+      fc.asyncProperty(arbValidSlug, arbValidTitle, async (validSlug, validTitle) => {
+        const user = userEvent.setup()
+        const { unmount } = renderCreateForm()
+
+        // Wait for form to render
+        await waitFor(() => {
+          expect(screen.getByRole('heading', { name: 'Crear problema' })).toBeInTheDocument()
+        })
+
+        const slugInput = screen.getByLabelText('Slug')
+        const titleInput = screen.getByLabelText('Título')
+        const submitButton = screen.getByRole('button', { name: 'Crear' })
+
+        // Step 1: Submit empty form to trigger validation errors
+        await user.click(submitButton)
+
+        await waitFor(() => {
+          expect(screen.getByText('El slug debe tener al menos 3 caracteres')).toBeInTheDocument()
+        })
+        expect(screen.getByText('El título es requerido')).toBeInTheDocument()
+
+        // Step 2: Correct both fields with valid generated values
+        await user.type(slugInput, validSlug)
+        await user.type(titleInput, validTitle)
+
+        // Step 3: Re-submit
+        await user.click(submitButton)
+
+        // Step 4: Verify errors are cleared
+        await waitFor(() => {
+          expect(screen.queryByText('El slug debe tener al menos 3 caracteres')).not.toBeInTheDocument()
+        })
+        expect(screen.queryByText('El título es requerido')).not.toBeInTheDocument()
+
+        // Cleanup for next iteration
+        unmount()
+        cleanup()
+      }),
+      { numRuns: 5 },
+    )
+  })
+})
