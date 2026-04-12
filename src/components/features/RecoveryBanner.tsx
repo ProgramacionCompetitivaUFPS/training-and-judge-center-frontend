@@ -34,9 +34,8 @@ export function RecoveryBanner({ submission, isLoaded, contestContext, onLoadCli
             variant="outline"
             size="sm"
             onClick={onLoadClick}
-            disabled={isLoaded}
           >
-            {isLoaded ? 'Cargado' : 'Cargar último intento'}
+            {isLoaded ? 'Recargar intento' : 'Cargar último intento'}
           </Button>
         </div>
       </AlertDescription>
