@@ -84,18 +84,16 @@ export function usePyodide(): UsePyodideReturn {
       pyodide.setStdout({ batched: (text: string) => { stdout += text + '\n' } })
       pyodide.setStderr({ batched: (text: string) => { stderr += text + '\n' } })
 
-      // Inject Python 2/3 compatibility shim for Blockly-generated code
-      // Blockly's Python generator creates a text_prompt function that uses raw_input (Python 2)
-      const preamble = `
-raw_input = input
-def text_prompt(msg):
-    try:
-        return input(msg)
-    except EOFError:
-        return ''
-`
+      // Patch Blockly-generated code for Pyodide compatibility
+      // Blockly generates a text_prompt function that uses raw_input (Python 2)
+      // which doesn't exist in Python 3/Pyodide. Replace it with a Python 3 version.
+      const patchedCode = code.replace(
+        /def text_prompt\(msg\):[\s\S]*?(?=\n\S|\n\n\S|\Z)/,
+        `def text_prompt(msg):\n  try:\n    return input(msg)\n  except EOFError:\n    return ''\n`,
+      )
+
       // Execute with timeout
-      const fullCode = preamble + '\n' + code
+      const fullCode = patchedCode
       const executionPromise = pyodide.runPythonAsync(fullCode)
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Tiempo límite excedido')), EXECUTION_TIMEOUT),
