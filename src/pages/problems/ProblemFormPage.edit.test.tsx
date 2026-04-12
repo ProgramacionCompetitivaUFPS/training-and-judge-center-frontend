@@ -207,3 +207,68 @@ describe('ProblemFormPage — edit form pre-population (Requirements 8.3, 8.4)',
     })
   })
 })
+
+// Feature: frontend-testing, Property 10: Edit form pre-populates with existing data
+describe('Property 10: Edit form pre-populates with existing data', () => {
+  /**
+   * Validates: Requirements 8.3
+   *
+   * For any DRAFT problem editable by the ADMIN user, when the edit form loads,
+   * all fields (title, timeLimit, memoryLimit, tags) should be pre-populated
+   * with the current values from the API response.
+   */
+
+  // Only DRAFT problems can be edited (PUBLISHED ones show a "cannot edit" message)
+  const editableProblems = mockProblems.filter((p) => p.status === 'DRAFT')
+
+  beforeEach(() => {
+    localStorage.setItem('auth_token', 'mock-jwt-token-luisadmin')
+  })
+
+  it('pre-populates all fields with existing data for any editable problem', async () => {
+    const fc = await import('fast-check')
+
+    await fc.assert(
+      fc.asyncProperty(
+        fc.constantFrom(...editableProblems),
+        async (problem) => {
+          const { unmount } = renderEditForm(problem.slug)
+
+          // Wait for the edit form to load
+          await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Editar problema' })).toBeInTheDocument()
+          })
+
+          // Verify title is pre-populated
+          const titleInput = screen.getByLabelText('Título') as HTMLInputElement
+          expect(titleInput.value).toBe(problem.title)
+
+          // Verify timeLimit is pre-populated (or empty for null)
+          const timeLimitInput = screen.getByLabelText('Tiempo límite (ms)') as HTMLInputElement
+          if (problem.timeLimit != null) {
+            expect(timeLimitInput.value).toBe(String(problem.timeLimit))
+          } else {
+            expect(timeLimitInput.value).toBe('')
+          }
+
+          // Verify memoryLimit is pre-populated (or empty for null)
+          const memoryLimitInput = screen.getByLabelText('Memoria límite (MiB)') as HTMLInputElement
+          if (problem.memoryLimit != null) {
+            expect(memoryLimitInput.value).toBe(String(problem.memoryLimit))
+          } else {
+            expect(memoryLimitInput.value).toBe('')
+          }
+
+          // Verify tags are rendered as badge chips
+          for (const tag of problem.tags) {
+            expect(screen.getByText(tag)).toBeInTheDocument()
+          }
+
+          // Cleanup to avoid DOM leaks between property runs
+          unmount()
+        },
+      ),
+      { numRuns: editableProblems.length },
+    )
+  })
+})
