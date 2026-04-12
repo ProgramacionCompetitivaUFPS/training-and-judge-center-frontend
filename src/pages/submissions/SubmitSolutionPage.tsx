@@ -90,13 +90,23 @@ export function SubmitSolutionPage() {
   }, [isBlockly, code])
 
   const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
+    console.log('[Recovery] applySubmissionToEditor called, detail:', detail?.id, 'language:', detail?.language, 'hasXml:', !!detail?.workspaceXml)
     if (!detail) return
 
     const subIsBlockly = detail.language === 'blockly'
 
     if (subIsBlockly) {
       if (detail.workspaceXml) {
-        blocklyRef.current?.loadXml(detail.workspaceXml)
+        console.log('[Recovery] blocklyRef.current:', !!blocklyRef.current)
+        if (blocklyRef.current) {
+          blocklyRef.current.loadXml(detail.workspaceXml)
+        } else {
+          // Ref not ready yet, retry after a short delay
+          setTimeout(() => {
+            console.log('[Recovery] retry blocklyRef.current:', !!blocklyRef.current)
+            blocklyRef.current?.loadXml(detail.workspaceXml!)
+          }, 500)
+        }
       } else {
         toast({
           variant: 'warning',
@@ -144,6 +154,7 @@ export function SubmitSolutionPage() {
   }, [language, hasEditorChanges, loadSubmission])
 
   const handleConfirmLoad = useCallback(() => {
+    console.log('[Recovery] handleConfirmLoad, pendingId:', pendingLoadSubmissionId, 'cachedDetail:', submissionDetail?.id)
     if (!pendingLoadSubmissionId) return
     if (pendingLoadLanguage) {
       setLanguage(pendingLoadLanguage)

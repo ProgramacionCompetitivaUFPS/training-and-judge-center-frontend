@@ -919,7 +919,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
   },
   {
-    id: 'sub-006-aaaa-bbbb-cccc-ddddeeee0006',
+    id: 'sub-009-aaaa-bbbb-cccc-ddddeeee0009',
     status: 'WRONG_ANSWER',
     visibility: 'PRIVATE',
     submittedAt: '2026-03-15T10:00:00Z',
