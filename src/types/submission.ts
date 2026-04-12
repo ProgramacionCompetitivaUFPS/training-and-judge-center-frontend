@@ -16,7 +16,7 @@ export type SubmissionStatus =
 
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
 
-export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310'
+export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310' | 'blockly'
 export type SubmissionCompiler = 'g++' | 'javac' | 'pypy3'
 
 // Display type that includes '?' for frozen contest submissions
@@ -47,6 +47,10 @@ export interface SubmissionDetail {
   executionTime: number | null
   memoryUsed: number | null
   sourceCode: string
+  /** URL del SVG de bloques (solo para envíos Blockly) */
+  blocksSvgUrl?: string
+  /** Indica si es un envío Blockly */
+  isBlocklySubmission?: boolean
 }
 
 // === Submission List Item (no source code) ===

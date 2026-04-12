@@ -93,3 +93,44 @@ export function rejudgeSubmission(submissionId: string): Promise<void> {
 export function adminRejudgeSubmission(submissionId: string): Promise<void> {
   return apiClient.post(`/admin/submissions/${submissionId}/rejudge`)
 }
+
+// === Submit Blockly Solution (outside contest) ===
+
+export function submitBlocklySolution(
+  problemSlug: string,
+  pythonCode: string,
+  workspaceXml: string,
+  svgBlob: Blob,
+): Promise<SubmitSolutionResponse> {
+  const formData = new FormData()
+  formData.append('file', new File([pythonCode], 'solution.py', { type: 'text/x-python' }))
+  formData.append('workspaceXml', new File([workspaceXml], 'workspace.xml', { type: 'text/xml' }))
+  formData.append('blocksSvg', new File([svgBlob], 'blocks.svg', { type: 'image/svg+xml' }))
+  formData.append('language', 'Blockly')
+  formData.append('compiler', 'python3')
+  formData.append('blocklySubmission', '1')
+  return apiClient.postFormData(`/problems/${problemSlug}/submissions`, formData)
+}
+
+// === Submit Blockly Solution (in contest) ===
+
+export function submitBlocklyContestSolution(
+  groupId: string,
+  contestId: string,
+  problemSlug: string,
+  pythonCode: string,
+  workspaceXml: string,
+  svgBlob: Blob,
+): Promise<SubmitSolutionResponse> {
+  const formData = new FormData()
+  formData.append('file', new File([pythonCode], 'solution.py', { type: 'text/x-python' }))
+  formData.append('workspaceXml', new File([workspaceXml], 'workspace.xml', { type: 'text/xml' }))
+  formData.append('blocksSvg', new File([svgBlob], 'blocks.svg', { type: 'image/svg+xml' }))
+  formData.append('language', 'Blockly')
+  formData.append('compiler', 'python3')
+  formData.append('blocklySubmission', '1')
+  return apiClient.postFormData(
+    `/groups/${groupId}/contests/${contestId}/problems/${problemSlug}/submissions`,
+    formData,
+  )
+}
