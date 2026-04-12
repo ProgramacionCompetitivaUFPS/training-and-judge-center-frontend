@@ -11,6 +11,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
 const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
@@ -317,19 +318,22 @@ export function SubmitSolutionPage() {
           {/* Right panel — code area */}
           <div className="space-y-4">
             {isBlockly ? (
-              <Suspense fallback={
-                <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
-                  <CardContent>
-                    <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
-                  </CardContent>
-                </Card>
-              }>
-                <BlocklyEditor
-                  ref={blocklyRef}
-                  problemSlug={resolvedSlug}
-                  onEmptyChange={setIsBlocklyEmpty}
-                />
-              </Suspense>
+              <>
+                <Suspense fallback={
+                  <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                    <CardContent>
+                      <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                    </CardContent>
+                  </Card>
+                }>
+                  <BlocklyEditor
+                    ref={blocklyRef}
+                    problemSlug={resolvedSlug}
+                    onEmptyChange={setIsBlocklyEmpty}
+                  />
+                </Suspense>
+                <PyodideRunner getCode={() => blocklyRef.current?.getCode() ?? ''} />
+              </>
             ) : (
               <Card className="flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
