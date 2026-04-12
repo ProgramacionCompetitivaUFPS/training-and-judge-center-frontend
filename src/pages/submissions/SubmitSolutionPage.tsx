@@ -319,20 +319,28 @@ export function SubmitSolutionPage() {
           <div className="space-y-4">
             {isBlockly ? (
               <>
-                <Suspense fallback={
+                {resolvedSlug ? (
+                  <Suspense fallback={
+                    <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                      <CardContent>
+                        <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                      </CardContent>
+                    </Card>
+                  }>
+                    <BlocklyEditor
+                      ref={blocklyRef}
+                      problemSlug={resolvedSlug}
+                      onEmptyChange={setIsBlocklyEmpty}
+                    />
+                  </Suspense>
+                ) : (
                   <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
                     <CardContent>
-                      <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                      <p className="text-neutral-text-muted">Selecciona un problema para usar el editor de bloques</p>
                     </CardContent>
                   </Card>
-                }>
-                  <BlocklyEditor
-                    ref={blocklyRef}
-                    problemSlug={resolvedSlug}
-                    onEmptyChange={setIsBlocklyEmpty}
-                  />
-                </Suspense>
-                <PyodideRunner getCode={() => blocklyRef.current?.getCode() ?? ''} />
+                )}
+                {resolvedSlug && <PyodideRunner getCode={() => blocklyRef.current?.getCode() ?? ''} />}
               </>
             ) : (
               <Card className="flex flex-col">
