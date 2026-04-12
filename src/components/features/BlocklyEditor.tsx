@@ -132,8 +132,11 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         const ws = workspaceRef.current
         if (!ws) return
         ws.clear()
-        loadXmlToWorkspace(ws, xml)
-        persistenceRef.current.save(xml)
+        // Small delay to let Blockly finish clearing before loading new XML
+        setTimeout(() => {
+          loadXmlToWorkspace(ws, xml)
+          persistenceRef.current.save(xml)
+        }, 50)
       },
     }))
 
