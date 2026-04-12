@@ -35,6 +35,12 @@ export const PROGRAMMING_LANGUAGES = [
   { value: 'python310', label: 'Python 3.10' },
 ] as const
 
+export const CONTEST_STATUS_CONFIG = {
+  SCHEDULED: { label: 'Programado', color: 'default' },
+  ACTIVE: { label: 'En curso', color: 'success' },
+  FINISHED: { label: 'Finalizado', color: 'outline' },
+} as const
+
 export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
@@ -46,15 +52,28 @@ export const ROUTES = {
   PROBLEM_NEW: '/problems/new',
   PROBLEM_EDIT: '/problems/:slug/edit',
   PROBLEM_STATISTICS: '/problems/:slug/statistics',
+  PROBLEM_SUBMISSIONS: '/problems/:slug/submissions',
   GROUPS: '/groups',
   GROUP_NEW: '/groups/new',
   GROUP_DETAIL: '/groups/:id',
   GROUP_EDIT: '/groups/:id/edit',
   CONTESTS: '/contests',
+  CONTEST_NEW: '/groups/:groupId/contests/new',
   CONTEST_DETAIL: '/contests/:id',
-  MATERIALS: '/materials',
+  CONTEST_EDIT: '/groups/:groupId/contests/:id/edit',
+  CONTEST_STANDINGS: '/contests/:id/standings',
+  CONTEST_SUBMISSIONS: '/contests/:id/submissions',
+  CONTEST_PROBLEM: '/contests/:contestId/problems/:letter',
+  MATERIALS: '/groups/:groupId/materials',
+  MATERIAL_NEW: '/groups/:groupId/materials/new',
+  MATERIAL_DETAIL: '/groups/:groupId/materials/:materialId',
+  MATERIAL_EDIT: '/groups/:groupId/materials/:materialId/edit',
+  SUBMIT_SOLUTION: '/submit',
+  CONTEST_SUBMIT: '/contests/:contestId/submit',
   SUBMISSIONS: '/submissions',
+  SUBMISSION_DETAIL: '/submissions/:id',
   TEAMS: '/teams',
+  TEAM_DETAIL: '/teams/:teamId',
   PROFILE: '/profile',
   PROFILE_PUBLIC: '/users/:nickname',
   SETTINGS: '/settings',

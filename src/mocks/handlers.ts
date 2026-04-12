@@ -13,6 +13,18 @@ import {
   mockProblems,
   buildProblemList,
   mockProblemStatistics,
+  mockSubmissions,
+  buildMySubmissionsList,
+  buildProblemSubmissionsList,
+  mockContests,
+  buildContestList,
+  mockStandings,
+  mockContestSubmissions,
+  mockMaterials,
+  buildMaterialList,
+  mockMyTeams,
+  mockTeamDetails,
+  mockTeamInvitations,
 } from './data'
 import type { User } from '@/types/user'
 import type { ProblemDetail } from '@/types/problem'
@@ -116,7 +128,7 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post(url('/password/recovery'), async () => {
+  http.post(url('/password/forgot'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -140,7 +152,7 @@ export const handlers = [
 
   // === Deactivation ===
 
-  http.post(url('/users/deactivation/request'), async () => {
+  http.post(url('/users/deactivation'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -445,7 +457,7 @@ export const handlers = [
     const isAdmin = userNickname === 'luisadmin'
     const isModifier = problem.modifiers?.some((m) => m.nickname === userNickname)
     if (!isAdmin && !isModifier) {
-      const { modifiers, files, ...publicData } = problem
+      const { modifiers: _modifiers, files: _files, ...publicData } = problem
       return HttpResponse.json(publicData)
     }
 
@@ -477,6 +489,9 @@ export const handlers = [
       slug: body.slug as string,
       title: body.title as string,
       statement: (body.statement as string) || null,
+      inputFormat: null,
+      outputFormat: null,
+      examples: [],
       timeLimit: (body.timeLimit as number) || null,
       memoryLimit: (body.memoryLimit as number) || null,
       languageOverrides: (body.languageOverrides as []) || [],
@@ -604,5 +619,607 @@ export const handlers = [
       fileName: 'testcases.zip',
       files: problem.files || { testCases: true, solutions: [], checker: false, validator: false },
     })
+  }),
+
+  // === Submissions ===
+
+  // My submissions
+  http.get(url('/users/me/submissions'), async ({ request }) => {
+    await delay(300)
+    const sp = new URL(request.url).searchParams
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+
+    const result = buildMySubmissionsList({
+      page: Number(sp.get('page')) || 1,
+      limit: Number(sp.get('limit')) || 20,
+      verdict: sp.get('verdict') || undefined,
+      problemSlug: sp.get('problemSlug') || undefined,
+      language: sp.get('language') || undefined,
+      userNickname: userNickname || 'luisadmin',
+    })
+    return HttpResponse.json(result)
+  }),
+
+  // Submission detail
+  http.get(url('/submissions/:id'), async ({ params }) => {
+    await delay(200)
+    const { id } = params as { id: string }
+    const submission = mockSubmissions.find((s) => s.id === id)
+    if (!submission) {
+      return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    return HttpResponse.json(submission)
+  }),
+
+  // Download submission
+  http.get(url('/submissions/:id/download'), async ({ params }) => {
+    await delay(200)
+    const { id } = params as { id: string }
+    const submission = mockSubmissions.find((s) => s.id === id)
+    if (!submission) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    return new HttpResponse(submission.sourceCode, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Content-Disposition': `attachment; filename="${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}"`,
+      },
+    })
+  }),
+
+  // Update visibility
+  http.patch(url('/submissions/:id/visibility'), async ({ params, request }) => {
+    await delay(200)
+    const { id } = params as { id: string }
+    const submission = mockSubmissions.find((s) => s.id === id)
+    if (!submission) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    const body = (await request.json()) as { visibility: 'PUBLIC' | 'PRIVATE' }
+    submission.visibility = body.visibility
+    return HttpResponse.json({ id: submission.id, visibility: submission.visibility, message: 'Visibilidad actualizada' })
+  }),
+
+  // List problem submissions
+  http.get(url('/problems/:slug/submissions'), async ({ params, request }) => {
+    await delay(200)
+    const { slug } = params as { slug: string }
+    const searchParams = new URL(request.url).searchParams
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+    const result = buildProblemSubmissionsList({
+      problemSlug: slug,
+      page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+      verdict: searchParams.get('verdict') || undefined,
+      language: searchParams.get('language') || undefined,
+      mine: searchParams.get('mine') === 'true',
+      userNickname: userNickname || undefined,
+    })
+    return HttpResponse.json(result)
+  }),
+
+  // Submit solution (practice)
+  http.post(url('/problems/:slug/submissions'), async ({ params, request }) => {
+    await delay(500)
+    const { slug } = params as { slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    if (problem.status !== 'PUBLISHED') {
+      return HttpResponse.json({ error: 'PROBLEM_NOT_PUBLISHED', message: 'Solo problemas publicados aceptan submissions' }, { status: 400 })
+    }
+
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    // userNickname available for future use
+    void token
+
+    const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    return HttpResponse.json({
+      id: newId,
+      status: 'PENDING',
+      submittedAt: new Date().toISOString(),
+      problem: { slug: problem.slug, title: problem.title },
+      language: 'cpp20',
+      compiler: 'g++',
+      fileSize: 1024,
+      fileHash: 'mock-hash-' + newId,
+    }, { status: 201 })
+  }),
+
+  // Submit solution (contest)
+  http.post(url('/groups/:groupId/contests/:contestId/problems/:slug/submissions'), async ({ params }) => {
+    await delay(500)
+    const { slug } = params as { groupId: string; contestId: string; slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    return HttpResponse.json({
+      id: newId,
+      status: 'PENDING',
+      submittedAt: new Date().toISOString(),
+      problem: { slug, title: problem?.title || slug },
+      language: 'cpp20',
+      compiler: 'g++',
+      fileSize: 1024,
+      fileHash: 'mock-hash-' + newId,
+    }, { status: 201 })
+  }),
+
+  // === Contests ===
+
+  // List contests in group
+  http.get(url('/groups/:groupId/contests'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId } = params as { groupId: string }
+    const sp = new URL(request.url).searchParams
+    const result = buildContestList({
+      groupId,
+      page: Number(sp.get('page')) || 1,
+      limit: Number(sp.get('limit')) || 20,
+      status: sp.get('status') || undefined,
+      sortBy: sp.get('sortBy') || undefined,
+      sortOrder: sp.get('sortOrder') || undefined,
+    })
+    return HttpResponse.json(result)
+  }),
+
+  // Contest detail
+  http.get(url('/contests/:id'), async ({ params }) => {
+    await delay(200)
+    const { id } = params as { id: string }
+    const contest = mockContests.find((c) => c.id === id)
+    if (!contest) {
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json(contest)
+  }),
+
+  // Create contest
+  http.post(url('/groups/:groupId/contests'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId } = params as { groupId: string }
+    const body = (await request.json()) as Record<string, unknown>
+    const newContest = {
+      id: 'contest-new-' + Date.now(),
+      name: body.name as string,
+      description: (body.description as string) || null,
+      startTime: body.startTime as string,
+      endTime: body.endTime as string,
+      duration: Math.floor((new Date(body.endTime as string).getTime() - new Date(body.startTime as string).getTime()) / 1000),
+      status: 'SCHEDULED' as const,
+      penalty: (body.penalty as number) || 20,
+      freezeMinutes: body.freezeMinutes !== undefined ? body.freezeMinutes as number | null : 60,
+      enablePostContest: (body.enablePostContest as boolean) || false,
+      locked: false,
+      participantCount: 0,
+      isRegistered: false,
+      participationMode: 'INDIVIDUAL' as const,
+      showTeamMembers: false,
+      group: { id: groupId, name: 'Mock Group' },
+      owner: { id: 'u1', nickname: 'luisadmin' },
+      problems: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    return HttpResponse.json(newContest, { status: 201 })
+  }),
+
+  // Update contest
+  http.put(url('/groups/:groupId/contests/:contestId'), async ({ params, request }) => {
+    await delay(300)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ ...contest, ...body, updatedAt: new Date().toISOString() })
+  }),
+
+  // Delete contest
+  http.delete(url('/groups/:groupId/contests/:contestId'), async ({ params }) => {
+    await delay(300)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const idx = mockContests.findIndex((c) => c.id === contestId)
+    if (idx === -1) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Register to contest
+  http.post(url('/groups/:groupId/contests/:contestId/register'), async () => {
+    await delay(300)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Unregister from contest
+  http.delete(url('/groups/:groupId/contests/:contestId/register'), async () => {
+    await delay(300)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Registration status
+  http.get(url('/groups/:groupId/contests/:contestId/register/status'), async ({ params }) => {
+    await delay(200)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    return HttpResponse.json({
+      registered: contest?.isRegistered || false,
+      registeredAt: contest?.isRegistered ? '2026-03-15T10:00:00Z' : undefined,
+    })
+  }),
+
+  // Registrations list
+  http.get(url('/groups/:groupId/contests/:contestId/registrations'), async () => {
+    await delay(200)
+    return HttpResponse.json({
+      registrations: [
+        { nickname: 'carloscp', registeredAt: '2026-03-15T10:00:00Z' },
+        { nickname: 'anagarcia', registeredAt: '2026-03-15T11:00:00Z' },
+        { nickname: 'sofiarodriguez', registeredAt: '2026-03-15T12:00:00Z' },
+      ],
+      pagination: { page: 1, limit: 50, total: 3, totalPages: 1, hasMore: false },
+    })
+  }),
+
+  // Standings
+  http.get(url('/contests/:contestId/standings'), async ({ params }) => {
+    await delay(300)
+    const { contestId } = params as { contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      contest: {
+        id: contest.id,
+        name: contest.name,
+        status: contest.status,
+        startTime: contest.startTime,
+        endTime: contest.endTime,
+        penalty: contest.penalty,
+        freezeMinutes: contest.freezeMinutes,
+        isFrozen: false,
+        frozenAt: null,
+      },
+      problems: contest.problems.map((p) => ({ position: p.position, slug: p.slug, title: p.title })),
+      standings: mockStandings,
+      pagination: { page: 1, limit: 50, total: mockStandings.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+      filters: { country: null, city: null, institution: null, filteredTotal: mockStandings.length },
+    })
+  }),
+
+  // Contest submissions
+  http.get(url('/groups/:groupId/contests/:contestId/submissions'), async ({ params }) => {
+    await delay(300)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      contest: {
+        id: contest.id,
+        name: contest.name,
+        status: contest.status,
+        startTime: contest.startTime,
+        endTime: contest.endTime,
+        freezeMinutes: contest.freezeMinutes,
+      },
+      submissions: mockContestSubmissions,
+      pagination: { page: 1, limit: 50, total: mockContestSubmissions.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+    })
+  }),
+
+  // === Materials ===
+
+  // List materials in group
+  http.get(url('/groups/:groupId/materials'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId } = params as { groupId: string }
+    const sp = new URL(request.url).searchParams
+    const result = buildMaterialList({
+      groupId,
+      page: Number(sp.get('page')) || 1,
+      limit: Number(sp.get('limit')) || 20,
+      pinned: sp.get('pinned') || undefined,
+      tags: sp.get('tags') || undefined,
+      q: sp.get('q') || undefined,
+    })
+    return HttpResponse.json(result)
+  }),
+
+  // Material detail
+  http.get(url('/groups/:groupId/materials/:materialId'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json(material)
+  }),
+
+  // Create material
+  http.post(url('/groups/:groupId/materials'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId } = params as { groupId: string }
+    const body = (await request.json()) as Record<string, unknown>
+    const newMaterial = {
+      id: 'mat-new-' + Date.now(),
+      title: body.title as string,
+      content: (body.content as string) || '',
+      tags: (body.tags as string[]) || [],
+      status: 'DRAFT' as const,
+      pinned: false,
+      pinnedAt: null,
+      author: { nickname: 'luisadmin', name: 'Luis Admin' },
+      group: { id: groupId, name: 'Mock Group' },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      publishedAt: null,
+    }
+    return HttpResponse.json(newMaterial, { status: 201 })
+  }),
+
+  // Update material
+  http.put(url('/groups/:groupId/materials/:materialId'), async ({ params, request }) => {
+    await delay(300)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ ...material, ...body, updatedAt: new Date().toISOString() })
+  }),
+
+  // Delete material
+  http.delete(url('/groups/:groupId/materials/:materialId'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const idx = mockMaterials.findIndex((m) => m.id === materialId)
+    if (idx === -1) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Publish material
+  http.post(url('/groups/:groupId/materials/:materialId/publish'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      ...material,
+      status: 'PUBLISHED',
+      publishedAt: material.publishedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+  }),
+
+  // Unpublish material
+  http.post(url('/groups/:groupId/materials/:materialId/unpublish'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      ...material,
+      status: 'DRAFT',
+      pinned: false,
+      pinnedAt: null,
+      updatedAt: new Date().toISOString(),
+    })
+  }),
+
+  // Pin material
+  http.post(url('/groups/:groupId/materials/:materialId/pin'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    if (material.status === 'DRAFT') {
+      return HttpResponse.json({ error: 'CANNOT_PIN_DRAFT', message: 'No se puede fijar un borrador' }, { status: 400 })
+    }
+    return HttpResponse.json({
+      ...material,
+      pinned: true,
+      pinnedAt: material.pinnedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+  }),
+
+  // Unpin material
+  http.post(url('/groups/:groupId/materials/:materialId/unpin'), async ({ params }) => {
+    await delay(200)
+    const { materialId } = params as { groupId: string; materialId: string }
+    const material = mockMaterials.find((m) => m.id === materialId)
+    if (!material) {
+      return HttpResponse.json({ error: 'MATERIAL_NOT_FOUND', message: 'Material no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      ...material,
+      pinned: false,
+      pinnedAt: null,
+      updatedAt: new Date().toISOString(),
+    })
+  }),
+
+  // === Teams ===
+
+  // My teams
+  http.get(url('/users/me/teams'), async () => {
+    await delay(200)
+    return HttpResponse.json({
+      teams: mockMyTeams,
+      pagination: { page: 1, limit: 20, total: mockMyTeams.length, totalPages: 1 },
+    })
+  }),
+
+  // Team detail
+  http.get(url('/teams/:teamId'), async ({ params }) => {
+    await delay(200)
+    const { teamId } = params as { teamId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json(team)
+  }),
+
+  // Create team
+  http.post(url('/teams'), async ({ request }) => {
+    await delay(300)
+    const body = (await request.json()) as { name: string }
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+
+    // Check name uniqueness
+    const exists = Object.values(mockTeamDetails).some(
+      (t) => t.name.toLowerCase() === body.name.trim().toLowerCase()
+    )
+    if (exists) {
+      return HttpResponse.json({ error: 'TEAM_NAME_EXISTS', message: 'Ya existe un equipo con este nombre' }, { status: 409 })
+    }
+
+    const newId = 'team-new-' + Date.now()
+    return HttpResponse.json({
+      id: newId,
+      name: body.name.trim(),
+      createdBy: userNickname,
+      createdAt: new Date().toISOString(),
+      members: [{ userId: 'u1', nickname: userNickname, joinedAt: new Date().toISOString() }],
+    }, { status: 201 })
+  }),
+
+  // Invite member
+  http.post(url('/teams/:teamId/invitations'), async ({ params, request }) => {
+    await delay(300)
+    const { teamId } = params as { teamId: string }
+    const body = (await request.json()) as { nickname: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    // Check if already member
+    if (team.members.some((m) => m.nickname === body.nickname)) {
+      return HttpResponse.json({ error: 'ALREADY_MEMBER', message: 'El usuario ya es miembro del equipo' }, { status: 409 })
+    }
+
+    // Check if already invited
+    if (team.pendingInvitations.some((i) => i.invitee.nickname === body.nickname)) {
+      return HttpResponse.json({ error: 'ALREADY_INVITED', message: 'El usuario ya tiene una invitación pendiente' }, { status: 409 })
+    }
+
+    return HttpResponse.json({
+      id: 'tinv-' + Date.now(),
+      teamId,
+      inviteeUser: { id: 'u-resolved', nickname: body.nickname },
+      invitedBy: { id: 'u1', nickname: 'luisadmin' },
+      createdAt: new Date().toISOString(),
+    }, { status: 201 })
+  }),
+
+  // Team members
+  http.get(url('/teams/:teamId/members'), async ({ params }) => {
+    await delay(200)
+    const { teamId } = params as { teamId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      members: team.members.map((m) => ({ userId: m.id, nickname: m.nickname, joinedAt: m.joinedAt })),
+    })
+  }),
+
+  // Leave team
+  http.delete(url('/teams/:teamId/members/me'), async ({ params }) => {
+    await delay(300)
+    const { teamId } = params as { teamId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // My team invitations
+  http.get(url('/users/me/team-invitations'), async () => {
+    await delay(200)
+    return HttpResponse.json({
+      invitations: mockTeamInvitations,
+      pagination: { page: 1, limit: 20, total: mockTeamInvitations.length, totalPages: 1 },
+    })
+  }),
+
+  // Accept team invitation
+  http.post(url('/team-invitations/:invitationId/accept'), async () => {
+    await delay(300)
+    return HttpResponse.json({
+      team: mockTeamDetails['team-1'],
+      joinedAt: new Date().toISOString(),
+    })
+  }),
+
+  // Reject team invitation
+  http.delete(url('/team-invitations/:invitationId'), async () => {
+    await delay(200)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Contest team registrations
+  http.get(url('/contests/:contestId/team-registrations'), async () => {
+    await delay(200)
+    return HttpResponse.json({ teams: [], total: 0 })
+  }),
+
+  // Register team to contest
+  http.post(url('/contests/:contestId/team-registrations'), async ({ request }) => {
+    await delay(300)
+    const body = (await request.json()) as { teamId: string; selectedMembers: string[] }
+    return HttpResponse.json({
+      id: 'reg-' + Date.now(),
+      contestId: 'contest-1',
+      team: { id: body.teamId, name: 'Mock Team' },
+      selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
+      registeredAt: new Date().toISOString(),
+    }, { status: 201 })
+  }),
+
+  // Update team registration
+  http.put(url('/contests/:contestId/team-registrations/:teamId'), async ({ request }) => {
+    await delay(300)
+    const body = (await request.json()) as { selectedMembers: string[] }
+    return HttpResponse.json({
+      id: 'reg-updated',
+      contestId: 'contest-1',
+      team: { id: 'team-1', name: 'Mock Team' },
+      selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
+      registeredAt: new Date().toISOString(),
+    })
+  }),
+
+  // Unregister team from contest
+  http.delete(url('/contests/:contestId/team-registrations/:teamId'), async () => {
+    await delay(200)
+    return new HttpResponse(null, { status: 204 })
   }),
 ]

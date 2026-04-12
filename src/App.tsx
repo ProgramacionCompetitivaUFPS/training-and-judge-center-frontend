@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ToastProvider } from '@/components/ui/ToastProvider'
-import { AuthProvider } from '@/hooks/useAuth'
+import { ToastProvider } from '@/components/layout/ToastProvider'
+import { AuthProvider } from '@/components/layout/AuthProvider'
+import { ContestSessionProvider } from '@/components/layout/ContestSessionProvider'
 import { AppLayout, ProtectedRoute } from '@/components/layout'
 import { ROUTES } from '@/lib/constants'
 
@@ -27,6 +28,28 @@ import { GroupFormPage } from '@/pages/groups/GroupFormPage'
 import { ProblemsPage } from '@/pages/problems/ProblemsPage'
 import { ProblemDetailPage } from '@/pages/problems/ProblemDetailPage'
 import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
+import { ProblemSubmissionsPage } from '@/pages/problems/ProblemSubmissionsPage'
+
+// Submission pages
+import { SubmissionsPage } from '@/pages/submissions/SubmissionsPage'
+import { SubmissionDetailPage } from '@/pages/submissions/SubmissionDetailPage'
+import { SubmitSolutionPage } from '@/pages/submissions/SubmitSolutionPage'
+
+// Contest pages
+import { ContestsPage } from '@/pages/contests/ContestsPage'
+import { ContestDetailPage } from '@/pages/contests/ContestDetailPage'
+import { ContestFormPage } from '@/pages/contests/ContestFormPage'
+import { ContestStandingsPage } from '@/pages/contests/ContestStandingsPage'
+import { ContestSubmissionsPage } from '@/pages/contests/ContestSubmissionsPage'
+
+// Material pages
+import { MaterialsPage } from '@/pages/materials/MaterialsPage'
+import { MaterialDetailPage } from '@/pages/materials/MaterialDetailPage'
+import { MaterialFormPage } from '@/pages/materials/MaterialFormPage'
+
+// Team pages
+import { TeamsPage } from '@/pages/teams/TeamsPage'
+import { TeamDetailPage } from '@/pages/teams/TeamDetailPage'
 
 // Placeholder pages — will be replaced in each phase
 function PlaceholderPage({ title }: { title: string }) {
@@ -55,6 +78,7 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <AuthProvider>
+            <ContestSessionProvider>
             <Routes>
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
@@ -93,6 +117,9 @@ export default function App() {
               <Route path={ROUTES.PROBLEM_EDIT} element={
                 <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFormPage /></ProtectedRoute>
               } />
+              <Route path={ROUTES.PROBLEM_SUBMISSIONS} element={
+                <ProtectedRoute><ProblemSubmissionsPage /></ProtectedRoute>
+              } />
 
               {/* Admin routes */}
               <Route path={ROUTES.ADMIN_USERS} element={
@@ -104,15 +131,28 @@ export default function App() {
               <Route path={ROUTES.GROUP_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
-              <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><PlaceholderPage title="Competencias" /></ProtectedRoute>} />
-              <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><PlaceholderPage title="Detalle de Competencia" /></ProtectedRoute>} />
-              <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><PlaceholderPage title="Submissions" /></ProtectedRoute>} />
-              <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><PlaceholderPage title="Materiales" /></ProtectedRoute>} />
-              <Route path={ROUTES.TEAMS} element={<ProtectedRoute><PlaceholderPage title="Equipos" /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><ContestsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><ContestDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_PROBLEM} element={<ProtectedRoute><ProblemDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.SUBMIT_SOLUTION} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_SUBMIT} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
+              <Route path={ROUTES.SUBMISSIONS} element={<ProtectedRoute><SubmissionsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.SUBMISSION_DETAIL} element={<ProtectedRoute><SubmissionDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIALS} element={<ProtectedRoute><MaterialsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_DETAIL} element={<ProtectedRoute><MaterialDetailPage /></ProtectedRoute>} />
+              <Route path={ROUTES.MATERIAL_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><MaterialFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.TEAMS} element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.TEAM_DETAIL} element={<ProtectedRoute><TeamDetailPage /></ProtectedRoute>} />
 
               {/* 404 */}
               <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />
             </Routes>
+            </ContestSessionProvider>
           </AuthProvider>
         </BrowserRouter>
       </ToastProvider>

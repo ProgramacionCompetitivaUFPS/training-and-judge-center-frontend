@@ -14,7 +14,7 @@ import {
   type ResetPasswordFormData,
 } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function RecoverPasswordPage() {
   const [step, setStep] = useState<'request' | 'reset' | 'done'>('request')
@@ -47,7 +47,9 @@ export function RecoverPasswordPage() {
   )
 }
 
-function RequestStep({ onSuccess }: { onSuccess: (email: string) => void }) {
+interface RequestStepProps { onSuccess: (email: string) => void }
+
+function RequestStep({ onSuccess }: RequestStepProps) {
   const recoverMutation = useRecoverPassword()
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -101,7 +103,9 @@ function RequestStep({ onSuccess }: { onSuccess: (email: string) => void }) {
   )
 }
 
-function ResetStep({ email, onSuccess }: { email: string; onSuccess: () => void }) {
+interface ResetStepProps { email: string; onSuccess: () => void }
+
+function ResetStep({ email, onSuccess }: ResetStepProps) {
   const resetMutation = useResetPassword()
   const [serverError, setServerError] = useState<string | null>(null)
 

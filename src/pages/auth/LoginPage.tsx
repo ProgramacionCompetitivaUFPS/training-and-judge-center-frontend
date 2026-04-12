@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/Alert'
 import { useLogin } from '@/hooks/api/useUsers'
 import { loginSchema, type LoginFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function LoginPage() {
   const navigate = useNavigate()

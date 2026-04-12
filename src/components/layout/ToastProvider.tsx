@@ -1,6 +1,6 @@
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, ReactNode } from 'react'
 import { useToast, ToastMessage } from '@/hooks/useToast'
-import { Toast, ToastContainer, ToastTitle, ToastDescription } from './Toast'
+import { Toast, ToastContainer, ToastTitle, ToastDescription } from '@/components/ui/Toast'
 
 interface ToastContextType {
   toast: (props: Omit<ToastMessage, 'id'>) => string
@@ -9,8 +9,13 @@ interface ToastContextType {
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
+export { ToastContext }
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+interface ToastProviderProps {
+  children: ReactNode
+}
+
+export function ToastProvider({ children }: ToastProviderProps) {
   const { toasts, toast, dismiss, dismissAll } = useToast()
 
   return (
@@ -28,12 +33,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       )}
     </ToastContext.Provider>
   )
-}
-
-export function useToastContext() {
-  const context = useContext(ToastContext)
-  if (!context) {
-    throw new Error('useToastContext must be used within ToastProvider')
-  }
-  return context
 }

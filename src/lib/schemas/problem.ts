@@ -35,6 +35,11 @@ export const createProblemSchema = z.object({
   tags: z
     .string()
     .optional(),
+  languageOverrides: z.array(z.object({
+    language: z.string(),
+    timeLimit: z.number().int().min(1).max(300000).optional(),
+    memoryLimit: z.number().int().min(1).max(2048).optional(),
+  })).optional(),
 })
 
 export type CreateProblemFormData = z.infer<typeof createProblemSchema>
@@ -67,6 +72,11 @@ export const updateProblemSchema = z.object({
     .string()
     .optional(),
   accessibility: z.enum(['PUBLIC', 'PRIVATE']).optional(),
+  languageOverrides: z.array(z.object({
+    language: z.string(),
+    timeLimit: z.number().int().min(1).max(300000).optional(),
+    memoryLimit: z.number().int().min(1).max(2048).optional(),
+  })).optional(),
 })
 
 export type UpdateProblemFormData = z.infer<typeof updateProblemSchema>

@@ -1,8 +1,8 @@
 import { ReactNode } from 'react'
+import { Plus } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { BreadcrumbItem } from '@/components/layout/Breadcrumbs'
 import { Button, Card, CardContent } from '@/components/ui'
-import { Plus } from 'lucide-react'
 
 interface EntityListPageProps<T> {
   // Header

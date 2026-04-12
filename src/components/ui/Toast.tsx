@@ -11,9 +11,9 @@ const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
   ({ className, variant = 'default', onClose, children, ...props }, ref) => {
     const variants = {
       default: 'bg-neutral-surface border-neutral-border text-neutral-text-primary',
-      success: 'bg-status-success/10 border-status-success text-status-success',
-      error: 'bg-status-error/10 border-status-error text-status-error',
-      warning: 'bg-brand-accent-muted border-brand-accent text-brand-accent',
+      success: 'bg-neutral-surface border-status-success text-status-success',
+      error: 'bg-neutral-surface border-status-error text-status-error',
+      warning: 'bg-neutral-surface border-brand-accent text-brand-accent',
     }
 
     return (

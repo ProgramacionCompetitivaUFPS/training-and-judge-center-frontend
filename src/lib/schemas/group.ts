@@ -15,6 +15,8 @@ export const createGroupSchema = z.object({
   joinPolicy: z.enum(['INVITE', 'REQUEST', 'OPEN'], {
     message: 'Selecciona la política de ingreso',
   }),
+  initialLeadNicknames: z.array(z.string()).optional(),
+  initialMemberNicknames: z.array(z.string()).optional(),
 }).refine(
   (data) => {
     if (data.visibility === 'NOT_VISIBLE' && data.joinPolicy !== 'INVITE') {

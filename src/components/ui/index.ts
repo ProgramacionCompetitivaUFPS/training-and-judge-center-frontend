@@ -65,5 +65,4 @@ export {
 } from './Pagination'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'
 export { Toast, ToastTitle, ToastDescription, ToastContainer } from './Toast'
-export { ToastProvider, useToastContext } from './ToastProvider'
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonButton } from './Skeleton'

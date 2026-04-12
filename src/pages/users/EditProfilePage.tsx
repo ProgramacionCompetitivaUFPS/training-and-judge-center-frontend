@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Card } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
@@ -21,7 +22,7 @@ import {
   type ChangePasswordFormData,
   type ChangeEmailFormData,
 } from '@/lib/schemas/user'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/lib/errors'
 
 export function EditProfilePage() {
   const { user } = useAuth()
@@ -31,7 +32,7 @@ export function EditProfilePage() {
   return (
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-neutral-text-primary">Configuración</h1>
+        <h1 className="text-2xl font-extrabold text-neutral-text-primary">Configuración</h1>
         <ProfileSection user={user} />
         <PasswordSection />
         <EmailSection />
@@ -41,7 +42,9 @@ export function EditProfilePage() {
   )
 }
 
-function ProfileSection({ user }: { user: { name: string; nickname: string; country: string; city: string; institution: string } }) {
+interface ProfileSectionProps { user: { name: string; nickname: string; country: string; city: string; institution: string } }
+
+function ProfileSection({ user }: ProfileSectionProps) {
   const updateMutation = useUpdateProfile()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -76,8 +79,14 @@ function ProfileSection({ user }: { user: { name: string; nickname: string; coun
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-neutral-text-primary">Datos Personales</h2>
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <User className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Datos Personales</h2>
+        </div>
       {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -113,6 +122,7 @@ function ProfileSection({ user }: { user: { name: string; nickname: string; coun
           {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
         </Button>
       </form>
+      </CardContent>
     </Card>
   )
 }
@@ -149,8 +159,14 @@ function PasswordSection() {
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-neutral-text-primary">Cambiar Contraseña</h2>
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Lock className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Contraseña</h2>
+        </div>
       {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
@@ -174,6 +190,7 @@ function PasswordSection() {
           {isSubmitting ? 'Cambiando...' : 'Cambiar Contraseña'}
         </Button>
       </form>
+      </CardContent>
     </Card>
   )
 }
@@ -207,8 +224,14 @@ function EmailSection() {
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-neutral-text-primary">Cambiar Email</h2>
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Mail className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+        </div>
       {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
@@ -225,6 +248,7 @@ function EmailSection() {
           {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
         </Button>
       </form>
+      </CardContent>
     </Card>
   )
 }
@@ -251,8 +275,14 @@ function DeactivateSection() {
   }
 
   return (
-    <Card className="p-6 space-y-4 border-status-error/20">
-      <h2 className="text-lg font-semibold text-status-error">Desactivar Cuenta</h2>
+    <Card className="border-status-error/20">
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-status-error/10 flex items-center justify-center text-status-error">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-status-error">Desactivar Cuenta</h2>
+        </div>
       <p className="text-sm text-neutral-text-muted">
         Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
       </p>
@@ -288,6 +318,7 @@ function DeactivateSection() {
           </div>
         </div>
       )}
+      </CardContent>
     </Card>
   )
 }

@@ -110,18 +110,24 @@ class ApiClient {
     })
     return this.handleResponse<T>(response)
   }
-}
 
-export class ApiClientError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-    public details?: Array<{ field: string; message: string }>
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
+  async getBlob(path: string, config?: RequestConfig): Promise<Blob> {
+    const response = await fetch(this.buildUrl(path, config?.params), {
+      headers: { ...this.getAuthHeaders(), ...config?.headers },
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: 'UNKNOWN',
+        message: response.statusText,
+      }))
+      throw new ApiClientError(response.status, error.error, error.message, error.details)
+    }
+    return response.blob()
   }
 }
+
+import { ApiClientError } from '@/lib/errors'
+
+export { ApiClientError } from '@/lib/errors'
 
 export const apiClient = new ApiClient(API_BASE_URL)

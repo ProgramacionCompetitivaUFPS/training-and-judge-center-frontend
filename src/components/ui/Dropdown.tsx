@@ -1,3 +1,9 @@
+/**
+ * Excepción de tamaño (173 líneas): Este archivo contiene múltiples sub-componentes
+ * de Radix UI DropdownMenu que no se pueden reducir sin perder cohesión.
+ * Cada sub-componente es un thin wrapper sobre Radix primitives y deben coexistir
+ * en el mismo archivo para mantener la API de re-exportación coherente.
+ */
 import * as React from 'react'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronRight } from 'lucide-react'

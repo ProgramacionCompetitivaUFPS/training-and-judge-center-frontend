@@ -21,7 +21,7 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from '@/components/ui/Pagination'
-import { useAdminUsers, useAdminDeactivateUser } from '@/hooks/api/useUsers'
+import { useAdminUsers, useAdminDeactivateUser, useAdminChangeUserRole } from '@/hooks/api/useUsers'
 import type { AdminUserListParams, UserRole, UserStatus } from '@/types/user'
 import { Search, UserX } from 'lucide-react'
 
@@ -33,6 +33,11 @@ export function UsersListPage() {
 
   const { data, isLoading, error } = useAdminUsers(params)
   const deactivateMutation = useAdminDeactivateUser()
+  const changeRoleMutation = useAdminChangeUserRole()
+
+  const handleRoleChange = (nickname: string, newRole: UserRole) => {
+    changeRoleMutation.mutate({ id: nickname, data: { role: newRole } })
+  }
 
   const handleSearch = (search: string) => {
     setParams((prev) => ({ ...prev, search: search || undefined, page: 1 }))
@@ -142,14 +147,29 @@ export function UsersListPage() {
                       </td>
                       <td className="p-3 text-right">
                         {user.status === 'ACTIVE' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeactivate(user.nickname, user.nickname)}
-                            title="Desactivar usuario"
-                          >
-                            <UserX className="h-4 w-4 text-status-error" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Select
+                              value={user.role}
+                              onValueChange={(value) => handleRoleChange(user.nickname, value as UserRole)}
+                            >
+                              <SelectTrigger className="w-[130px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ADMIN">Admin</SelectItem>
+                                <SelectItem value="COACH">Coach</SelectItem>
+                                <SelectItem value="CONTESTANT">Contestant</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeactivate(user.nickname, user.nickname)}
+                              title="Desactivar usuario"
+                            >
+                              <UserX className="h-4 w-4 text-status-error" />
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>

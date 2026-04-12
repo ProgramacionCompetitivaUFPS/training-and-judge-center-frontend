@@ -43,31 +43,61 @@ import {
   useAddMember,
   useCreateInvitation,
 } from '@/hooks/api/useGroups'
-import { useToastContext } from '@/components/ui/ToastProvider'
+import { useMaterials } from '@/hooks/api/useMaterials'
+import { useContests } from '@/hooks/api/useContests'
+import { MaterialListItem } from '@/components/features/MaterialListItem'
+import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { useToastContext } from '@/hooks/useToastContext'
+import { useAuth } from '@/hooks/useAuth'
+import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
+import { formatDuration } from '@/lib/utils'
 import type { GroupRole } from '@/types/group'
 import {
-  Users,
   Shield,
-  Trophy,
   BookOpen,
   LogOut,
   UserPlus,
   UserMinus,
   Check,
   X,
+  Trophy,
+  Clock,
+  Users,
+  FileText,
+  Calendar,
 } from 'lucide-react'
+
+// Deterministic color from name initial
+const INITIAL_COLORS = [
+  'bg-rose-50 text-rose-700',
+  'bg-amber-50 text-amber-700',
+  'bg-emerald-50 text-emerald-700',
+  'bg-indigo-50 text-indigo-700',
+  'bg-violet-50 text-violet-700',
+  'bg-cyan-50 text-cyan-700',
+  'bg-orange-50 text-orange-700',
+] as const
+
+function getInitialColor(name: string) {
+  const code = name.charCodeAt(0) || 0
+  return INITIAL_COLORS[code % INITIAL_COLORS.length]
+}
 
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  const { user } = useAuth()
 
   const { data: group, isLoading } = useGroupDetail(id!)
   const { data: membersData } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
+  const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
   const { data: requestsData } = useJoinRequests(id!, { status: 'PENDING' })
+  const { data: materialsData } = useMaterials(id!, { limit: 5 })
+  const { data: contestsData } = useContests(id!, { limit: 10, sortBy: 'startTime', sortOrder: 'desc' })
 
   const joinMutation = useJoinGroup()
   const requestMutation = useCreateJoinRequest()
@@ -211,10 +241,10 @@ export function GroupDetailPage() {
 
   const buildAdditionalActions = () => {
     const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
-    if (isMember && !isLead) {
+    if (isMember && !canManage) {
       actions.push({ label: 'Salir del grupo', onClick: handleLeave, icon: LogOut, variant: 'danger' })
     }
-    if (isLead) {
+    if (canManage) {
       actions.push({ label: 'Agregar miembro', onClick: () => setAddMemberOpen(true), icon: UserPlus })
       if (group?.joinPolicy === 'INVITE') {
         actions.push({ label: 'Invitar usuario', onClick: () => setInviteOpen(true), icon: UserPlus })
@@ -225,12 +255,7 @@ export function GroupDetailPage() {
 
   const policyLabels: Record<string, string> = { OPEN: 'Abierto', REQUEST: 'Solicitud', INVITE: 'Invitación' }
 
-  const metadata = group ? [
-    { label: 'Miembros', value: String(group.statistics.memberCount), icon: Users },
-    { label: 'Líderes', value: String(group.statistics.leadCount), icon: Shield },
-    { label: 'Contests', value: String(group.statistics.contestCount), icon: Trophy },
-    { label: 'Materiales', value: String(group.statistics.materialCount), icon: BookOpen },
-  ] : []
+  const metadata: never[] = []
 
   const badges = group ? [
     { label: group.visibility === 'VISIBLE' ? 'Visible' : 'No visible', variant: group.visibility === 'VISIBLE' ? 'primary' as const : 'default' as const },
@@ -248,7 +273,7 @@ export function GroupDetailPage() {
               <TableHead>Usuario</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Desde</TableHead>
-              {isLead && <TableHead className="text-right">Acciones</TableHead>}
+              {canManage && <TableHead className="text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -264,7 +289,7 @@ export function GroupDetailPage() {
                   <Badge variant={m.role === 'LEAD' ? 'warning' : 'outline'}>{m.role === 'LEAD' ? 'Líder' : 'Miembro'}</Badge>
                 </TableCell>
                 <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString()}</TableCell>
-                {isLead && (
+                {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')} title={m.role === 'LEAD' ? 'Hacer miembro' : 'Hacer líder'}>
@@ -279,7 +304,7 @@ export function GroupDetailPage() {
               </TableRow>
             ))}
             {(!membersData || membersData.members.length === 0) && (
-              <TableRow><TableCell colSpan={isLead ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
+              <TableRow><TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -287,7 +312,7 @@ export function GroupDetailPage() {
     </Card>
   )
 
-  const requestsTab = isLead ? (
+  const requestsTab = canManage ? (
     <Card>
       <CardContent className="pt-4">
         <Table>
@@ -333,39 +358,90 @@ export function GroupDetailPage() {
 
   const infoTab = group ? (
     <div className="space-y-4">
+      {/* Description */}
       <Card>
-        <CardHeader><CardTitle>Información</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Descripción</CardTitle></CardHeader>
         <CardContent>
           <p className="text-neutral-text-muted">{group.description || 'Sin descripción'}</p>
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-neutral-text-muted">Creado:</span>{' '}
-              <span className="font-medium">{new Date(group.createdAt).toLocaleDateString()}</span>
+        </CardContent>
+      </Card>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.memberCount}</div>
+            <div className="text-xs text-neutral-text-muted">Miembros</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-status-success">{group.statistics.activeContestCount}</div>
+            <div className="text-xs text-neutral-text-muted">Contests activos</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.contestCount}</div>
+            <div className="text-xs text-neutral-text-muted">Contests totales</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 text-center">
+            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.materialCount}</div>
+            <div className="text-xs text-neutral-text-muted">Materiales</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Metadata */}
+      <Card>
+        <CardContent className="pt-5">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Calendar className="h-4 w-4" />
+              <span>Creado: <span className="font-medium text-neutral-text-primary">{new Date(group.createdAt).toLocaleDateString('es')}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests activos:</span>{' '}
-              <span className="font-medium">{group.statistics.activeContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Clock className="h-4 w-4" />
+              <span>Programados: <span className="font-medium text-neutral-text-primary">{group.statistics.scheduledContestCount}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests programados:</span>{' '}
-              <span className="font-medium">{group.statistics.scheduledContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <Trophy className="h-4 w-4" />
+              <span>Finalizados: <span className="font-medium text-neutral-text-primary">{group.statistics.finishedContestCount}</span></span>
             </div>
-            <div>
-              <span className="text-neutral-text-muted">Contests finalizados:</span>{' '}
-              <span className="font-medium">{group.statistics.finishedContestCount}</span>
+            <div className="flex items-center gap-2 text-neutral-text-muted">
+              <FileText className="h-4 w-4" />
+              <span>Materiales: <span className="font-medium text-neutral-text-primary">{group.statistics.materialCount}</span></span>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Leaders with initial avatars */}
       {group.leads.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Líderes</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
               {group.leads.map((l) => (
-                <Badge key={l.userId} variant="outline" className="cursor-pointer" onClick={() => navigate(`/users/${l.nickname}`)}>
-                  <Shield className="h-3 w-3 mr-1" />{l.name} (@{l.nickname})
-                </Badge>
+                <div
+                  key={l.userId}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-neutral-bg/50 rounded-lg p-2 -mx-2 transition-colors"
+                  onClick={() => navigate(`/users/${l.nickname}`)}
+                >
+                  <div className={cn(
+                    'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
+                    getInitialColor(l.name)
+                  )}>
+                    {l.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
+                    <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
+                  </div>
+                  <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -374,10 +450,115 @@ export function GroupDetailPage() {
     </div>
   ) : null
 
+  const materialsTab = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-text-muted">
+          Últimos materiales publicados en este grupo
+        </p>
+        <div className="flex items-center gap-2">
+          {canManage && (
+            <Button size="sm" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+              Nuevo material
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/materials`)}>
+            Ver todos
+          </Button>
+        </div>
+      </div>
+      {materialsData?.materials && materialsData.materials.length > 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-neutral-border">
+              {materialsData.materials.map((m) => (
+                <MaterialListItem
+                  key={m.id}
+                  material={m}
+                  onClick={() => navigate(`/groups/${id}/materials/${m.id}`)}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="py-8 text-center text-neutral-text-muted">
+          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No hay materiales en este grupo</p>
+          {canManage && (
+            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+              Crear primer material
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  const contestsTab = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-neutral-text-muted">
+          Competencias de este grupo
+        </p>
+        {canManage && (
+          <Button size="sm" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+            Nueva competencia
+          </Button>
+        )}
+      </div>
+      {contestsData?.data && contestsData.data.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {contestsData.data.map((c) => (
+            <Card
+              key={c.id}
+              className="cursor-pointer hover:border-brand-primary/40 transition-colors"
+              onClick={() => navigate(`/contests/${c.id}`)}
+            >
+              <CardContent className="pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <ContestStatusBadge status={c.status} />
+                  <span className="text-xs text-neutral-text-muted">{formatDuration(c.duration)}</span>
+                </div>
+                <h3 className="font-semibold text-neutral-text-primary leading-tight">{c.name}</h3>
+                <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    {new Date(c.startTime).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {c.participantCount}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Trophy className="h-3.5 w-3.5" />
+                    {c.problemCount} problemas
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="py-8 text-center text-neutral-text-muted">
+          <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p>No hay competencias en este grupo</p>
+          {canManage && (
+            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+              Crear primera competencia
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
   const tabs = [
     { id: 'info', label: 'Información', content: infoTab },
+    { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.data?.length },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
-    ...(isLead ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
+    { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
+    ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
   ]
 
   return (
@@ -391,8 +572,8 @@ export function GroupDetailPage() {
         metadata={metadata}
         tabs={tabs}
         defaultTab="info"
-        onEdit={isLead ? () => navigate(`/groups/${id}/edit`) : undefined}
-        onDelete={isLead ? () => setDeleteOpen(true) : undefined}
+        onEdit={canManage ? () => navigate(`/groups/${id}/edit`) : undefined}
+        onDelete={canManage ? () => setDeleteOpen(true) : undefined}
         primaryAction={buildPrimaryAction()}
         additionalActions={buildAdditionalActions()}
       />

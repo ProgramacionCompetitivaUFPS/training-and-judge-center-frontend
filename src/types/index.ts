@@ -14,6 +14,10 @@ export type {
   AdminUserListParams,
   AdminUserListResponse,
   UserDashboard,
+  DashboardMaterial,
+  DashboardContestResult,
+  UserStreak,
+  UserRanking,
 } from './user'
 
 // Problem types
@@ -68,44 +72,74 @@ export type {
   InvitationListResponse,
 } from './group'
 
-// Submission status (used across modules)
-export type SubmissionStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'ACCEPTED'
-  | 'WRONG_ANSWER'
-  | 'TIME_LIMIT_EXCEEDED'
-  | 'MEMORY_LIMIT_EXCEEDED'
-  | 'RUNTIME_EXCEPTION'
-  | 'COMPILATION_ERROR'
-  | 'PRESENTATION_ERROR'
-  | 'SYSTEM_ERROR'
+// Contest types
+export type {
+  ContestStatus,
+  ParticipationMode,
+  ContestProblem,
+  ContestDetail,
+  ContestListItem,
+  ContestListParams,
+  ContestListResponse,
+  CreateContestRequest,
+  UpdateContestRequest,
+  RegistrationStatus,
+  RegistrationListItem,
+  RegistrationListResponse,
+  StandingProblemStatus,
+  StandingProblemResult,
+  StandingParticipant,
+  StandingEntry,
+  StandingsResponse,
+  StandingsParams,
+  ContestSubmissionItem,
+  ContestSubmissionsResponse,
+  ContestSubmissionsParams,
+} from './contest'
 
-// ============================================================
-// Legacy types below — kept temporarily for existing components
-// Will be replaced module by module (Phases 4-7)
-// ============================================================
+// Submission types
+export type {
+  SubmissionStatus,
+  SubmissionVisibility,
+  SubmissionLanguage,
+  SubmissionCompiler,
+  SubmissionStatusDisplay,
+  SubmissionDetail,
+  SubmissionListItem,
+  MySubmissionsParams,
+  SubmissionListResponse,
+  ProblemSubmissionsParams,
+  SubmitSolutionResponse,
+  UpdateVisibilityRequest,
+  UpdateVisibilityResponse,
+} from './submission'
 
-export interface Submission {
-  id: string
-  problemId: string
-  userId: string
-  code: string
-  language: string
-  status: SubmissionStatus
-  runtime?: number
-  memory?: number
-  timestamp: Date
-  testCasesPassed?: number
-  totalTestCases?: number
-}
+// Material types
+export type {
+  MaterialStatus,
+  Material,
+  MaterialListParams,
+  MaterialListResponse,
+  CreateMaterialRequest,
+  UpdateMaterialRequest,
+} from './material'
 
-export interface User {
-  id: string
-  username: string
-  email: string
-  avatar?: string
-  solvedProblems: number
-  totalSubmissions: number
-  rank?: number
-}
+// Team types
+export type {
+  TeamMember,
+  TeamDetail,
+  MyTeamItem,
+  MyTeamsParams,
+  MyTeamsResponse,
+  TeamInvitationItem,
+  TeamInvitationsResponse,
+  CreateTeamRequest,
+  CreateTeamResponse,
+  InviteTeamMemberRequest,
+  TeamInvitationResponse,
+  AcceptInvitationResponse,
+  RegisterTeamToContestRequest,
+  ContestTeamRegistration,
+  UpdateTeamRegistrationRequest,
+  ContestTeamRegistrationsResponse,
+} from './team'

@@ -35,7 +35,16 @@ export function getMyGroups(params?: MyGroupsParams): Promise<MyGroupsResponse> 
 }
 
 export function createGroup(data: CreateGroupRequest): Promise<Group> {
-  return apiClient.post('/groups', data)
+  // Transform camelCase fields to snake_case for backend compatibility
+  const payload: Record<string, unknown> = {
+    name: data.name,
+    visibility: data.visibility,
+    join_policy: data.joinPolicy,
+    ...(data.description !== undefined && { description: data.description }),
+    ...(data.initialLeadNicknames !== undefined && { initial_lead_nicknames: data.initialLeadNicknames }),
+    ...(data.initialMemberNicknames !== undefined && { initial_member_nicknames: data.initialMemberNicknames }),
+  }
+  return apiClient.post('/groups', payload)
 }
 
 export function updateGroup(id: string, data: UpdateGroupRequest): Promise<Group> {
@@ -48,6 +57,7 @@ export function deleteGroup(id: string, data: DeleteGroupRequest): Promise<void>
 
 // === Members ===
 
+// Orphan endpoint decision: kept — needed for the group members management UI
 export function getGroupMembers(groupId: string, params?: { page?: number; limit?: number }): Promise<{ members: GroupMember[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
   return apiClient.get(`/groups/${groupId}/members`, { params: params as Record<string, string | number | boolean | undefined> })
 }
