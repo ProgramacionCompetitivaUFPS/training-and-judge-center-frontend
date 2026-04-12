@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
+import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -14,6 +16,8 @@ export function SubmissionDetailPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { toast } = useToastContext()
+
+  const [showBlocklyCode, setShowBlocklyCode] = useState(false)
 
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
@@ -178,20 +182,65 @@ export function SubmissionDetailPage() {
           </div>
         </div>
 
-        {/* Source Code */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Code2 className="h-5 w-5" />
-              Código fuente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-              <code>{submission.sourceCode}</code>
-            </pre>
-          </CardContent>
-        </Card>
+        {/* Source Code / Blockly SVG */}
+        {(() => {
+          const isBlocklySubmission = submission.language === 'blockly' && submission.blocksSvgUrl
+
+          if (isBlocklySubmission) {
+            return (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      {showBlocklyCode ? (
+                        <Code2 className="h-5 w-5" />
+                      ) : (
+                        <Puzzle className="h-5 w-5" />
+                      )}
+                      {showBlocklyCode ? 'Código Python' : 'Bloques'}
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowBlocklyCode((prev) => !prev)}
+                    >
+                      {showBlocklyCode ? (
+                        <><Puzzle className="h-4 w-4 mr-2" />Bloques</>
+                      ) : (
+                        <><Code2 className="h-4 w-4 mr-2" />Código Python</>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {showBlocklyCode ? (
+                    <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
+                      <code>{submission.sourceCode}</code>
+                    </pre>
+                  ) : (
+                    <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
+                  )}
+                </CardContent>
+              </Card>
+            )
+          }
+
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Code2 className="h-5 w-5" />
+                  Código fuente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
+                  <code>{submission.sourceCode}</code>
+                </pre>
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
     </AppLayout>
   )

@@ -33,6 +33,7 @@ export const PROGRAMMING_LANGUAGES = [
   { value: 'cpp20', label: 'C++ 20' },
   { value: 'java17', label: 'Java 17' },
   { value: 'python310', label: 'Python 3.10' },
+  { value: 'blockly', label: 'Blockly' },
 ] as const
 
 export const CONTEST_STATUS_CONFIG = {

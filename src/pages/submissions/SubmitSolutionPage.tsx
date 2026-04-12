@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import React, { Suspense, useState, useRef, useMemo } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { Send, Upload, FileText, Clock, HardDrive, Lightbulb } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -9,8 +9,12 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail } from '@/hooks/api/useProblems'
-import { useMySubmissions, useSubmitSolution, useSubmitContestSolution } from '@/hooks/api/useSubmissions'
+import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
+import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
+
+const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {
   cpp20: 'g++',
@@ -41,6 +45,8 @@ export function SubmitSolutionPage() {
   const [code, setCode] = useState('')
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const blocklyRef = useRef<BlocklyEditorHandle>(null)
+  const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
 
   // Resolve problem slug in contest context (letter → slug)
   const resolvedSlug = useMemo(() => {
@@ -63,10 +69,14 @@ export function SubmitSolutionPage() {
   // Mutations
   const submitMutation = useSubmitSolution()
   const contestSubmitMutation = useSubmitContestSolution()
-  const isSubmitting = submitMutation.isPending || contestSubmitMutation.isPending
+  const blocklySubmitMutation = useSubmitBlocklySolution()
+  const blocklyContestSubmitMutation = useSubmitBlocklyContestSolution()
+  const isSubmitting = submitMutation.isPending || contestSubmitMutation.isPending || blocklySubmitMutation.isPending || blocklyContestSubmitMutation.isPending
 
   // Contest problems for selector
   const contestProblems = activeContest?.problems || []
+
+  const isBlockly = language === 'blockly'
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -95,6 +105,36 @@ export function SubmitSolutionPage() {
   }
 
   const handleSubmit = () => {
+    if (isBlockly) {
+      const editor = blocklyRef.current
+      if (!editor || !resolvedSlug) return
+
+      const pythonCode = editor.getCode()
+      const workspaceXml = editor.getXml()
+      const svgBlob = editor.getSvg()
+
+      const onSuccess = (res: { id: string }) => {
+        toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id.slice(0, 12)} creada` })
+        editor.reset()
+      }
+      const onError = () => {
+        toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+      }
+
+      if (isContestContext && activeContest) {
+        blocklyContestSubmitMutation.mutate(
+          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { onSuccess, onError },
+        )
+      } else {
+        blocklySubmitMutation.mutate(
+          { problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { onSuccess, onError },
+        )
+      }
+      return
+    }
+
     if (!resolvedSlug || !language || !code.trim()) return
 
     const ext = LANGUAGE_EXTENSIONS[language]?.ext || 'txt'
@@ -124,7 +164,9 @@ export function SubmitSolutionPage() {
     }
   }
 
-  const canSubmit = !!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting
+  const canSubmit = isBlockly
+    ? (!!resolvedSlug && !isBlocklyEmpty && !isSubmitting)
+    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting)
 
   const breadcrumbs = isContestContext
     ? [
@@ -275,48 +317,75 @@ export function SubmitSolutionPage() {
 
           {/* Right panel — code area */}
           <div className="space-y-4">
-            <Card className="flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-sm">Código fuente</CardTitle>
-                <div className="flex items-center gap-3">
-                  {uploadedFile && (
-                    <span className="text-xs text-neutral-text-muted flex items-center gap-1">
-                      <FileText className="h-3.5 w-3.5" />
-                      {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(1)} KB)
+            {isBlockly ? (
+              <>
+                {resolvedSlug ? (
+                  <Suspense fallback={
+                    <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                      <CardContent>
+                        <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                      </CardContent>
+                    </Card>
+                  }>
+                    <BlocklyEditor
+                      ref={blocklyRef}
+                      problemSlug={resolvedSlug}
+                      onEmptyChange={setIsBlocklyEmpty}
+                    />
+                  </Suspense>
+                ) : (
+                  <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                    <CardContent>
+                      <p className="text-neutral-text-muted">Selecciona un problema para usar el editor de bloques</p>
+                    </CardContent>
+                  </Card>
+                )}
+                {resolvedSlug && <PyodideRunner getCode={() => blocklyRef.current?.getCode() ?? ''} />}
+              </>
+            ) : (
+              <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <CardTitle className="text-sm">Código fuente</CardTitle>
+                  <div className="flex items-center gap-3">
+                    {uploadedFile && (
+                      <span className="text-xs text-neutral-text-muted flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    )}
+                    <span className={`text-xs ${isOverLimit ? 'text-status-error font-semibold' : 'text-neutral-text-muted'}`}>
+                      {codeSizeKB} KB / 1 MB
                     </span>
-                  )}
-                  <span className={`text-xs ${isOverLimit ? 'text-status-error font-semibold' : 'text-neutral-text-muted'}`}>
-                    {codeSizeKB} KB / 1 MB
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-3.5 w-3.5 mr-1" />
-                    Cargar archivo
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".cpp,.cc,.cxx,.java,.py"
-                    onChange={handleFileUpload}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1" />
+                      Cargar archivo
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".cpp,.cc,.cxx,.java,.py"
+                      onChange={handleFileUpload}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 pt-0">
+                  <Textarea
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value)
+                      setUploadedFile(null)
+                    }}
+                    placeholder="Pega tu código aquí..."
+                    className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
                   />
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 pt-0">
-                <Textarea
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value)
-                    setUploadedFile(null)
-                  }}
-                  placeholder="Pega tu código aquí..."
-                  className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
-                />
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
