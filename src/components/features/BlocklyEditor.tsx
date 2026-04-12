@@ -130,15 +130,13 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
 
       loadXml(xml: string): void {
         const ws = workspaceRef.current
-        console.log('[BlocklyEditor] loadXml called, ws:', !!ws, 'xml length:', xml?.length)
         if (!ws) return
         ws.clear()
         try {
           loadXmlToWorkspace(ws, xml)
           persistenceRef.current.save(xml)
-          console.log('[BlocklyEditor] loadXml success, blocks:', ws.getTopBlocks(false).length)
-        } catch (err) {
-          console.error('[BlocklyEditor] loadXml error:', err)
+        } catch {
+          // ignore load errors
         }
       },
     }))

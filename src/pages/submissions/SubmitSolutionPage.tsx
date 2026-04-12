@@ -90,23 +90,13 @@ export function SubmitSolutionPage() {
   }, [isBlockly, code])
 
   const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
-    console.log('[Recovery] applySubmissionToEditor called, detail:', detail?.id, 'language:', detail?.language, 'hasXml:', !!detail?.workspaceXml)
     if (!detail) return
 
     const subIsBlockly = detail.language === 'blockly'
 
     if (subIsBlockly) {
       if (detail.workspaceXml) {
-        console.log('[Recovery] blocklyRef.current:', !!blocklyRef.current)
-        if (blocklyRef.current) {
-          blocklyRef.current.loadXml(detail.workspaceXml)
-        } else {
-          // Ref not ready yet, retry after a short delay
-          setTimeout(() => {
-            console.log('[Recovery] retry blocklyRef.current:', !!blocklyRef.current)
-            blocklyRef.current?.loadXml(detail.workspaceXml!)
-          }, 500)
-        }
+        blocklyRef.current?.loadXml(detail.workspaceXml)
       } else {
         toast({
           variant: 'warning',
@@ -154,7 +144,6 @@ export function SubmitSolutionPage() {
   }, [language, hasEditorChanges, loadSubmission])
 
   const handleConfirmLoad = useCallback(() => {
-    console.log('[Recovery] handleConfirmLoad, pendingId:', pendingLoadSubmissionId, 'cachedDetail:', submissionDetail?.id)
     if (!pendingLoadSubmissionId) return
     if (pendingLoadLanguage) {
       setLanguage(pendingLoadLanguage)
@@ -420,6 +409,7 @@ export function SubmitSolutionPage() {
                   <li>Tamaño máximo: 1 MB</li>
                   <li>Asegúrate de seleccionar el lenguaje correcto</li>
                   <li>Revisa que tu código compile antes de enviar</li>
+                  <li>Puedes cargar un envío anterior desde la tabla de envíos recientes</li>
                 </ul>
               </CardContent>
             </Card>
@@ -428,7 +418,7 @@ export function SubmitSolutionPage() {
           {/* Right panel — code area */}
           <div className="space-y-4">
             {/* Recovery banner */}
-            {recoverableSubmission && (
+            {recoverableSubmission && !loadedSubmissionId && (
               <RecoveryBanner
                 submission={recoverableSubmission}
                 isLoaded={loadedSubmissionId === recoverableSubmission.id}
@@ -440,19 +430,33 @@ export function SubmitSolutionPage() {
             {isBlockly ? (
               <>
                 {resolvedSlug ? (
-                  <Suspense fallback={
-                    <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
-                      <CardContent>
-                        <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
-                      </CardContent>
-                    </Card>
-                  }>
-                    <BlocklyEditor
-                      ref={blocklyRef}
-                      problemSlug={resolvedSlug}
-                      onEmptyChange={setIsBlocklyEmpty}
-                    />
-                  </Suspense>
+                  <>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          blocklyRef.current?.reset()
+                          setLoadedSubmissionId(null)
+                        }}
+                      >
+                        Reiniciar bloques
+                      </Button>
+                    </div>
+                    <Suspense fallback={
+                      <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                        <CardContent>
+                          <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                        </CardContent>
+                      </Card>
+                    }>
+                      <BlocklyEditor
+                        ref={blocklyRef}
+                        problemSlug={resolvedSlug}
+                        onEmptyChange={setIsBlocklyEmpty}
+                      />
+                    </Suspense>
+                  </>
                 ) : (
                   <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
                     <CardContent>
