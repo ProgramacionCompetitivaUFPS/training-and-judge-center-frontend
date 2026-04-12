@@ -721,31 +721,51 @@ export const handlers = [
     void token
 
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+
+    // Detect Blockly submission via FormData
+    let isBlockly = false
+    try {
+      const formData = await request.formData()
+      isBlockly = formData.get('blocklySubmission') === '1'
+    } catch {
+      // Not FormData — regular JSON submission
+    }
+
     return HttpResponse.json({
       id: newId,
       status: 'PENDING',
       submittedAt: new Date().toISOString(),
       problem: { slug: problem.slug, title: problem.title },
-      language: 'cpp20',
-      compiler: 'g++',
+      language: isBlockly ? 'Blockly' : 'cpp20',
+      compiler: isBlockly ? 'python3' : 'g++',
       fileSize: 1024,
       fileHash: 'mock-hash-' + newId,
     }, { status: 201 })
   }),
 
   // Submit solution (contest)
-  http.post(url('/groups/:groupId/contests/:contestId/problems/:slug/submissions'), async ({ params }) => {
+  http.post(url('/groups/:groupId/contests/:contestId/problems/:slug/submissions'), async ({ params, request }) => {
     await delay(500)
     const { slug } = params as { groupId: string; contestId: string; slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+
+    // Detect Blockly submission via FormData
+    let isBlockly = false
+    try {
+      const formData = await request.formData()
+      isBlockly = formData.get('blocklySubmission') === '1'
+    } catch {
+      // Not FormData — regular JSON submission
+    }
+
     return HttpResponse.json({
       id: newId,
       status: 'PENDING',
       submittedAt: new Date().toISOString(),
       problem: { slug, title: problem?.title || slug },
-      language: 'cpp20',
-      compiler: 'g++',
+      language: isBlockly ? 'Blockly' : 'cpp20',
+      compiler: isBlockly ? 'python3' : 'g++',
       fileSize: 1024,
       fileHash: 'mock-hash-' + newId,
     }, { status: 201 })
