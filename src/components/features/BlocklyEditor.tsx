@@ -207,7 +207,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
       )
     }
 
-    return <div ref={containerRef} style={{ minHeight: 480, width: '100%' }} />
+    return <div ref={containerRef} style={{ height: 480, width: '100%' }} />
   },
 )
 
