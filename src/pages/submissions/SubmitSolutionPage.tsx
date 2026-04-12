@@ -81,8 +81,15 @@ export function SubmitSolutionPage() {
 
   const [showConfirmLoad, setShowConfirmLoad] = useState(false)
   const [loadedSubmissionId, setLoadedSubmissionId] = useState<string | null>(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
   const [pendingLoadSubmissionId, setPendingLoadSubmissionId] = useState<string | null>(null)
   const [pendingLoadLanguage, setPendingLoadLanguage] = useState<string | null>(null)
+
+  // Reset banner when problem or language changes
+  useEffect(() => {
+    setBannerDismissed(false)
+    setLoadedSubmissionId(null)
+  }, [resolvedSlug, language])
 
   const hasEditorChanges = useCallback((): boolean => {
     if (isBlockly) return true // Blockly always has content (default or user blocks)
@@ -115,6 +122,7 @@ export function SubmitSolutionPage() {
       description: `Contenido cargado desde submission #${detail.id.slice(0, 8)}`,
     })
     setLoadedSubmissionId(detail.id)
+    setBannerDismissed(true)
   }, [toast])
 
   const handleRecoveryLoadClick = useCallback(() => {
@@ -418,7 +426,7 @@ export function SubmitSolutionPage() {
           {/* Right panel — code area */}
           <div className="space-y-4">
             {/* Recovery banner */}
-            {recoverableSubmission && !loadedSubmissionId && (
+            {recoverableSubmission && !loadedSubmissionId && !bannerDismissed && (
               <RecoveryBanner
                 submission={recoverableSubmission}
                 isLoaded={loadedSubmissionId === recoverableSubmission.id}
