@@ -1,15 +1,18 @@
-import React, { Suspense, useState, useRef, useMemo } from 'react'
+import React, { Suspense, useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { Send, Upload, FileText, Clock, HardDrive, Lightbulb } from 'lucide-react'
+import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
+import { RecoveryBanner } from '@/components/features/RecoveryBanner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
+import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
@@ -66,6 +69,94 @@ export function SubmitSolutionPage() {
     resolvedSlug ? { problemSlug: resolvedSlug, limit: 5 } : undefined
   )
 
+  // Submission recovery
+  const isBlockly = language === 'blockly'
+
+  const {
+    recoverableSubmission,
+    loadSubmission,
+    submissionDetail,
+    isLoadingDetail,
+  } = useSubmissionRecovery({ problemSlug: resolvedSlug, language, contestId })
+
+  const [showConfirmLoad, setShowConfirmLoad] = useState(false)
+  const [loadedSubmissionId, setLoadedSubmissionId] = useState<string | null>(null)
+  const [pendingLoadSubmissionId, setPendingLoadSubmissionId] = useState<string | null>(null)
+  const [pendingLoadLanguage, setPendingLoadLanguage] = useState<string | null>(null)
+
+  const hasEditorChanges = useCallback((): boolean => {
+    if (isBlockly) return !blocklyRef.current?.isEmpty()
+    return code.trim().length > 0
+  }, [isBlockly, code])
+
+  const handleRecoveryLoadClick = useCallback(() => {
+    if (!recoverableSubmission) return
+    if (hasEditorChanges()) {
+      setPendingLoadSubmissionId(recoverableSubmission.id)
+      setPendingLoadLanguage(null)
+      setShowConfirmLoad(true)
+    } else {
+      loadSubmission(recoverableSubmission.id)
+      setPendingLoadSubmissionId(recoverableSubmission.id)
+    }
+  }, [recoverableSubmission, hasEditorChanges, loadSubmission])
+
+  const handleListLoadClick = useCallback((submissionId: string, submissionLanguage: string) => {
+    // If language differs, switch it first
+    if (submissionLanguage !== language) {
+      setLanguage(submissionLanguage)
+    }
+    if (hasEditorChanges()) {
+      setPendingLoadSubmissionId(submissionId)
+      setPendingLoadLanguage(submissionLanguage !== language ? submissionLanguage : null)
+      setShowConfirmLoad(true)
+    } else {
+      loadSubmission(submissionId)
+      setPendingLoadSubmissionId(submissionId)
+    }
+  }, [language, hasEditorChanges, loadSubmission])
+
+  const handleConfirmLoad = useCallback(() => {
+    if (!pendingLoadSubmissionId) return
+    if (pendingLoadLanguage) {
+      setLanguage(pendingLoadLanguage)
+    }
+    loadSubmission(pendingLoadSubmissionId)
+    setShowConfirmLoad(false)
+  }, [pendingLoadSubmissionId, pendingLoadLanguage, loadSubmission])
+
+  // Effect: apply loaded submission detail to editor
+  useEffect(() => {
+    if (!submissionDetail || !pendingLoadSubmissionId) return
+    if (submissionDetail.id !== pendingLoadSubmissionId) return
+
+    const subIsBlockly = submissionDetail.language === 'blockly'
+
+    if (subIsBlockly) {
+      if (submissionDetail.workspaceXml) {
+        blocklyRef.current?.loadXml(submissionDetail.workspaceXml)
+      } else {
+        toast({
+          variant: 'warning',
+          title: 'XML no disponible',
+          description: 'Esta submission de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
+        })
+        setPendingLoadSubmissionId(null)
+        return
+      }
+    } else {
+      setCode(submissionDetail.sourceCode)
+    }
+
+    toast({
+      variant: 'success',
+      title: 'Submission cargada',
+      description: `Contenido cargado desde submission #${submissionDetail.id.slice(0, 8)}`,
+    })
+    setLoadedSubmissionId(submissionDetail.id)
+    setPendingLoadSubmissionId(null)
+  }, [submissionDetail, pendingLoadSubmissionId, toast])
+
   // Mutations
   const submitMutation = useSubmitSolution()
   const contestSubmitMutation = useSubmitContestSolution()
@@ -75,8 +166,6 @@ export function SubmitSolutionPage() {
 
   // Contest problems for selector
   const contestProblems = activeContest?.problems || []
-
-  const isBlockly = language === 'blockly'
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -115,7 +204,6 @@ export function SubmitSolutionPage() {
 
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id.slice(0, 12)} creada` })
-        editor.reset()
       }
       const onError = () => {
         toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
@@ -317,6 +405,16 @@ export function SubmitSolutionPage() {
 
           {/* Right panel — code area */}
           <div className="space-y-4">
+            {/* Recovery banner */}
+            {recoverableSubmission && (
+              <RecoveryBanner
+                submission={recoverableSubmission}
+                isLoaded={loadedSubmissionId === recoverableSubmission.id}
+                contestContext={isContestContext ? (activeContest?.name ?? 'esta competencia') : undefined}
+                onLoadClick={handleRecoveryLoadClick}
+              />
+            )}
+
             {isBlockly ? (
               <>
                 {resolvedSlug ? (
@@ -404,6 +502,7 @@ export function SubmitSolutionPage() {
                     <th className="text-left py-2 px-4 font-medium">Lenguaje</th>
                     <th className="text-left py-2 px-4 font-medium">Veredicto</th>
                     <th className="text-right py-2 px-4 font-medium">Memoria</th>
+                    <th className="text-right py-2 px-4 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -429,6 +528,17 @@ export function SubmitSolutionPage() {
                       <td className="py-2 px-4 text-right text-neutral-text-muted">
                         {sub.memoryUsed != null ? `${sub.memoryUsed} KB` : '—'}
                       </td>
+                      <td className="py-2 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleListLoadClick(sub.id, sub.language)}
+                          disabled={loadedSubmissionId === sub.id || isLoadingDetail}
+                        >
+                          <UploadIcon className="h-3.5 w-3.5 mr-1" />
+                          Cargar
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -436,6 +546,19 @@ export function SubmitSolutionPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Confirm load dialog */}
+        <ConfirmDialog
+          open={showConfirmLoad}
+          onOpenChange={setShowConfirmLoad}
+          title="Reemplazar contenido del editor"
+          description="El editor tiene contenido. ¿Deseas reemplazarlo con el contenido de la submission seleccionada?"
+          confirmLabel="Reemplazar"
+          cancelLabel="Cancelar"
+          variant="warning"
+          onConfirm={handleConfirmLoad}
+          isLoading={isLoadingDetail}
+        />
       </div>
     </AppLayout>
   )
