@@ -168,12 +168,13 @@ export function SubmitSolutionPage() {
 
   // Effect: apply loaded submission detail to editor when it arrives
   useEffect(() => {
+    if (showConfirmLoad) return // Don't apply while confirmation dialog is open
     if (!submissionDetail || !pendingLoadSubmissionId) return
     if (submissionDetail.id !== pendingLoadSubmissionId) return
 
     applySubmissionToEditor(submissionDetail)
     setPendingLoadSubmissionId(null)
-  }, [submissionDetail, pendingLoadSubmissionId, applySubmissionToEditor])
+  }, [submissionDetail, pendingLoadSubmissionId, showConfirmLoad, applySubmissionToEditor])
 
   // Mutations
   const submitMutation = useSubmitSolution()
