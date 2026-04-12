@@ -138,14 +138,13 @@ export function SubmitSolutionPage() {
   }, [recoverableSubmission, hasEditorChanges, loadSubmission])
 
   const handleListLoadClick = useCallback((submissionId: string, submissionLanguage: string) => {
-    if (submissionLanguage !== language) {
-      setLanguage(submissionLanguage)
-    }
+    const needsLanguageChange = submissionLanguage !== language
     if (hasEditorChanges()) {
       setPendingLoadSubmissionId(submissionId)
-      setPendingLoadLanguage(submissionLanguage !== language ? submissionLanguage : null)
+      setPendingLoadLanguage(needsLanguageChange ? submissionLanguage : null)
       setShowConfirmLoad(true)
     } else {
+      if (needsLanguageChange) setLanguage(submissionLanguage)
       loadSubmission(submissionId)
       setPendingLoadSubmissionId(submissionId)
     }
