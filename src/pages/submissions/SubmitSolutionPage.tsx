@@ -89,6 +89,34 @@ export function SubmitSolutionPage() {
     return code.trim().length > 0
   }, [isBlockly, code])
 
+  const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
+    if (!detail) return
+
+    const subIsBlockly = detail.language === 'blockly'
+
+    if (subIsBlockly) {
+      if (detail.workspaceXml) {
+        blocklyRef.current?.loadXml(detail.workspaceXml)
+      } else {
+        toast({
+          variant: 'warning',
+          title: 'XML no disponible',
+          description: 'Esta submission de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
+        })
+        return
+      }
+    } else {
+      setCode(detail.sourceCode)
+    }
+
+    toast({
+      variant: 'success',
+      title: 'Submission cargada',
+      description: `Contenido cargado desde submission #${detail.id.slice(0, 8)}`,
+    })
+    setLoadedSubmissionId(detail.id)
+  }, [toast])
+
   const handleRecoveryLoadClick = useCallback(() => {
     if (!recoverableSubmission) return
     if (hasEditorChanges()) {
@@ -102,7 +130,6 @@ export function SubmitSolutionPage() {
   }, [recoverableSubmission, hasEditorChanges, loadSubmission])
 
   const handleListLoadClick = useCallback((submissionId: string, submissionLanguage: string) => {
-    // If language differs, switch it first
     if (submissionLanguage !== language) {
       setLanguage(submissionLanguage)
     }
@@ -121,41 +148,25 @@ export function SubmitSolutionPage() {
     if (pendingLoadLanguage) {
       setLanguage(pendingLoadLanguage)
     }
+    // If detail is already cached, apply directly
+    if (submissionDetail && submissionDetail.id === pendingLoadSubmissionId) {
+      applySubmissionToEditor(submissionDetail)
+      setPendingLoadSubmissionId(null)
+      setShowConfirmLoad(false)
+      return
+    }
     loadSubmission(pendingLoadSubmissionId)
     setShowConfirmLoad(false)
-  }, [pendingLoadSubmissionId, pendingLoadLanguage, loadSubmission])
+  }, [pendingLoadSubmissionId, pendingLoadLanguage, loadSubmission, submissionDetail, applySubmissionToEditor])
 
-  // Effect: apply loaded submission detail to editor
+  // Effect: apply loaded submission detail to editor when it arrives
   useEffect(() => {
     if (!submissionDetail || !pendingLoadSubmissionId) return
     if (submissionDetail.id !== pendingLoadSubmissionId) return
 
-    const subIsBlockly = submissionDetail.language === 'blockly'
-
-    if (subIsBlockly) {
-      if (submissionDetail.workspaceXml) {
-        blocklyRef.current?.loadXml(submissionDetail.workspaceXml)
-      } else {
-        toast({
-          variant: 'warning',
-          title: 'XML no disponible',
-          description: 'Esta submission de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
-        })
-        setPendingLoadSubmissionId(null)
-        return
-      }
-    } else {
-      setCode(submissionDetail.sourceCode)
-    }
-
-    toast({
-      variant: 'success',
-      title: 'Submission cargada',
-      description: `Contenido cargado desde submission #${submissionDetail.id.slice(0, 8)}`,
-    })
-    setLoadedSubmissionId(submissionDetail.id)
+    applySubmissionToEditor(submissionDetail)
     setPendingLoadSubmissionId(null)
-  }, [submissionDetail, pendingLoadSubmissionId, toast])
+  }, [submissionDetail, pendingLoadSubmissionId, applySubmissionToEditor])
 
   // Mutations
   const submitMutation = useSubmitSolution()
