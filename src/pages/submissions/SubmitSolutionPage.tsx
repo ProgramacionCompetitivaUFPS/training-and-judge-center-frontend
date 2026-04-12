@@ -85,7 +85,7 @@ export function SubmitSolutionPage() {
   const [pendingLoadLanguage, setPendingLoadLanguage] = useState<string | null>(null)
 
   const hasEditorChanges = useCallback((): boolean => {
-    if (isBlockly) return !blocklyRef.current?.isEmpty()
+    if (isBlockly) return true // Blockly always has content (default or user blocks)
     return code.trim().length > 0
   }, [isBlockly, code])
 
