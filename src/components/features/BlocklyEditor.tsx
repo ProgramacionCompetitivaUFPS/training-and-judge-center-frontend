@@ -15,6 +15,7 @@ import { registerCustomBlocks } from './blockly/customBlocks'
 import { BLOCKLY_TOOLBOX } from './blockly/toolboxConfig'
 import { DEFAULT_WORKSPACE_XML } from './blockly/defaultWorkspace'
 import { useBlocklyPersistence } from '@/hooks/useBlocklyPersistence'
+import './blockly/blockly-overrides.css'
 
 export interface BlocklyEditorHandle {
   getCode(): string
