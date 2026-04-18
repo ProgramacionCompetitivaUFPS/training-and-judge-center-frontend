@@ -51,6 +51,8 @@ export interface SubmissionDetail {
   blocksSvgUrl?: string
   /** Indica si es un envío Blockly */
   isBlocklySubmission?: boolean
+  /** XML del workspace de Blockly (solo para envíos Blockly con soporte) */
+  workspaceXml?: string
 }
 
 // === Submission List Item (no source code) ===

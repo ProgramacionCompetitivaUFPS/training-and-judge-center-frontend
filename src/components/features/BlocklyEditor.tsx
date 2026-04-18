@@ -23,6 +23,7 @@ export interface BlocklyEditorHandle {
   getSvg(): Blob
   isEmpty(): boolean
   reset(): void
+  loadXml(xml: string): void
 }
 
 interface BlocklyEditorProps {
@@ -125,6 +126,18 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         ws.clear()
         loadXmlToWorkspace(ws, DEFAULT_WORKSPACE_XML)
         persistenceRef.current.clear()
+      },
+
+      loadXml(xml: string): void {
+        const ws = workspaceRef.current
+        if (!ws) return
+        ws.clear()
+        try {
+          loadXmlToWorkspace(ws, xml)
+          persistenceRef.current.save(xml)
+        } catch {
+          // ignore load errors
+        }
       },
     }))
 

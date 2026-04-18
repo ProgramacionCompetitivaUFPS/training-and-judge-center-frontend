@@ -918,6 +918,24 @@ export const mockSubmissions: SubmissionDetail[] = [
     memoryUsed: null,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
   },
+  {
+    id: 'sub-009-aaaa-bbbb-cccc-ddddeeee0009',
+    status: 'WRONG_ANSWER',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-15T10:00:00Z',
+    judgedAt: '2026-03-15T10:00:04Z',
+    problem: { slug: 'two-sum', title: 'Two Sum' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'blockly',
+    compiler: 'pypy3',
+    executionTime: 200,
+    memoryUsed: 16,
+    sourceCode: 'n = int(input())\ntarget = int(input())\nnums = []\nfor i in range(n):\n  nums.append(int(input()))\nfor i in range(n):\n  for j in range(i + 1, n):\n    if nums[i] + nums[j] == target:\n      print(i, j)',
+    blocksSvgUrl: '/mock-blocks.svg',
+    isBlocklySubmission: true,
+    workspaceXml: '<xml xmlns="https://developers.google.com/blockly/xml"><variables><variable id="v1">n</variable><variable id="v2">target</variable><variable id="v3">nums</variable></variables><block type="variables_set" x="20" y="20"><field name="VAR" id="v1">n</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="variables_set"><field name="VAR" id="v2">target</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="text_print"><value name="TEXT"><shadow type="text"><field name="TEXT">Hola mundo</field></shadow></value></block></next></block></next></block></xml>',
+  },
 ]
 
 export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
