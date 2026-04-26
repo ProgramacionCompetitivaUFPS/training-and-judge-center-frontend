@@ -29,3 +29,8 @@ dist-ssr
 # Backend specs (local reference only)
 training-center-specs-backend/
 old-front/
+
+# Claude/Superpowers specs and plans (local only)
+docs/superpowers/
+
+.vercel
