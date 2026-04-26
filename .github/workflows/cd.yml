@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
 
 jobs:
-  cd:
-    name: Build, Push & Deploy
+  docker:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,15 +25,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image name in lowercase
+        id: image
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:${{ github.ref_name }}
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
 
+  deploy-staging:
+    name: Deploy to Vercel (Staging)
+    needs: docker
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
@@ -40,3 +54,8 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
+
+  # deploy-prod:
+  #   name: Deploy to Kubernetes (Production)
+  #   needs: docker
+  #   TO DO

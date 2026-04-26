@@ -31,3 +31,5 @@ training-center-specs-backend/
 
 # Claude/Superpowers specs and plans (local only)
 docs/superpowers/
+
+.vercel

@@ -29,7 +29,7 @@ jobs:
           COMMENTER: ${{ github.event.comment.user.login }}
         run: |
           case "$COMMENTER" in
-            "CarlosSalazar84"|"AlexaVJ") echo "Authorized user: $COMMENTER" ;;
+            "CarlosSalazar84"|"AlexaVJ"|"daluca21") echo "Authorized user: $COMMENTER" ;;
             *) echo "Unauthorized user: $COMMENTER"; exit 1 ;;
           esac
 
@@ -39,10 +39,12 @@ jobs:
           COMMENTER: ${{ github.event.comment.user.login }}
           TOKEN_CARLOSSALAZAR84: ${{ secrets.CLAUDE_TOKEN_CARLOSSALAZAR84 }}
           TOKEN_ALEXAVJ: ${{ secrets.CLAUDE_TOKEN_ALEXAVJ }}
+          TOKEN_DALUCA21: ${{ secrets.CLAUDE_TOKEN_DALUCA21 }}
         run: |
           case "$COMMENTER" in
             "CarlosSalazar84") echo "token=$TOKEN_CARLOSSALAZAR84" >> $GITHUB_OUTPUT ;;
             "AlexaVJ")         echo "token=$TOKEN_ALEXAVJ"         >> $GITHUB_OUTPUT ;;
+            "daluca21")        echo "token=$TOKEN_DALUCA21"        >> $GITHUB_OUTPUT ;;
           esac
 
       - name: Run Claude PR Review Toolkit
