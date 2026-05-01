@@ -53,7 +53,7 @@ export const materialsHandlers = [
   }),
 
   // Update material
-  http.put(url('/groups/:groupId/materials/:materialId'), async ({ params, request }) => {
+  http.patch(url('/groups/:groupId/materials/:materialId'), async ({ params, request }) => {
     await delay(300)
     const { materialId } = params as { groupId: string; materialId: string }
     const material = mockMaterials.find((m) => m.id === materialId)
