@@ -1,0 +1,27 @@
+src/mocks/handlers/groups.ts
+  970609e4a3b99d25 1-222
+src/mocks/handlers/problems.ts
+  970609e4a3b99d25 1-215
+src/mocks/handlers/submissions.ts
+  970609e4a3b99d25 1-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "a1b88ea6fba5c5ef61f37fcd6222d366a006d5ae",
+  "prompts": {
+    "970609e4a3b99d25": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0b22d8c9-e25d-4857-b05c-66016ebd6792",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "AlexaVJ",
+      "messages": [],
+      "total_additions": 590,
+      "total_deletions": 0,
+      "accepted_lines": 601,
+      "overriden_lines": 0
+    }
+  }
+}
