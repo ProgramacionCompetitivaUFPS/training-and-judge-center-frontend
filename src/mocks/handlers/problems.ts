@@ -25,7 +25,7 @@ export const problemsHandlers = [
   }),
 
   // Problem detail
-  http.get(url('/problems/:slug'), async ({ params, request }) => {
+  http.get(url('/problems/p/:slug'), async ({ params, request }) => {
     await delay(200)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
@@ -103,7 +103,7 @@ export const problemsHandlers = [
   }),
 
   // Update problem
-  http.put(url('/problems/:slug'), async ({ params, request }) => {
+  http.put(url('/problems/p/:slug'), async ({ params, request }) => {
     await delay(300)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
@@ -122,7 +122,7 @@ export const problemsHandlers = [
   }),
 
   // Delete problem
-  http.delete(url('/problems/:slug'), async ({ params, request }) => {
+  http.delete(url('/problems/p/:slug'), async ({ params, request }) => {
     await delay(300)
     const { slug } = params as { slug: string }
     const idx = mockProblems.findIndex((p) => p.slug === slug)
