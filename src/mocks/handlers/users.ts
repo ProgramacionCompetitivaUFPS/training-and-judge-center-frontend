@@ -4,7 +4,6 @@ import {
   mockUsers,
   toPublicProfile,
   buildAdminUserList,
-  mockDashboard,
 } from '../data'
 import { url } from './utils'
 
@@ -97,13 +96,6 @@ export const usersHandlers = [
   http.post(url('/users/deactivation/confirm'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
-  }),
-
-  // === Dashboard ===
-
-  http.get(url('/users/me/dashboard'), async () => {
-    await delay(300)
-    return HttpResponse.json(mockDashboard)
   }),
 
   // === Admin ===

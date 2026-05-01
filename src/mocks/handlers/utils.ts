@@ -12,6 +12,7 @@ export function url(path: string) {
 type MockModule =
   | 'auth'
   | 'users'
+  | 'dashboard'
   | 'groups'
   | 'problems'
   | 'submissions'
@@ -22,6 +23,7 @@ type MockModule =
 const MODULE_ENV_KEYS: Record<MockModule, string> = {
   auth:        'VITE_MOCK_AUTH',
   users:       'VITE_MOCK_USERS',
+  dashboard:   'VITE_MOCK_DASHBOARD',
   groups:      'VITE_MOCK_GROUPS',
   problems:    'VITE_MOCK_PROBLEMS',
   submissions: 'VITE_MOCK_SUBMISSIONS',

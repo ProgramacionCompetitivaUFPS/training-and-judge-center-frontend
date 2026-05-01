@@ -8,6 +8,7 @@ async function enableMocking() {
   const moduleMocks = [
     'VITE_MOCK_AUTH',
     'VITE_MOCK_USERS',
+    'VITE_MOCK_DASHBOARD',
     'VITE_MOCK_GROUPS',
     'VITE_MOCK_PROBLEMS',
     'VITE_MOCK_SUBMISSIONS',
