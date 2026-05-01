@@ -87,6 +87,7 @@ export function SubmitSolutionPage() {
 
   // Reset banner when problem or language changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBannerDismissed(false)
     setLoadedSubmissionId(null)
   }, [resolvedSlug, language])
@@ -172,6 +173,7 @@ export function SubmitSolutionPage() {
     if (!submissionDetail || !pendingLoadSubmissionId) return
     if (submissionDetail.id !== pendingLoadSubmissionId) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     applySubmissionToEditor(submissionDetail)
     setPendingLoadSubmissionId(null)
   }, [submissionDetail, pendingLoadSubmissionId, showConfirmLoad, applySubmissionToEditor])
