@@ -7,16 +7,29 @@ interface UsePyodideReturn {
   loadError: string | null
 }
 
-// Module-level cache shared across components
-let pyodideInstance: any = null
-let pyodideLoading: Promise<any> | null = null
+interface PyodideInterface {
+  setStdin: (options: { stdin: () => string | undefined }) => void
+  setStdout: (options: { batched: (text: string) => void }) => void
+  setStderr: (options: { batched: (text: string) => void }) => void
+  runPythonAsync: (code: string) => Promise<unknown>
+}
 
-async function getPyodide(): Promise<any> {
+declare global {
+  interface Window {
+    loadPyodide?: () => Promise<PyodideInterface>
+  }
+}
+
+// Module-level cache shared across components
+let pyodideInstance: PyodideInterface | null = null
+let pyodideLoading: Promise<PyodideInterface> | null = null
+
+async function getPyodide(): Promise<PyodideInterface> {
   if (pyodideInstance) return pyodideInstance
   if (pyodideLoading) return pyodideLoading
 
   pyodideLoading = (async () => {
-    if (!(window as any).loadPyodide) {
+    if (!window.loadPyodide) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement('script')
         script.src = 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js'
@@ -25,7 +38,7 @@ async function getPyodide(): Promise<any> {
         document.head.appendChild(script)
       })
     }
-    pyodideInstance = await (window as any).loadPyodide()
+    pyodideInstance = await window.loadPyodide!()
     return pyodideInstance
   })()
 
@@ -49,7 +62,7 @@ export function usePyodide(): UsePyodideReturn {
     setIsRunning(true)
     setLoadError(null)
 
-    let pyodide: any
+    let pyodide: PyodideInterface
 
     try {
       setIsLoading(!pyodideInstance)
@@ -88,7 +101,7 @@ export function usePyodide(): UsePyodideReturn {
       // Blockly generates a text_prompt function that uses raw_input (Python 2)
       // which doesn't exist in Python 3/Pyodide. Replace it with a Python 3 version.
       const patchedCode = code.replace(
-        /def text_prompt\(msg\):[\s\S]*?(?=\n\S|\n\n\S|\Z)/,
+        /def text_prompt\(msg\):[\s\S]*?(?=\n\S|\n\n\S|$)/,
         `def text_prompt(msg):\n  try:\n    return input(msg)\n  except EOFError:\n    return ''\n`,
       )
 

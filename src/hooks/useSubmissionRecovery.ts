@@ -56,7 +56,7 @@ export function useSubmissionRecovery({
       submittedAt: first.submittedAt,
       isBlockly: first.language === 'blockly',
     }
-  }, [data?.submissions, language, contestId])
+  }, [data, language, contestId])
 
   const { data: submissionDetail, isLoading: isLoadingDetail } = useSubmissionDetail(selectedSubmissionId)
 

@@ -86,6 +86,7 @@ export function SubmitSolutionPage() {
   const [pendingLoadLanguage, setPendingLoadLanguage] = useState<string | null>(null)
 
   // Reset banner when problem or language changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     setBannerDismissed(false)
     setLoadedSubmissionId(null)
@@ -167,6 +168,7 @@ export function SubmitSolutionPage() {
   }, [pendingLoadSubmissionId, pendingLoadLanguage, loadSubmission, submissionDetail, applySubmissionToEditor])
 
   // Effect: apply loaded submission detail to editor when it arrives
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (showConfirmLoad) return // Don't apply while confirmation dialog is open
     if (!submissionDetail || !pendingLoadSubmissionId) return
