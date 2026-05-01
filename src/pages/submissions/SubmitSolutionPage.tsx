@@ -89,7 +89,6 @@ export function SubmitSolutionPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBannerDismissed(false)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadedSubmissionId(null)
   }, [resolvedSlug, language])
 
@@ -176,7 +175,6 @@ export function SubmitSolutionPage() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     applySubmissionToEditor(submissionDetail)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPendingLoadSubmissionId(null)
   }, [submissionDetail, pendingLoadSubmissionId, showConfirmLoad, applySubmissionToEditor])
 
