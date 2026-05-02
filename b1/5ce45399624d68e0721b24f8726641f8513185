@@ -1,0 +1,49 @@
+vercel.json
+  c376f9b8ef5a8559 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "b15ce45399624d68e0721b24f8726641f8513185",
+  "prompts": {
+    "3e18fd30e1202564": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "615d52a1-1ed5-4d46-8e9a-7132482ee2c2",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "AlexaVJ",
+      "messages": [],
+      "total_additions": 483,
+      "total_deletions": 0,
+      "accepted_lines": 483,
+      "overriden_lines": 0
+    },
+    "79830e41452cfff7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b8e3c95-f292-421a-8ccf-fd44aa68f85b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "AlexaVJ",
+      "messages": [],
+      "total_additions": 422,
+      "total_deletions": 0,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    },
+    "c376f9b8ef5a8559": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21b7e475-06c2-4f32-be0e-410f0bb68876",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "AlexaVJ",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 0,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
