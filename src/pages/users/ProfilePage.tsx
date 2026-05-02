@@ -187,7 +187,7 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
   const [expanded, setExpanded] = useState(false)
   const sorted = [...stats].sort((a, b) => b.solved - a.solved)
   const max = sorted[0]?.solved ?? 1
-  const VISIBLE = 8
+  const VISIBLE = 12
   const visible = expanded ? sorted : sorted.slice(0, VISIBLE)
   const hidden = sorted.length - VISIBLE
 
@@ -214,7 +214,7 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
           <div className="px-5 py-4 space-y-2.5">
             {visible.map(({ tag, solved }) => (
               <div key={tag} className="flex items-center gap-3">
-                <span className="text-xs text-neutral-text-muted w-28 shrink-0 truncate capitalize">
+                <span className="text-sm text-neutral-text-muted w-28 shrink-0 truncate capitalize">
                   {tag.replace(/-/g, ' ')}
                 </span>
                 <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
