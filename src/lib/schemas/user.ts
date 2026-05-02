@@ -28,10 +28,6 @@ export const registerSchema = z.object({
     .string()
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
-  lastname: z
-    .string()
-    .min(1, 'El apellido es requerido')
-    .max(100, 'El apellido no puede exceder 100 caracteres'),
   nickname: z
     .string()
     .min(3, 'El nickname debe tener al menos 3 caracteres')
@@ -59,10 +55,6 @@ export const updateProfileSchema = z.object({
     .string()
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
-  lastname: z
-    .string()
-    .min(1, 'El apellido es requerido')
-    .max(100, 'El apellido no puede exceder 100 caracteres'),
   nickname: z
     .string()
     .min(3, 'El nickname debe tener al menos 3 caracteres')

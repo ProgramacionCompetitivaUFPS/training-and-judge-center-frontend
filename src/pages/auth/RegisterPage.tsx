@@ -45,7 +45,6 @@ export function RegisterPage() {
       password: '',
       confirmPassword: '',
       name: '',
-      lastname: '',
       nickname: '',
       country: '',
       city: '',
@@ -82,17 +81,13 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {serverError && <Alert variant="error">{serverError}</Alert>}
 
+        <div className="space-y-2">
+          <label htmlFor="name" className="text-sm font-medium text-neutral-text-primary">Nombre completo</label>
+          <Input id="name" placeholder="Tu nombre completo" autoFocus {...register('name')} />
+          {errors.name && <p className="text-xs text-status-error">{errors.name.message}</p>}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <label htmlFor="name" className="text-sm font-medium text-neutral-text-primary">Nombre</label>
-            <Input id="name" placeholder="Tu nombre" autoFocus {...register('name')} />
-            {errors.name && <p className="text-xs text-status-error">{errors.name.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="lastname" className="text-sm font-medium text-neutral-text-primary">Apellido</label>
-            <Input id="lastname" placeholder="Tu apellido" {...register('lastname')} />
-            {errors.lastname && <p className="text-xs text-status-error">{errors.lastname.message}</p>}
-          </div>
           <div className="space-y-2">
             <label htmlFor="nickname" className="text-sm font-medium text-neutral-text-primary">Nickname</label>
             <Input id="nickname" placeholder="tu_nick" {...register('nickname')} />

@@ -5,8 +5,7 @@ import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest 
 
 export const mockCurrentUser: User = {
   email: 'admin@trainingcenter.com',
-  name: 'Luis',
-  lastname: 'Admin',
+  name: 'Luis Admin',
   nickname: 'luisadmin',
   country: 'Colombia',
   city: 'Bogotá',
@@ -21,8 +20,7 @@ export const mockUsers: User[] = [
   mockCurrentUser,
   {
     email: 'coach@trainingcenter.com',
-    name: 'María',
-    lastname: 'Coach',
+    name: 'María Coach',
     nickname: 'mariacoach',
     country: 'México',
     city: 'CDMX',
@@ -33,8 +31,7 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant1@trainingcenter.com',
-    name: 'Carlos',
-    lastname: 'Pérez',
+    name: 'Carlos Pérez',
     nickname: 'carloscp',
     country: 'Argentina',
     city: 'Buenos Aires',
@@ -45,8 +42,7 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant2@trainingcenter.com',
-    name: 'Ana',
-    lastname: 'García',
+    name: 'Ana García',
     nickname: 'anagarcia',
     country: 'Chile',
     city: 'Santiago',
@@ -57,8 +53,7 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant3@trainingcenter.com',
-    name: 'Pedro',
-    lastname: 'Inactive',
+    name: 'Pedro Inactivo',
     nickname: 'pedroinactive',
     country: 'Perú',
     city: 'Lima',
@@ -69,8 +64,7 @@ export const mockUsers: User[] = [
   },
   {
     email: 'sofia@trainingcenter.com',
-    name: 'Sofía',
-    lastname: 'Rodríguez',
+    name: 'Sofía Rodríguez',
     nickname: 'sofiarodriguez',
     country: 'Colombia',
     city: 'Medellín',
@@ -81,8 +75,7 @@ export const mockUsers: User[] = [
   },
   {
     email: 'diego@trainingcenter.com',
-    name: 'Diego',
-    lastname: 'Martínez',
+    name: 'Diego Martínez',
     nickname: 'diegomartinez',
     country: 'Ecuador',
     city: 'Quito',
@@ -146,15 +139,15 @@ export const mockDashboard: UserDashboard = {
     {
       id: 'contest-1',
       name: 'Contest Semanal #12',
-      startTime: '2026-03-20T14:00:00Z',
-      endTime: '2026-03-20T19:00:00Z',
+      startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      endTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000).toISOString(),
       groupName: 'Grupo ICPC Colombia',
     },
     {
       id: 'contest-2',
       name: 'Práctica Grafos',
-      startTime: '2026-03-22T16:00:00Z',
-      endTime: '2026-03-22T20:00:00Z',
+      startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
       groupName: 'Entrenamiento Avanzado',
     },
   ],
@@ -163,6 +156,28 @@ export const mockDashboard: UserDashboard = {
   streak: { currentStreak: 3, longestStreak: 7 },
   ranking: { position: 12, totalUsers: 150 },
   recentContestResults: [],
+  topicStats: [
+    { tag: 'graphs', solved: 15 },
+    { tag: 'dp', solved: 12 },
+    { tag: 'arrays', solved: 10 },
+    { tag: 'binary-search', solved: 9 },
+    { tag: 'strings', solved: 8 },
+    { tag: 'sorting', solved: 7 },
+    { tag: 'data-structures', solved: 6 },
+    { tag: 'bfs', solved: 6 },
+    { tag: 'dfs', solved: 5 },
+    { tag: 'greedy', solved: 5 },
+    { tag: 'math', solved: 4 },
+    { tag: 'trees', solved: 4 },
+    { tag: 'geometry', solved: 3 },
+    { tag: 'number-theory', solved: 3 },
+    { tag: 'backtracking', solved: 2 },
+    { tag: 'two-pointers', solved: 2 },
+    { tag: 'segment-tree', solved: 2 },
+    { tag: 'hashing', solved: 1 },
+    { tag: 'bit-manipulation', solved: 1 },
+    { tag: 'disjoint-set', solved: 1 },
+  ],
 }
 
 // === Helper to build public profile from User ===
@@ -170,7 +185,6 @@ export const mockDashboard: UserDashboard = {
 export function toPublicProfile(user: User): PublicUserProfile {
   return {
     name: user.name,
-    lastname: user.lastname,
     nickname: user.nickname,
     institution: user.institution,
     role: user.role,

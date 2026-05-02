@@ -45,10 +45,11 @@ export function useUserProfile(nickname: string) {
   })
 }
 
-export function useUserDashboard() {
+export function useUserDashboard(enabled = true) {
   return useQuery({
     queryKey: userKeys.dashboard,
     queryFn: usersApi.getDashboard,
+    enabled,
   })
 }
 
