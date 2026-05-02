@@ -224,10 +224,13 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
       </div>
       {hidden > 0 && (
         <button
+          type="button"
+          aria-expanded={expanded}
           onClick={() => setExpanded(e => !e)}
           className="w-full px-5 py-2.5 text-xs font-semibold text-brand-accent border-t border-neutral-border hover:bg-neutral-background transition-colors text-left"
         >
-          {expanded ? '▲ Ver menos' : `▼ Ver ${hidden} tópicos más`}
+          <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>{' '}
+          {expanded ? 'Ver menos' : `Ver ${hidden} tópicos más`}
         </button>
       )}
     </Card>
