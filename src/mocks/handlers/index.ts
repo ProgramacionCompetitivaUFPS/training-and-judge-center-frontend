@@ -1,4 +1,4 @@
-import { isModuleMocked } from './utils'
+import { http, passthrough, isModuleMocked } from './utils'
 import { authHandlers } from './auth'
 import { usersHandlers } from './users'
 import { dashboardHandlers } from './dashboard'
@@ -19,4 +19,11 @@ export const handlers = [
   ...(isModuleMocked('contests')    ? contestsHandlers    : []),
   ...(isModuleMocked('materials')   ? materialsHandlers   : []),
   ...(isModuleMocked('teams')       ? teamsHandlers       : []),
+  // Catch-all: lets unhandled API requests reach the real network natively.
+  // Skip navigate-mode requests (SPA route changes) so MSW doesn't intercept
+  // React Router navigation — those are not API calls.
+  http.all('*', ({ request }) => {
+    if (request.mode === 'navigate') return
+    return passthrough()
+  }),
 ]

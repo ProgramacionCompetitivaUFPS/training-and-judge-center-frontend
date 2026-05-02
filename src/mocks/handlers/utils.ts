@@ -1,4 +1,4 @@
-import { http, HttpResponse, delay } from 'msw'
+import { http, HttpResponse, delay, passthrough } from 'msw'
 
 // MSW intercepta peticiones por URL exacta. Esta variable no es para hacer llamadas
 // al backend — es para construir el patrón que MSW va a escuchar. Debe coincidir
@@ -37,4 +37,4 @@ export function isModuleMocked(module: MockModule): boolean {
   return import.meta.env[MODULE_ENV_KEYS[module]] === 'true'
 }
 
-export { http, HttpResponse, delay }
+export { http, HttpResponse, delay, passthrough }

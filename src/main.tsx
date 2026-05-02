@@ -20,9 +20,7 @@ async function enableMocking() {
   if (!globalMocks && !moduleMocks) return
 
   const { worker } = await import('./mocks/browser')
-  return worker.start({
-    onUnhandledRequest: 'bypass',
-  })
+  return worker.start({ onUnhandledRequest: 'bypass' })
 }
 
 enableMocking().then(() => {
