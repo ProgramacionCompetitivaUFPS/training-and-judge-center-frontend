@@ -1,0 +1,23 @@
+vercel.json
+  ff958424b93d8c78 3-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "5dab908848633f7861527e8a2a2113290a236a77",
+  "prompts": {
+    "ff958424b93d8c78": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1d073be-ba3e-4bfb-aaa2-821aac158ac4",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "AlexaVJ",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 0,
+      "accepted_lines": 891,
+      "overriden_lines": 0
+    }
+  }
+}
