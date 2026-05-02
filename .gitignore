@@ -34,3 +34,6 @@ old-front/
 docs/superpowers/
 
 .vercel
+
+# Git worktrees
+.worktrees/
