@@ -49,7 +49,7 @@ export function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div className="space-y-4">
         {isLoading && (
           <Card className="p-6">
             <div className="flex items-start gap-5">
@@ -141,9 +141,8 @@ export function ProfilePage() {
             </Card>
 
             {isOwnProfile && dashboard && (
-              <>
-                {/* Stat cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-start">
+                <div className="flex flex-col gap-4">
                   <StatCard
                     value={`#${dashboard.ranking.position}`}
                     label="Ranking global"
@@ -164,12 +163,8 @@ export function ProfilePage() {
                     }
                   />
                 </div>
-
-                {/* Tópicos — se implementa en el siguiente task */}
-                {dashboard.topicStats.length > 0 && (
-                  <TopicChart stats={dashboard.topicStats} />
-                )}
-              </>
+                <TopicChart stats={dashboard.topicStats} />
+              </div>
             )}
           </>
         )}
@@ -202,36 +197,50 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
         <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
           Temáticas resueltas
         </p>
-        <span className="text-xs text-neutral-text-muted">{stats.length} temáticas</span>
+        {stats.length > 0 && (
+          <span className="text-xs text-neutral-text-muted">{stats.length} temáticas</span>
+        )}
       </div>
-      <div className="px-5 py-4 space-y-2.5">
-        {visible.map(({ tag, solved }) => (
-          <div key={tag} className="flex items-center gap-3">
-            <span className="text-xs text-neutral-text-muted w-28 shrink-0 truncate capitalize">
-              {tag.replace(/-/g, ' ')}
-            </span>
-            <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
-              <div
-                className="h-full bg-brand-accent rounded-pill transition-all duration-500"
-                style={{ width: `${(solved / max) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs font-mono font-medium text-neutral-text-primary w-4 text-right shrink-0">
-              {solved}
-            </span>
+
+      {stats.length === 0 ? (
+        <div className="px-5 py-10 flex flex-col items-center gap-2 text-center">
+          <p className="text-sm font-medium text-neutral-text-muted">Sin tópicos resueltos aún</p>
+          <p className="text-xs text-neutral-text-muted opacity-60">
+            Resuelve problemas para ver tus estadísticas aquí
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="px-5 py-4 space-y-2.5">
+            {visible.map(({ tag, solved }) => (
+              <div key={tag} className="flex items-center gap-3">
+                <span className="text-xs text-neutral-text-muted w-28 shrink-0 truncate capitalize">
+                  {tag.replace(/-/g, ' ')}
+                </span>
+                <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
+                  <div
+                    className="h-full bg-brand-accent rounded-pill transition-all duration-500"
+                    style={{ width: `${(solved / max) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs font-mono font-medium text-neutral-text-primary w-4 text-right shrink-0">
+                  {solved}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      {hidden > 0 && (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(e => !e)}
-          className="w-full px-5 py-2.5 text-xs font-semibold text-brand-accent border-t border-neutral-border hover:bg-neutral-background transition-colors text-left"
-        >
-          <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>{' '}
-          {expanded ? 'Ver menos' : `Ver ${hidden} tópicos más`}
-        </button>
+          {hidden > 0 && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded(e => !e)}
+              className="w-full px-5 py-2.5 text-xs font-semibold text-brand-accent border-t border-neutral-border hover:bg-neutral-background transition-colors text-left"
+            >
+              <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>{' '}
+              {expanded ? 'Ver menos' : `Ver ${hidden} tópicos más`}
+            </button>
+          )}
+        </>
       )}
     </Card>
   )
