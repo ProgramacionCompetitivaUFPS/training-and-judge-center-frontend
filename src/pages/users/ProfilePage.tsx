@@ -12,8 +12,11 @@ import { ROUTES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types/user'
 
-function getInitials(name: string, lastname?: string): string {
-  return `${name?.charAt(0) ?? ''}${lastname?.charAt(0) ?? ''}`.toUpperCase() || '?'
+function getInitials(name: string): string {
+  const parts = name?.trim().split(/\s+/) ?? []
+  return parts.length >= 2
+    ? `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase()
+    : (parts[0]?.charAt(0) ?? '?').toUpperCase()
 }
 
 function getAvatarClass(role: UserRole): string {
@@ -74,14 +77,14 @@ export function ProfilePage() {
                     getAvatarClass(profile.role)
                   )}
                 >
-                  {getInitials(profile.name, profile.lastname)}
+                  {getInitials(profile.name)}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <h1 className="text-lg font-bold text-neutral-text-primary leading-tight">
-                        {profile.name} {profile.lastname}
+                        {profile.name}
                       </h1>
                       <p className="text-sm text-neutral-text-muted">@{profile.nickname}</p>
                     </div>
