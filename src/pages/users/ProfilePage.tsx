@@ -142,7 +142,7 @@ export function ProfilePage() {
 
             {isOwnProfile && dashboard && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 lg:self-start">
                   <StatCard
                     value={`#${dashboard.ranking.position}`}
                     label="Ranking global"
@@ -187,7 +187,7 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
   const [expanded, setExpanded] = useState(false)
   const sorted = [...stats].sort((a, b) => b.solved - a.solved)
   const max = sorted[0]?.solved ?? 1
-  const VISIBLE = 12
+  const VISIBLE = 10
   const visible = expanded ? sorted : sorted.slice(0, VISIBLE)
   const hidden = sorted.length - VISIBLE
 
