@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MapPin, Building2, Calendar, Mail, Settings } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -188,23 +189,30 @@ function StatCard({ value, label, sub }: { value: string; label: string; sub?: s
 }
 
 function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
+  const [expanded, setExpanded] = useState(false)
   const sorted = [...stats].sort((a, b) => b.solved - a.solved)
   const max = sorted[0]?.solved ?? 1
+  const VISIBLE = 8
+  const visible = expanded ? sorted : sorted.slice(0, VISIBLE)
+  const hidden = sorted.length - VISIBLE
 
   return (
-    <div className="border-t border-neutral-border px-6 py-5">
-      <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider mb-4">
-        Temáticas resueltas
-      </p>
-      <div className="space-y-2.5">
-        {sorted.map(({ tag, solved }) => (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-border">
+        <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
+          Temáticas resueltas
+        </p>
+        <span className="text-xs text-neutral-text-muted">{stats.length} temáticas</span>
+      </div>
+      <div className="px-5 py-4 space-y-2.5">
+        {visible.map(({ tag, solved }) => (
           <div key={tag} className="flex items-center gap-3">
             <span className="text-xs text-neutral-text-muted w-28 shrink-0 truncate capitalize">
               {tag.replace(/-/g, ' ')}
             </span>
             <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
               <div
-                className="h-full bg-brand-primary rounded-pill transition-all duration-500"
+                className="h-full bg-brand-accent rounded-pill transition-all duration-500"
                 style={{ width: `${(solved / max) * 100}%` }}
               />
             </div>
@@ -214,6 +222,14 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
           </div>
         ))}
       </div>
-    </div>
+      {hidden > 0 && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="w-full px-5 py-2.5 text-xs font-semibold text-brand-accent border-t border-neutral-border hover:bg-neutral-background transition-colors text-left"
+        >
+          {expanded ? '▲ Ver menos' : `▼ Ver ${hidden} tópicos más`}
+        </button>
+      )}
+    </Card>
   )
 }
