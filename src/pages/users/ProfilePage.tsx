@@ -141,7 +141,7 @@ export function ProfilePage() {
             </Card>
 
             {isOwnProfile && dashboard && (
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
                 <div className="flex flex-col gap-4">
                   <StatCard
                     value={`#${dashboard.ranking.position}`}
@@ -192,7 +192,7 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
   const hidden = sorted.length - VISIBLE
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden h-full">
       <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-border">
         <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">
           Temáticas resueltas
