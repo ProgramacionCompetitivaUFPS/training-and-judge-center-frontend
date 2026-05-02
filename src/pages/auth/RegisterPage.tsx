@@ -82,8 +82,7 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {serverError && <Alert variant="error">{serverError}</Alert>}
 
-        {/* Fila 1: Nombre | Apellido | Nickname */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <label htmlFor="name" className="text-sm font-medium text-neutral-text-primary">Nombre</label>
             <Input id="name" placeholder="Tu nombre" autoFocus {...register('name')} />
@@ -99,10 +98,6 @@ export function RegisterPage() {
             <Input id="nickname" placeholder="tu_nick" {...register('nickname')} />
             {errors.nickname && <p className="text-xs text-status-error">{errors.nickname.message}</p>}
           </div>
-        </div>
-
-        {/* Fila 2: Institución | País | Ciudad */}
-        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
             <label htmlFor="institution" className="text-sm font-medium text-neutral-text-primary">Institución</label>
             <Input id="institution" placeholder="Universidad" {...register('institution')} />
