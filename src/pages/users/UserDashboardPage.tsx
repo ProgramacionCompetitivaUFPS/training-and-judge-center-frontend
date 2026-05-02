@@ -33,11 +33,14 @@ function getContestUrgency(startTime: string): { label: string; urgent: boolean 
   const start = new Date(startTime)
   const diffMs = start.getTime() - now.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const time = start.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
 
-  if (diffMs < 0) return { label: 'En curso', urgent: true }
-  if (diffDays === 0) return { label: 'HOY', urgent: true }
-  if (diffDays === 1) return { label: 'MAÑANA', urgent: true }
-  return { label: `En ${diffDays} días`, urgent: false }
+  if (diffDays === 0) return { label: `HOY ${time}`, urgent: true }
+  if (diffDays === 1) return { label: `MAÑANA ${time}`, urgent: true }
+  return {
+    label: start.toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    urgent: false,
+  }
 }
 
 export function UserDashboardPage() {
