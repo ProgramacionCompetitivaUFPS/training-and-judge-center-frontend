@@ -139,21 +139,21 @@ export function ProfilePage() {
               </div>
             </Card>
 
-            {/* Stats y tópicos — se reescriben en el siguiente task */}
             {isOwnProfile && dashboard && (
-              <Card className="overflow-hidden">
-                <div className="border-t border-neutral-border grid grid-cols-3 divide-x divide-neutral-border">
-                  <StatCell
+              <>
+                {/* Stat cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <StatCard
                     value={`#${dashboard.ranking.position}`}
                     label="Ranking global"
                     sub={`de ${dashboard.ranking.totalUsers}`}
                   />
-                  <StatCell
+                  <StatCard
                     value={String(dashboard.problemsSolved)}
                     label="Problemas resueltos"
                     sub={`${dashboard.contestsParticipated} contests`}
                   />
-                  <StatCell
+                  <StatCard
                     value={acceptanceRate !== null ? `${acceptanceRate}%` : '—'}
                     label="Tasa de aceptación"
                     sub={
@@ -163,10 +163,12 @@ export function ProfilePage() {
                     }
                   />
                 </div>
+
+                {/* Tópicos — se implementa en el siguiente task */}
                 {dashboard.topicStats.length > 0 && (
                   <TopicChart stats={dashboard.topicStats} />
                 )}
-              </Card>
+              </>
             )}
           </>
         )}
@@ -175,13 +177,13 @@ export function ProfilePage() {
   )
 }
 
-function StatCell({ value, label, sub }: { value: string; label: string; sub?: string }) {
+function StatCard({ value, label, sub }: { value: string; label: string; sub?: string }) {
   return (
-    <div className="px-5 py-4 text-center">
-      <p className="text-xl font-bold font-mono text-neutral-text-primary">{value}</p>
-      <p className="text-xs text-neutral-text-muted mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-neutral-text-muted opacity-60">{sub}</p>}
-    </div>
+    <Card className="p-5 text-center">
+      <p className="text-2xl font-bold font-mono text-neutral-text-primary">{value}</p>
+      <p className="text-sm text-neutral-text-muted mt-1">{label}</p>
+      {sub && <p className="text-xs text-neutral-text-muted opacity-60 mt-0.5">{sub}</p>}
+    </Card>
   )
 }
 
