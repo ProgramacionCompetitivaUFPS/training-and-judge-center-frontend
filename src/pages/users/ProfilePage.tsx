@@ -48,7 +48,7 @@ export function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="max-w-3xl mx-auto space-y-4">
         {isLoading && (
           <Card className="p-6">
             <div className="flex items-start gap-5">
@@ -67,13 +67,13 @@ export function ProfilePage() {
         )}
 
         {profile && (
-          <Card className="overflow-hidden">
-            {/* Identity */}
-            <div className="p-6">
-              <div className="flex items-start gap-4">
+          <>
+            {/* Identity bar */}
+            <Card className="p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div
                   className={cn(
-                    'h-14 w-14 rounded-lg flex items-center justify-center text-lg font-bold shrink-0',
+                    'h-14 w-14 rounded-lg flex items-center justify-center text-lg font-bold shrink-0 self-start sm:self-auto',
                     getAvatarClass(profile.role)
                   )}
                 >
@@ -81,37 +81,24 @@ export function ProfilePage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <h1 className="text-lg font-bold text-neutral-text-primary leading-tight">
-                        {profile.name}
-                      </h1>
-                      <p className="text-sm text-neutral-text-muted">@{profile.nickname}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        variant={
-                          profile.role === 'ADMIN'
-                            ? 'default'
-                            : profile.role === 'COACH'
-                              ? 'primary'
-                              : 'outline'
-                        }
-                      >
-                        {getRoleLabel(profile.role)}
-                      </Badge>
-                      {isOwnProfile && (
-                        <Link to={ROUTES.SETTINGS}>
-                          <Button variant="ghost" size="sm" className="gap-1.5">
-                            <Settings className="h-3.5 w-3.5" />
-                            Editar
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-lg font-bold text-neutral-text-primary leading-tight">
+                      {profile.name}
+                    </h1>
+                    <Badge
+                      variant={
+                        profile.role === 'ADMIN'
+                          ? 'default'
+                          : profile.role === 'COACH'
+                            ? 'primary'
+                            : 'outline'
+                      }
+                    >
+                      {getRoleLabel(profile.role)}
+                    </Badge>
                   </div>
-
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-neutral-text-muted">
+                  <p className="text-sm text-neutral-text-muted">@{profile.nickname}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-neutral-text-muted">
                     {profile.institution && (
                       <span className="flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 shrink-0" />
@@ -140,12 +127,21 @@ export function ProfilePage() {
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Stats inline — own profile only */}
+                {isOwnProfile && (
+                  <Link to={ROUTES.SETTINGS} className="sm:self-start">
+                    <Button variant="ghost" size="sm" className="gap-1.5 w-full sm:w-auto">
+                      <Settings className="h-3.5 w-3.5" />
+                      Editar perfil
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </Card>
+
+            {/* Stats y tópicos — se reescriben en el siguiente task */}
             {isOwnProfile && dashboard && (
-              <>
+              <Card className="overflow-hidden">
                 <div className="border-t border-neutral-border grid grid-cols-3 divide-x divide-neutral-border">
                   <StatCell
                     value={`#${dashboard.ranking.position}`}
@@ -167,13 +163,12 @@ export function ProfilePage() {
                     }
                   />
                 </div>
-
                 {dashboard.topicStats.length > 0 && (
                   <TopicChart stats={dashboard.topicStats} />
                 )}
-              </>
+              </Card>
             )}
-          </Card>
+          </>
         )}
       </div>
     </AppLayout>
