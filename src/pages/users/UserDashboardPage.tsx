@@ -69,11 +69,13 @@ export function UserDashboardPage() {
             </p>
           </div>
           {dashboard?.streak && dashboard.streak.currentStreak > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Flame className="h-10 w-10 text-brand-accent" />
-              <span className="text-2xl font-bold text-neutral-text-primary leading-none">
-                {dashboard.streak.currentStreak}
-              </span>
+            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <Flame className="h-10 w-10 text-brand-accent" />
+                <span className="text-2xl font-bold text-neutral-text-primary leading-none">
+                  {dashboard.streak.currentStreak}
+                </span>
+              </div>
               <div className="flex flex-col items-start">
                 <span className="text-xs text-neutral-text-muted">
                   {dashboard.streak.currentStreak === 1 ? 'día de racha' : 'días de racha'}
