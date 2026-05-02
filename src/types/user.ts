@@ -148,6 +148,12 @@ export interface UserDashboard {
   streak: UserStreak
   ranking: UserRanking
   recentContestResults: DashboardContestResult[]
+  topicStats: TopicStat[]
+}
+
+export interface TopicStat {
+  tag: string
+  solved: number
 }
 
 export interface DashboardSubmission {

@@ -1,12 +1,32 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { MapPin, Building2, Calendar, Mail, Settings } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
-import { useUserProfile } from '@/hooks/api/useUsers'
+import { useUserProfile, useUserDashboard } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
-import { User, MapPin, Building2, Calendar } from 'lucide-react'
+import { ROUTES } from '@/lib/constants'
+import { cn } from '@/lib/utils'
+import type { UserRole } from '@/types/user'
+
+function getInitials(name: string, lastname?: string): string {
+  return `${name?.charAt(0) ?? ''}${lastname?.charAt(0) ?? ''}`.toUpperCase() || '?'
+}
+
+function getAvatarClass(role: UserRole): string {
+  if (role === 'ADMIN') return 'bg-brand-primary text-neutral-text-inverse'
+  if (role === 'COACH') return 'bg-brand-accent text-neutral-text-inverse'
+  return 'bg-neutral-text-primary text-neutral-text-inverse'
+}
+
+function getRoleLabel(role: UserRole): string {
+  if (role === 'ADMIN') return 'Admin'
+  if (role === 'COACH') return 'Coach'
+  return 'Contestant'
+}
 
 export function ProfilePage() {
   const { nickname } = useParams<{ nickname: string }>()
@@ -16,19 +36,26 @@ export function ProfilePage() {
   const targetNickname = nickname || currentUser?.nickname || ''
 
   const { data: profile, isLoading, error } = useUserProfile(targetNickname)
+  const { data: dashboard } = useUserDashboard(isOwnProfile)
+
+  const acceptanceRate =
+    dashboard && dashboard.totalSubmissions > 0
+      ? Math.round((dashboard.acceptedSubmissions / dashboard.totalSubmissions) * 100)
+      : null
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-neutral-text-primary">
-          {isOwnProfile ? 'Mi Perfil' : 'Perfil de Usuario'}
-        </h1>
-
+      <div className="max-w-2xl mx-auto space-y-4">
         {isLoading && (
-          <Card className="p-6 space-y-4">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-64" />
+          <Card className="p-6">
+            <div className="flex items-start gap-5">
+              <Skeleton className="h-14 w-14 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+            </div>
           </Card>
         )}
 
@@ -37,57 +64,156 @@ export function ProfilePage() {
         )}
 
         {profile && (
-          <Card className="p-6 space-y-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-neutral-text-primary">{profile.name}</h2>
-                <p className="text-neutral-text-muted">@{profile.nickname}</p>
-              </div>
-              <Badge variant={profile.role === 'ADMIN' ? 'default' : profile.role === 'COACH' ? 'primary' : 'outline'}>
-                {profile.role}
-              </Badge>
-            </div>
+          <Card className="overflow-hidden">
+            {/* Identity */}
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div
+                  className={cn(
+                    'h-14 w-14 rounded-lg flex items-center justify-center text-lg font-bold shrink-0',
+                    getAvatarClass(profile.role)
+                  )}
+                >
+                  {getInitials(profile.name, profile.lastname)}
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2 text-neutral-text-muted">
-                <Building2 className="h-4 w-4" />
-                <span>{profile.institution}</span>
-              </div>
-              <div className="flex items-center gap-2 text-neutral-text-muted">
-                <Calendar className="h-4 w-4" />
-                <span>Miembro desde {new Date(profile.createdAt).toLocaleDateString('es')}</span>
-              </div>
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <h1 className="text-lg font-bold text-neutral-text-primary leading-tight">
+                        {profile.name} {profile.lastname}
+                      </h1>
+                      <p className="text-sm text-neutral-text-muted">@{profile.nickname}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={
+                          profile.role === 'ADMIN'
+                            ? 'default'
+                            : profile.role === 'COACH'
+                              ? 'primary'
+                              : 'outline'
+                        }
+                      >
+                        {getRoleLabel(profile.role)}
+                      </Badge>
+                      {isOwnProfile && (
+                        <Link to={ROUTES.SETTINGS}>
+                          <Button variant="ghost" size="sm" className="gap-1.5">
+                            <Settings className="h-3.5 w-3.5" />
+                            Editar
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
 
-            {isOwnProfile && currentUser && (
-              <div className="border-t border-neutral-border pt-4 space-y-3">
-                <h3 className="text-sm font-medium text-neutral-text-primary flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Información privada
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-neutral-text-muted">
-                  <div>
-                    <span className="font-medium text-neutral-text-primary">Email:</span>{' '}
-                    {currentUser.email}
-                  </div>
-                  <div>
-                    <span className="font-medium text-neutral-text-primary">País:</span>{' '}
-                    {currentUser.country}
-                  </div>
-                  <div>
-                    <span className="font-medium text-neutral-text-primary">Ciudad:</span>{' '}
-                    {currentUser.city}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    {currentUser.city}, {currentUser.country}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-sm text-neutral-text-muted">
+                    {profile.institution && (
+                      <span className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 shrink-0" />
+                        {profile.institution}
+                      </span>
+                    )}
+                    {isOwnProfile && currentUser?.city && currentUser?.country && (
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        {currentUser.city}, {currentUser.country}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      Miembro desde{' '}
+                      {new Date(profile.createdAt).toLocaleDateString('es', {
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </span>
+                    {isOwnProfile && currentUser?.email && (
+                      <span className="flex items-center gap-1.5">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        {currentUser.email}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Stats inline — own profile only */}
+            {isOwnProfile && dashboard && (
+              <>
+                <div className="border-t border-neutral-border grid grid-cols-3 divide-x divide-neutral-border">
+                  <StatCell
+                    value={`#${dashboard.ranking.position}`}
+                    label="Ranking global"
+                    sub={`de ${dashboard.ranking.totalUsers}`}
+                  />
+                  <StatCell
+                    value={String(dashboard.problemsSolved)}
+                    label="Problemas resueltos"
+                    sub={`${dashboard.contestsParticipated} contests`}
+                  />
+                  <StatCell
+                    value={acceptanceRate !== null ? `${acceptanceRate}%` : '—'}
+                    label="Tasa de aceptación"
+                    sub={
+                      dashboard.totalSubmissions > 0
+                        ? `${dashboard.acceptedSubmissions}/${dashboard.totalSubmissions}`
+                        : 'sin submissions'
+                    }
+                  />
+                </div>
+
+                {dashboard.topicStats.length > 0 && (
+                  <TopicChart stats={dashboard.topicStats} />
+                )}
+              </>
             )}
           </Card>
         )}
       </div>
     </AppLayout>
+  )
+}
+
+function StatCell({ value, label, sub }: { value: string; label: string; sub?: string }) {
+  return (
+    <div className="px-5 py-4 text-center">
+      <p className="text-xl font-bold font-mono text-neutral-text-primary">{value}</p>
+      <p className="text-xs text-neutral-text-muted mt-0.5">{label}</p>
+      {sub && <p className="text-xs text-neutral-text-muted opacity-60">{sub}</p>}
+    </div>
+  )
+}
+
+function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
+  const sorted = [...stats].sort((a, b) => b.solved - a.solved)
+  const max = sorted[0]?.solved ?? 1
+
+  return (
+    <div className="border-t border-neutral-border px-6 py-5">
+      <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider mb-4">
+        Temáticas resueltas
+      </p>
+      <div className="space-y-2.5">
+        {sorted.map(({ tag, solved }) => (
+          <div key={tag} className="flex items-center gap-3">
+            <span className="text-xs text-neutral-text-muted w-28 shrink-0 truncate capitalize">
+              {tag.replace(/-/g, ' ')}
+            </span>
+            <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
+              <div
+                className="h-full bg-brand-primary rounded-pill transition-all duration-500"
+                style={{ width: `${(solved / max) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono font-medium text-neutral-text-primary w-4 text-right shrink-0">
+              {solved}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

@@ -163,6 +163,16 @@ export const mockDashboard: UserDashboard = {
   streak: { currentStreak: 3, longestStreak: 7 },
   ranking: { position: 12, totalUsers: 150 },
   recentContestResults: [],
+  topicStats: [
+    { tag: 'graphs', solved: 6 },
+    { tag: 'dp', solved: 5 },
+    { tag: 'arrays', solved: 4 },
+    { tag: 'binary-search', solved: 3 },
+    { tag: 'strings', solved: 2 },
+    { tag: 'sorting', solved: 2 },
+    { tag: 'data-structures', solved: 1 },
+    { tag: 'bfs', solved: 1 },
+  ],
 }
 
 // === Helper to build public profile from User ===
