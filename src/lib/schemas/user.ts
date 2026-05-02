@@ -28,11 +28,15 @@ export const registerSchema = z.object({
     .string()
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
+  lastname: z
+    .string()
+    .min(1, 'El apellido es requerido')
+    .max(100, 'El apellido no puede exceder 100 caracteres'),
   nickname: z
     .string()
     .min(3, 'El nickname debe tener al menos 3 caracteres')
     .max(30, 'El nickname no puede exceder 30 caracteres')
-    .regex(/^[a-z0-9_-]+$/, 'Solo letras minúsculas, números, guiones y guiones bajos'),
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Solo letras, números, guiones y guiones bajos'),
   country: z
     .string()
     .min(1, 'El país es requerido'),
@@ -55,11 +59,15 @@ export const updateProfileSchema = z.object({
     .string()
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
+  lastname: z
+    .string()
+    .min(1, 'El apellido es requerido')
+    .max(100, 'El apellido no puede exceder 100 caracteres'),
   nickname: z
     .string()
     .min(3, 'El nickname debe tener al menos 3 caracteres')
     .max(30, 'El nickname no puede exceder 30 caracteres')
-    .regex(/^[a-z0-9_-]+$/, 'Solo letras minúsculas, números, guiones y guiones bajos'),
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Solo letras, números, guiones y guiones bajos'),
   country: z
     .string()
     .min(1, 'El país es requerido'),

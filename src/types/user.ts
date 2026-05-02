@@ -6,6 +6,7 @@ export interface User {
   id?: string
   email: string
   name: string
+  lastname: string
   nickname: string
   country: string
   city: string
@@ -30,6 +31,7 @@ export interface UserPreferences {
 /** Perfil público visible por otros usuarios */
 export interface PublicUserProfile {
   name: string
+  lastname: string
   nickname: string
   institution: string
   role: UserRole
@@ -52,6 +54,7 @@ export interface RegisterRequest {
   email: string
   password: string
   name: string
+  lastname: string
   nickname: string
   country: string
   city: string
@@ -62,6 +65,7 @@ export interface RegisterRequest {
 
 export interface UpdateProfileRequest {
   name: string
+  lastname: string
   nickname: string
   country: string
   city: string

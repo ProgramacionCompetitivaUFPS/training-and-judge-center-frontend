@@ -5,7 +5,8 @@ import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest 
 
 export const mockCurrentUser: User = {
   email: 'admin@trainingcenter.com',
-  name: 'Luis Admin',
+  name: 'Luis',
+  lastname: 'Admin',
   nickname: 'luisadmin',
   country: 'Colombia',
   city: 'Bogotá',
@@ -20,7 +21,8 @@ export const mockUsers: User[] = [
   mockCurrentUser,
   {
     email: 'coach@trainingcenter.com',
-    name: 'María Coach',
+    name: 'María',
+    lastname: 'Coach',
     nickname: 'mariacoach',
     country: 'México',
     city: 'CDMX',
@@ -31,7 +33,8 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant1@trainingcenter.com',
-    name: 'Carlos Pérez',
+    name: 'Carlos',
+    lastname: 'Pérez',
     nickname: 'carloscp',
     country: 'Argentina',
     city: 'Buenos Aires',
@@ -42,7 +45,8 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant2@trainingcenter.com',
-    name: 'Ana García',
+    name: 'Ana',
+    lastname: 'García',
     nickname: 'anagarcia',
     country: 'Chile',
     city: 'Santiago',
@@ -53,7 +57,8 @@ export const mockUsers: User[] = [
   },
   {
     email: 'contestant3@trainingcenter.com',
-    name: 'Pedro Inactive',
+    name: 'Pedro',
+    lastname: 'Inactive',
     nickname: 'pedroinactive',
     country: 'Perú',
     city: 'Lima',
@@ -64,7 +69,8 @@ export const mockUsers: User[] = [
   },
   {
     email: 'sofia@trainingcenter.com',
-    name: 'Sofía Rodríguez',
+    name: 'Sofía',
+    lastname: 'Rodríguez',
     nickname: 'sofiarodriguez',
     country: 'Colombia',
     city: 'Medellín',
@@ -75,7 +81,8 @@ export const mockUsers: User[] = [
   },
   {
     email: 'diego@trainingcenter.com',
-    name: 'Diego Martínez',
+    name: 'Diego',
+    lastname: 'Martínez',
     nickname: 'diegomartinez',
     country: 'Ecuador',
     city: 'Quito',
@@ -163,6 +170,7 @@ export const mockDashboard: UserDashboard = {
 export function toPublicProfile(user: User): PublicUserProfile {
   return {
     name: user.name,
+    lastname: user.lastname,
     nickname: user.nickname,
     institution: user.institution,
     role: user.role,
