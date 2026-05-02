@@ -27,6 +27,7 @@ export const authHandlers = [
     const newUser: User = {
       email: body.email,
       name: body.name,
+      lastname: body.lastname,
       nickname: body.nickname,
       country: body.country,
       city: body.city,
