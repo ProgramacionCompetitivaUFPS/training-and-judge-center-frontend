@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
@@ -34,7 +34,7 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<RegisterFormData>({
@@ -53,7 +53,7 @@ export function RegisterPage() {
     },
   })
 
-  const passwordValue = watch('password')
+  const passwordValue = useWatch({ control, name: 'password' })
   const strength = getPasswordStrength(passwordValue)
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -105,7 +105,7 @@ export function RegisterPage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
             <label htmlFor="institution" className="text-sm font-medium text-neutral-text-primary">Institución</label>
-            <Input id="institution" placeholder="Universidad..." {...register('institution')} />
+            <Input id="institution" placeholder="Universidad" {...register('institution')} />
             {errors.institution && <p className="text-xs text-status-error">{errors.institution.message}</p>}
           </div>
           <div className="space-y-2">
