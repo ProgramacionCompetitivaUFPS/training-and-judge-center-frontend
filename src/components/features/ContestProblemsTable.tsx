@@ -13,13 +13,14 @@ interface ContestProblem {
 
 interface ContestProblemsTableProps {
   problems: ContestProblem[]
+  groupId: string
   contestId: string
   showSubmit?: boolean
 }
 
 const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-export function ContestProblemsTable({ problems, contestId, showSubmit }: ContestProblemsTableProps) {
+export function ContestProblemsTable({ problems, groupId, contestId, showSubmit }: ContestProblemsTableProps) {
   const navigate = useNavigate()
 
   if (problems.length === 0) {
@@ -49,7 +50,7 @@ export function ContestProblemsTable({ problems, contestId, showSubmit }: Contes
               </TableCell>
               <TableCell>
                 <Link
-                  to={`/contests/${contestId}/problems/${letter}`}
+                  to={`/groups/${groupId}/contests/${contestId}/problems/${letter}`}
                   className="font-semibold text-neutral-text-primary hover:text-brand-primary transition-colors"
                 >
                   {p.title}
@@ -62,7 +63,7 @@ export function ContestProblemsTable({ problems, contestId, showSubmit }: Contes
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => navigate(`/contests/${contestId}/submit?problem=${letter}`)}
+                    onClick={() => navigate(`/groups/${groupId}/contests/${contestId}/submit?problem=${letter}`)}
                   >
                     <Send className="h-3.5 w-3.5 mr-1" />
                     Enviar

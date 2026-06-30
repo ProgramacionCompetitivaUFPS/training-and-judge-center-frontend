@@ -20,10 +20,10 @@ export const contestsHandlers = [
   }),
 
   // Contest detail
-  http.get(url('/contests/:id'), async ({ params }) => {
+  http.get(url('/groups/:groupId/contests/:contestId'), async ({ params }) => {
     await delay(200)
-    const { id } = params as { id: string }
-    const contest = mockContests.find((c) => c.id === id)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
       return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
     }
@@ -120,9 +120,9 @@ export const contestsHandlers = [
   }),
 
   // Standings
-  http.get(url('/contests/:contestId/standings'), async ({ params }) => {
+  http.get(url('/groups/:groupId/contests/:contestId/standings'), async ({ params }) => {
     await delay(300)
-    const { contestId } = params as { contestId: string }
+    const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
       return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })

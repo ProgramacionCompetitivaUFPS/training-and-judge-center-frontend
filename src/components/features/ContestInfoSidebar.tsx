@@ -55,10 +55,11 @@ export function ContestInfoSidebar({ contest }: ContestInfoSidebarProps) {
 }
 
 interface ContestQuickLinksProps {
+  groupId: string
   contestId: string
 }
 
-export function ContestQuickLinks({ contestId }: ContestQuickLinksProps) {
+export function ContestQuickLinks({ groupId, contestId }: ContestQuickLinksProps) {
   const navigate = useNavigate()
 
   return (
@@ -69,14 +70,14 @@ export function ContestQuickLinks({ contestId }: ContestQuickLinksProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => navigate(`/contests/${contestId}/standings`)}
+            onClick={() => navigate(`/groups/${groupId}/contests/${contestId}/standings`)}
             className="flex flex-col items-center justify-center p-3 rounded-lg bg-neutral-background hover:bg-neutral-border/50 transition-colors"
           >
             <BarChart3 className="h-5 w-5 text-brand-primary mb-1.5" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Ranking</span>
           </button>
           <button
-            onClick={() => navigate(`/contests/${contestId}/submissions`)}
+            onClick={() => navigate(`/groups/${groupId}/contests/${contestId}/submissions`)}
             className="flex flex-col items-center justify-center p-3 rounded-lg bg-neutral-background hover:bg-neutral-border/50 transition-colors"
           >
             <FileText className="h-5 w-5 text-brand-primary mb-1.5" />

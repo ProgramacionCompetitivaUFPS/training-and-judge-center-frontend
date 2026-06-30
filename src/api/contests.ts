@@ -11,7 +11,6 @@ import type {
   StandingsParams,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
-  AddContestProblemRequest,
 } from '@/types/contest'
 
 // === CRUD ===
@@ -25,8 +24,8 @@ export function getContests(
   })
 }
 
-export function getContest(contestId: string): Promise<ContestDetail> {
-  return apiClient.get(`/contests/${contestId}`)
+export function getContest(groupId: string, contestId: string): Promise<ContestDetail> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}`)
 }
 
 export function createContest(
@@ -84,10 +83,11 @@ export function getRegistrations(
 // === Standings ===
 
 export function getStandings(
+  groupId: string,
   contestId: string,
   params?: StandingsParams,
 ): Promise<StandingsResponse> {
-  return apiClient.get(`/contests/${contestId}/standings`, {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings`, {
     params: params as Record<string, string | number | boolean | undefined>,
   })
 }
@@ -114,43 +114,3 @@ export function rejudgeContestProblem(
   return apiClient.post(`/groups/${groupId}/contests/${contestId}/problems/${problemSlug}/rejudge`)
 }
 
-// === Lock / Unlock ===
-
-export function lockContest(groupId: string, contestId: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/lock`)
-}
-
-export function unlockContest(groupId: string, contestId: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/unlock`)
-}
-
-// === Contest Problem Management ===
-
-export function addContestProblem(
-  groupId: string,
-  contestId: string,
-  data: AddContestProblemRequest,
-): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/problems`, data)
-}
-
-export function removeContestProblem(
-  groupId: string,
-  contestId: string,
-  problemSlug: string,
-): Promise<void> {
-  return apiClient.delete(`/groups/${groupId}/contests/${contestId}/problems/${problemSlug}`)
-}
-
-// === Standings Stream (SSE) ===
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
-
-export function getStandingsStream(contestId: string): EventSource {
-  const token = localStorage.getItem('auth_token')
-  const url = new URL(`${API_BASE_URL}/contests/${contestId}/standings/stream`)
-  if (token) {
-    url.searchParams.set('token', token)
-  }
-  return new EventSource(url.toString())
-}

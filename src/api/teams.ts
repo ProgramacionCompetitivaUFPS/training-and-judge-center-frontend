@@ -9,7 +9,6 @@ import type {
   TeamInvitationResponse,
   TeamInvitationsResponse,
   AcceptInvitationResponse,
-  RegisterTeamToContestRequest,
   ContestTeamRegistration,
   UpdateTeamRegistrationRequest,
   ContestTeamRegistrationsResponse,
@@ -59,18 +58,35 @@ export function rejectTeamInvitation(invitationId: string): Promise<void> {
 
 // === Contest Team Registration ===
 
-export function registerTeamToContest(contestId: string, data: RegisterTeamToContestRequest): Promise<ContestTeamRegistration> {
-  return apiClient.post(`/contests/${contestId}/team-registrations`, data)
+export function registerTeamToContest(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+  data: { selectedMembers: string[] },
+): Promise<ContestTeamRegistration> {
+  return apiClient.post(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`, data)
 }
 
-export function updateTeamRegistration(contestId: string, teamId: string, data: UpdateTeamRegistrationRequest): Promise<ContestTeamRegistration> {
-  return apiClient.put(`/contests/${contestId}/team-registrations/${teamId}`, data)
+export function updateTeamRegistration(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+  data: UpdateTeamRegistrationRequest,
+): Promise<ContestTeamRegistration> {
+  return apiClient.put(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`, data)
 }
 
-export function unregisterTeamFromContest(contestId: string, teamId: string): Promise<void> {
-  return apiClient.delete(`/contests/${contestId}/team-registrations/${teamId}`)
+export function unregisterTeamFromContest(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+): Promise<void> {
+  return apiClient.delete(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`)
 }
 
-export function getContestTeamRegistrations(contestId: string): Promise<ContestTeamRegistrationsResponse> {
-  return apiClient.get(`/contests/${contestId}/team-registrations`)
+export function getContestTeamRegistrations(
+  groupId: string,
+  contestId: string,
+): Promise<ContestTeamRegistrationsResponse> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/team-registrations`)
 }

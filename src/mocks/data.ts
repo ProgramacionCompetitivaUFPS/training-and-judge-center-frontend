@@ -138,6 +138,7 @@ export const mockDashboard: UserDashboard = {
   upcomingContests: [
     {
       id: 'contest-1',
+      groupId: 'group-1',
       name: 'Contest Semanal #12',
       startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
       endTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000).toISOString(),
@@ -145,6 +146,7 @@ export const mockDashboard: UserDashboard = {
     },
     {
       id: 'contest-2',
+      groupId: 'group-2',
       name: 'Práctica Grafos',
       startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
       endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),

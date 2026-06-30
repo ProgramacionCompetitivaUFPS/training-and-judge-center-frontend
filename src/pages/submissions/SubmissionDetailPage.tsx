@@ -6,7 +6,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
-import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
+import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
+import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
@@ -21,7 +22,6 @@ export function SubmissionDetailPage() {
 
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
-  const downloadMutation = useDownloadSubmission()
   const rejudgeMutation = useRejudgeSubmission()
 
   if (isLoading) {
@@ -62,20 +62,11 @@ export function SubmissionDetailPage() {
     )
   }
 
-  async function handleDownload() {
+  function handleDownload() {
     if (!submission) return
-    try {
-      const blob = await downloadMutation.mutateAsync(submission.id)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
-      a.download = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      toast({ variant: 'error', title: 'Error al descargar' })
-    }
+    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
+    downloadSubmissionBlob(submission.sourceCode, filename)
   }
 
   function handleRejudge() {
@@ -144,7 +135,7 @@ export function SubmissionDetailPage() {
                 Rejuzgar
               </Button>
             )}
-            <Button variant="outline" onClick={handleDownload} isLoading={downloadMutation.isPending}>
+            <Button variant="outline" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>

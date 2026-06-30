@@ -166,6 +166,7 @@ export interface DashboardContest {
   name: string
   startTime: string
   endTime: string
+  groupId: string
   groupName: string
 }
 

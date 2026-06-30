@@ -132,7 +132,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {/* Contest name + timer */}
                 <div className="px-1">
                   <Link
-                    to={`/contests/${activeContest.id}`}
+                    to={`/groups/${activeContest.group.id}/contests/${activeContest.id}`}
                     onClick={onClose}
                     className="text-xs font-semibold text-brand-primary hover:underline uppercase tracking-wider"
                   >
@@ -151,7 +151,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <div className="flex flex-wrap gap-1.5">
                       {activeContest.problems.map((p) => {
                         const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)
-                        const problemPath = `/contests/${activeContest.id}/problems/${letter}`
+                        const problemPath = `/groups/${activeContest.group.id}/contests/${activeContest.id}/problems/${letter}`
                         const isCurrent = location.pathname === problemPath
                         return (
                           <Link
@@ -177,11 +177,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {/* Quick contest links */}
                 <div className="space-y-0.5">
                   <Link
-                    to={`/contests/${activeContest.id}/standings`}
+                    to={`/groups/${activeContest.group.id}/contests/${activeContest.id}/standings`}
                     onClick={onClose}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      location.pathname === `/contests/${activeContest.id}/standings`
+                      location.pathname === `/groups/${activeContest.group.id}/contests/${activeContest.id}/standings`
                         ? 'bg-brand-primary-muted text-brand-primary'
                         : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
                     )}
@@ -190,11 +190,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <span>Standings</span>
                   </Link>
                   <Link
-                    to={`/contests/${activeContest.id}/submissions`}
+                    to={`/groups/${activeContest.group.id}/contests/${activeContest.id}/submissions`}
                     onClick={onClose}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      location.pathname === `/contests/${activeContest.id}/submissions`
+                      location.pathname === `/groups/${activeContest.group.id}/contests/${activeContest.id}/submissions`
                         ? 'bg-brand-primary-muted text-brand-primary'
                         : 'text-neutral-text-muted hover:bg-neutral-background hover:text-neutral-text-primary'
                     )}

@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG } from '@/lib/constants'
 
 export function ProblemDetailPage() {
-  const { slug, contestId, letter } = useParams<{ slug: string; contestId?: string; letter?: string }>()
+  const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
@@ -98,7 +98,7 @@ export function ProblemDetailPage() {
   const breadcrumbs = contestId
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: `/contests/${contestId}` },
+        { label: activeContest?.name || 'Contest', href: `/groups/${groupId}/contests/${contestId}` },
         { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
     : [
@@ -243,8 +243,8 @@ export function ProblemDetailPage() {
                   variant="primary"
                   className="w-full gap-2"
                   onClick={() => {
-                    if (isContestContext && contestId && letter) {
-                      navigate(`/contests/${contestId}/submit?problem=${letter.toUpperCase()}`)
+                    if (isContestContext && groupId && contestId && letter) {
+                      navigate(`/groups/${groupId}/contests/${contestId}/submit?problem=${letter.toUpperCase()}`)
                     } else {
                       navigate(`/submit?problem=${problem.slug}`)
                     }

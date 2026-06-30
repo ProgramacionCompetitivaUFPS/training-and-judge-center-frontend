@@ -34,7 +34,7 @@ const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
 const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 export function SubmitSolutionPage() {
-  const { contestId } = useParams<{ contestId?: string }>()
+  const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
   const [searchParams] = useSearchParams()
   const { toast } = useToastContext()
   const { contest: activeContest } = useContestSession()
@@ -280,7 +280,7 @@ export function SubmitSolutionPage() {
   const breadcrumbs = isContestContext
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: `/contests/${contestId}` },
+        { label: activeContest?.name || 'Contest', href: `/groups/${groupId}/contests/${contestId}` },
         { label: 'Enviar solución' },
       ]
     : [

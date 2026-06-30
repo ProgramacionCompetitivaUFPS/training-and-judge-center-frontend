@@ -26,7 +26,7 @@ export function ContestFormPage() {
   const { toast } = useToast()
   const isEditing = !!id
 
-  const { data: existing, isLoading: isLoadingExisting } = useContestDetail(id || '')
+  const { data: existing, isLoading: isLoadingExisting } = useContestDetail(groupId || '', id || '')
   const { data: groupDetail } = useGroupDetail(groupId || '')
   const createMutation = useCreateContest()
   const updateMutation = useUpdateContest()
@@ -75,7 +75,7 @@ export function ContestFormPage() {
         {
           onSuccess: () => {
             toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })
-            navigate(`/contests/${id}`)
+            navigate(`/groups/${groupId}/contests/${id}`)
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo actualizar' }),
         },
@@ -86,7 +86,7 @@ export function ContestFormPage() {
         {
           onSuccess: (created) => {
             toast({ variant: 'success', title: 'Creado', description: 'Contest creado exitosamente' })
-            navigate(`/contests/${created.id}`)
+            navigate(`/groups/${groupId}/contests/${created.id}`)
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
         },

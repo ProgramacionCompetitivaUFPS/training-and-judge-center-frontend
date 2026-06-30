@@ -513,7 +513,7 @@ export function GroupDetailPage() {
             <Card
               key={c.id}
               className="cursor-pointer hover:border-brand-primary/40 transition-colors"
-              onClick={() => navigate(`/contests/${c.id}`)}
+              onClick={() => navigate(`/groups/${id}/contests/${c.id}`)}
             >
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-center justify-between">

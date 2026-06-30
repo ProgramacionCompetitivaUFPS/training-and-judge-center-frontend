@@ -216,7 +216,7 @@ export function UserDashboardPage() {
                       return (
                         <Link
                           key={contest.id}
-                          to={ROUTES.CONTEST_DETAIL.replace(':id', contest.id)}
+                          to={`/groups/${contest.groupId}/contests/${contest.id}`}
                           className="block py-3 group"
                         >
                           <div className="flex items-start justify-between gap-2">
