@@ -3,6 +3,18 @@ import { mockContests, buildContestList, mockStandings, mockContestSubmissions }
 import { url } from './utils'
 
 export const contestsHandlers = [
+  // List all contests accessible to the user (across all groups)
+  http.get(url('/contests'), async ({ request }) => {
+    await delay(300)
+    const sp = new URL(request.url).searchParams
+    const status = sp.get('status') || undefined
+    const filtered = status ? mockContests.filter((c) => c.status === status) : mockContests
+    return HttpResponse.json({
+      data: filtered.map((c) => ({ ...c, group: c.group })),
+      pagination: { page: 1, limit: 20, total: filtered.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+    })
+  }),
+
   // List contests in group
   http.get(url('/groups/:groupId/contests'), async ({ params, request }) => {
     await delay(300)

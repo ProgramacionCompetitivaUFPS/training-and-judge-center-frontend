@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Trophy, Plus, Users, Clock, Code2, Search, ArrowRight, BarChart3, CheckCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Trophy, Users, Clock, Code2, Search, ArrowRight, BarChart3, CheckCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { EmptyState } from '@/components/patterns'
-import { Button, Card, CardContent, Input } from '@/components/ui'
+import { Card, CardContent, Input } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
-import { useContests } from '@/hooks/api/useContests'
-import { useAuth } from '@/hooks/useAuth'
+import { useMyContests } from '@/hooks/api/useContests'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDuration } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -139,22 +138,17 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
 
 export function ContestsPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const { user } = useAuth()
 
-  const groupId = searchParams.get('groupId') || 'group-1'
   const [statusFilter, setStatusFilter] = useState<ContestStatus | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
 
-  const { data, isLoading } = useContests(groupId, {
+  const { data, isLoading } = useMyContests({
     page,
     limit: 20,
     status: statusFilter !== 'ALL' ? statusFilter : undefined,
   })
-
-  const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const filteredItems = (data?.data || []).filter((c) =>
     !debouncedSearch || c.name.toLowerCase().includes(debouncedSearch.toLowerCase()),
@@ -163,7 +157,6 @@ export function ContestsPage() {
   return (
     <AppLayout
       breadcrumbs={[
-        { label: 'Grupos', href: '/groups' },
         { label: 'Competencias' },
       ]}
     >
@@ -175,15 +168,9 @@ export function ContestsPage() {
               Competencias
             </h1>
             <p className="text-neutral-text-muted">
-              Competencias de programación del grupo
+              Todas las competencias de tus grupos
             </p>
           </div>
-          {canCreate && (
-            <Button onClick={() => navigate(`/groups/${groupId}/contests/new`)} className="gap-2 self-start">
-              <Plus className="h-4 w-4" />
-              Nueva competencia
-            </Button>
-          )}
         </div>
 
         {/* Search + pill filters */}
@@ -239,8 +226,7 @@ export function ContestsPage() {
           <EmptyState
             icon={Trophy}
             title="No hay competencias"
-            description={statusFilter !== 'ALL' || debouncedSearch ? 'No hay competencias con esos filtros' : 'Aún no se han creado competencias en este grupo'}
-            action={canCreate ? { label: 'Crear competencia', onClick: () => navigate(`/groups/${groupId}/contests/new`), icon: Plus } : undefined}
+            description={statusFilter !== 'ALL' || debouncedSearch ? 'No hay competencias con esos filtros' : 'No tienes competencias en ninguno de tus grupos'}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -248,7 +234,7 @@ export function ContestsPage() {
               <ContestCard
                 key={contest.id}
                 contest={contest}
-                onClick={() => navigate(`/groups/${groupId}/contests/${contest.id}`)}
+                onClick={() => contest.group && navigate(`/groups/${contest.group.id}/contests/${contest.id}`)}
               />
             ))}
           </div>

@@ -24,6 +24,12 @@ export function getContests(
   })
 }
 
+export function getMyContests(params?: ContestListParams): Promise<ContestListResponse> {
+  return apiClient.get('/contests', {
+    params: params as Record<string, string | number | boolean | undefined>,
+  })
+}
+
 export function getContest(groupId: string, contestId: string): Promise<ContestDetail> {
   return apiClient.get(`/groups/${groupId}/contests/${contestId}`)
 }

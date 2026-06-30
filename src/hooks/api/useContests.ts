@@ -12,6 +12,8 @@ import type {
 
 export const contestKeys = {
   all: ['contests'] as const,
+  myList: (params?: ContestListParams) =>
+    ['contests', 'my-list', params] as const,
   list: (groupId: string, params?: ContestListParams) =>
     ['contests', 'list', groupId, params] as const,
   detail: (groupId: string, contestId: string) =>
@@ -27,6 +29,13 @@ export const contestKeys = {
 }
 
 // === Queries ===
+
+export function useMyContests(params?: ContestListParams) {
+  return useQuery({
+    queryKey: contestKeys.myList(params),
+    queryFn: () => contestsApi.getMyContests(params),
+  })
+}
 
 export function useContests(groupId: string, params?: ContestListParams) {
   return useQuery({
