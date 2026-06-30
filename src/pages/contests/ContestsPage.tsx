@@ -234,7 +234,7 @@ export function ContestsPage() {
               <ContestCard
                 key={contest.id}
                 contest={contest}
-                onClick={() => contest.group && navigate(`/groups/${contest.group.id}/contests/${contest.id}`)}
+                onClick={() => navigate(`/groups/${contest.group.id}/contests/${contest.id}`)}
               />
             ))}
           </div>

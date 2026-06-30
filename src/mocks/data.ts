@@ -1208,6 +1208,7 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     participantCount: c.participantCount,
     isRegistered: c.isRegistered,
     problemCount: c.problems.length,
+    group: c.group,
   }
 }
 

@@ -58,7 +58,7 @@ export interface ContestListItem {
   participantCount: number
   isRegistered: boolean
   problemCount: number
-  group?: { id: string; name: string }
+  group: { id: string; name: string }
 }
 
 // === Contest List Params ===
