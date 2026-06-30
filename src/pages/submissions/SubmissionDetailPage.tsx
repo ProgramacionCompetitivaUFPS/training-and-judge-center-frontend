@@ -10,7 +10,7 @@ import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmissio
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -97,7 +97,7 @@ export function SubmissionDetailPage() {
             <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
               <span>Problema:</span>
               <Link
-                to={`/problems/${submission.problem.slug}`}
+                to={PATHS.problem(submission.problem.slug)}
                 className="text-brand-primary hover:underline"
               >
                 {submission.problem.title}

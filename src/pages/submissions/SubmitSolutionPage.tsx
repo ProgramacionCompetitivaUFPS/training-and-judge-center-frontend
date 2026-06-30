@@ -13,7 +13,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -280,12 +280,12 @@ export function SubmitSolutionPage() {
   const breadcrumbs = isContestContext
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: `/groups/${groupId}/contests/${contestId}` },
+        { label: activeContest?.name || 'Contest', href: PATHS.contest(groupId || '', contestId || '') },
         { label: 'Enviar solución' },
       ]
     : [
         { label: 'Problemas', href: '/problems' },
-        ...(problemDetail ? [{ label: problemDetail.title, href: `/problems/${problemDetail.slug}` }] : []),
+        ...(problemDetail ? [{ label: problemDetail.title, href: PATHS.problem(problemDetail.slug) }] : []),
         { label: 'Enviar solución' },
       ]
 

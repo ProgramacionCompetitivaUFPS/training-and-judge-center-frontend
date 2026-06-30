@@ -10,6 +10,7 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
+import { PATHS } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
@@ -50,7 +51,7 @@ export function ContestSubmissionsPage() {
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: contest?.name || '...', href: `/groups/${groupId}/contests/${id}` },
+        { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
         { label: 'Submissions' },
       ]}
     >

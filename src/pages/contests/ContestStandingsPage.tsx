@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useStandings } from '@/hooks/api/useContests'
+import { PATHS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { StandingProblemResult } from '@/types/contest'
 
@@ -42,7 +43,7 @@ export function ContestStandingsPage() {
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: data?.contest.name || '...', href: `/groups/${groupId}/contests/${id}` },
+        { label: data?.contest.name || '...', href: PATHS.contest(groupId || '', id || '') },
         { label: 'Standings' },
       ]}
     >

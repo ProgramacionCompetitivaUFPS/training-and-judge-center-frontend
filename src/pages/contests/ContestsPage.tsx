@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/patterns'
 import { Card, CardContent, Input } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useMyContests } from '@/hooks/api/useContests'
+import { PATHS } from '@/lib/constants'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDuration } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -234,7 +235,7 @@ export function ContestsPage() {
               <ContestCard
                 key={contest.id}
                 contest={contest}
-                onClick={() => navigate(`/groups/${contest.group.id}/contests/${contest.id}`)}
+                onClick={() => navigate(PATHS.contest(contest.group.id, contest.id))}
               />
             ))}
           </div>

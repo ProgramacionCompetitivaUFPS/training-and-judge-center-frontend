@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
-import { SUBMISSION_STATUS_CONFIG } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, PATHS } from '@/lib/constants'
 
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
@@ -98,7 +98,7 @@ export function ProblemDetailPage() {
   const breadcrumbs = contestId
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: `/groups/${groupId}/contests/${contestId}` },
+        { label: activeContest?.name || 'Contest', href: PATHS.contest(groupId || '', contestId || '') },
         { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
     : [
@@ -244,7 +244,7 @@ export function ProblemDetailPage() {
                   className="w-full gap-2"
                   onClick={() => {
                     if (isContestContext && groupId && contestId && letter) {
-                      navigate(`/groups/${groupId}/contests/${contestId}/submit?problem=${letter.toUpperCase()}`)
+                      navigate(PATHS.contestSubmit(groupId, contestId, letter.toUpperCase()))
                     } else {
                       navigate(`/submit?problem=${problem.slug}`)
                     }
@@ -256,7 +256,7 @@ export function ProblemDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full gap-2 mt-2"
-                  onClick={() => navigate(`/problems/${problem.slug}/submissions`)}
+                  onClick={() => navigate(PATHS.problemSubmissions(problem.slug))}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Ver submissions
@@ -405,7 +405,7 @@ export function ProblemDetailPage() {
                     Despublicar
                   </Button>
                 )}
-                <Button variant="outline" className="w-full gap-2" onClick={() => navigate(`/problems/${problem.slug}/edit`)}>
+                <Button variant="outline" className="w-full gap-2" onClick={() => navigate(PATHS.problemEdit(problem.slug))}>
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
