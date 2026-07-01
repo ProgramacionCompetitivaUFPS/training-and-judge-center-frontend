@@ -127,39 +127,41 @@ export const teamsHandlers = [
   }),
 
   // Contest team registrations
-  http.get(url('/contests/:contestId/team-registrations'), async () => {
+  http.get(url('/groups/:groupId/contests/:contestId/team-registrations'), async () => {
     await delay(200)
     return HttpResponse.json({ teams: [], total: 0 })
   }),
 
   // Register team to contest
-  http.post(url('/contests/:contestId/team-registrations'), async ({ request }) => {
+  http.post(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async ({ params, request }) => {
     await delay(300)
-    const body = (await request.json()) as { teamId: string; selectedMembers: string[] }
+    const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
+    const body = (await request.json()) as { selectedMembers: string[] }
     return HttpResponse.json({
       id: 'reg-' + Date.now(),
-      contestId: 'contest-1',
-      team: { id: body.teamId, name: 'Mock Team' },
+      contestId,
+      team: { id: teamId, name: 'Mock Team' },
       selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
       registeredAt: new Date().toISOString(),
     }, { status: 201 })
   }),
 
   // Update team registration
-  http.put(url('/contests/:contestId/team-registrations/:teamId'), async ({ request }) => {
+  http.put(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async ({ params, request }) => {
     await delay(300)
+    const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
     const body = (await request.json()) as { selectedMembers: string[] }
     return HttpResponse.json({
       id: 'reg-updated',
-      contestId: 'contest-1',
-      team: { id: 'team-1', name: 'Mock Team' },
+      contestId,
+      team: { id: teamId, name: 'Mock Team' },
       selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
       registeredAt: new Date().toISOString(),
     })
   }),
 
   // Unregister team from contest
-  http.delete(url('/contests/:contestId/team-registrations/:teamId'), async () => {
+  http.delete(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async () => {
     await delay(200)
     return new HttpResponse(null, { status: 204 })
   }),

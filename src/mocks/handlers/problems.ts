@@ -140,7 +140,7 @@ export const problemsHandlers = [
   }),
 
   // Publish
-  http.post(url('/problems/:slug/publish'), async ({ params }) => {
+  http.post(url('/problems/p/:slug/publish'), async ({ params }) => {
     await delay(400)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
@@ -162,7 +162,7 @@ export const problemsHandlers = [
   }),
 
   // Unpublish
-  http.post(url('/problems/:slug/unpublish'), async ({ params }) => {
+  http.post(url('/problems/p/:slug/unpublish'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
@@ -179,7 +179,7 @@ export const problemsHandlers = [
   }),
 
   // Statistics
-  http.get(url('/problems/:slug/statistics'), async ({ params }) => {
+  http.get(url('/problems/p/:slug/statistics'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
@@ -198,7 +198,7 @@ export const problemsHandlers = [
   }),
 
   // Upload file (mock)
-  http.post(url('/problems/:slug/files'), async ({ params }) => {
+  http.post(url('/problems/p/:slug/files'), async ({ params }) => {
     await delay(500)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)

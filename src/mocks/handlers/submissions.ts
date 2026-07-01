@@ -33,23 +33,6 @@ export const submissionsHandlers = [
     return HttpResponse.json(submission)
   }),
 
-  // Download submission
-  http.get(url('/submissions/:id/download'), async ({ params }) => {
-    await delay(200)
-    const { id } = params as { id: string }
-    const submission = mockSubmissions.find((s) => s.id === id)
-    if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
-    }
-    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
-    return new HttpResponse(submission.sourceCode, {
-      headers: {
-        'Content-Type': 'text/plain',
-        'Content-Disposition': `attachment; filename="${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}"`,
-      },
-    })
-  }),
-
   // Update visibility
   http.patch(url('/submissions/:id/visibility'), async ({ params, request }) => {
     await delay(200)
@@ -64,7 +47,7 @@ export const submissionsHandlers = [
   }),
 
   // List problem submissions
-  http.get(url('/problems/:slug/submissions'), async ({ params, request }) => {
+  http.get(url('/problems/p/:slug/submissions'), async ({ params, request }) => {
     await delay(200)
     const { slug } = params as { slug: string }
     const searchParams = new URL(request.url).searchParams
@@ -84,7 +67,7 @@ export const submissionsHandlers = [
   }),
 
   // Submit solution (practice)
-  http.post(url('/problems/:slug/submissions'), async ({ params, request }) => {
+  http.post(url('/problems/p/:slug/submissions'), async ({ params, request }) => {
     await delay(500)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
