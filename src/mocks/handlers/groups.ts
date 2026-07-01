@@ -215,7 +215,7 @@ export const groupsHandlers = [
   }),
 
   // Accept invitation
-  http.post(url('/groups/:groupId/accept'), async () => {
+  http.post(url('/groups/:groupId/invitations/accept'), async () => {
     await delay(300)
     return new HttpResponse(null, { status: 204 })
   }),

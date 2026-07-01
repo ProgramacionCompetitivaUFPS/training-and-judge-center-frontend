@@ -42,7 +42,7 @@ export interface ContestDetail {
   updatedAt: string
 }
 
-// === Contest List Item (GET /groups/:groupId/contests) ===
+// === Contest List Item (GET /groups/:groupId/contests and GET /contests) ===
 
 export interface ContestListItem {
   id: string
@@ -58,6 +58,7 @@ export interface ContestListItem {
   participantCount: number
   isRegistered: boolean
   problemCount: number
+  group: { id: string; name: string }
 }
 
 // === Contest List Params ===

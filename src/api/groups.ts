@@ -117,5 +117,5 @@ export function getInvitations(groupId: string, params?: { page?: number; size?:
 }
 
 export function acceptInvitation(groupId: string, token: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/accept`, null, { params: { token } })
+  return apiClient.post(`/groups/${groupId}/invitations/accept`, null, { params: { token } })
 }

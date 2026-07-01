@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Users, BarChart3, FileText } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui'
 import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
+import { PATHS } from '@/lib/constants'
 import type { ContestDetail } from '@/types/contest'
 
 interface ContestInfoSidebarProps {
@@ -55,10 +56,11 @@ export function ContestInfoSidebar({ contest }: ContestInfoSidebarProps) {
 }
 
 interface ContestQuickLinksProps {
+  groupId: string
   contestId: string
 }
 
-export function ContestQuickLinks({ contestId }: ContestQuickLinksProps) {
+export function ContestQuickLinks({ groupId, contestId }: ContestQuickLinksProps) {
   const navigate = useNavigate()
 
   return (
@@ -69,14 +71,14 @@ export function ContestQuickLinks({ contestId }: ContestQuickLinksProps) {
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => navigate(`/contests/${contestId}/standings`)}
+            onClick={() => navigate(PATHS.contestStandings(groupId, contestId))}
             className="flex flex-col items-center justify-center p-3 rounded-lg bg-neutral-background hover:bg-neutral-border/50 transition-colors"
           >
             <BarChart3 className="h-5 w-5 text-brand-primary mb-1.5" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Ranking</span>
           </button>
           <button
-            onClick={() => navigate(`/contests/${contestId}/submissions`)}
+            onClick={() => navigate(PATHS.contestSubmissions(groupId, contestId))}
             className="flex flex-col items-center justify-center p-3 rounded-lg bg-neutral-background hover:bg-neutral-border/50 transition-colors"
           >
             <FileText className="h-5 w-5 text-brand-primary mb-1.5" />
@@ -126,7 +128,7 @@ export function ContestAdminActions({ contestId, groupId, onDelete, isDeleting }
   return (
     <Card>
       <CardContent className="pt-5 space-y-2">
-        <Button variant="outline" className="w-full" onClick={() => navigate(`/groups/${groupId}/contests/${contestId}/edit`)}>
+        <Button variant="outline" className="w-full" onClick={() => navigate(PATHS.contestEdit(groupId, contestId))}>
           Editar contest
         </Button>
         <Button variant="danger" className="w-full" onClick={onDelete} isLoading={isDeleting}>

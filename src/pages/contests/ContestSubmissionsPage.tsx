@@ -10,6 +10,7 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
+import { PATHS } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
@@ -19,11 +20,10 @@ function formatTime(iso: string): string {
 }
 
 export function ContestSubmissionsPage() {
-  const { id } = useParams<{ id: string }>()
+  const { groupId, id } = useParams<{ groupId: string; id: string }>()
   const { user } = useAuth()
 
-  const { data: contest } = useContestDetail(id || '')
-  const groupId = contest?.group.id || ''
+  const { data: contest } = useContestDetail(groupId || '', id || '')
 
   const [phase, setPhase] = useState<string>('all')
   const [problemSlug, setProblemSlug] = useState<string>('all')
@@ -36,7 +36,7 @@ export function ContestSubmissionsPage() {
     problemSlug: problemSlug !== 'all' ? problemSlug : undefined,
   }
 
-  const { data, isLoading } = useContestSubmissions(groupId, id || '', params)
+  const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
@@ -51,7 +51,7 @@ export function ContestSubmissionsPage() {
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: contest?.name || '...', href: `/contests/${id}` },
+        { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
         { label: 'Submissions' },
       ]}
     >

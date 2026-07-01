@@ -60,17 +60,17 @@ export const ROUTES = {
   GROUP_EDIT: '/groups/:id/edit',
   CONTESTS: '/contests',
   CONTEST_NEW: '/groups/:groupId/contests/new',
-  CONTEST_DETAIL: '/contests/:id',
+  CONTEST_DETAIL: '/groups/:groupId/contests/:id',
   CONTEST_EDIT: '/groups/:groupId/contests/:id/edit',
-  CONTEST_STANDINGS: '/contests/:id/standings',
-  CONTEST_SUBMISSIONS: '/contests/:id/submissions',
-  CONTEST_PROBLEM: '/contests/:contestId/problems/:letter',
+  CONTEST_STANDINGS: '/groups/:groupId/contests/:id/standings',
+  CONTEST_SUBMISSIONS: '/groups/:groupId/contests/:id/submissions',
+  CONTEST_PROBLEM: '/groups/:groupId/contests/:contestId/problems/:letter',
   MATERIALS: '/groups/:groupId/materials',
   MATERIAL_NEW: '/groups/:groupId/materials/new',
   MATERIAL_DETAIL: '/groups/:groupId/materials/:materialId',
   MATERIAL_EDIT: '/groups/:groupId/materials/:materialId/edit',
   SUBMIT_SOLUTION: '/submit',
-  CONTEST_SUBMIT: '/contests/:contestId/submit',
+  CONTEST_SUBMIT: '/groups/:groupId/contests/:contestId/submit',
   SUBMISSIONS: '/submissions',
   SUBMISSION_DETAIL: '/submissions/:id',
   TEAMS: '/teams',
@@ -80,3 +80,28 @@ export const ROUTES = {
   SETTINGS: '/settings',
   ADMIN_USERS: '/admin/users',
 } as const
+
+export const PATHS = {
+  // Groups
+  group: (id: string) => `/groups/${id}`,
+  groupEdit: (id: string) => `/groups/${id}/edit`,
+  // Contests
+  contest: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}`,
+  contestNew: (groupId: string) => `/groups/${groupId}/contests/new`,
+  contestEdit: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/edit`,
+  contestStandings: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/standings`,
+  contestSubmissions: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/submissions`,
+  contestProblem: (groupId: string, contestId: string, letter: string) =>
+    `/groups/${groupId}/contests/${contestId}/problems/${letter}`,
+  contestSubmit: (groupId: string, contestId: string, problem?: string) =>
+    `/groups/${groupId}/contests/${contestId}/submit${problem ? `?problem=${problem}` : ''}`,
+  // Problems
+  problem: (slug: string) => `/problems/${slug}`,
+  problemEdit: (slug: string) => `/problems/${slug}/edit`,
+  problemSubmissions: (slug: string) => `/problems/${slug}/submissions`,
+  // Materials
+  materials: (groupId: string) => `/groups/${groupId}/materials`,
+  materialNew: (groupId: string) => `/groups/${groupId}/materials/new`,
+  material: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}`,
+  materialEdit: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}/edit`,
+}

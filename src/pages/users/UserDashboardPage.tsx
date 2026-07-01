@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
-import { SUBMISSION_STATUS_CONFIG, ROUTES } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, ROUTES, PATHS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { SubmissionStatus } from '@/types'
 
@@ -172,7 +172,7 @@ export function UserDashboardPage() {
                         <div key={sub.id} className="flex items-center justify-between py-3 text-sm">
                           <div>
                             <Link
-                              to={ROUTES.PROBLEM_DETAIL.replace(':slug', sub.problemSlug)}
+                              to={PATHS.problem(sub.problemSlug)}
                               className="font-medium text-brand-primary hover:text-brand-primary-dark transition-colors"
                             >
                               {sub.problemTitle}
@@ -216,7 +216,7 @@ export function UserDashboardPage() {
                       return (
                         <Link
                           key={contest.id}
-                          to={ROUTES.CONTEST_DETAIL.replace(':id', contest.id)}
+                          to={PATHS.contest(contest.groupId, contest.id)}
                           className="block py-3 group"
                         >
                           <div className="flex items-start justify-between gap-2">

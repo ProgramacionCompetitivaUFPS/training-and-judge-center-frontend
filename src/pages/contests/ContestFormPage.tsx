@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layout'
 import { Button, Input, Textarea, Checkbox, Card, CardContent } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
+import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useToast } from '@/hooks/useToast'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
@@ -26,7 +27,7 @@ export function ContestFormPage() {
   const { toast } = useToast()
   const isEditing = !!id
 
-  const { data: existing, isLoading: isLoadingExisting } = useContestDetail(id || '')
+  const { data: existing, isLoading: isLoadingExisting } = useContestDetail(groupId || '', id || '')
   const { data: groupDetail } = useGroupDetail(groupId || '')
   const createMutation = useCreateContest()
   const updateMutation = useUpdateContest()
@@ -75,7 +76,7 @@ export function ContestFormPage() {
         {
           onSuccess: () => {
             toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })
-            navigate(`/contests/${id}`)
+            navigate(PATHS.contest(groupId, id))
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo actualizar' }),
         },
@@ -86,7 +87,7 @@ export function ContestFormPage() {
         {
           onSuccess: (created) => {
             toast({ variant: 'success', title: 'Creado', description: 'Contest creado exitosamente' })
-            navigate(`/contests/${created.id}`)
+            navigate(PATHS.contest(groupId, created.id))
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
         },

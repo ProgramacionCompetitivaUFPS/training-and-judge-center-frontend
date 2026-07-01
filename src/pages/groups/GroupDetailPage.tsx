@@ -50,7 +50,7 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { ROUTES } from '@/lib/constants'
+import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import type { GroupRole } from '@/types/group'
 import {
@@ -502,7 +502,7 @@ export function GroupDetailPage() {
           Competencias de este grupo
         </p>
         {canManage && (
-          <Button size="sm" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+          <Button size="sm" onClick={() => navigate(PATHS.contestNew(id))}>
             Nueva competencia
           </Button>
         )}
@@ -513,7 +513,7 @@ export function GroupDetailPage() {
             <Card
               key={c.id}
               className="cursor-pointer hover:border-brand-primary/40 transition-colors"
-              onClick={() => navigate(`/contests/${c.id}`)}
+              onClick={() => navigate(PATHS.contest(id, c.id))}
             >
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-center justify-between">
@@ -544,7 +544,7 @@ export function GroupDetailPage() {
           <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p>No hay competencias en este grupo</p>
           {canManage && (
-            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/contests/new`)}>
+            <Button size="sm" className="mt-3" onClick={() => navigate(PATHS.contestNew(id))}>
               Crear primera competencia
             </Button>
           )}

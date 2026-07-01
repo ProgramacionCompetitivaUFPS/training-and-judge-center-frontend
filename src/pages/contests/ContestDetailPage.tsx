@@ -8,7 +8,7 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useLockContest, useUnlockContest, useAddContestProblem, useRemoveContestProblem } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -37,20 +37,17 @@ function LockedProblemsPlaceholder() {
 }
 
 export function ContestDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { groupId, id } = useParams<{ groupId: string; id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const { data: contest, isLoading } = useContestDetail(id || '')
+  const { data: contest, isLoading } = useContestDetail(groupId || '', id || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
-  const lockMutation = useLockContest()
-  const unlockMutation = useUnlockContest()
+  const updateMutation = useUpdateContest()
 
-  const addProblemMutation = useAddContestProblem()
-  const removeProblemMutation = useRemoveContestProblem()
   const [problemSlug, setProblemSlug] = useState('')
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
@@ -59,7 +56,7 @@ export function ContestDetailPage() {
   const registerTeamMutation = useRegisterTeamToContest()
   const unregisterTeamMutation = useUnregisterTeamFromContest()
 
-  if (!id) return null
+  if (!id || !groupId) return null
 
   if (isLoading) {
     return (
@@ -80,7 +77,7 @@ export function ContestDetailPage() {
 
   const handleRegister = () => {
     registerMutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id },
+      { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado al contest' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo registrar' }),
@@ -90,7 +87,7 @@ export function ContestDetailPage() {
 
   const handleUnregister = () => {
     unregisterMutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id },
+      { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Desregistrado', description: 'Has cancelado tu registro' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo cancelar el registro' }),
@@ -100,7 +97,7 @@ export function ContestDetailPage() {
 
   const handleDelete = () => {
     deleteMutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id },
+      { groupId, contestId: contest.id },
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Eliminado', description: 'Contest eliminado' })
@@ -112,19 +109,19 @@ export function ContestDetailPage() {
   }
 
   const handleLockToggle = () => {
-    const mutation = contest.locked ? unlockMutation : lockMutation
-    mutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id },
+    const newLocked = !contest.locked
+    updateMutation.mutate(
+      { groupId, contestId: contest.id, data: { locked: newLocked } },
       {
         onSuccess: () => toast({
           variant: 'success',
-          title: contest.locked ? 'Desbloqueado' : 'Bloqueado',
-          description: contest.locked ? 'El contest fue desbloqueado' : 'El contest fue bloqueado',
+          title: newLocked ? 'Bloqueado' : 'Desbloqueado',
+          description: newLocked ? 'El contest fue bloqueado' : 'El contest fue desbloqueado',
         }),
         onError: () => toast({
           variant: 'error',
           title: 'Error',
-          description: contest.locked ? 'No se pudo desbloquear' : 'No se pudo bloquear',
+          description: newLocked ? 'No se pudo bloquear' : 'No se pudo desbloquear',
         }),
       },
     )
@@ -132,7 +129,7 @@ export function ContestDetailPage() {
 
   const handleRegisterTeam = (teamId: string, selectedMembers: string[]) => {
     registerTeamMutation.mutate(
-      { contestId: contest.id, data: { teamId, selectedMembers } },
+      { groupId, contestId: contest.id, teamId, selectedMembers },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
         onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
@@ -142,7 +139,7 @@ export function ContestDetailPage() {
 
   const handleUnregisterTeam = (teamId: string) => {
     unregisterTeamMutation.mutate(
-      { contestId: contest.id, teamId },
+      { groupId, contestId: contest.id, teamId },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
@@ -153,8 +150,12 @@ export function ContestDetailPage() {
   const handleAddProblem = () => {
     const slug = problemSlug.trim()
     if (!slug) return
-    addProblemMutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id, data: { problemSlug: slug } },
+    const newProblems = [
+      ...contest.problems.map((p) => ({ slug: p.slug, order: p.position })),
+      { slug, order: contest.problems.length + 1 },
+    ]
+    updateMutation.mutate(
+      { groupId, contestId: contest.id, data: { problems: newProblems } },
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
@@ -166,8 +167,11 @@ export function ContestDetailPage() {
   }
 
   const handleRemoveProblem = (slug: string) => {
-    removeProblemMutation.mutate(
-      { groupId: contest.group.id, contestId: contest.id, problemSlug: slug },
+    const remaining = contest.problems
+      .filter((p) => p.slug !== slug)
+      .map((p, i) => ({ slug: p.slug, order: i + 1 }))
+    updateMutation.mutate(
+      { groupId, contestId: contest.id, data: { problems: remaining } },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" del contest` }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
@@ -223,6 +227,7 @@ export function ContestDetailPage() {
                 <CardContent className="p-0">
                   <ContestProblemsTable
                     problems={contest.problems}
+                    groupId={groupId}
                     contestId={contest.id}
                     showSubmit={contest.isRegistered}
                   />
@@ -253,7 +258,7 @@ export function ContestDetailPage() {
               )}
 
               <ContestInfoSidebar contest={contest} />
-              <ContestQuickLinks contestId={contest.id} />
+              <ContestQuickLinks groupId={groupId} contestId={contest.id} />
 
               {contest.description && (
                 <Card>
@@ -409,7 +414,7 @@ export function ContestDetailPage() {
                   {contest.problems.length === 0 ? (
                     <LockedProblemsPlaceholder />
                   ) : (
-                    <ContestProblemsTable problems={contest.problems} contestId={contest.id} />
+                    <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
                   )}
                 </CardContent>
               </Card>
@@ -433,7 +438,7 @@ export function ContestDetailPage() {
                         variant="primary"
                         size="sm"
                         onClick={handleAddProblem}
-                        isLoading={addProblemMutation.isPending}
+                        isLoading={updateMutation.isPending}
                         disabled={!problemSlug.trim()}
                       >
                         <Plus className="h-4 w-4 mr-1" />
@@ -450,7 +455,7 @@ export function ContestDetailPage() {
                             <button
                               type="button"
                               onClick={() => handleRemoveProblem(p.slug)}
-                              disabled={removeProblemMutation.isPending}
+                              disabled={updateMutation.isPending}
                               className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
                               aria-label={`Remover ${p.title}`}
                             >
@@ -506,7 +511,7 @@ export function ContestDetailPage() {
                       variant="outline"
                       className="w-full"
                       onClick={handleLockToggle}
-                      isLoading={lockMutation.isPending || unlockMutation.isPending}
+                      isLoading={updateMutation.isPending}
                     >
                       {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                       {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
@@ -518,7 +523,7 @@ export function ContestDetailPage() {
               {isLead && !contest.locked && (
                 <ContestAdminActions
                   contestId={contest.id}
-                  groupId={contest.group.id}
+                  groupId={groupId}
                   onDelete={handleDelete}
                   isDeleting={deleteMutation.isPending}
                 />
@@ -572,7 +577,7 @@ export function ContestDetailPage() {
                 <CardTitle>Problemas del concurso</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <ContestProblemsTable problems={contest.problems} contestId={contest.id} />
+                <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
               </CardContent>
             </Card>
 
@@ -589,7 +594,7 @@ export function ContestDetailPage() {
           {/* Sidebar */}
           <aside className="lg:col-span-4 space-y-4">
             <ContestInfoSidebar contest={contest} />
-            <ContestQuickLinks contestId={contest.id} />
+            <ContestQuickLinks groupId={groupId} contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
             {isLead && (
@@ -599,7 +604,7 @@ export function ContestDetailPage() {
                     variant="outline"
                     className="w-full"
                     onClick={handleLockToggle}
-                    isLoading={lockMutation.isPending || unlockMutation.isPending}
+                    isLoading={updateMutation.isPending}
                   >
                     {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                     {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
@@ -611,7 +616,7 @@ export function ContestDetailPage() {
             {isLead && !contest.locked && (
               <ContestAdminActions
                 contestId={contest.id}
-                groupId={contest.group.id}
+                groupId={groupId}
                 onDelete={handleDelete}
                 isDeleting={deleteMutation.isPending}
               />

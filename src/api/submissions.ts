@@ -29,7 +29,7 @@ export function getProblemSubmissions(
   problemSlug: string,
   params?: ProblemSubmissionsParams,
 ): Promise<SubmissionListResponse> {
-  return apiClient.get(`/problems/${problemSlug}/submissions`, {
+  return apiClient.get(`/problems/p/${problemSlug}/submissions`, {
     params: params as Record<string, string | number | boolean | undefined>,
   })
 }
@@ -46,7 +46,7 @@ export function submitSolution(
   formData.append('file', file)
   formData.append('language', language)
   formData.append('compiler', compiler)
-  return apiClient.postFormData(`/problems/${problemSlug}/submissions`, formData)
+  return apiClient.postFormData(`/problems/p/${problemSlug}/submissions`, formData)
 }
 
 // === Submit Solution (in contest) ===
@@ -78,10 +78,16 @@ export function updateSubmissionVisibility(
   return apiClient.patch(`/submissions/${id}/visibility`, data)
 }
 
-// === Download ===
+// === Download (client-side — no endpoint needed) ===
 
-export function downloadSubmission(id: string): Promise<Blob> {
-  return apiClient.getBlob(`/submissions/${id}/download`)
+export function downloadSubmissionBlob(sourceCode: string, filename: string): void {
+  const blob = new Blob([sourceCode], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // === Rejudge ===
@@ -109,7 +115,7 @@ export function submitBlocklySolution(
   formData.append('language', 'Blockly')
   formData.append('compiler', 'python3')
   formData.append('blocklySubmission', '1')
-  return apiClient.postFormData(`/problems/${problemSlug}/submissions`, formData)
+  return apiClient.postFormData(`/problems/p/${problemSlug}/submissions`, formData)
 }
 
 // === Submit Blockly Solution (in contest) ===
