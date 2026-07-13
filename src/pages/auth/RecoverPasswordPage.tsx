@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Alert } from '@/components/ui/Alert'
 import { useRecoverPassword, useResetPassword } from '@/hooks/api/useUsers'
 import {
@@ -112,11 +113,14 @@ function ResetStep({ email, onSuccess }: ResetStepProps) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email, code: '', newPassword: '', confirmPassword: '' },
   })
+
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     setServerError(null)
@@ -149,21 +153,24 @@ function ResetStep({ email, onSuccess }: ResetStepProps) {
           {errors.code && <p className="text-sm text-status-error">{errors.code.message}</p>}
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="newPassword" className="text-sm font-medium text-neutral-text-primary">
-            Nueva contraseña
-          </label>
-          <Input id="newPassword" type="password" placeholder="••••••••" {...register('newPassword')} />
-          {errors.newPassword && <p className="text-sm text-status-error">{errors.newPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="newPassword"
+          label="Nueva contraseña"
+          placeholder="••••••••"
+          showStrength
+          strengthValue={newPasswordValue}
+          helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+          error={errors.newPassword?.message}
+          {...register('newPassword')}
+        />
 
-        <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-neutral-text-primary">
-            Confirmar contraseña
-          </label>
-          <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} />
-          {errors.confirmPassword && <p className="text-sm text-status-error">{errors.confirmPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="confirmPassword"
+          label="Confirmar contraseña"
+          placeholder="••••••••"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Restableciendo...' : 'Restablecer Contraseña'}

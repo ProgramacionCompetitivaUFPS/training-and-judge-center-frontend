@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Alert } from '@/components/ui/Alert'
 import { useAuth } from '@/hooks/useAuth'
 import {
@@ -134,12 +135,15 @@ function PasswordSection() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
   })
+
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
 
   const onSubmit = async (data: ChangePasswordFormData) => {
     setMessage(null)
@@ -169,22 +173,28 @@ function PasswordSection() {
         </div>
       {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="currentPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
-          <Input id="currentPassword" type="password" {...register('currentPassword')} />
-          {errors.currentPassword && <p className="text-sm text-status-error">{errors.currentPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="currentPassword"
+          label="Contraseña actual"
+          error={errors.currentPassword?.message}
+          {...register('currentPassword')}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="newPassword" className="text-sm font-medium text-neutral-text-primary">Nueva contraseña</label>
-            <Input id="newPassword" type="password" {...register('newPassword')} />
-            {errors.newPassword && <p className="text-sm text-status-error">{errors.newPassword.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="confirmNewPassword" className="text-sm font-medium text-neutral-text-primary">Confirmar</label>
-            <Input id="confirmNewPassword" type="password" {...register('confirmNewPassword')} />
-            {errors.confirmNewPassword && <p className="text-sm text-status-error">{errors.confirmNewPassword.message}</p>}
-          </div>
+          <PasswordInput
+            id="newPassword"
+            label="Nueva contraseña"
+            showStrength
+            strengthValue={newPasswordValue}
+            helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+            error={errors.newPassword?.message}
+            {...register('newPassword')}
+          />
+          <PasswordInput
+            id="confirmNewPassword"
+            label="Confirmar"
+            error={errors.confirmNewPassword?.message}
+            {...register('confirmNewPassword')}
+          />
         </div>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Cambiando...' : 'Cambiar Contraseña'}
@@ -239,11 +249,12 @@ function EmailSection() {
           <Input id="newEmail" type="email" placeholder="nuevo@correo.com" {...register('newEmail')} />
           {errors.newEmail && <p className="text-sm text-status-error">{errors.newEmail.message}</p>}
         </div>
-        <div className="space-y-2">
-          <label htmlFor="emailPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
-          <Input id="emailPassword" type="password" {...register('password')} />
-          {errors.password && <p className="text-sm text-status-error">{errors.password.message}</p>}
-        </div>
+        <PasswordInput
+          id="emailPassword"
+          label="Contraseña actual"
+          error={errors.password?.message}
+          {...register('password')}
+        />
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
         </Button>
@@ -293,17 +304,12 @@ function DeactivateSection() {
         </Button>
       ) : (
         <div className="space-y-3">
-          <div className="space-y-2">
-            <label htmlFor="deactivatePassword" className="text-sm font-medium text-neutral-text-primary">
-              Confirma tu contraseña
-            </label>
-            <Input
-              id="deactivatePassword"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+          <PasswordInput
+            id="deactivatePassword"
+            label="Confirma tu contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setShowConfirm(false); setPassword('') }}>
               Cancelar

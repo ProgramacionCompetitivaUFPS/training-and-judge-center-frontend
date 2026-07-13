@@ -2,34 +2,20 @@ import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Alert } from '@/components/ui/Alert'
 import { useRegister } from '@/hooks/api/useUsers'
 import { registerSchema, type RegisterFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
 
-function getPasswordStrength(password: string): { level: 1 | 2 | 3; label: string; color: string } | null {
-  if (!password) return null
-  let score = 0
-  if (password.length >= 8) score++
-  if (/[A-Z]/.test(password)) score++
-  if (/[0-9]/.test(password)) score++
-  if (/[^a-zA-Z0-9]/.test(password)) score++
-  if (score <= 1) return { level: 1, label: 'Débil', color: 'bg-status-error' }
-  if (score <= 3) return { level: 2, label: 'Media', color: 'bg-status-warning' }
-  return { level: 3, label: 'Fuerte', color: 'bg-status-success' }
-}
-
 export function RegisterPage() {
   const navigate = useNavigate()
   const registerMutation = useRegister()
   const [serverError, setServerError] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const {
     register,
@@ -53,7 +39,6 @@ export function RegisterPage() {
   })
 
   const passwordValue = useWatch({ control, name: 'password' })
-  const strength = getPasswordStrength(passwordValue)
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null)
@@ -119,58 +104,23 @@ export function RegisterPage() {
 
         {/* Fila 4: Contraseña | Confirmar contraseña */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-neutral-text-primary">Contraseña</label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                className="pr-10"
-                {...register('password')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-text-muted hover:text-neutral-text-primary transition-colors"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {strength && (
-              <div className="space-y-1">
-                <div className="flex gap-1">
-                  {[1, 2, 3].map(n => (
-                    <div key={n} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${n <= strength.level ? strength.color : 'bg-neutral-border'}`} />
-                  ))}
-                </div>
-                <p className="text-xs text-neutral-text-muted">{strength.label}</p>
-              </div>
-            )}
-            {errors.password && <p className="text-xs text-status-error">{errors.password.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="text-sm font-medium text-neutral-text-primary">Confirmar</label>
-            <div className="relative">
-              <Input
-                id="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                className="pr-10"
-                {...register('confirmPassword')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-text-muted hover:text-neutral-text-primary transition-colors"
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {errors.confirmPassword && <p className="text-xs text-status-error">{errors.confirmPassword.message}</p>}
-          </div>
+          <PasswordInput
+            id="password"
+            label="Contraseña"
+            placeholder="••••••••"
+            showStrength
+            strengthValue={passwordValue}
+            helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          <PasswordInput
+            id="confirmPassword"
+            label="Confirmar"
+            placeholder="••••••••"
+            error={errors.confirmPassword?.message}
+            {...register('confirmPassword')}
+          />
         </div>
 
         <Button type="submit" className="w-full" isLoading={isSubmitting} disabled={isSubmitting}>
