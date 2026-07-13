@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
@@ -6,8 +5,8 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
-import { Alert } from '@/components/ui/Alert'
 import { useRegister } from '@/hooks/api/useUsers'
+import { useToastContext } from '@/hooks/useToastContext'
 import { registerSchema, type RegisterFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
@@ -15,7 +14,7 @@ import { ApiClientError } from '@/lib/errors'
 export function RegisterPage() {
   const navigate = useNavigate()
   const registerMutation = useRegister()
-  const [serverError, setServerError] = useState<string | null>(null)
+  const { toast } = useToastContext()
 
   const {
     register,
@@ -41,11 +40,11 @@ export function RegisterPage() {
   const passwordValue = useWatch({ control, name: 'password' })
 
   const onSubmit = async (data: RegisterFormData) => {
-    setServerError(null)
     try {
       const { confirmPassword: _confirmPassword, ...requestData } = data
       await registerMutation.mutateAsync(requestData)
-      navigate(ROUTES.LOGIN, { state: { registered: true } })
+      toast({ variant: 'success', title: 'Cuenta creada', description: 'Ya puedes iniciar sesión.' })
+      navigate(ROUTES.LOGIN)
     } catch (error) {
       if (error instanceof ApiClientError) {
         if (error.details) {
@@ -53,10 +52,10 @@ export function RegisterPage() {
             setError(detail.field as keyof RegisterFormData, { message: detail.message })
           })
         } else {
-          setServerError(error.message)
+          toast({ variant: 'error', title: 'Error al crear la cuenta', description: error.message })
         }
       } else {
-        setServerError('Error de conexión. Intenta de nuevo.')
+        toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
     }
   }
@@ -64,8 +63,6 @@ export function RegisterPage() {
   return (
     <AuthLayout title="Crear Cuenta" subtitle="Regístrate como competidor">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {serverError && <Alert variant="error">{serverError}</Alert>}
-
         <div className="space-y-2">
           <label htmlFor="name" className="text-sm font-medium text-neutral-text-primary">Nombre completo</label>
           <Input id="name" placeholder="Tu nombre completo" autoFocus {...register('name')} />
