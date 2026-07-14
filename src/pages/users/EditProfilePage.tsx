@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Alert } from '@/components/ui/Alert'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useAuth } from '@/hooks/useAuth'
+import { useToastContext } from '@/hooks/useToastContext'
 import {
   useUpdateProfile,
   useChangePassword,
@@ -46,7 +47,7 @@ interface ProfileSectionProps { user: { name: string; nickname: string; country:
 
 function ProfileSection({ user }: ProfileSectionProps) {
   const updateMutation = useUpdateProfile()
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { toast } = useToastContext()
 
   const {
     register,
@@ -65,15 +66,14 @@ function ProfileSection({ user }: ProfileSectionProps) {
   })
 
   const onSubmit = async (data: UpdateProfileFormData) => {
-    setMessage(null)
     try {
       await updateMutation.mutateAsync(data)
-      setMessage({ type: 'success', text: 'Perfil actualizado correctamente.' })
+      toast({ variant: 'success', title: 'Perfil actualizado', description: 'Tus datos se guardaron correctamente.' })
     } catch (error) {
-      if (error instanceof ApiClientError && error.details) {
+      if (error instanceof ApiClientError && error.details?.length) {
         error.details.forEach((d) => setError(d.field as keyof UpdateProfileFormData, { message: d.message }))
       } else {
-        setMessage({ type: 'error', text: 'Error al actualizar el perfil.' })
+        toast({ variant: 'error', title: 'Error al actualizar el perfil' })
       }
     }
   }
@@ -87,7 +87,6 @@ function ProfileSection({ user }: ProfileSectionProps) {
           </div>
           <h2 className="text-lg font-bold text-neutral-text-primary">Datos Personales</h2>
         </div>
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -129,32 +128,40 @@ function ProfileSection({ user }: ProfileSectionProps) {
 
 function PasswordSection() {
   const changeMutation = useChangePassword()
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { toast } = useToastContext()
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
     reset,
+    setError,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
   })
 
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
+
   const onSubmit = async (data: ChangePasswordFormData) => {
-    setMessage(null)
     try {
       await changeMutation.mutateAsync({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       })
-      setMessage({ type: 'success', text: 'Contraseña actualizada correctamente.' })
+      toast({ variant: 'success', title: 'Contraseña actualizada', description: 'Tu contraseña se cambió correctamente.' })
       reset()
     } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error instanceof ApiClientError ? error.message : 'Error al cambiar la contraseña.',
-      })
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof ChangePasswordFormData, { message: d.message }))
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al cambiar la contraseña',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
     }
   }
 
@@ -167,24 +174,29 @@ function PasswordSection() {
           </div>
           <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Contraseña</h2>
         </div>
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="currentPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
-          <Input id="currentPassword" type="password" {...register('currentPassword')} />
-          {errors.currentPassword && <p className="text-sm text-status-error">{errors.currentPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="currentPassword"
+          label="Contraseña actual"
+          error={errors.currentPassword?.message}
+          {...register('currentPassword')}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="newPassword" className="text-sm font-medium text-neutral-text-primary">Nueva contraseña</label>
-            <Input id="newPassword" type="password" {...register('newPassword')} />
-            {errors.newPassword && <p className="text-sm text-status-error">{errors.newPassword.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="confirmNewPassword" className="text-sm font-medium text-neutral-text-primary">Confirmar</label>
-            <Input id="confirmNewPassword" type="password" {...register('confirmNewPassword')} />
-            {errors.confirmNewPassword && <p className="text-sm text-status-error">{errors.confirmNewPassword.message}</p>}
-          </div>
+          <PasswordInput
+            id="newPassword"
+            label="Nueva contraseña"
+            showStrength
+            strengthValue={newPasswordValue}
+            helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+            error={errors.newPassword?.message}
+            {...register('newPassword')}
+          />
+          <PasswordInput
+            id="confirmNewPassword"
+            label="Confirmar"
+            error={errors.confirmNewPassword?.message}
+            {...register('confirmNewPassword')}
+          />
         </div>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Cambiando...' : 'Cambiar Contraseña'}
@@ -197,29 +209,38 @@ function PasswordSection() {
 
 function EmailSection() {
   const emailMutation = useRequestEmailChange()
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { toast } = useToastContext()
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    setError,
   } = useForm<ChangeEmailFormData>({
     resolver: zodResolver(changeEmailSchema),
     defaultValues: { newEmail: '', password: '' },
   })
 
   const onSubmit = async (data: ChangeEmailFormData) => {
-    setMessage(null)
     try {
       await emailMutation.mutateAsync(data)
-      setMessage({ type: 'success', text: 'Se envió un código de confirmación a tu nuevo correo.' })
+      toast({
+        variant: 'success',
+        title: 'Código enviado',
+        description: 'Se envió un código de confirmación a tu nuevo correo.',
+      })
       reset()
     } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error instanceof ApiClientError ? error.message : 'Error al solicitar cambio de email.',
-      })
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof ChangeEmailFormData, { message: d.message }))
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al solicitar cambio de email',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
     }
   }
 
@@ -232,18 +253,18 @@ function EmailSection() {
           </div>
           <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
         </div>
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="newEmail" className="text-sm font-medium text-neutral-text-primary">Nuevo correo</label>
           <Input id="newEmail" type="email" placeholder="nuevo@correo.com" {...register('newEmail')} />
           {errors.newEmail && <p className="text-sm text-status-error">{errors.newEmail.message}</p>}
         </div>
-        <div className="space-y-2">
-          <label htmlFor="emailPassword" className="text-sm font-medium text-neutral-text-primary">Contraseña actual</label>
-          <Input id="emailPassword" type="password" {...register('password')} />
-          {errors.password && <p className="text-sm text-status-error">{errors.password.message}</p>}
-        </div>
+        <PasswordInput
+          id="emailPassword"
+          label="Contraseña actual"
+          error={errors.password?.message}
+          {...register('password')}
+        />
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
         </Button>
@@ -255,21 +276,25 @@ function EmailSection() {
 
 function DeactivateSection() {
   const deactivateMutation = useRequestDeactivation()
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { toast } = useToastContext()
   const [password, setPassword] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
 
   const handleDeactivate = async () => {
-    setMessage(null)
     try {
       await deactivateMutation.mutateAsync({ password })
-      setMessage({ type: 'success', text: 'Se envió un código de confirmación a tu correo para desactivar la cuenta.' })
+      toast({
+        variant: 'success',
+        title: 'Código enviado',
+        description: 'Se envió un código de confirmación a tu correo para desactivar la cuenta.',
+      })
       setShowConfirm(false)
       setPassword('')
     } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error instanceof ApiClientError ? error.message : 'Error al solicitar desactivación.',
+      toast({
+        variant: 'error',
+        title: 'Error al solicitar desactivación',
+        description: error instanceof ApiClientError ? error.message : undefined,
       })
     }
   }
@@ -286,24 +311,18 @@ function DeactivateSection() {
       <p className="text-sm text-neutral-text-muted">
         Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
       </p>
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
       {!showConfirm ? (
         <Button variant="outline" onClick={() => setShowConfirm(true)} className="text-status-error border-status-error/30">
           Desactivar mi cuenta
         </Button>
       ) : (
         <div className="space-y-3">
-          <div className="space-y-2">
-            <label htmlFor="deactivatePassword" className="text-sm font-medium text-neutral-text-primary">
-              Confirma tu contraseña
-            </label>
-            <Input
-              id="deactivatePassword"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+          <PasswordInput
+            id="deactivatePassword"
+            label="Confirma tu contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setShowConfirm(false); setPassword('') }}>
               Cancelar

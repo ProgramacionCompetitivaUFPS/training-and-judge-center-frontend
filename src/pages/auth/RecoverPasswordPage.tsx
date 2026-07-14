@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Alert } from '@/components/ui/Alert'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useRecoverPassword, useResetPassword } from '@/hooks/api/useUsers'
+import { useToastContext } from '@/hooks/useToastContext'
 import {
   recoverPasswordSchema,
   resetPasswordSchema,
@@ -17,24 +18,11 @@ import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
 
 export function RecoverPasswordPage() {
-  const [step, setStep] = useState<'request' | 'reset' | 'done'>('request')
+  const [step, setStep] = useState<'request' | 'reset'>('request')
   const [email, setEmail] = useState('')
 
-  if (step === 'done') {
-    return (
-      <AuthLayout title="Contraseña Restablecida" subtitle="Tu contraseña ha sido actualizada correctamente">
-        <div className="text-center space-y-4">
-          <Alert variant="success">Ya puedes iniciar sesión con tu nueva contraseña.</Alert>
-          <Link to={ROUTES.LOGIN}>
-            <Button className="w-full">Ir a Iniciar Sesión</Button>
-          </Link>
-        </div>
-      </AuthLayout>
-    )
-  }
-
   if (step === 'reset') {
-    return <ResetStep email={email} onSuccess={() => setStep('done')} />
+    return <ResetStep email={email} />
   }
 
   return (
@@ -51,7 +39,7 @@ interface RequestStepProps { onSuccess: (email: string) => void }
 
 function RequestStep({ onSuccess }: RequestStepProps) {
   const recoverMutation = useRecoverPassword()
-  const [serverError, setServerError] = useState<string | null>(null)
+  const { toast } = useToastContext()
 
   const {
     register,
@@ -63,15 +51,14 @@ function RequestStep({ onSuccess }: RequestStepProps) {
   })
 
   const onSubmit = async (data: RecoverPasswordFormData) => {
-    setServerError(null)
     try {
       await recoverMutation.mutateAsync(data)
       onSuccess(data.email)
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setServerError(error.message)
+        toast({ variant: 'error', title: 'Error al enviar el código', description: error.message })
       } else {
-        setServerError('Error de conexión. Intenta de nuevo.')
+        toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
     }
   }
@@ -79,8 +66,6 @@ function RequestStep({ onSuccess }: RequestStepProps) {
   return (
     <AuthLayout title="Recuperar Contraseña" subtitle="Te enviaremos un código de verificación a tu correo">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {serverError && <Alert variant="error">{serverError}</Alert>}
-
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-neutral-text-primary">
             Correo electrónico
@@ -103,35 +88,43 @@ function RequestStep({ onSuccess }: RequestStepProps) {
   )
 }
 
-interface ResetStepProps { email: string; onSuccess: () => void }
+interface ResetStepProps { email: string }
 
-function ResetStep({ email, onSuccess }: ResetStepProps) {
+function ResetStep({ email }: ResetStepProps) {
   const resetMutation = useResetPassword()
-  const [serverError, setServerError] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const { toast } = useToastContext()
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email, code: '', newPassword: '', confirmPassword: '' },
   })
 
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
+
   const onSubmit = async (data: ResetPasswordFormData) => {
-    setServerError(null)
     try {
       await resetMutation.mutateAsync({
         email: data.email,
         code: data.code,
         newPassword: data.newPassword,
       })
-      onSuccess()
+      toast({
+        variant: 'success',
+        title: 'Contraseña restablecida',
+        description: 'Ya puedes iniciar sesión con tu nueva contraseña.',
+      })
+      navigate(ROUTES.LOGIN)
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setServerError(error.message)
+        toast({ variant: 'error', title: 'Error al restablecer la contraseña', description: error.message })
       } else {
-        setServerError('Error de conexión. Intenta de nuevo.')
+        toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
     }
   }
@@ -139,8 +132,6 @@ function ResetStep({ email, onSuccess }: ResetStepProps) {
   return (
     <AuthLayout title="Restablecer Contraseña" subtitle={`Ingresa el código enviado a ${email}`}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {serverError && <Alert variant="error">{serverError}</Alert>}
-
         <div className="space-y-2">
           <label htmlFor="code" className="text-sm font-medium text-neutral-text-primary">
             Código de verificación
@@ -149,21 +140,24 @@ function ResetStep({ email, onSuccess }: ResetStepProps) {
           {errors.code && <p className="text-sm text-status-error">{errors.code.message}</p>}
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="newPassword" className="text-sm font-medium text-neutral-text-primary">
-            Nueva contraseña
-          </label>
-          <Input id="newPassword" type="password" placeholder="••••••••" {...register('newPassword')} />
-          {errors.newPassword && <p className="text-sm text-status-error">{errors.newPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="newPassword"
+          label="Nueva contraseña"
+          placeholder="••••••••"
+          showStrength
+          strengthValue={newPasswordValue}
+          helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+          error={errors.newPassword?.message}
+          {...register('newPassword')}
+        />
 
-        <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-neutral-text-primary">
-            Confirmar contraseña
-          </label>
-          <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} />
-          {errors.confirmPassword && <p className="text-sm text-status-error">{errors.confirmPassword.message}</p>}
-        </div>
+        <PasswordInput
+          id="confirmPassword"
+          label="Confirmar contraseña"
+          placeholder="••••••••"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Restableciendo...' : 'Restablecer Contraseña'}

@@ -1,13 +1,12 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Alert } from '@/components/ui/Alert'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useLogin } from '@/hooks/api/useUsers'
+import { useToastContext } from '@/hooks/useToastContext'
 import { loginSchema, type LoginFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
@@ -16,10 +15,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const loginMutation = useLogin()
-  const [serverError, setServerError] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-
-  const registered = (location.state as { registered?: boolean })?.registered
+  const { toast } = useToastContext()
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || ROUTES.DASHBOARD
 
@@ -34,19 +30,18 @@ export function LoginPage() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
-    setServerError(null)
     try {
       await loginMutation.mutateAsync(data)
       navigate(from, { replace: true })
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setServerError(
-          error.status === 401
-            ? 'Credenciales incorrectas'
-            : error.message,
-        )
+        toast({
+          variant: 'error',
+          title: error.status === 401 ? 'Credenciales incorrectas' : 'Error al iniciar sesión',
+          description: error.status === 401 ? undefined : error.message,
+        })
       } else {
-        setServerError('Error de conexión. Intenta de nuevo.')
+        toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
     }
   }
@@ -54,11 +49,6 @@ export function LoginPage() {
   return (
     <AuthLayout title="Iniciar Sesión" subtitle="Ingresa tus credenciales para continuar">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {registered && (
-          <Alert variant="success">¡Cuenta creada! Ya puedes iniciar sesión.</Alert>
-        )}
-        {serverError && <Alert variant="error">{serverError}</Alert>}
-
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-neutral-text-primary">
             Correo electrónico
@@ -87,26 +77,12 @@ export function LoginPage() {
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              className="pr-10"
-              {...register('password')}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-text-muted hover:text-neutral-text-primary transition-colors"
-              tabIndex={-1}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="text-sm text-status-error">{errors.password.message}</p>
-          )}
+          <PasswordInput
+            id="password"
+            placeholder="••••••••"
+            error={errors.password?.message}
+            {...register('password')}
+          />
         </div>
 
         <Button type="submit" className="w-full" isLoading={isSubmitting} disabled={isSubmitting}>
