@@ -70,7 +70,7 @@ function ProfileSection({ user }: ProfileSectionProps) {
       await updateMutation.mutateAsync(data)
       toast({ variant: 'success', title: 'Perfil actualizado', description: 'Tus datos se guardaron correctamente.' })
     } catch (error) {
-      if (error instanceof ApiClientError && error.details) {
+      if (error instanceof ApiClientError && error.details?.length) {
         error.details.forEach((d) => setError(d.field as keyof UpdateProfileFormData, { message: d.message }))
       } else {
         toast({ variant: 'error', title: 'Error al actualizar el perfil' })
@@ -136,6 +136,7 @@ function PasswordSection() {
     control,
     formState: { errors, isSubmitting },
     reset,
+    setError,
   } = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
@@ -152,11 +153,15 @@ function PasswordSection() {
       toast({ variant: 'success', title: 'Contraseña actualizada', description: 'Tu contraseña se cambió correctamente.' })
       reset()
     } catch (error) {
-      toast({
-        variant: 'error',
-        title: 'Error al cambiar la contraseña',
-        description: error instanceof ApiClientError ? error.message : undefined,
-      })
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof ChangePasswordFormData, { message: d.message }))
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al cambiar la contraseña',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
     }
   }
 
@@ -211,6 +216,7 @@ function EmailSection() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    setError,
   } = useForm<ChangeEmailFormData>({
     resolver: zodResolver(changeEmailSchema),
     defaultValues: { newEmail: '', password: '' },
@@ -226,11 +232,15 @@ function EmailSection() {
       })
       reset()
     } catch (error) {
-      toast({
-        variant: 'error',
-        title: 'Error al solicitar cambio de email',
-        description: error instanceof ApiClientError ? error.message : undefined,
-      })
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof ChangeEmailFormData, { message: d.message }))
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al solicitar cambio de email',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
     }
   }
 
