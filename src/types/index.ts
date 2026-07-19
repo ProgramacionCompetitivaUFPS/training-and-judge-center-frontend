@@ -14,7 +14,7 @@ export type {
   AdminUserListParams,
   AdminUserListResponse,
   UserDashboard,
-  DashboardMaterial,
+  UserProfileStats,
   DashboardContestResult,
   UserStreak,
   UserRanking,

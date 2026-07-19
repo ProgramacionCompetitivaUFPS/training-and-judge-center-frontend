@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
-import { useUserProfile, useUserDashboard } from '@/hooks/api/useUsers'
+import { useUserProfile, useUserStats } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -40,11 +40,11 @@ export function ProfilePage() {
   const targetNickname = nickname || currentUser?.nickname || ''
 
   const { data: profile, isLoading, error } = useUserProfile(targetNickname)
-  const { data: dashboard } = useUserDashboard(isOwnProfile)
+  const { data: stats } = useUserStats(isOwnProfile)
 
   const acceptanceRate =
-    dashboard && dashboard.totalSubmissions > 0
-      ? Math.round((dashboard.acceptedSubmissions / dashboard.totalSubmissions) * 100)
+    stats && stats.totalSubmissions > 0
+      ? Math.round((stats.acceptedSubmissions / stats.totalSubmissions) * 100)
       : null
 
   return (
@@ -140,30 +140,30 @@ export function ProfilePage() {
               </div>
             </Card>
 
-            {isOwnProfile && dashboard && (
+            {isOwnProfile && stats && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
                 <div className="flex flex-col gap-4 lg:self-start">
                   <StatCard
-                    value={`#${dashboard.ranking.position}`}
+                    value={stats.ranking.position !== null ? `#${stats.ranking.position}` : '—'}
                     label="Ranking global"
-                    sub={`de ${dashboard.ranking.totalUsers}`}
+                    sub={`de ${stats.ranking.totalUsers}`}
                   />
                   <StatCard
-                    value={String(dashboard.problemsSolved)}
+                    value={String(stats.problemsSolved)}
                     label="Problemas resueltos"
-                    sub={`${dashboard.contestsParticipated} contests`}
+                    sub={`${stats.contestsParticipated} contests`}
                   />
                   <StatCard
                     value={acceptanceRate !== null ? `${acceptanceRate}%` : '—'}
                     label="Tasa de aceptación"
                     sub={
-                      dashboard.totalSubmissions > 0
-                        ? `${dashboard.acceptedSubmissions}/${dashboard.totalSubmissions}`
+                      stats.totalSubmissions > 0
+                        ? `${stats.acceptedSubmissions}/${stats.totalSubmissions}`
                         : 'sin submissions'
                     }
                   />
                 </div>
-                <TopicChart stats={dashboard.topicStats} />
+                <TopicChart stats={stats.topicStats} />
               </div>
             )}
           </>

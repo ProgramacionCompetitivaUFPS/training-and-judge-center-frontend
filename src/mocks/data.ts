@@ -1,4 +1,4 @@
-import type { User, UserDashboard, PublicUserProfile, AdminUserListResponse } from '@/types/user'
+import type { User, UserDashboard, UserProfileStats, PublicUserProfile, AdminUserListResponse } from '@/types/user'
 import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest } from '@/types/group'
 
 // === Mock Users ===
@@ -89,75 +89,46 @@ export const mockUsers: User[] = [
 // === Mock Dashboard ===
 
 export const mockDashboard: UserDashboard = {
-  totalSubmissions: 47,
-  acceptedSubmissions: 32,
-  problemsSolved: 18,
-  contestsParticipated: 5,
   recentSubmissions: [
-    {
-      id: 'sub-1',
-      problemSlug: 'two-sum',
-      problemTitle: 'Two Sum',
-      status: 'ACCEPTED',
-      language: 'cpp20',
-      submittedAt: '2026-03-14T18:30:00Z',
-    },
-    {
-      id: 'sub-2',
-      problemSlug: 'binary-search',
-      problemTitle: 'Binary Search',
-      status: 'WRONG_ANSWER',
-      language: 'python310',
-      submittedAt: '2026-03-13T15:20:00Z',
-    },
-    {
-      id: 'sub-3',
-      problemSlug: 'merge-sort',
-      problemTitle: 'Merge Sort',
-      status: 'TIME_LIMIT_EXCEEDED',
-      language: 'java17',
-      submittedAt: '2026-03-12T10:45:00Z',
-    },
-    {
-      id: 'sub-4',
-      problemSlug: 'graph-bfs',
-      problemTitle: 'Graph BFS',
-      status: 'ACCEPTED',
-      language: 'cpp20',
-      submittedAt: '2026-03-11T20:00:00Z',
-    },
-    {
-      id: 'sub-5',
-      problemSlug: 'dynamic-knapsack',
-      problemTitle: 'Dynamic Knapsack',
-      status: 'COMPILATION_ERROR',
-      language: 'cpp20',
-      submittedAt: '2026-03-10T09:15:00Z',
-    },
+    { id: 'sub-1', problemSlug: 'two-sum', problemTitle: 'Two Sum', verdict: 'ACCEPTED', language: 'cpp20', submittedAt: '2026-03-14T18:30:00Z', executionTime: 45, memoryKb: 2048 },
+    { id: 'sub-2', problemSlug: 'binary-search', problemTitle: 'Binary Search', verdict: 'WRONG_ANSWER', language: 'python310', submittedAt: '2026-03-13T15:20:00Z', executionTime: 120, memoryKb: 1024 },
+    { id: 'sub-3', problemSlug: 'merge-sort', problemTitle: 'Merge Sort', verdict: 'TIME_LIMIT_EXCEEDED', language: 'java17', submittedAt: '2026-03-12T10:45:00Z', executionTime: null, memoryKb: null },
+    { id: 'sub-4', problemSlug: 'graph-bfs', problemTitle: 'Graph BFS', verdict: 'ACCEPTED', language: 'cpp20', submittedAt: '2026-03-11T20:00:00Z', executionTime: 30, memoryKb: 512 },
+    { id: 'sub-5', problemSlug: 'dynamic-knapsack', problemTitle: 'Dynamic Knapsack', verdict: 'COMPILATION_ERROR', language: 'cpp20', submittedAt: '2026-03-10T09:15:00Z', executionTime: null, memoryKb: null },
   ],
   upcomingContests: [
     {
       id: 'contest-1',
-      groupId: 'group-1',
       name: 'Contest Semanal #12',
-      startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-      endTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000).toISOString(),
-      groupName: 'Grupo ICPC Colombia',
+      startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      durationMinutes: 300,
+      groupId: 'group-1',
+      groupName: 'ICPC Colombia',
     },
     {
       id: 'contest-2',
-      groupId: 'group-2',
       name: 'Práctica Grafos',
-      startTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString(),
+      startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      durationMinutes: 240,
+      groupId: 'group-2',
       groupName: 'Entrenamiento Avanzado',
     },
   ],
   activeContests: [],
-  recentMaterials: [],
-  streak: { currentStreak: 3, longestStreak: 7 },
+  problemsSolved: 18,
+  materialsCount: 4,
+  streak: { current: 3, maximum: 7 },
+  recentContestResults: [
+    { contestId: 'contest-3', contestName: 'Weekly Contest #44', position: 23, problemsSolved: 3, penalty: 145 },
+  ],
+}
+
+export const mockProfileStats: UserProfileStats = {
+  problemsSolved: 18,
+  totalSubmissions: 47,
+  acceptedSubmissions: 32,
+  contestsParticipated: 5,
   ranking: { position: 12, totalUsers: 150 },
-  recentContestResults: [],
   topicStats: [
     { tag: 'graphs', solved: 15 },
     { tag: 'dp', solved: 12 },
