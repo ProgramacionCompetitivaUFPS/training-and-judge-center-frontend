@@ -90,6 +90,7 @@ export const mockUsers: User[] = [
 
 export const mockDashboard: UserDashboard = {
   recentSubmissions: [
+    { id: 'sub-0', problemSlug: 'string-match', problemTitle: 'Pattern Matching', verdict: 'ACCEPTED', language: 'python310', submittedAt: '2026-03-15T09:10:00Z', executionTime: 60, memoryKb: 1536 },
     { id: 'sub-1', problemSlug: 'two-sum', problemTitle: 'Two Sum', verdict: 'ACCEPTED', language: 'cpp20', submittedAt: '2026-03-14T18:30:00Z', executionTime: 45, memoryKb: 2048 },
     { id: 'sub-2', problemSlug: 'binary-search', problemTitle: 'Binary Search', verdict: 'WRONG_ANSWER', language: 'python310', submittedAt: '2026-03-13T15:20:00Z', executionTime: 120, memoryKb: 1024 },
     { id: 'sub-3', problemSlug: 'merge-sort', problemTitle: 'Merge Sort', verdict: 'TIME_LIMIT_EXCEEDED', language: 'java17', submittedAt: '2026-03-12T10:45:00Z', executionTime: null, memoryKb: null },

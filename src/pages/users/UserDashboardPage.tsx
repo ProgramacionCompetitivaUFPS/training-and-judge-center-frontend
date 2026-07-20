@@ -256,7 +256,7 @@ export function UserDashboardPage() {
                   <h2 className="text-base font-semibold text-neutral-text-primary">
                     Mis Contests
                   </h2>
-                  {myContests.length > 0 && (
+                  {myContests.length > previewLimit && (
                     <Link
                       to={ROUTES.CONTESTS}
                       className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline shrink-0"
