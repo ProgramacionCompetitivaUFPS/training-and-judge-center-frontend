@@ -22,6 +22,7 @@ export const SUBMISSION_STATUS_CONFIG = {
   TIME_LIMIT_EXCEEDED: { label: 'Time Limit Exceeded', color: 'warning' },
   MEMORY_LIMIT_EXCEEDED: { label: 'Memory Limit Exceeded', color: 'warning' },
   RUNTIME_EXCEPTION: { label: 'Runtime Error', color: 'error' },
+  RUNTIME_ERROR: { label: 'Runtime Error', color: 'error' },
   COMPILATION_ERROR: { label: 'Compilation Error', color: 'error' },
   PRESENTATION_ERROR: { label: 'Presentation Error', color: 'warning' },
   PENDING: { label: 'Pending', color: 'default' },
@@ -99,6 +100,8 @@ export const PATHS = {
   problem: (slug: string) => `/problems/${slug}`,
   problemEdit: (slug: string) => `/problems/${slug}/edit`,
   problemSubmissions: (slug: string) => `/problems/${slug}/submissions`,
+  // Submissions
+  submission: (id: string) => `/submissions/${id}`,
   // Materials
   materials: (groupId: string) => `/groups/${groupId}/materials`,
   materialNew: (groupId: string) => `/groups/${groupId}/materials/new`,

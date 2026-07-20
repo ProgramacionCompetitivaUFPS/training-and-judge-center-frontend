@@ -133,46 +133,31 @@ export interface ChangeUserRoleRequest {
 // === Dashboard ===
 
 export interface UserDashboard {
-  totalSubmissions: number
-  acceptedSubmissions: number
-  problemsSolved: number
-  contestsParticipated: number
   recentSubmissions: DashboardSubmission[]
   upcomingContests: DashboardContest[]
   activeContests: DashboardContest[]
-  recentMaterials: DashboardMaterial[]
+  problemsSolved: number
+  materialsCount: number
   streak: UserStreak
-  ranking: UserRanking
   recentContestResults: DashboardContestResult[]
-  topicStats: TopicStat[]
-}
-
-export interface TopicStat {
-  tag: string
-  solved: number
 }
 
 export interface DashboardSubmission {
   id: string
   problemSlug: string
   problemTitle: string
-  status: string
+  verdict: string
   language: string
   submittedAt: string
+  executionTime: number | null
+  memoryKb: number | null
 }
 
 export interface DashboardContest {
   id: string
   name: string
-  startTime: string
-  endTime: string
-  groupId: string
-  groupName: string
-}
-
-export interface DashboardMaterial {
-  id: string
-  title: string
+  startDate: string
+  durationMinutes: number
   groupId: string
   groupName: string
 }
@@ -180,16 +165,33 @@ export interface DashboardMaterial {
 export interface DashboardContestResult {
   contestId: string
   contestName: string
-  rank: number
-  totalParticipants: number
+  position: number
+  problemsSolved: number
+  penalty: number
 }
 
 export interface UserStreak {
-  currentStreak: number
-  longestStreak: number
+  current: number
+  maximum: number
+}
+
+// === Profile Statistics ===
+
+export interface UserProfileStats {
+  problemsSolved: number
+  totalSubmissions: number
+  acceptedSubmissions: number
+  contestsParticipated: number
+  ranking: UserRanking
+  topicStats: TopicStat[]
 }
 
 export interface UserRanking {
-  position: number
+  position: number | null
   totalUsers: number
+}
+
+export interface TopicStat {
+  tag: string
+  solved: number
 }

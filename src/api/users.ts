@@ -17,6 +17,7 @@ import type {
   AdminUserListResponse,
   PublicUserProfile,
   UserDashboard,
+  UserProfileStats,
   ChangeUserRoleRequest,
 } from '@/types/user'
 
@@ -101,4 +102,8 @@ export function adminChangeUserRole(id: string, data: ChangeUserRoleRequest): Pr
 
 export function getDashboard(): Promise<UserDashboard> {
   return apiClient.get('/users/me/dashboard')
+}
+
+export function getProfileStats(): Promise<UserProfileStats> {
+  return apiClient.get('/users/me/stats')
 }

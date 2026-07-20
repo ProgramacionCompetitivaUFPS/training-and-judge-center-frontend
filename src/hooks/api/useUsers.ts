@@ -22,6 +22,7 @@ export const userKeys = {
   all: ['users'] as const,
   me: ['users', 'me'] as const,
   dashboard: ['users', 'dashboard'] as const,
+  stats: ['users', 'stats'] as const,
   profile: (nickname: string) => ['users', 'profile', nickname] as const,
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
 }
@@ -49,6 +50,14 @@ export function useUserDashboard(enabled = true) {
   return useQuery({
     queryKey: userKeys.dashboard,
     queryFn: usersApi.getDashboard,
+    enabled,
+  })
+}
+
+export function useUserStats(enabled = true) {
+  return useQuery({
+    queryKey: userKeys.stats,
+    queryFn: usersApi.getProfileStats,
     enabled,
   })
 }
