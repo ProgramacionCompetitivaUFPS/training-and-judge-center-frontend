@@ -1,6 +1,6 @@
 import { ReactNode, FormEvent } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { BreadcrumbItem } from '@/components/layout/Breadcrumbs'
+import { BreadcrumbItem } from '@/components/layout/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, AlertDescription } from '@/components/ui'
 import { Save, X, Loader2 } from 'lucide-react'
 

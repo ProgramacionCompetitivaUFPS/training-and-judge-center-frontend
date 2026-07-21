@@ -1,7 +1,7 @@
 import { useState, ReactNode } from 'react'
 import { Navbar } from './Navbar'
 import { Sidebar } from './Sidebar'
-import { BreadcrumbItem } from './Breadcrumbs'
+import { BreadcrumbItem } from './types'
 import { cn } from '@/lib/utils'
 
 interface AppLayoutProps {
