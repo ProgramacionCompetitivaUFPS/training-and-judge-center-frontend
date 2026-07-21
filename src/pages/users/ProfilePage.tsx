@@ -48,7 +48,7 @@ export function ProfilePage() {
       : null
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbs={[{ label: 'Mi Perfil' }]}>
       <div className="space-y-4">
         {isLoading && (
           <Card className="p-6">

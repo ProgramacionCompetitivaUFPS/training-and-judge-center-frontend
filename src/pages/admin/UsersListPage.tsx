@@ -68,7 +68,7 @@ export function UsersListPage() {
   const currentPage = data?.pagination.currentPage ?? 1
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbs={[{ label: 'Usuarios' }]}>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-neutral-text-primary">Gestión de Usuarios</h1>
 
