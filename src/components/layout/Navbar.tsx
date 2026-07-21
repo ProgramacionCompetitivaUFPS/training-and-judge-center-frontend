@@ -4,7 +4,9 @@ import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMe
 import { User, Settings, LogOut, Menu, Search, ChevronRight } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
-import { BreadcrumbItem } from './Breadcrumbs'
+import { cn } from '@/lib/utils'
+import { BreadcrumbItem } from './types'
+import tailwindConfig from '../../../tailwind.config.js'
 
 interface NavbarProps {
   onMenuClick: () => void
@@ -12,9 +14,12 @@ interface NavbarProps {
   breadcrumbs?: BreadcrumbItem[]
 }
 
+const brandColors = tailwindConfig.theme?.extend?.colors as { brand: { primary: string } }
+const ripplePathColor = encodeURIComponent(brandColors.brand.primary)
+
 // Textura de "gotas" a escala menor, pensada para una barra de 64px
 const NAVBAR_RIPPLE_BG =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='60' viewBox='0 0 170 60'%3E%3Cg fill='none' stroke='%23e11d48'%3E%3Ccircle cx='34' cy='48' r='7' opacity='0.20'/%3E%3Ccircle cx='34' cy='48' r='15' opacity='0.13'/%3E%3Ccircle cx='34' cy='48' r='24' opacity='0.07'/%3E%3Ccircle cx='128' cy='12' r='6' opacity='0.18'/%3E%3Ccircle cx='128' cy='12' r='13' opacity='0.11'/%3E%3Ccircle cx='128' cy='12' r='21' opacity='0.06'/%3E%3C/g%3E%3C/svg%3E\")"
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='60' viewBox='0 0 170 60'%3E%3Cg fill='none' stroke='${ripplePathColor}'%3E%3Ccircle cx='34' cy='48' r='7' opacity='0.20'/%3E%3Ccircle cx='34' cy='48' r='15' opacity='0.13'/%3E%3Ccircle cx='34' cy='48' r='24' opacity='0.07'/%3E%3Ccircle cx='128' cy='12' r='6' opacity='0.18'/%3E%3Ccircle cx='128' cy='12' r='13' opacity='0.11'/%3E%3Ccircle cx='128' cy='12' r='21' opacity='0.06'/%3E%3C/g%3E%3C/svg%3E")`
 
 function BellFilled({ className }: { className?: string }) {
   return (
@@ -50,13 +55,13 @@ export function Navbar({ onMenuClick, showMenuButton = true, breadcrumbs }: Navb
           </Button>
         )}
 
-        <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1 text-sm text-neutral-text-muted min-w-0">
-          <span>Training Center</span>
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-neutral-text-muted min-w-0">
+          <span className="hidden md:inline">Training Center</span>
           {breadcrumbs?.map((item, i) => {
             const isLast = i === breadcrumbs.length - 1
             return (
-              <span key={i} className="flex items-center gap-1 min-w-0">
-                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
+              <span key={i} className={cn('flex items-center gap-1 min-w-0', !isLast && 'hidden md:flex')}>
+                <ChevronRight className="hidden md:block h-3.5 w-3.5 flex-shrink-0" />
                 {item.href && !isLast ? (
                   <Link to={item.href} className="hover:text-neutral-text-primary truncate">{item.label}</Link>
                 ) : (
@@ -76,6 +81,7 @@ export function Navbar({ onMenuClick, showMenuButton = true, breadcrumbs }: Navb
             placeholder="Buscar problema…"
             className="flex-1 bg-transparent text-sm text-neutral-text-primary placeholder:text-neutral-text-muted outline-none min-w-0"
           />
+          {/* TODO(frontend): el atajo "/" es solo visual, falta el keydown listener global que enfoque el input */}
           <kbd className="text-[10px] px-1 py-0.5 rounded border border-black/10 text-neutral-text-muted">/</kbd>
         </form>
 
