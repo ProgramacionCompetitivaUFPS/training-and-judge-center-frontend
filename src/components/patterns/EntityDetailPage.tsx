@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { BreadcrumbItem } from '@/components/layout/Breadcrumbs'
+import { BreadcrumbItem } from '@/components/layout/types'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { Edit, Trash2, MoreVertical, Loader2 } from 'lucide-react'
 import {

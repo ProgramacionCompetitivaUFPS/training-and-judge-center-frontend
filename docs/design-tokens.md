@@ -17,7 +17,7 @@ Están pensados para luego mapearse a Tailwind, CSS variables o un tema de UI en
 
 #### 1.2. Neutros (tokens base)
 
-- **`color.neutral.background`**: `#f8fafc` – fondo general de la app.
+- **`color.neutral.background`**: `#fafafa` – fondo general de la app.
 - **`color.neutral.surface`**: `#ffffff` – superficies elevadas (cards, paneles).
 - **`color.neutral.border`**: `#e2e8f0` – bordes sutiles que separan bloques.
 - **`color.neutral.text-primary`**: `#0f172a` – texto principal sobre fondos claros.
@@ -32,7 +32,16 @@ Están pensados para luego mapearse a Tailwind, CSS variables o un tema de UI en
 
 > Estos tres tokens se alinean con el dominio del juez online, pero se nombran en términos de **estado** para ser reutilizables.
 
-#### 1.4. Tokens semánticos
+#### 1.4. Chrome / Layout
+
+"Chrome" son las superficies grandes que enmarcan el contenido (sidebar, navbar) — distinto rol que un acento de marca (botones, links), por eso viven en su propia familia de tokens en vez de reusar `color.brand.primary` directamente.
+
+- **`color.chrome.sidebar.bg`**: `#C13E3E` – fondo del sidebar (rojo de marca, desaturado para cubrir una superficie grande sin saturar la vista).
+- **`color.chrome.navbar.bg`**: `#FFF5F5` – fondo de la barra superior (lavado muy suave del mismo rojo).
+
+> Estos tokens NO reemplazan a `color.brand.primary`: el rojo de marca sigue siendo el de botones y acentos puntuales. El chrome resuelve un problema distinto — cubrir superficie sin cansar la vista.
+
+#### 1.5. Tokens semánticos
 
 Los tokens semánticos se apoyan en los anteriores, pero hablan de **rol en la UI**:
 

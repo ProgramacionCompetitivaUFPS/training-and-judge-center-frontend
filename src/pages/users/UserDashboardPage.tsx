@@ -72,7 +72,7 @@ export function UserDashboardPage() {
   const hasMoreSubmissions = (dashboard?.recentSubmissions.length ?? 0) > previewLimit
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbs={[{ label: 'Dashboard' }]}>
       <div className="space-y-8">
 
         {/* Header editorial */}

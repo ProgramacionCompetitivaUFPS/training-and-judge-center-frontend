@@ -31,7 +31,7 @@ export function EditProfilePage() {
   if (!user) return null
 
   return (
-    <AppLayout>
+    <AppLayout breadcrumbs={[{ label: 'Configuración' }]}>
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">Configuración</h1>
         <ProfileSection user={user} />
