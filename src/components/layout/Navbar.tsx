@@ -79,6 +79,7 @@ export function Navbar({ onMenuClick, showMenuButton = true, breadcrumbs }: Navb
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar problema…"
+            aria-label="Buscar problema"
             className="flex-1 bg-transparent text-sm text-neutral-text-primary placeholder:text-neutral-text-muted outline-none min-w-0"
           />
           {/* TODO(frontend): el atajo "/" es solo visual, falta el keydown listener global que enfoque el input */}
