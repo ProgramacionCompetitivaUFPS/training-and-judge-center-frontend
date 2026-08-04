@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MapPin, Building2, Calendar, Mail, Settings } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
+import { StatCard } from '@/components/features/StatCard'
 import { useUserProfile, useUserStats } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
@@ -40,7 +40,7 @@ export function ProfilePage() {
   const targetNickname = nickname || currentUser?.nickname || ''
 
   const { data: profile, isLoading, error } = useUserProfile(targetNickname)
-  const { data: stats } = useUserStats(isOwnProfile)
+  const { data: stats, isLoading: statsLoading, error: statsError } = useUserStats(isOwnProfile)
 
   const acceptanceRate =
     stats && stats.totalSubmissions > 0
@@ -140,20 +140,38 @@ export function ProfilePage() {
               </div>
             </Card>
 
+            {isOwnProfile && statsLoading && (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
+                <div className="flex flex-col gap-4 lg:self-start">
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                </div>
+                <Skeleton className="h-64" />
+              </div>
+            )}
+
+            {isOwnProfile && statsError && !stats && (
+              <Alert variant="error">No se pudieron cargar tus estadísticas.</Alert>
+            )}
+
             {isOwnProfile && stats && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
                 <div className="flex flex-col gap-4 lg:self-start">
                   <StatCard
+                    align="center"
                     value={stats.ranking.position !== null ? `#${stats.ranking.position}` : '—'}
                     label="Ranking global"
                     sub={`de ${stats.ranking.totalUsers}`}
                   />
                   <StatCard
+                    align="center"
                     value={String(stats.problemsSolved)}
                     label="Problemas resueltos"
                     sub={`${stats.contestsParticipated} contests`}
                   />
                   <StatCard
+                    align="center"
                     value={acceptanceRate !== null ? `${acceptanceRate}%` : '—'}
                     label="Tasa de aceptación"
                     sub={
@@ -173,23 +191,9 @@ export function ProfilePage() {
   )
 }
 
-function StatCard({ value, label, sub }: { value: string; label: string; sub?: string }) {
-  return (
-    <Card className="p-5 text-center">
-      <p className="text-2xl font-bold font-mono text-neutral-text-primary">{value}</p>
-      <p className="text-sm text-neutral-text-muted mt-1">{label}</p>
-      {sub && <p className="text-xs text-neutral-text-muted opacity-60 mt-0.5">{sub}</p>}
-    </Card>
-  )
-}
-
 function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
-  const [expanded, setExpanded] = useState(false)
   const sorted = [...stats].sort((a, b) => b.solved - a.solved)
   const max = sorted[0]?.solved ?? 1
-  const VISIBLE = 10
-  const visible = expanded ? sorted : sorted.slice(0, VISIBLE)
-  const hidden = sorted.length - VISIBLE
 
   return (
     <Card className="overflow-hidden h-full">
@@ -210,37 +214,24 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
           </p>
         </div>
       ) : (
-        <>
-          <div className="px-5 py-4 space-y-2.5">
-            {visible.map(({ tag, solved }) => (
-              <div key={tag} className="flex items-center gap-3">
-                <span className="text-sm text-neutral-text-muted w-28 shrink-0 truncate capitalize">
-                  {tag.replace(/-/g, ' ')}
-                </span>
-                <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
-                  <div
-                    className="h-full bg-brand-accent rounded-pill transition-all duration-500"
-                    style={{ width: `${(solved / max) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs font-mono font-medium text-neutral-text-primary w-4 text-right shrink-0">
-                  {solved}
-                </span>
+        <div className="px-5 py-4 space-y-2.5 max-h-[320px] overflow-y-auto">
+          {sorted.map(({ tag, solved }) => (
+            <div key={tag} className="flex items-center gap-3">
+              <span className="text-sm text-neutral-text-muted w-28 shrink-0 truncate capitalize">
+                {tag.replace(/-/g, ' ')}
+              </span>
+              <div className="flex-1 h-2 bg-neutral-border rounded-pill overflow-hidden">
+                <div
+                  className="h-full bg-brand-accent rounded-pill transition-all duration-500"
+                  style={{ width: `${(solved / max) * 100}%` }}
+                />
               </div>
-            ))}
-          </div>
-          {hidden > 0 && (
-            <button
-              type="button"
-              aria-expanded={expanded}
-              onClick={() => setExpanded(e => !e)}
-              className="w-full px-5 py-2.5 text-xs font-semibold text-brand-accent border-t border-neutral-border hover:bg-neutral-background transition-colors text-left"
-            >
-              <span aria-hidden="true">{expanded ? '▲' : '▼'}</span>{' '}
-              {expanded ? 'Ver menos' : `Ver ${hidden} tópicos más`}
-            </button>
-          )}
-        </>
+              <span className="text-xs font-mono font-medium text-neutral-text-primary w-4 text-right shrink-0">
+                {solved}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
     </Card>
   )
