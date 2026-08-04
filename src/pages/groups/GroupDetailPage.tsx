@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { EntityDetailPage } from '@/components/patterns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { StatCard } from '@/components/features/StatCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -368,30 +369,15 @@ export function GroupDetailPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-5 text-center">
-            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.memberCount}</div>
-            <div className="text-xs text-neutral-text-muted">Miembros</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 text-center">
-            <div className="text-2xl font-bold text-status-success">{group.statistics.activeContestCount}</div>
-            <div className="text-xs text-neutral-text-muted">Contests activos</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 text-center">
-            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.contestCount}</div>
-            <div className="text-xs text-neutral-text-muted">Contests totales</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 text-center">
-            <div className="text-2xl font-bold text-neutral-text-primary">{group.statistics.materialCount}</div>
-            <div className="text-xs text-neutral-text-muted">Materiales</div>
-          </CardContent>
-        </Card>
+        <StatCard align="center" value={group.statistics.memberCount} label="Miembros" />
+        <StatCard
+          align="center"
+          value={group.statistics.activeContestCount}
+          label="Contests activos"
+          valueColor="text-status-success"
+        />
+        <StatCard align="center" value={group.statistics.contestCount} label="Contests totales" />
+        <StatCard align="center" value={group.statistics.materialCount} label="Materiales" />
       </div>
 
       {/* Metadata */}
