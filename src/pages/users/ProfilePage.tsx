@@ -151,7 +151,7 @@ export function ProfilePage() {
               </div>
             )}
 
-            {isOwnProfile && statsError && (
+            {isOwnProfile && statsError && !stats && (
               <Alert variant="error">No se pudieron cargar tus estadísticas.</Alert>
             )}
 
