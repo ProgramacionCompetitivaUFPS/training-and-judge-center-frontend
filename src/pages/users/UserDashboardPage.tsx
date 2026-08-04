@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
+import { StatCard } from '@/components/features/StatCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
 import { SUBMISSION_STATUS_CONFIG, ROUTES, PATHS } from '@/lib/constants'
@@ -138,8 +139,9 @@ export function UserDashboardPage() {
                   icon={<CheckCircle className="h-5 w-5 text-brand-primary" />}
                   label="Problemas Resueltos"
                   value={dashboard.problemsSolved}
-                  subtitle="total histórico"
-                  accent="border-t-brand-primary"
+                  sub="total histórico"
+                  accentBorder="border-t-brand-primary"
+                  valueSize="text-3xl"
                 />
               </div>
               {nextContest ? (
@@ -152,8 +154,9 @@ export function UserDashboardPage() {
                     icon={<Clock className="h-5 w-5 text-status-warning" />}
                     label="Próximo Contest"
                     value={getCountdown(nextContest.startDate)}
-                    subtitle={nextContest.name}
-                    accent="border-t-status-warning"
+                    sub={nextContest.name}
+                    accentBorder="border-t-status-warning"
+                    valueSize="text-3xl"
                   />
                 </Link>
               ) : (
@@ -162,8 +165,9 @@ export function UserDashboardPage() {
                     icon={<Clock className="h-5 w-5 text-status-warning" />}
                     label="Próximo Contest"
                     value="—"
-                    subtitle="sin contests próximos"
-                    accent="border-t-status-warning"
+                    sub="sin contests próximos"
+                    accentBorder="border-t-status-warning"
+                    valueSize="text-3xl"
                   />
                 </div>
               )}
@@ -172,8 +176,9 @@ export function UserDashboardPage() {
                   icon={<Trophy className="h-5 w-5 text-brand-accent" />}
                   label="Último Resultado"
                   value={lastResult ? `#${lastResult.position}` : '—'}
-                  subtitle={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin contests finalizados'}
-                  accent="border-t-brand-accent"
+                  sub={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin contests finalizados'}
+                  accentBorder="border-t-brand-accent"
+                  valueSize="text-3xl"
                 />
               </div>
               <Link to={ROUTES.GROUPS} className="animate-fade-in-up block" style={{ animationDelay: '225ms' }}>
@@ -181,8 +186,9 @@ export function UserDashboardPage() {
                   icon={<FileText className="h-5 w-5 text-status-success" />}
                   label="Materiales Recientes"
                   value={dashboard.materialsCount}
-                  subtitle="en los últimos 30 días · ver grupos →"
-                  accent="border-t-status-success"
+                  sub="en los últimos 30 días · ver grupos →"
+                  accentBorder="border-t-status-success"
+                  valueSize="text-3xl"
                 />
               </Link>
             </div>
@@ -320,32 +326,5 @@ export function UserDashboardPage() {
         ) : null}
       </div>
     </AppLayout>
-  )
-}
-
-interface StatCardProps {
-  icon: React.ReactNode
-  label: string
-  value: string | number
-  subtitle?: string
-  accent: string
-}
-
-function StatCard({ icon, label, value, subtitle, accent }: StatCardProps) {
-  return (
-    <Card className={cn('p-5 border-t-2 h-full', accent)}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-3xl font-bold text-neutral-text-primary font-mono">{value}</p>
-          <p className="text-sm text-neutral-text-muted mt-1">{label}</p>
-          {subtitle && (
-            <p className="text-xs text-neutral-text-muted mt-0.5">{subtitle}</p>
-          )}
-        </div>
-        <div className="p-2 rounded-md bg-neutral-background border border-neutral-border">
-          {icon}
-        </div>
-      </div>
-    </Card>
   )
 }
