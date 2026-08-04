@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
+import { StatCard } from '@/components/features/StatCard'
 import { useUserProfile, useUserStats } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
@@ -40,7 +41,7 @@ export function ProfilePage() {
   const targetNickname = nickname || currentUser?.nickname || ''
 
   const { data: profile, isLoading, error } = useUserProfile(targetNickname)
-  const { data: stats } = useUserStats(isOwnProfile)
+  const { data: stats, isLoading: statsLoading, error: statsError } = useUserStats(isOwnProfile)
 
   const acceptanceRate =
     stats && stats.totalSubmissions > 0
@@ -140,20 +141,38 @@ export function ProfilePage() {
               </div>
             </Card>
 
+            {isOwnProfile && statsLoading && (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
+                <div className="flex flex-col gap-4 lg:self-start">
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                  <Skeleton className="h-24" />
+                </div>
+                <Skeleton className="h-64" />
+              </div>
+            )}
+
+            {isOwnProfile && statsError && (
+              <Alert variant="error">No se pudieron cargar tus estadísticas.</Alert>
+            )}
+
             {isOwnProfile && stats && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-4">
                 <div className="flex flex-col gap-4 lg:self-start">
                   <StatCard
+                    align="center"
                     value={stats.ranking.position !== null ? `#${stats.ranking.position}` : '—'}
                     label="Ranking global"
                     sub={`de ${stats.ranking.totalUsers}`}
                   />
                   <StatCard
+                    align="center"
                     value={String(stats.problemsSolved)}
                     label="Problemas resueltos"
                     sub={`${stats.contestsParticipated} contests`}
                   />
                   <StatCard
+                    align="center"
                     value={acceptanceRate !== null ? `${acceptanceRate}%` : '—'}
                     label="Tasa de aceptación"
                     sub={
@@ -170,16 +189,6 @@ export function ProfilePage() {
         )}
       </div>
     </AppLayout>
-  )
-}
-
-function StatCard({ value, label, sub }: { value: string; label: string; sub?: string }) {
-  return (
-    <Card className="p-5 text-center">
-      <p className="text-2xl font-bold font-mono text-neutral-text-primary">{value}</p>
-      <p className="text-sm text-neutral-text-muted mt-1">{label}</p>
-      {sub && <p className="text-xs text-neutral-text-muted opacity-60 mt-0.5">{sub}</p>}
-    </Card>
   )
 }
 
