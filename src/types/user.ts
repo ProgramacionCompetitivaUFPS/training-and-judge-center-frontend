@@ -134,12 +134,6 @@ export interface AdminUserListResponse {
   }
 }
 
-// === Role Change ===
-
-export interface ChangeUserRoleRequest {
-  role: UserRole
-}
-
 // === Dashboard ===
 
 export interface UserDashboard {

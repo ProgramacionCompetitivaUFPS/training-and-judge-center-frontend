@@ -13,7 +13,6 @@ import type {
   ConfirmDeactivationRequest,
   AdminUpdateUserRequest,
   AdminUserListParams,
-  ChangeUserRoleRequest,
 } from '@/types/user'
 
 // === Query Keys ===
@@ -168,13 +167,3 @@ export function useAdminDeactivateUser() {
   })
 }
 
-export function useAdminChangeUserRole() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ChangeUserRoleRequest }) =>
-      usersApi.adminChangeUserRole(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all })
-    },
-  })
-}
