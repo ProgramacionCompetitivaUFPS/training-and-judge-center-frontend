@@ -65,7 +65,7 @@ export function UsersListPage() {
   }
 
   const totalPages = data?.pagination.totalPages ?? 1
-  const currentPage = data?.pagination.currentPage ?? 1
+  const currentPage = data?.pagination.page ?? 1
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Usuarios' }]}>
@@ -126,7 +126,7 @@ export function UsersListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-border">
-                  {data.data.map((user) => (
+                  {data.users.map((user) => (
                     <tr key={user.nickname} className="hover:bg-neutral-surface/50">
                       <td className="p-3">
                         <div>
