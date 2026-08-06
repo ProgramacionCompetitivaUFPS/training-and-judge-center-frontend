@@ -83,7 +83,15 @@ export function confirmDeactivation(data: ConfirmDeactivationRequest): Promise<v
 // === Admin ===
 
 export function adminListUsers(params?: AdminUserListParams): Promise<AdminUserListResponse> {
-  return apiClient.get('/admin/users', { params: params as Record<string, string | number | boolean | undefined> })
+  const { search, sortBy, sortOrder, ...rest } = params ?? {}
+  return apiClient.get('/admin/users', {
+    params: {
+      ...rest,
+      searchTerm: search,
+      sort: sortBy,
+      order: sortOrder,
+    } as Record<string, string | number | boolean | undefined>,
+  })
 }
 
 export function adminUpdateUser(id: string, data: AdminUpdateUserRequest): Promise<User> {

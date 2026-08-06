@@ -1,4 +1,4 @@
-import type { PaginatedResponse, PaginationParams } from './api'
+import type { PaginationParams } from './api'
 
 // === Entidad principal ===
 
@@ -122,7 +122,17 @@ export interface AdminUserListParams extends PaginationParams {
   sortOrder?: 'asc' | 'desc'
 }
 
-export type AdminUserListResponse = PaginatedResponse<User>
+export interface AdminUserListResponse {
+  users: User[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
 
 // === Role Change ===
 

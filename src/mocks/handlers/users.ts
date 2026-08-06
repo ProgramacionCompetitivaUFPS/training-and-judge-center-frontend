@@ -107,7 +107,7 @@ export const usersHandlers = [
     const result = buildAdminUserList({
       page: Number(searchParams.get('page')) || 1,
       limit: Number(searchParams.get('limit')) || 20,
-      search: searchParams.get('search') || undefined,
+      search: searchParams.get('searchTerm') || undefined,
       role: searchParams.get('role') || undefined,
       status: searchParams.get('status') || undefined,
     })
