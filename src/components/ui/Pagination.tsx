@@ -1,7 +1,14 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { usePaginationRange } from '@/hooks/usePaginationRange'
+
+function getPaginationRange(currentPage: number, totalPages: number, windowSize = 5): number[] {
+  let start = Math.max(1, currentPage - Math.floor(windowSize / 2))
+  const end = Math.min(totalPages, start + windowSize - 1)
+  start = Math.max(1, end - windowSize + 1)
+
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+}
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
@@ -102,7 +109,7 @@ const PaginationNumbers = ({
   onPageChange,
   windowSize = 5,
 }: PaginationNumbersProps) => {
-  const pageNumbers = usePaginationRange(currentPage, totalPages, windowSize)
+  const pageNumbers = getPaginationRange(currentPage, totalPages, windowSize)
   const firstShown = pageNumbers[0]
   const lastShown = pageNumbers[pageNumbers.length - 1]
 
