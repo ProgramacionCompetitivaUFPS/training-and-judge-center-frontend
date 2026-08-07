@@ -9,15 +9,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@/components/ui/Select'
-import {
-  Pagination, PaginationContent, PaginationItem,
-  PaginationNumbers, PaginationPrevious, PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import type { MaterialListParams, MaterialStatus } from '@/types/material'
 
@@ -38,12 +36,14 @@ export function MaterialsPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [pinnedFilter, setPinnedFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [page, setPage] = useState(1)
+  const [pageQuery, setPageQuery] = useState({ page: 1, limit: 5 })
   const debouncedSearch = useDebounce(search, 300)
 
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPageQuery)
+
   const params: MaterialListParams = {
-    page,
-    limit: 12,
+    page: pageQuery.page,
+    limit: pageQuery.limit,
     ...(debouncedSearch && { q: debouncedSearch }),
     ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
     ...(selectedTag && { tags: selectedTag }),
@@ -56,7 +56,7 @@ export function MaterialsPage() {
 
   function handleTagClick(tag: string) {
     setSelectedTag((prev) => (prev === tag ? null : tag))
-    setPage(1)
+    setPageQuery((p) => ({ ...p, page: 1 }))
   }
 
   const breadcrumbs = [
@@ -91,10 +91,10 @@ export function MaterialsPage() {
                 placeholder="Buscar materiales..."
                 className="pl-9"
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                onChange={(e) => { setSearch(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
               />
             </div>
-            <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPage(1) }}>
+            <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPageQuery((p) => ({ ...p, page: 1 })) }}>
               <SelectTrigger className="w-36 shrink-0"><SelectValue placeholder="Fijados" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los materiales</SelectItem>
@@ -103,7 +103,7 @@ export function MaterialsPage() {
               </SelectContent>
             </Select>
             {isLead && (
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPageQuery((p) => ({ ...p, page: 1 })) }}>
                 <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los estados</SelectItem>
@@ -135,11 +135,15 @@ export function MaterialsPage() {
         </div>
 
         {/* Results count */}
-        {pagination && !isLoading && materials.length > 0 && (
-          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-            <span>{pagination.totalCount} materiales</span>
-            <span>Página {pagination.currentPage} de {pagination.totalPages}</span>
-          </div>
+        {pagination && !isLoading && (
+          <PaginationSummary
+            total={pagination.totalCount}
+            totalLabel="materiales"
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            limit={pageQuery.limit}
+            onLimitChange={handleLimitChange}
+          />
         )}
 
         {/* Content */}
@@ -178,26 +182,12 @@ export function MaterialsPage() {
         )}
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              {pagination.currentPage > 1 && (
-                <PaginationItem>
-                  <PaginationPrevious onClick={() => setPage((p) => p - 1)} />
-                </PaginationItem>
-              )}
-              <PaginationNumbers
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={setPage}
-              />
-              {pagination.currentPage < pagination.totalPages && (
-                <PaginationItem>
-                  <PaginationNext onClick={() => setPage((p) => p + 1)} />
-                </PaginationItem>
-              )}
-            </PaginationContent>
-          </Pagination>
+        {pagination && (
+          <PaginationControls
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

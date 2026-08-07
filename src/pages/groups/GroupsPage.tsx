@@ -15,13 +15,11 @@ import { Alert } from '@/components/ui/Alert'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/Table'
-import {
-  Pagination, PaginationContent, PaginationItem, PaginationNumbers,
-  PaginationPrevious, PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { useGroups, useMyGroups } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
 import type { GroupListParams, GroupListItem, MyGroupItem, MyGroupsParams } from '@/types/group'
@@ -60,8 +58,8 @@ export function GroupsPage() {
   const isCoachOrAdmin = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const [tab, setTab] = useState('all')
-  const [allParams, setAllParams] = useState<GroupListParams>({ page: 1, limit: 10 })
-  const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 10 })
+  const [allParams, setAllParams] = useState<GroupListParams>({ page: 1, limit: 5 })
+  const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 5 })
   const [allSearchInput, setAllSearchInput] = useState('')
   const [mySearchInput, setMySearchInput] = useState('')
 
@@ -82,6 +80,11 @@ export function GroupsPage() {
 
   const allPagination = allGroups.data?.pagination
   const myPagination = myGroups.data?.pagination
+
+  const { handlePageChange: handleAllPageChange, handleLimitChange: handleAllLimitChange } =
+    usePaginationHandlers(setAllParams)
+  const { handlePageChange: handleMyPageChange, handleLimitChange: handleMyLimitChange } =
+    usePaginationHandlers(setMyParams)
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Grupos' }]}>
@@ -132,11 +135,15 @@ export function GroupsPage() {
             </div>
 
             {/* Results count */}
-            {allPagination && !allGroups.isLoading && (allGroups.data?.groups.length ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-                <span>{allPagination.total} grupos</span>
-                <span>Página {allPagination.page} de {allPagination.totalPages}</span>
-              </div>
+            {allPagination && !allGroups.isLoading && (
+              <PaginationSummary
+                total={allPagination.total}
+                totalLabel="grupos"
+                currentPage={allPagination.page}
+                totalPages={allPagination.totalPages}
+                limit={allPagination.limit}
+                onLimitChange={handleAllLimitChange}
+              />
             )}
 
             {allGroups.error && <Alert variant="error">Error al cargar grupos.</Alert>}
@@ -152,22 +159,12 @@ export function GroupsPage() {
               />
             )}
 
-            {allPagination && allPagination.totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  {allPagination.page > 1 && (
-                    <PaginationItem><PaginationPrevious onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page - 1 }))} /></PaginationItem>
-                  )}
-                  <PaginationNumbers
-                    currentPage={allPagination.page}
-                    totalPages={allPagination.totalPages}
-                    onPageChange={(page) => setAllParams((p) => ({ ...p, page }))}
-                  />
-                  {allPagination.page < allPagination.totalPages && (
-                    <PaginationItem><PaginationNext onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page + 1 }))} /></PaginationItem>
-                  )}
-                </PaginationContent>
-              </Pagination>
+            {allPagination && (
+              <PaginationControls
+                currentPage={allPagination.page}
+                totalPages={allPagination.totalPages}
+                onPageChange={handleAllPageChange}
+              />
             )}
           </TabsContent>
 
@@ -186,11 +183,15 @@ export function GroupsPage() {
             {myGroups.error && <Alert variant="error">Error al cargar tus grupos.</Alert>}
 
             {/* Results count */}
-            {myPagination && !myGroups.isLoading && (myGroups.data?.groups.length ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-                <span>{myPagination.total} grupos</span>
-                <span>Página {myPagination.page} de {myPagination.totalPages}</span>
-              </div>
+            {myPagination && !myGroups.isLoading && (
+              <PaginationSummary
+                total={myPagination.total}
+                totalLabel="grupos"
+                currentPage={myPagination.page}
+                totalPages={myPagination.totalPages}
+                limit={myPagination.limit}
+                onLimitChange={handleMyLimitChange}
+              />
             )}
 
             {myGroups.isLoading ? (
@@ -204,22 +205,12 @@ export function GroupsPage() {
               />
             )}
 
-            {myPagination && myPagination.totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  {myPagination.page > 1 && (
-                    <PaginationItem><PaginationPrevious onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page - 1 }))} /></PaginationItem>
-                  )}
-                  <PaginationNumbers
-                    currentPage={myPagination.page}
-                    totalPages={myPagination.totalPages}
-                    onPageChange={(page) => setMyParams((p) => ({ ...p, page }))}
-                  />
-                  {myPagination.page < myPagination.totalPages && (
-                    <PaginationItem><PaginationNext onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page + 1 }))} /></PaginationItem>
-                  )}
-                </PaginationContent>
-              </Pagination>
+            {myPagination && (
+              <PaginationControls
+                currentPage={myPagination.page}
+                totalPages={myPagination.totalPages}
+                onPageChange={handleMyPageChange}
+              />
             )}
           </TabsContent>
         </Tabs>

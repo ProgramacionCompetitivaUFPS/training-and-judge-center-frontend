@@ -6,13 +6,11 @@ import { DataTable, EmptyState } from '@/components/patterns'
 import type { Column } from '@/components/patterns/DataTable'
 import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
-import {
-  Pagination, PaginationContent, PaginationItem,
-  PaginationNumbers, PaginationPrevious, PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -91,7 +89,7 @@ const columns: Column<SubmissionListItem>[] = [
 
 export function SubmissionsPage() {
   const navigate = useNavigate()
-  const [filters, setFilters] = useState<MySubmissionsParams>({ page: 1, limit: 20 })
+  const [filters, setFilters] = useState<MySubmissionsParams>({ page: 1, limit: 5 })
   const [problemInput, setProblemInput] = useState('')
   const debouncedProblem = useDebounce(problemInput)
 
@@ -104,9 +102,7 @@ export function SubmissionsPage() {
   const submissions = data?.submissions ?? []
   const pagination = data?.pagination
 
-  function handlePageChange(page: number) {
-    setFilters((prev) => ({ ...prev, page }))
-  }
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Mis Submissions' }]}>
@@ -167,11 +163,15 @@ export function SubmissionsPage() {
         </div>
 
         {/* Results count */}
-        {pagination && !isLoading && submissions.length > 0 && (
-          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-            <span>{pagination.total} submissions</span>
-            <span>Página {pagination.page} de {pagination.totalPages}</span>
-          </div>
+        {pagination && !isLoading && (
+          <PaginationSummary
+            total={pagination.total}
+            totalLabel="submissions"
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            limit={filters.limit ?? 5}
+            onLimitChange={handleLimitChange}
+          />
         )}
 
         {/* Table */}
@@ -192,26 +192,12 @@ export function SubmissionsPage() {
         )}
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              {pagination.hasPrevPage && (
-                <PaginationItem>
-                  <PaginationPrevious onClick={() => handlePageChange(pagination.page - 1)} />
-                </PaginationItem>
-              )}
-              <PaginationNumbers
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-              {pagination.hasNextPage && (
-                <PaginationItem>
-                  <PaginationNext onClick={() => handlePageChange(pagination.page + 1)} />
-                </PaginationItem>
-              )}
-            </PaginationContent>
-          </Pagination>
+        {pagination && (
+          <PaginationControls
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>
