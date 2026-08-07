@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
 import type {
   LoginRequest,
@@ -13,7 +13,6 @@ import type {
   ConfirmDeactivationRequest,
   AdminUpdateUserRequest,
   AdminUserListParams,
-  ChangeUserRoleRequest,
 } from '@/types/user'
 
 // === Query Keys ===
@@ -66,6 +65,7 @@ export function useAdminUsers(params?: AdminUserListParams) {
   return useQuery({
     queryKey: userKeys.adminList(params),
     queryFn: () => usersApi.adminListUsers(params),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -168,13 +168,3 @@ export function useAdminDeactivateUser() {
   })
 }
 
-export function useAdminChangeUserRole() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ChangeUserRoleRequest }) =>
-      usersApi.adminChangeUserRole(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all })
-    },
-  })
-}

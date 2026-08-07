@@ -4,6 +4,7 @@ import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest 
 // === Mock Users ===
 
 export const mockCurrentUser: User = {
+  id: 'user-luisadmin',
   email: 'admin@trainingcenter.com',
   name: 'Luis Admin',
   nickname: 'luisadmin',
@@ -19,6 +20,7 @@ export const mockCurrentUser: User = {
 export const mockUsers: User[] = [
   mockCurrentUser,
   {
+    id: 'user-mariacoach',
     email: 'coach@trainingcenter.com',
     name: 'María Coach',
     nickname: 'mariacoach',
@@ -30,6 +32,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-08-20T08:00:00Z',
   },
   {
+    id: 'user-carloscp',
     email: 'contestant1@trainingcenter.com',
     name: 'Carlos Pérez',
     nickname: 'carloscp',
@@ -41,6 +44,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-09-01T12:00:00Z',
   },
   {
+    id: 'user-anagarcia',
     email: 'contestant2@trainingcenter.com',
     name: 'Ana García',
     nickname: 'anagarcia',
@@ -52,6 +56,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-10-05T09:00:00Z',
   },
   {
+    id: 'user-pedroinactive',
     email: 'contestant3@trainingcenter.com',
     name: 'Pedro Inactivo',
     nickname: 'pedroinactive',
@@ -63,6 +68,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-07-01T11:00:00Z',
   },
   {
+    id: 'user-sofiarodriguez',
     email: 'sofia@trainingcenter.com',
     name: 'Sofía Rodríguez',
     nickname: 'sofiarodriguez',
@@ -74,6 +80,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-11-15T14:00:00Z',
   },
   {
+    id: 'user-diegomartinez',
     email: 'diego@trainingcenter.com',
     name: 'Diego Martínez',
     nickname: 'diegomartinez',
@@ -171,7 +178,7 @@ export function toPublicProfile(user: User): PublicUserProfile {
 export function buildAdminUserList(
   params: { page?: number; limit?: number; search?: string; role?: string; status?: string }
 ): AdminUserListResponse {
-  let filtered = [...mockUsers]
+  let filtered = [...mockUsers] as (User & { id: string })[]
 
   if (params.search) {
     const s = params.search.toLowerCase()

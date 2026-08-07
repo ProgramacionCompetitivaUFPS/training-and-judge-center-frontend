@@ -123,7 +123,7 @@ export interface AdminUserListParams extends PaginationParams {
 }
 
 export interface AdminUserListResponse {
-  users: User[]
+  users: (User & { id: string })[]
   pagination: {
     page: number
     limit: number
@@ -132,12 +132,6 @@ export interface AdminUserListResponse {
     hasNextPage: boolean
     hasPrevPage: boolean
   }
-}
-
-// === Role Change ===
-
-export interface ChangeUserRoleRequest {
-  role: UserRole
 }
 
 // === Dashboard ===

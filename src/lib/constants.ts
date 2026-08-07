@@ -1,3 +1,12 @@
+import type { UserRole } from '@/types/user'
+import type { BadgeProps } from '@/components/ui/Badge'
+
+export const ROLE_CONFIG = {
+  ADMIN: { label: 'Admin', badgeVariant: 'default' },
+  COACH: { label: 'Coach', badgeVariant: 'primary' },
+  CONTESTANT: { label: 'Contestant', badgeVariant: 'outline' },
+} as const satisfies Record<UserRole, { label: string; badgeVariant: BadgeProps['variant'] }>
+
 export const DIFFICULTY_COLORS = {
   easy: {
     bg: 'bg-status-success/10',
