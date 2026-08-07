@@ -9,7 +9,7 @@ import { Alert } from '@/components/ui/Alert'
 import { StatCard } from '@/components/features/StatCard'
 import { useUserProfile, useUserStats } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
-import { ROUTES } from '@/lib/constants'
+import { ROLE_CONFIG, ROUTES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types/user'
 
@@ -24,12 +24,6 @@ function getAvatarClass(role: UserRole): string {
   if (role === 'ADMIN') return 'bg-brand-primary text-neutral-text-inverse'
   if (role === 'COACH') return 'bg-brand-accent text-neutral-text-inverse'
   return 'bg-neutral-text-primary text-neutral-text-inverse'
-}
-
-function getRoleLabel(role: UserRole): string {
-  if (role === 'ADMIN') return 'Admin'
-  if (role === 'COACH') return 'Coach'
-  return 'Contestant'
 }
 
 export function ProfilePage() {
@@ -86,16 +80,8 @@ export function ProfilePage() {
                     <h1 className="text-lg font-bold text-neutral-text-primary leading-tight">
                       {profile.name}
                     </h1>
-                    <Badge
-                      variant={
-                        profile.role === 'ADMIN'
-                          ? 'default'
-                          : profile.role === 'COACH'
-                            ? 'primary'
-                            : 'outline'
-                      }
-                    >
-                      {getRoleLabel(profile.role)}
+                    <Badge variant={ROLE_CONFIG[profile.role].badgeVariant}>
+                      {ROLE_CONFIG[profile.role].label}
                     </Badge>
                   </div>
                   <p className="text-sm text-neutral-text-muted">@{profile.nickname}</p>
