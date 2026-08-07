@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/patterns'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext } from '@/components/ui/Pagination'
+import { Pagination, PaginationContent, PaginationItem, PaginationNumbers, PaginationPrevious, PaginationNext } from '@/components/ui/Pagination'
 import { Skeleton } from '@/components/ui/Skeleton'
 import {
   Table,
@@ -210,16 +210,11 @@ export function ProblemsPage() {
                   <PaginationPrevious onClick={() => handlePageChange(pagination.currentPage - 1)} />
                 </PaginationItem>
               )}
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    isActive={page === pagination.currentPage}
-                    onClick={() => handlePageChange(page)}
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
+              <PaginationNumbers
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
               {pagination.currentPage < pagination.totalPages && (
                 <PaginationItem>
                   <PaginationNext onClick={() => handlePageChange(pagination.currentPage + 1)} />

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/Select'
 import {
   Pagination, PaginationContent, PaginationItem,
-  PaginationLink, PaginationPrevious, PaginationNext,
+  PaginationNumbers, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { useMaterials } from '@/hooks/api/useMaterials'
@@ -186,13 +186,11 @@ export function MaterialsPage() {
                   <PaginationPrevious onClick={() => setPage((p) => p - 1)} />
                 </PaginationItem>
               )}
-              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((p) => (
-                <PaginationItem key={p}>
-                  <PaginationLink isActive={page === p} onClick={() => setPage(p)}>
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
+              <PaginationNumbers
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={setPage}
+              />
               {pagination.currentPage < pagination.totalPages && (
                 <PaginationItem>
                   <PaginationNext onClick={() => setPage((p) => p + 1)} />

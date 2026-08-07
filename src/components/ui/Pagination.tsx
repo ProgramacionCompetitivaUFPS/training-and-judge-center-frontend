@@ -2,6 +2,14 @@ import * as React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+function getPaginationRange(currentPage: number, totalPages: number, windowSize = 5): number[] {
+  let start = Math.max(1, currentPage - Math.floor(windowSize / 2))
+  const end = Math.min(totalPages, start + windowSize - 1)
+  start = Math.max(1, end - windowSize + 1)
+
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+}
+
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
     role="navigation"
@@ -88,6 +96,65 @@ const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<'span'
 )
 PaginationEllipsis.displayName = 'PaginationEllipsis'
 
+interface PaginationNumbersProps {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  windowSize?: number
+}
+
+const PaginationNumbers = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  windowSize = 5,
+}: PaginationNumbersProps) => {
+  const pageNumbers = getPaginationRange(currentPage, totalPages, windowSize)
+  const firstShown = pageNumbers[0]
+  const lastShown = pageNumbers[pageNumbers.length - 1]
+
+  return (
+    <>
+      {firstShown > 1 && (
+        <>
+          <PaginationItem>
+            <PaginationLink isActive={currentPage === 1} onClick={() => onPageChange(1)}>
+              1
+            </PaginationLink>
+          </PaginationItem>
+          {firstShown > 2 && (
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
+        </>
+      )}
+      {pageNumbers.map((page) => (
+        <PaginationItem key={page}>
+          <PaginationLink isActive={page === currentPage} onClick={() => onPageChange(page)}>
+            {page}
+          </PaginationLink>
+        </PaginationItem>
+      ))}
+      {lastShown < totalPages && (
+        <>
+          {lastShown < totalPages - 1 && (
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
+          <PaginationItem>
+            <PaginationLink isActive={currentPage === totalPages} onClick={() => onPageChange(totalPages)}>
+              {totalPages}
+            </PaginationLink>
+          </PaginationItem>
+        </>
+      )}
+    </>
+  )
+}
+PaginationNumbers.displayName = 'PaginationNumbers'
+
 export {
   Pagination,
   PaginationContent,
@@ -95,5 +162,6 @@ export {
   PaginationItem,
   PaginationLink,
   PaginationNext,
+  PaginationNumbers,
   PaginationPrevious,
 }

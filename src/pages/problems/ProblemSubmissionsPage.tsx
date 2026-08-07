@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/Table'
 import {
   Pagination, PaginationContent, PaginationItem,
-  PaginationLink, PaginationPrevious, PaginationNext,
+  PaginationNumbers, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { EmptyState } from '@/components/patterns'
@@ -189,13 +189,11 @@ export function ProblemSubmissionsPage() {
                   <PaginationPrevious onClick={() => setFilters((prev) => ({ ...prev, page: pagination.page - 1 }))} />
                 </PaginationItem>
               )}
-              {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((p) => (
-                <PaginationItem key={p}>
-                  <PaginationLink isActive={p === pagination.page} onClick={() => setFilters((prev) => ({ ...prev, page: p }))}>
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
+              <PaginationNumbers
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
+              />
               {pagination.hasNextPage && (
                 <PaginationItem>
                   <PaginationNext onClick={() => setFilters((prev) => ({ ...prev, page: pagination.page + 1 }))} />

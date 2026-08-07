@@ -33,7 +33,7 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
+  PaginationNumbers,
   PaginationPrevious,
   PaginationNext,
 } from '@/components/ui/Pagination'
@@ -142,15 +142,6 @@ export function UsersListPage() {
 
   const totalPages = Math.max(data?.pagination.totalPages ?? 1, 1)
   const currentPage = data?.pagination.page ?? 1
-
-  const pageWindowSize = 5
-  let pageWindowStart = Math.max(1, currentPage - Math.floor(pageWindowSize / 2))
-  const pageWindowEnd = Math.min(totalPages, pageWindowStart + pageWindowSize - 1)
-  pageWindowStart = Math.max(1, pageWindowEnd - pageWindowSize + 1)
-  const pageNumbers = Array.from(
-    { length: pageWindowEnd - pageWindowStart + 1 },
-    (_, i) => pageWindowStart + i
-  )
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Usuarios' }]}>
@@ -323,16 +314,11 @@ export function UsersListPage() {
                       disabled={currentPage <= 1}
                     />
                   </PaginationItem>
-                  {pageNumbers.map((pageNumber) => (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        isActive={pageNumber === currentPage}
-                        onClick={() => setPage(pageNumber)}
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
+                  <PaginationNumbers
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                  />
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
