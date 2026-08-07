@@ -7,16 +7,6 @@ export interface ApiError {
   }>
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  pagination: {
-    totalCount: number
-    currentPage: number
-    totalPages: number
-    itemsPerPage: number
-  }
-}
-
 export interface PaginationParams {
   page?: number
   limit?: number
