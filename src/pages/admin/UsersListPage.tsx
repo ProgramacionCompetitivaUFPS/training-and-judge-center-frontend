@@ -29,17 +29,11 @@ import {
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNumbers,
-  PaginationPrevious,
-  PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { useAdminUsers, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX } from 'lucide-react'
@@ -76,13 +70,12 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(5)
+  const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
   const params: AdminUserListParams = {
-    page,
-    limit,
+    page: pagination.page,
+    limit: pagination.limit,
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
@@ -95,23 +88,20 @@ export function UsersListPage() {
 
   const handleSearch = (search: string) => {
     setSearchInput(search)
-    setPage(1)
+    setPagination((p) => ({ ...p, page: 1 }))
   }
 
   const handleRoleFilter = (role: string) => {
     setRoleFilter(role === 'ALL' ? undefined : (role as UserRole))
-    setPage(1)
+    setPagination((p) => ({ ...p, page: 1 }))
   }
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status === 'ALL' ? undefined : (status as UserStatus))
-    setPage(1)
+    setPagination((p) => ({ ...p, page: 1 }))
   }
 
-  const handleLimitChange = (value: string) => {
-    setLimit(Number(value))
-    setPage(1)
-  }
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
   const isRowActionPending = (userId: string) =>
     pendingAction?.user.id === userId && activeMutation.isPending
@@ -188,27 +178,14 @@ export function UsersListPage() {
         )}
 
         {data && !isLoading && (
-          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-            <span>{data.pagination.total} usuarios en total</span>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span>Mostrar</span>
-                <Select value={String(limit)} onValueChange={handleLimitChange}>
-                  <SelectTrigger className="h-7 w-[64px] px-2 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span>por página</span>
-              </div>
-              <span>Página {currentPage} de {totalPages}</span>
-            </div>
-          </div>
+          <PaginationSummary
+            total={data.pagination.total}
+            totalLabel="usuarios en total"
+            currentPage={currentPage}
+            totalPages={totalPages}
+            limit={pagination.limit}
+            onLimitChange={handleLimitChange}
+          />
         )}
 
         {isLoading ? (
@@ -305,29 +282,11 @@ export function UsersListPage() {
               </CardContent>
             </Card>
 
-            {totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage <= 1}
-                    />
-                  </PaginationItem>
-                  <PaginationNumbers
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setPage}
-                  />
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage >= totalPages}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            )}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           </>
         ) : null}
       </div>

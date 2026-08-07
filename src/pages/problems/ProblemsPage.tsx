@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/patterns'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
-import { Pagination, PaginationContent, PaginationItem, PaginationNumbers, PaginationPrevious, PaginationNext } from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { Skeleton } from '@/components/ui/Skeleton'
 import {
   Table,
@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { useProblems } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import type { ProblemListParams, ProblemListItem } from '@/types/problem'
 
@@ -34,7 +35,7 @@ export function ProblemsPage() {
   const { user } = useAuth()
   const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
-  const [filters, setFilters] = useState<ProblemListParams>({ page: 1, limit: 20 })
+  const [filters, setFilters] = useState<ProblemListParams>({ page: 1, limit: 5 })
   const [authorInput, setAuthorInput] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
@@ -52,9 +53,7 @@ export function ProblemsPage() {
   const problems = data?.problems ?? []
   const pagination = data?.pagination
 
-  function handlePageChange(page: number) {
-    setFilters((prev) => ({ ...prev, page }))
-  }
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
 
   function handleTagClick(tag: string) {
     setSelectedTag((prev) => (prev === tag ? null : tag))
@@ -174,11 +173,15 @@ export function ProblemsPage() {
         </div>
 
         {/* Results count + Content */}
-        {pagination && !isLoading && problems.length > 0 && (
-          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-            <span>{pagination.totalCount} problemas en total</span>
-            <span>Página {pagination.currentPage} de {pagination.totalPages}</span>
-          </div>
+        {pagination && !isLoading && (
+          <PaginationSummary
+            total={pagination.totalCount}
+            totalLabel="problemas en total"
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            limit={filters.limit ?? 5}
+            onLimitChange={handleLimitChange}
+          />
         )}
         {isLoading ? (
           <div className="space-y-3">
@@ -202,26 +205,12 @@ export function ProblemsPage() {
         )}
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              {pagination.currentPage > 1 && (
-                <PaginationItem>
-                  <PaginationPrevious onClick={() => handlePageChange(pagination.currentPage - 1)} />
-                </PaginationItem>
-              )}
-              <PaginationNumbers
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-              {pagination.currentPage < pagination.totalPages && (
-                <PaginationItem>
-                  <PaginationNext onClick={() => handlePageChange(pagination.currentPage + 1)} />
-                </PaginationItem>
-              )}
-            </PaginationContent>
-          </Pagination>
+        {pagination && (
+          <PaginationControls
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

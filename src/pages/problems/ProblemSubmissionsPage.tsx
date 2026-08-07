@@ -8,14 +8,12 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/Table'
-import {
-  Pagination, PaginationContent, PaginationItem,
-  PaginationNumbers, PaginationPrevious, PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { EmptyState } from '@/components/patterns'
 import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
 import { useProblemDetail } from '@/hooks/api/useProblems'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 import type { ProblemSubmissionsParams, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -35,7 +33,7 @@ export function ProblemSubmissionsPage() {
 
   const { data: problem } = useProblemDetail(slug || '')
 
-  const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 20 })
+  const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 5 })
   const [mineOnly, setMineOnly] = useState(false)
 
   const queryParams: ProblemSubmissionsParams = {
@@ -46,6 +44,8 @@ export function ProblemSubmissionsPage() {
   const { data, isLoading } = useProblemSubmissions(slug || '', queryParams)
   const submissions = data?.submissions ?? []
   const pagination = data?.pagination
+
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
 
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
@@ -111,11 +111,15 @@ export function ProblemSubmissionsPage() {
         </div>
 
         {/* Results count */}
-        {pagination && !isLoading && submissions.length > 0 && (
-          <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-            <span>{pagination.total} submissions</span>
-            <span>Página {pagination.page} de {pagination.totalPages}</span>
-          </div>
+        {pagination && !isLoading && (
+          <PaginationSummary
+            total={pagination.total}
+            totalLabel="submissions"
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            limit={filters.limit ?? 5}
+            onLimitChange={handleLimitChange}
+          />
         )}
 
         {/* Table */}
@@ -181,26 +185,12 @@ export function ProblemSubmissionsPage() {
         )}
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              {pagination.hasPrevPage && (
-                <PaginationItem>
-                  <PaginationPrevious onClick={() => setFilters((prev) => ({ ...prev, page: pagination.page - 1 }))} />
-                </PaginationItem>
-              )}
-              <PaginationNumbers
-                currentPage={pagination.page}
-                totalPages={pagination.totalPages}
-                onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
-              />
-              {pagination.hasNextPage && (
-                <PaginationItem>
-                  <PaginationNext onClick={() => setFilters((prev) => ({ ...prev, page: pagination.page + 1 }))} />
-                </PaginationItem>
-              )}
-            </PaginationContent>
-          </Pagination>
+        {pagination && (
+          <PaginationControls
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select'
 
 function getPaginationRange(currentPage: number, totalPages: number, windowSize = 5): number[] {
   let start = Math.max(1, currentPage - Math.floor(windowSize / 2))
@@ -155,13 +156,108 @@ const PaginationNumbers = ({
 }
 PaginationNumbers.displayName = 'PaginationNumbers'
 
+interface PaginationSizeSelectProps {
+  value: number
+  onChange: (size: number) => void
+  sizeOptions?: number[]
+}
+
+const PaginationSizeSelect = ({ value, onChange, sizeOptions = [5, 10, 20, 50] }: PaginationSizeSelectProps) => (
+  <div className="flex items-center gap-2">
+    <span>Mostrar</span>
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger className="h-7 w-[64px] px-2 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {sizeOptions.map((size) => (
+          <SelectItem key={size} value={String(size)}>
+            {size}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+    <span>por página</span>
+  </div>
+)
+PaginationSizeSelect.displayName = 'PaginationSizeSelect'
+
+interface PaginationSummaryProps {
+  total: number
+  totalLabel: string
+  currentPage: number
+  totalPages: number
+  limit: number
+  onLimitChange: (limit: number) => void
+  sizeOptions?: number[]
+}
+
+const PaginationSummary = ({
+  total,
+  totalLabel,
+  currentPage,
+  totalPages,
+  limit,
+  onLimitChange,
+  sizeOptions,
+}: PaginationSummaryProps) => (
+  <div className="flex items-center justify-between text-xs text-neutral-text-muted">
+    <span>{total} {totalLabel}</span>
+    <div className="flex items-center gap-4">
+      <PaginationSizeSelect value={limit} onChange={onLimitChange} sizeOptions={sizeOptions} />
+      <span>Página {currentPage} de {totalPages}</span>
+    </div>
+  </div>
+)
+PaginationSummary.displayName = 'PaginationSummary'
+
+interface PaginationControlsProps {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  windowSize?: number
+}
+
+const PaginationControls = ({ currentPage, totalPages, onPageChange, windowSize }: PaginationControlsProps) => {
+  if (totalPages <= 1) return null
+
+  return (
+    <Pagination>
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+          />
+        </PaginationItem>
+        <PaginationNumbers
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          windowSize={windowSize}
+        />
+        <PaginationItem>
+          <PaginationNext
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
+  )
+}
+PaginationControls.displayName = 'PaginationControls'
+
 export {
   Pagination,
   PaginationContent,
+  PaginationControls,
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationNumbers,
   PaginationPrevious,
+  PaginationSizeSelect,
+  PaginationSummary,
 }

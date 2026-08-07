@@ -58,12 +58,15 @@ export {
 export {
   Pagination,
   PaginationContent,
+  PaginationControls,
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationNumbers,
   PaginationPrevious,
+  PaginationSizeSelect,
+  PaginationSummary,
 } from './Pagination'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'
 export { Toast, ToastTitle, ToastDescription, ToastContainer } from './Toast'
