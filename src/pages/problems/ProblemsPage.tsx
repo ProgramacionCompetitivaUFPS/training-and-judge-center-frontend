@@ -175,9 +175,9 @@ export function ProblemsPage() {
         {/* Results count + Content */}
         {pagination && !isLoading && (
           <PaginationSummary
-            total={pagination.totalCount}
+            total={pagination.total}
             totalLabel="problemas en total"
-            currentPage={pagination.currentPage}
+            currentPage={pagination.page}
             totalPages={pagination.totalPages}
             limit={filters.limit ?? 5}
             onLimitChange={handleLimitChange}
@@ -207,7 +207,7 @@ export function ProblemsPage() {
         {/* Pagination */}
         {pagination && (
           <PaginationControls
-            currentPage={pagination.currentPage}
+            currentPage={pagination.page}
             totalPages={pagination.totalPages}
             onPageChange={handlePageChange}
           />

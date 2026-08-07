@@ -137,9 +137,9 @@ export function MaterialsPage() {
         {/* Results count */}
         {pagination && !isLoading && (
           <PaginationSummary
-            total={pagination.totalCount}
+            total={pagination.total}
             totalLabel="materiales"
-            currentPage={pagination.currentPage}
+            currentPage={pagination.page}
             totalPages={pagination.totalPages}
             limit={pageQuery.limit}
             onLimitChange={handleLimitChange}
@@ -184,7 +184,7 @@ export function MaterialsPage() {
         {/* Pagination */}
         {pagination && (
           <PaginationControls
-            currentPage={pagination.currentPage}
+            currentPage={pagination.page}
             totalPages={pagination.totalPages}
             onPageChange={handlePageChange}
           />
