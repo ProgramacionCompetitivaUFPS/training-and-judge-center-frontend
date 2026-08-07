@@ -48,11 +48,12 @@ export function UsersListPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(5)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
   const params: AdminUserListParams = {
     page,
-    limit: 20,
+    limit,
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
@@ -74,6 +75,11 @@ export function UsersListPage() {
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status === 'ALL' ? undefined : (status as UserStatus))
+    setPage(1)
+  }
+
+  const handleLimitChange = (value: string) => {
+    setLimit(Number(value))
     setPage(1)
   }
 
@@ -171,7 +177,24 @@ export function UsersListPage() {
         {data && !isLoading && (
           <div className="flex items-center justify-between text-xs text-neutral-text-muted">
             <span>{data.pagination.total} usuarios en total</span>
-            <span>Página {currentPage} de {totalPages}</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span>Mostrar</span>
+                <Select value={String(limit)} onValueChange={handleLimitChange}>
+                  <SelectTrigger className="h-7 w-[64px] px-2 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span>por página</span>
+              </div>
+              <span>Página {currentPage} de {totalPages}</span>
+            </div>
           </div>
         )}
 

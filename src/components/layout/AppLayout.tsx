@@ -44,7 +44,7 @@ export function AppLayout({
         <main className="flex-1">
           <div
             className={cn(
-              'mx-auto px-4 py-6',
+              'mx-auto px-6 py-6',
               maxWidthClasses[maxWidth]
             )}
           >

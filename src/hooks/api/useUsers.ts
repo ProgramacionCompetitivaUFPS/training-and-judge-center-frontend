@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
 import type {
   LoginRequest,
@@ -65,6 +65,7 @@ export function useAdminUsers(params?: AdminUserListParams) {
   return useQuery({
     queryKey: userKeys.adminList(params),
     queryFn: () => usersApi.adminListUsers(params),
+    placeholderData: keepPreviousData,
   })
 }
 
