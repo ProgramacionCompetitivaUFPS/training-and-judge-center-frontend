@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AppLayout } from '@/components/layout'
-import { Card } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,14 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/Select'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/Table'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -32,12 +40,33 @@ import {
 import { useAdminUsers, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
+import { ROLE_CONFIG } from '@/lib/constants'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX } from 'lucide-react'
 
+type UserWithId = User & { id: string }
+
 type PendingAction = {
-  user: User
+  user: UserWithId
   kind: 'promote' | 'demote' | 'deactivate'
+}
+
+function getConfirmDialogProps(action: PendingAction | null) {
+  if (!action) return null
+  const { user, kind } = action
+
+  if (kind === 'deactivate') {
+    return {
+      title: 'Desactivar usuario',
+      description: `¿Desactivar al usuario @${user.nickname}? Podrá reactivarse más adelante.`,
+    }
+  }
+
+  const targetRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
+  return {
+    title: 'Cambiar rol de usuario',
+    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${user.role} a ${targetRole}?`,
+  }
 }
 
 export function UsersListPage() {
@@ -62,6 +91,7 @@ export function UsersListPage() {
   const { data, isLoading, error } = useAdminUsers(params)
   const deactivateMutation = useAdminDeactivateUser()
   const updateUserMutation = useAdminUpdateUser()
+  const activeMutation = pendingAction?.kind === 'deactivate' ? deactivateMutation : updateUserMutation
 
   const handleSearch = (search: string) => {
     setSearchInput(search)
@@ -84,8 +114,7 @@ export function UsersListPage() {
   }
 
   const isRowActionPending = (userId: string) =>
-    pendingAction?.user.id === userId &&
-    (pendingAction.kind === 'deactivate' ? deactivateMutation.isPending : updateUserMutation.isPending)
+    pendingAction?.user.id === userId && activeMutation.isPending
 
   const handleConfirmAction = async () => {
     if (!pendingAction) return
@@ -93,11 +122,11 @@ export function UsersListPage() {
 
     try {
       if (kind === 'deactivate') {
-        await deactivateMutation.mutateAsync(user.id!)
+        await deactivateMutation.mutateAsync(user.id)
         toast({ variant: 'success', title: 'Usuario desactivado' })
       } else {
         const newRole: UserRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
-        await updateUserMutation.mutateAsync({ id: user.id!, data: { role: newRole } })
+        await updateUserMutation.mutateAsync({ id: user.id, data: { role: newRole } })
         toast({ variant: 'success', title: 'Rol actualizado' })
       }
     } catch {
@@ -109,26 +138,19 @@ export function UsersListPage() {
     setPendingAction(null)
   }
 
-  const confirmDialogProps = (() => {
-    if (!pendingAction) return null
-    const { user, kind } = pendingAction
-
-    if (kind === 'deactivate') {
-      return {
-        title: 'Desactivar usuario',
-        description: `¿Desactivar al usuario @${user.nickname}? Podrá reactivarse más adelante.`,
-      }
-    }
-
-    const targetRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
-    return {
-      title: 'Cambiar rol de usuario',
-      description: `¿Seguro que quieres cambiar a @${user.nickname} de ${user.role} a ${targetRole}?`,
-    }
-  })()
+  const confirmDialogProps = getConfirmDialogProps(pendingAction)
 
   const totalPages = Math.max(data?.pagination.totalPages ?? 1, 1)
   const currentPage = data?.pagination.page ?? 1
+
+  const pageWindowSize = 5
+  let pageWindowStart = Math.max(1, currentPage - Math.floor(pageWindowSize / 2))
+  const pageWindowEnd = Math.min(totalPages, pageWindowStart + pageWindowSize - 1)
+  pageWindowStart = Math.max(1, pageWindowEnd - pageWindowSize + 1)
+  const pageNumbers = Array.from(
+    { length: pageWindowEnd - pageWindowStart + 1 },
+    (_, i) => pageWindowStart + i
+  )
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Usuarios' }]}>
@@ -145,7 +167,7 @@ export function UsersListPage() {
               onChange={(e) => handleSearch(e.target.value)}
             />
           </div>
-          <Select onValueChange={handleRoleFilter} defaultValue="ALL">
+          <Select value={roleFilter ?? 'ALL'} onValueChange={handleRoleFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Rol" />
             </SelectTrigger>
@@ -156,7 +178,7 @@ export function UsersListPage() {
               <SelectItem value="CONTESTANT">Contestant</SelectItem>
             </SelectContent>
           </Select>
-          <Select onValueChange={handleStatusFilter} defaultValue="ACTIVE">
+          <Select value={statusFilter ?? 'ALL'} onValueChange={handleStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
@@ -206,88 +228,90 @@ export function UsersListPage() {
           </div>
         ) : data ? (
           <>
-            <Card className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-surface">
-                  <tr>
-                    <th className="text-left p-3 font-medium text-neutral-text-muted">Usuario</th>
-                    <th className="text-left p-3 font-medium text-neutral-text-muted">Email</th>
-                    <th className="text-left p-3 font-medium text-neutral-text-muted">Rol</th>
-                    <th className="text-left p-3 font-medium text-neutral-text-muted">Estado</th>
-                    <th className="text-right p-3 font-medium text-neutral-text-muted">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-border">
-                  {data.users.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-6 text-center text-neutral-text-muted">
-                        No se encontraron usuarios con estos filtros.
-                      </td>
-                    </tr>
-                  ) : (
-                    data.users.map((user) => (
-                      <tr key={user.nickname} className="hover:bg-neutral-surface/50">
-                        <td className="p-3">
-                          <div>
-                            <p className="font-medium text-neutral-text-primary">{user.name}</p>
-                            <p className="text-xs text-neutral-text-muted">@{user.nickname}</p>
-                          </div>
-                        </td>
-                        <td className="p-3 text-neutral-text-muted">{user.email}</td>
-                        <td className="p-3">
-                          <Badge variant={user.role === 'ADMIN' ? 'default' : user.role === 'COACH' ? 'primary' : 'outline'}>
-                            {user.role}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant={user.status === 'ACTIVE' ? 'default' : 'outline'}>
-                            {user.status === 'ACTIVE' ? 'Activo' : 'Desactivado'}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right">
-                          {user.status === 'ACTIVE' && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="shrink-0"
-                                  disabled={isRowActionPending(user.id!)}
-                                  aria-label={`Acciones para @${user.nickname}`}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {user.role === 'CONTESTANT' && (
-                                  <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'promote' })}>
-                                    <ArrowUp className="mr-2 h-4 w-4" />
-                                    Subir a Coach
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-neutral-text-muted">
+                          No se encontraron usuarios con estos filtros.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-neutral-text-primary">{user.name}</p>
+                              <p className="text-xs text-neutral-text-muted">@{user.nickname}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-neutral-text-muted">{user.email}</TableCell>
+                          <TableCell>
+                            <Badge variant={ROLE_CONFIG[user.role].badgeVariant}>
+                              {ROLE_CONFIG[user.role].label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={user.status === 'ACTIVE' ? 'default' : 'outline'}>
+                              {user.status === 'ACTIVE' ? 'Activo' : 'Desactivado'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {user.status === 'ACTIVE' && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="shrink-0"
+                                    disabled={isRowActionPending(user.id)}
+                                    aria-label={`Acciones para @${user.nickname}`}
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {user.role === 'CONTESTANT' && (
+                                    <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'promote' })}>
+                                      <ArrowUp className="mr-2 h-4 w-4" />
+                                      Subir a Coach
+                                    </DropdownMenuItem>
+                                  )}
+                                  {user.role === 'COACH' && (
+                                    <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
+                                      <ArrowDown className="mr-2 h-4 w-4" />
+                                      Bajar a Contestant
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => setPendingAction({ user, kind: 'deactivate' })}
+                                    className="text-status-error"
+                                  >
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Desactivar usuario
                                   </DropdownMenuItem>
-                                )}
-                                {user.role === 'COACH' && (
-                                  <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
-                                    <ArrowDown className="mr-2 h-4 w-4" />
-                                    Bajar a Contestant
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setPendingAction({ user, kind: 'deactivate' })}
-                                  className="text-status-error"
-                                >
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Desactivar usuario
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
 
             {totalPages > 1 && (
@@ -299,19 +323,16 @@ export function UsersListPage() {
                       disabled={currentPage <= 1}
                     />
                   </PaginationItem>
-                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                    const pageNumber = i + 1
-                    return (
-                      <PaginationItem key={pageNumber}>
-                        <PaginationLink
-                          isActive={pageNumber === currentPage}
-                          onClick={() => setPage(pageNumber)}
-                        >
-                          {pageNumber}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )
-                  })}
+                  {pageNumbers.map((pageNumber) => (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        isActive={pageNumber === currentPage}
+                        onClick={() => setPage(pageNumber)}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -333,7 +354,7 @@ export function UsersListPage() {
           description={confirmDialogProps.description}
           variant="warning"
           onConfirm={handleConfirmAction}
-          isLoading={pendingAction ? isRowActionPending(pendingAction.user.id!) : false}
+          isLoading={activeMutation.isPending}
         />
       )}
     </AppLayout>

@@ -178,7 +178,7 @@ export function toPublicProfile(user: User): PublicUserProfile {
 export function buildAdminUserList(
   params: { page?: number; limit?: number; search?: string; role?: string; status?: string }
 ): AdminUserListResponse {
-  let filtered = [...mockUsers]
+  let filtered = [...mockUsers] as (User & { id: string })[]
 
   if (params.search) {
     const s = params.search.toLowerCase()
