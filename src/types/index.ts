@@ -1,5 +1,5 @@
 // Generic API types
-export type { ApiError, PaginatedResponse, PaginationParams } from './api'
+export type { ApiError, PaginationParams } from './api'
 
 // User types (new, from user.ts)
 export type {

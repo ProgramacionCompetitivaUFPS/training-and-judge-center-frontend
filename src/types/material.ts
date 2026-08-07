@@ -37,10 +37,12 @@ export interface MaterialListParams extends PaginationParams {
 export interface MaterialListResponse {
   materials: Material[]
   pagination: {
-    totalCount: number
-    currentPage: number
+    page: number
+    limit: number
+    total: number
     totalPages: number
-    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
   }
 }
 

@@ -80,10 +80,12 @@ export interface ProblemListParams extends PaginationParams {
 export interface ProblemListResponse {
   problems: ProblemListItem[]
   pagination: {
-    totalCount: number
-    currentPage: number
+    page: number
+    limit: number
+    total: number
     totalPages: number
-    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
   }
 }
 

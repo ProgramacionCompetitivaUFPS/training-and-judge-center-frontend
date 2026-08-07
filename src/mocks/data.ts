@@ -754,14 +754,17 @@ export function buildProblemList(params: {
   const limit = params.limit || 20
   const start = (page - 1) * limit
   const paged = filtered.slice(start, start + limit)
+  const totalPages = Math.ceil(filtered.length / limit) || 1
 
   return {
     problems: paged.map(toListItem),
     pagination: {
-      totalCount: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit) || 1,
-      itemsPerPage: limit,
+      page,
+      limit,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     },
   }
 }
@@ -1676,14 +1679,17 @@ export function buildMaterialList(params: {
   const limit = params.limit || 20
   const start = (page - 1) * limit
   const paged = filtered.slice(start, start + limit)
+  const totalPages = Math.ceil(filtered.length / limit) || 1
 
   return {
     materials: paged,
     pagination: {
-      totalCount: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit) || 1,
-      itemsPerPage: limit,
+      page,
+      limit,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     },
   }
 }
