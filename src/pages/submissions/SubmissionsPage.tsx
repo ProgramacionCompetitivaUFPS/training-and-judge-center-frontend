@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import {
   Pagination, PaginationContent, PaginationItem,
-  PaginationLink, PaginationPrevious, PaginationNext,
+  PaginationNumbers, PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
@@ -200,16 +200,11 @@ export function SubmissionsPage() {
                   <PaginationPrevious onClick={() => handlePageChange(pagination.page - 1)} />
                 </PaginationItem>
               )}
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    isActive={page === pagination.page}
-                    onClick={() => handlePageChange(page)}
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
+              <PaginationNumbers
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
               {pagination.hasNextPage && (
                 <PaginationItem>
                   <PaginationNext onClick={() => handlePageChange(pagination.page + 1)} />

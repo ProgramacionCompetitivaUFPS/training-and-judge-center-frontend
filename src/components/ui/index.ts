@@ -62,6 +62,7 @@ export {
   PaginationItem,
   PaginationLink,
   PaginationNext,
+  PaginationNumbers,
   PaginationPrevious,
 } from './Pagination'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'

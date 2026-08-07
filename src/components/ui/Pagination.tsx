@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePaginationRange } from '@/hooks/usePaginationRange'
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
   <nav
@@ -88,6 +89,65 @@ const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<'span'
 )
 PaginationEllipsis.displayName = 'PaginationEllipsis'
 
+interface PaginationNumbersProps {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  windowSize?: number
+}
+
+const PaginationNumbers = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+  windowSize = 5,
+}: PaginationNumbersProps) => {
+  const pageNumbers = usePaginationRange(currentPage, totalPages, windowSize)
+  const firstShown = pageNumbers[0]
+  const lastShown = pageNumbers[pageNumbers.length - 1]
+
+  return (
+    <>
+      {firstShown > 1 && (
+        <>
+          <PaginationItem>
+            <PaginationLink isActive={currentPage === 1} onClick={() => onPageChange(1)}>
+              1
+            </PaginationLink>
+          </PaginationItem>
+          {firstShown > 2 && (
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
+        </>
+      )}
+      {pageNumbers.map((page) => (
+        <PaginationItem key={page}>
+          <PaginationLink isActive={page === currentPage} onClick={() => onPageChange(page)}>
+            {page}
+          </PaginationLink>
+        </PaginationItem>
+      ))}
+      {lastShown < totalPages && (
+        <>
+          {lastShown < totalPages - 1 && (
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
+          <PaginationItem>
+            <PaginationLink isActive={currentPage === totalPages} onClick={() => onPageChange(totalPages)}>
+              {totalPages}
+            </PaginationLink>
+          </PaginationItem>
+        </>
+      )}
+    </>
+  )
+}
+PaginationNumbers.displayName = 'PaginationNumbers'
+
 export {
   Pagination,
   PaginationContent,
@@ -95,5 +155,6 @@ export {
   PaginationItem,
   PaginationLink,
   PaginationNext,
+  PaginationNumbers,
   PaginationPrevious,
 }

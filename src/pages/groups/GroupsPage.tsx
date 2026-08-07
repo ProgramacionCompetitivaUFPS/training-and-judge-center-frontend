@@ -16,7 +16,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/Table'
 import {
-  Pagination, PaginationContent, PaginationItem, PaginationLink,
+  Pagination, PaginationContent, PaginationItem, PaginationNumbers,
   PaginationPrevious, PaginationNext,
 } from '@/components/ui/Pagination'
 import { useGroups, useMyGroups } from '@/hooks/api/useGroups'
@@ -158,9 +158,11 @@ export function GroupsPage() {
                   {allPagination.page > 1 && (
                     <PaginationItem><PaginationPrevious onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page - 1 }))} /></PaginationItem>
                   )}
-                  {Array.from({ length: Math.min(allPagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <PaginationItem key={page}><PaginationLink isActive={page === allPagination.page} onClick={() => setAllParams((p) => ({ ...p, page }))}>{page}</PaginationLink></PaginationItem>
-                  ))}
+                  <PaginationNumbers
+                    currentPage={allPagination.page}
+                    totalPages={allPagination.totalPages}
+                    onPageChange={(page) => setAllParams((p) => ({ ...p, page }))}
+                  />
                   {allPagination.page < allPagination.totalPages && (
                     <PaginationItem><PaginationNext onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page + 1 }))} /></PaginationItem>
                   )}
@@ -208,9 +210,11 @@ export function GroupsPage() {
                   {myPagination.page > 1 && (
                     <PaginationItem><PaginationPrevious onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page - 1 }))} /></PaginationItem>
                   )}
-                  {Array.from({ length: Math.min(myPagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <PaginationItem key={page}><PaginationLink isActive={page === myPagination.page} onClick={() => setMyParams((p) => ({ ...p, page }))}>{page}</PaginationLink></PaginationItem>
-                  ))}
+                  <PaginationNumbers
+                    currentPage={myPagination.page}
+                    totalPages={myPagination.totalPages}
+                    onPageChange={(page) => setMyParams((p) => ({ ...p, page }))}
+                  />
                   {myPagination.page < myPagination.totalPages && (
                     <PaginationItem><PaginationNext onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page + 1 }))} /></PaginationItem>
                   )}
