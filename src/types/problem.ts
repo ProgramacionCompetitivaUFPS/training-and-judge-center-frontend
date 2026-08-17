@@ -75,6 +75,7 @@ export interface ProblemListParams extends PaginationParams {
   accessibility?: ProblemAccessibility
   tags?: string
   author?: string
+  search?: string
 }
 
 export interface ProblemListResponse {

@@ -29,6 +29,35 @@ export const usersHandlers = [
     return HttpResponse.json(user)
   }),
 
+  // User search/autocomplete — registered before ':nickname' below, since MSW matches
+  // handlers in array order and ':nickname' would otherwise also match the literal 'search'.
+  http.get(url('/users/search'), async ({ request }) => {
+    await delay(200)
+    const sp = new URL(request.url).searchParams
+    const q = (sp.get('q') || '').trim()
+    if (q.length < 2) {
+      return HttpResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'q debe tener al menos 2 caracteres', details: [{ field: 'q', message: 'Mínimo 2 caracteres' }] },
+        { status: 400 }
+      )
+    }
+    const limit = Math.min(Number(sp.get('limit')) || 10, 20)
+    const needle = q.toLowerCase()
+    const results = mockUsers
+      .filter((u) => u.status === 'ACTIVE')
+      .filter((u) =>
+        u.name.toLowerCase().includes(needle) ||
+        u.nickname.toLowerCase().includes(needle) ||
+        u.email.toLowerCase().includes(needle) ||
+        u.institution.toLowerCase().includes(needle)
+      )
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, limit)
+      .map((u) => ({ id: u.id, nickname: u.nickname, name: u.name }))
+
+    return HttpResponse.json({ users: results })
+  }),
+
   // Get user by nickname (public profile) — full payload (email/country/city/updatedAt)
   // only when the viewer is Admin or is viewing their own profile.
   http.get(url('/users/:nickname'), async ({ params, request }) => {

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, UserPlus, X, RefreshCw, ClipboardCheck } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useContestSession } from '@/hooks/useContestSession'
@@ -21,6 +21,8 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useRejudgeContestProblem } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useSearchUsers } from '@/hooks/api/useUsers'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -705,20 +707,20 @@ function ModifiersManager({ problem }: ModifiersManagerProps) {
   const addMutation = useAddModifier()
   const removeMutation = useRemoveModifier()
   const { toast } = useToastContext()
-  const [nickname, setNickname] = useState('')
+  const [userQuery, setUserQuery] = useState('')
+  const debouncedUserQuery = useDebounce(userQuery)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
 
   const modifiers = problem.modifiers ?? []
 
-  function handleAdd() {
-    const trimmed = nickname.trim()
-    if (!trimmed) return
+  function handleAdd(targetNickname: string) {
     addMutation.mutate(
-      { slug: problem.slug, userNickname: trimmed },
+      { slug: problem.slug, userNickname: targetNickname },
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Colaborador agregado' })
-          setNickname('')
+          setUserQuery('')
         },
         onError: () => toast({ variant: 'error', title: 'Error al agregar colaborador' }),
       },
@@ -743,19 +745,24 @@ function ModifiersManager({ problem }: ModifiersManagerProps) {
         <CardTitle>Modificadores</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Nickname del colaborador"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd() } }}
-            className="flex-1"
-          />
-          <Button variant="outline" size="sm" onClick={handleAdd} isLoading={addMutation.isPending} disabled={!nickname.trim()}>
-            <UserPlus className="h-3.5 w-3.5 mr-1" />
-            Agregar
-          </Button>
-        </div>
+        <SearchSelect
+          query={userQuery}
+          onQueryChange={setUserQuery}
+          results={(userSearchData?.users ?? []).filter((u) => !modifiers.some((m) => m.nickname === u.nickname))}
+          isSearching={isSearchingUsers}
+          placeholder="Buscar usuario por nombre o nickname..."
+          emptyLabel="Sin resultados (o ya es colaborador)"
+          hintLabel="Escribe al menos 2 caracteres"
+          getKey={(u) => u.id}
+          renderItem={(u) => (
+            <div>
+              <p className="font-medium text-neutral-text-primary">{u.name}</p>
+              <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+            </div>
+          )}
+          onSelect={(u) => handleAdd(u.nickname)}
+        />
+        {addMutation.isPending && <p className="text-xs text-neutral-text-muted">Agregando...</p>}
         {modifiers.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {modifiers.map((m) => (

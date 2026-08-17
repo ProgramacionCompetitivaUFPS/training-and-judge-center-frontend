@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, mockStandings, mockContestSubmissions, mockProblems } from '../data'
+import { mockContests, buildContestList, buildRegistrations, computeContestStatus, mockStandings, mockContestSubmissions, mockProblems, mockTeamRegistrations, mockGroupDetails } from '../data'
 import { url } from './utils'
 
 export const contestsHandlers = [
@@ -7,11 +7,32 @@ export const contestsHandlers = [
   http.get(url('/contests'), async ({ request }) => {
     await delay(300)
     const sp = new URL(request.url).searchParams
+    let filtered = mockContests.map((c) => ({ ...c, status: computeContestStatus(c.startTime, c.endTime) }))
+
     const status = sp.get('status') || undefined
-    const filtered = status ? mockContests.filter((c) => c.status === status) : mockContests
+    if (status) filtered = filtered.filter((c) => c.status === status)
+
+    const search = sp.get('search') || undefined
+    if (search) {
+      const s = search.toLowerCase()
+      filtered = filtered.filter((c) => c.name.toLowerCase().includes(s))
+    }
+
+    const page = Number(sp.get('page')) || 1
+    const limit = Number(sp.get('limit')) || 20
+    const start = (page - 1) * limit
+    const paged = filtered.slice(start, start + limit)
+
     return HttpResponse.json({
-      data: filtered.map((c) => ({ ...c, group: c.group })),
-      pagination: { page: 1, limit: 20, total: filtered.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+      data: paged,
+      pagination: {
+        page,
+        limit,
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / limit) || 1,
+        hasNextPage: start + limit < filtered.length,
+        hasPrevPage: page > 1,
+      },
     })
   }),
 
@@ -25,6 +46,7 @@ export const contestsHandlers = [
       page: Number(sp.get('page')) || 1,
       limit: Number(sp.get('limit')) || 20,
       status: sp.get('status') || undefined,
+      search: sp.get('search') || undefined,
       sortBy: sp.get('sortBy') || undefined,
       sortOrder: sp.get('sortOrder') || undefined,
     })
@@ -47,6 +69,7 @@ export const contestsHandlers = [
     await delay(300)
     const { groupId } = params as { groupId: string }
     const body = (await request.json()) as Record<string, unknown>
+    const group = mockGroupDetails[groupId]
     const newContest = {
       id: 'contest-new-' + Date.now(),
       name: body.name as string,
@@ -61,14 +84,18 @@ export const contestsHandlers = [
       locked: false,
       participantCount: 0,
       isRegistered: false,
-      participationMode: 'INDIVIDUAL' as const,
-      showTeamMembers: false,
-      group: { id: groupId, name: 'Mock Group' },
+      participationMode: (body.participationMode as 'INDIVIDUAL' | 'TEAM' | 'MIXED') || 'INDIVIDUAL',
+      teamSizeMin: body.teamSizeMin as number | undefined,
+      teamSizeMax: body.teamSizeMax as number | undefined,
+      showTeamMembers: (body.showTeamMembers as boolean) || false,
+      group: { id: groupId, name: group?.name || 'Mock Group' },
       owner: { id: 'u1', nickname: 'luisadmin' },
       problems: [],
+      problemCount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
+    mockContests.push(newContest)
     return HttpResponse.json(newContest, { status: 201 })
   }),
 
@@ -83,6 +110,15 @@ export const contestsHandlers = [
     const contest = mockContests[idx]
     const body = (await request.json()) as Record<string, unknown> & {
       problems?: Array<{ slug: string; order: number }>
+    }
+
+    const changesTeamShape = 'participationMode' in body || 'teamSizeMin' in body || 'teamSizeMax' in body
+    const hasTeamRegistrations = (mockTeamRegistrations[contestId] || []).length > 0
+    if (changesTeamShape && hasTeamRegistrations) {
+      return HttpResponse.json({
+        error: 'CONTEST_HAS_TEAM_REGISTRATIONS',
+        message: 'No se puede cambiar la modalidad o el tamaño de equipo: ya hay equipos registrados en esta competencia',
+      }, { status: 409 })
     }
 
     const resolvedProblems = body.problems

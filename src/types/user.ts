@@ -28,6 +28,16 @@ export interface UserPreferences {
 // === Perfiles ===
 
 /** Perfil público visible por otros usuarios */
+export interface UserSearchResult {
+  id: string
+  nickname: string
+  name: string
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[]
+}
+
 export interface PublicUserProfile {
   name: string
   nickname: string

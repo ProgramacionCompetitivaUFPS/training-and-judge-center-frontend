@@ -19,6 +19,7 @@ export const problemsHandlers = [
       accessibility: sp.get('accessibility') || undefined,
       tags: sp.get('tags') || undefined,
       author: sp.get('author') || undefined,
+      search: sp.get('search') || undefined,
       userNickname,
     })
     return HttpResponse.json(result)

@@ -71,3 +71,4 @@ export {
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'
 export { Toast, ToastTitle, ToastDescription, ToastContainer } from './Toast'
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonButton } from './Skeleton'
+export { SearchSelect } from './SearchSelect'

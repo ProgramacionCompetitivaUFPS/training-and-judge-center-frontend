@@ -65,6 +65,7 @@ export interface ContestListItem {
 
 export interface ContestListParams extends PaginationParams {
   status?: ContestStatus
+  search?: string
   sortBy?: 'startTime' | 'createdAt' | 'name'
   sortOrder?: 'asc' | 'desc'
 }
@@ -92,6 +93,10 @@ export interface CreateContestRequest {
   freezeMinutes?: number | null
   enablePostContest?: boolean
   problems?: string[] // slugs
+  participationMode?: ParticipationMode
+  teamSizeMin?: number
+  teamSizeMax?: number
+  showTeamMembers?: boolean
 }
 
 // === Update Contest ===
@@ -106,6 +111,10 @@ export interface UpdateContestRequest {
   enablePostContest?: boolean
   problems?: Array<{ slug: string; order: number }>
   locked?: boolean
+  participationMode?: ParticipationMode
+  teamSizeMin?: number
+  teamSizeMax?: number
+  showTeamMembers?: boolean
 }
 
 // === Contest Problem Management ===

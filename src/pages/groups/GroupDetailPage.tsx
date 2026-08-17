@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import {
   Dialog,
   DialogContent,
@@ -49,10 +50,12 @@ import {
 } from '@/hooks/api/useGroups'
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useContests } from '@/hooks/api/useContests'
+import { useSearchUsers } from '@/hooks/api/useUsers'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
+import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
@@ -132,6 +135,11 @@ export function GroupDetailPage() {
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null)
   const [requestOpen, setRequestOpen] = useState(false)
   const [requestMessage, setRequestMessage] = useState('')
+
+  const debouncedAddNickname = useDebounce(addNickname)
+  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname)
+  const debouncedInviteNickname = useDebounce(inviteNickname)
+  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname)
 
   if (!id) return null
 
@@ -661,7 +669,28 @@ export function GroupDetailPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Agregar miembro</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <Input label="Nickname" value={addNickname} onChange={(e) => setAddNickname(e.target.value)} placeholder="nickname del usuario" />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Usuario</label>
+              <SearchSelect
+                query={addNickname}
+                onQueryChange={setAddNickname}
+                results={(addMemberSearchData?.users ?? []).filter(
+                  (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
+                )}
+                isSearching={isSearchingAddMember}
+                placeholder="Buscar usuario por nombre o nickname..."
+                emptyLabel="Sin resultados (o ya es miembro)"
+                hintLabel="Escribe al menos 2 caracteres"
+                getKey={(u) => u.id}
+                renderItem={(u) => (
+                  <div>
+                    <p className="font-medium text-neutral-text-primary">{u.name}</p>
+                    <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+                  </div>
+                )}
+                onSelect={(u) => setAddNickname(u.nickname)}
+              />
+            </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select value={addRole} onValueChange={(v) => setAddRole(v as GroupRole)}>
@@ -715,7 +744,25 @@ export function GroupDetailPage() {
                 </Button>
               </div>
               {inviteMethod === 'nickname' ? (
-                <Input label="Nickname" value={inviteNickname} onChange={(e) => setInviteNickname(e.target.value)} placeholder="nickname del usuario" />
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Usuario</label>
+                  <SearchSelect
+                    query={inviteNickname}
+                    onQueryChange={setInviteNickname}
+                    results={inviteSearchData?.users ?? []}
+                    isSearching={isSearchingInvite}
+                    placeholder="Buscar usuario por nombre o nickname..."
+                    hintLabel="Escribe al menos 2 caracteres"
+                    getKey={(u) => u.id}
+                    renderItem={(u) => (
+                      <div>
+                        <p className="font-medium text-neutral-text-primary">{u.name}</p>
+                        <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+                      </div>
+                    )}
+                    onSelect={(u) => setInviteNickname(u.nickname)}
+                  />
+                </div>
               ) : (
                 <Input label="Correo electrónico" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="correo@ejemplo.com" />
               )}

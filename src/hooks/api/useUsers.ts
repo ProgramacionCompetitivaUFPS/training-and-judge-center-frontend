@@ -24,6 +24,7 @@ export const userKeys = {
   stats: ['users', 'stats'] as const,
   profile: (nickname: string) => ['users', 'profile', nickname] as const,
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
+  search: (q: string) => ['users', 'search', q] as const,
 }
 
 // === Queries ===
@@ -42,6 +43,15 @@ export function useUserProfile(nickname: string) {
     queryKey: userKeys.profile(nickname),
     queryFn: () => usersApi.getUserByNickname(nickname),
     enabled: !!nickname,
+  })
+}
+
+// Caller is expected to debounce `q`; this only guards the backend's own 2-char minimum.
+export function useSearchUsers(q: string, limit?: number) {
+  return useQuery({
+    queryKey: userKeys.search(q),
+    queryFn: () => usersApi.searchUsers(q, limit),
+    enabled: q.trim().length >= 2,
   })
 }
 

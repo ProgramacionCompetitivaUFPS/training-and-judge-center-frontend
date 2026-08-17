@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, Plus, X } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
@@ -10,6 +10,8 @@ import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdm
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useProblemSearch } from '@/hooks/api/useProblems'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -50,7 +52,9 @@ export function ContestDetailPage() {
   const deleteMutation = useDeleteContest()
   const updateMutation = useUpdateContest()
 
-  const [problemSlug, setProblemSlug] = useState('')
+  const [problemSearchQuery, setProblemSearchQuery] = useState('')
+  const debouncedProblemSearch = useDebounce(problemSearchQuery)
+  const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
@@ -172,9 +176,8 @@ export function ContestDetailPage() {
     )
   }
 
-  const handleAddProblem = () => {
-    const slug = problemSlug.trim()
-    if (!slug) return
+  const handleAddProblem = (slug: string) => {
+    if (!slug.trim()) return
     const newProblems = [
       ...contest.problems.map((p) => ({ slug: p.slug, order: p.position })),
       { slug, order: contest.problems.length + 1 },
@@ -184,7 +187,7 @@ export function ContestDetailPage() {
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
-          setProblemSlug('')
+          setProblemSearchQuery('')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
       },
@@ -454,25 +457,28 @@ export function ContestDetailPage() {
                     <CardTitle>Gestión de problemas</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Slug del problema"
-                        value={problemSlug}
-                        onChange={(e) => setProblemSlug(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddProblem() }}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleAddProblem}
-                        isLoading={updateMutation.isPending}
-                        disabled={!problemSlug.trim()}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Agregar
-                      </Button>
-                    </div>
+                    <SearchSelect
+                      query={problemSearchQuery}
+                      onQueryChange={setProblemSearchQuery}
+                      results={(problemSearchData?.problems ?? []).filter(
+                        (p) => !contest.problems.some((cp) => cp.slug === p.slug),
+                      )}
+                      isSearching={isSearchingProblems}
+                      placeholder="Buscar problema publicado por título..."
+                      emptyLabel="Sin resultados (o ya está agregado)"
+                      hintLabel="Escribe al menos 2 caracteres"
+                      getKey={(p) => p.slug}
+                      renderItem={(p) => (
+                        <div>
+                          <p className="font-medium text-neutral-text-primary">{p.title}</p>
+                          <p className="text-xs text-neutral-text-muted font-mono">{p.slug}</p>
+                        </div>
+                      )}
+                      onSelect={(p) => handleAddProblem(p.slug)}
+                    />
+                    {updateMutation.isPending && (
+                      <p className="text-xs text-neutral-text-muted">Agregando...</p>
+                    )}
                     {contest.problems.length > 0 && (
                       <ul className="divide-y divide-neutral-border">
                         {contest.problems.map((p) => (

@@ -18,6 +18,7 @@ import type {
   PublicUserProfile,
   UserDashboard,
   UserProfileStats,
+  UserSearchResponse,
 } from '@/types/user'
 
 // === Auth ===
@@ -39,6 +40,10 @@ export function getMe(): Promise<User> {
 
 export function getUserByNickname(nickname: string): Promise<PublicUserProfile> {
   return apiClient.get(`/users/${nickname}`)
+}
+
+export function searchUsers(q: string, limit?: number): Promise<UserSearchResponse> {
+  return apiClient.get('/users/search', { params: { q, limit } })
 }
 
 export function updateProfile(data: UpdateProfileRequest): Promise<User> {

@@ -896,6 +896,7 @@ export function buildProblemList(params: {
   accessibility?: string
   tags?: string
   author?: string
+  search?: string
   userNickname?: string
 }) {
   let filtered = [...mockProblems]
@@ -922,6 +923,10 @@ export function buildProblemList(params: {
   }
   if (params.author) {
     filtered = filtered.filter((p) => p.author.nickname === params.author)
+  }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((p) => p.title.toLowerCase().includes(s))
   }
 
   // Sort by createdAt desc
@@ -1241,7 +1246,7 @@ import type {
 } from '@/types/contest'
 
 // Helper to compute contest status
-function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
+export function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
   const now = Date.now()
   const start = new Date(startTime).getTime()
   const end = new Date(endTime).getTime()
@@ -1415,6 +1420,7 @@ export function buildContestList(params: {
   page?: number
   limit?: number
   status?: string
+  search?: string
   sortBy?: string
   sortOrder?: string
 }) {
@@ -1428,6 +1434,10 @@ export function buildContestList(params: {
 
   if (params.status) {
     filtered = filtered.filter((c) => c.status === params.status)
+  }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((c) => c.name.toLowerCase().includes(s))
   }
 
   const sortBy = params.sortBy || 'startTime'

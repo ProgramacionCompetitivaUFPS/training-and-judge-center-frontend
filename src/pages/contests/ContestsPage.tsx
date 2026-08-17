@@ -149,11 +149,10 @@ export function ContestsPage() {
     page,
     limit: 20,
     status: statusFilter !== 'ALL' ? statusFilter : undefined,
+    search: debouncedSearch || undefined,
   })
 
-  const filteredItems = (data?.data || []).filter((c) =>
-    !debouncedSearch || c.name.toLowerCase().includes(debouncedSearch.toLowerCase()),
-  )
+  const filteredItems = data?.data || []
 
   return (
     <AppLayout
