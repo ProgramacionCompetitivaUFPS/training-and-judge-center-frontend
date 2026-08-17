@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -26,6 +28,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/Dropdown'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/Dialog'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -35,8 +44,18 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
+import { adminUpdateUserSchema, type AdminUpdateUserFormData } from '@/lib/schemas/user'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
-import { Search, MoreVertical, ArrowUp, ArrowDown, UserX } from 'lucide-react'
+import { Search, MoreVertical, ArrowUp, ArrowDown, UserX, Pencil } from 'lucide-react'
+
+const SORT_OPTIONS: { value: string; label: string; sortBy: AdminUserListParams['sortBy']; sortOrder: 'asc' | 'desc' }[] = [
+  { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', sortOrder: 'asc' },
+  { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', sortOrder: 'desc' },
+  { value: 'nickname-asc', label: 'Nickname (A-Z)', sortBy: 'nickname', sortOrder: 'asc' },
+  { value: 'nickname-desc', label: 'Nickname (Z-A)', sortBy: 'nickname', sortOrder: 'desc' },
+  { value: 'createdAt-desc', label: 'Más recientes primero', sortBy: 'createdAt', sortOrder: 'desc' },
+  { value: 'createdAt-asc', label: 'Más antiguos primero', sortBy: 'createdAt', sortOrder: 'asc' },
+]
 
 type UserWithId = User & { id: string }
 
@@ -70,8 +89,12 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
+  const [sortValue, setSortValue] = useState<string>('createdAt-desc')
   const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [editingUser, setEditingUser] = useState<UserWithId | null>(null)
+
+  const selectedSort = SORT_OPTIONS.find((s) => s.value === sortValue)
 
   const params: AdminUserListParams = {
     page: pagination.page,
@@ -79,12 +102,40 @@ export function UsersListPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
+    ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
   }
 
   const { data, isLoading, error } = useAdminUsers(params)
   const deactivateMutation = useAdminDeactivateUser()
   const updateUserMutation = useAdminUpdateUser()
+  const editUserMutation = useAdminUpdateUser()
   const activeMutation = pendingAction?.kind === 'deactivate' ? deactivateMutation : updateUserMutation
+
+  const editForm = useForm<AdminUpdateUserFormData>({
+    resolver: zodResolver(adminUpdateUserSchema),
+  })
+  const editRole = useWatch({ control: editForm.control, name: 'role' })
+
+  useEffect(() => {
+    if (editingUser) {
+      editForm.reset({
+        name: editingUser.name,
+        role: editingUser.role,
+        institution: editingUser.institution,
+      })
+    }
+  }, [editingUser, editForm])
+
+  const onEditSubmit = async (formData: AdminUpdateUserFormData) => {
+    if (!editingUser) return
+    try {
+      await editUserMutation.mutateAsync({ id: editingUser.id, data: formData })
+      toast({ variant: 'success', title: 'Usuario actualizado' })
+      setEditingUser(null)
+    } catch {
+      toast({ variant: 'error', title: 'Error al actualizar el usuario' })
+    }
+  }
 
   const handleSearch = (search: string) => {
     setSearchInput(search)
@@ -169,6 +220,19 @@ export function UsersListPage() {
               <SelectItem value="DEACTIVATED">Desactivado</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={sortValue}
+            onValueChange={(v) => { setSortValue(v); setPagination((p) => ({ ...p, page: 1 })) }}
+          >
+            <SelectTrigger className="w-[190px]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {error && (
@@ -250,6 +314,11 @@ export function UsersListPage() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Editar usuario
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
                                   {user.role === 'CONTESTANT' && (
                                     <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'promote' })}>
                                       <ArrowUp className="mr-2 h-4 w-4" />
@@ -302,6 +371,44 @@ export function UsersListPage() {
           isLoading={activeMutation.isPending}
         />
       )}
+
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar usuario {editingUser && `@${editingUser.nickname}`}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+            <Input
+              label="Nombre"
+              {...editForm.register('name')}
+              error={editForm.formState.errors.name?.message}
+            />
+            <Input
+              label="Institución"
+              {...editForm.register('institution')}
+              error={editForm.formState.errors.institution?.message}
+            />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Rol</label>
+              <Select
+                value={editRole}
+                onValueChange={(v) => editForm.setValue('role', v as UserRole, { shouldValidate: true })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CONTESTANT">Contestant</SelectItem>
+                  <SelectItem value="COACH">Coach</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
+              <Button type="submit" isLoading={editUserMutation.isPending}>Guardar cambios</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }

@@ -66,7 +66,13 @@ export function TeamDetailPage() {
       toast({ variant: 'success', title: 'Has salido del equipo' })
       navigate('/teams')
     } catch (err) {
-      if (err instanceof ApiClientError) {
+      if (err instanceof ApiClientError && err.code === 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST') {
+        toast({
+          variant: 'error',
+          title: 'No puedes salir del equipo todavía',
+          description: 'Estás seleccionado en una competencia que ya está en curso. Podrás salir cuando termine.',
+        })
+      } else if (err instanceof ApiClientError) {
         toast({ variant: 'error', title: 'Error', description: err.message })
       }
     }
@@ -96,6 +102,8 @@ export function TeamDetailPage() {
     )
   }
 
+  const isMember = team.members.some((m) => m.nickname === user?.nickname)
+
   return (
     <AppLayout breadcrumbs={[{ label: 'Equipos', href: '/teams' }, { label: team.name }]}>
       <div className="space-y-6">
@@ -111,16 +119,18 @@ export function TeamDetailPage() {
               {new Date(team.createdAt).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={() => setShowInviteDialog(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Invitar
-            </Button>
-            <Button variant="danger" onClick={() => setShowLeaveDialog(true)}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
-          </div>
+          {isMember && (
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={() => setShowInviteDialog(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invitar
+              </Button>
+              <Button variant="danger" onClick={() => setShowLeaveDialog(true)}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Salir
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Members */}

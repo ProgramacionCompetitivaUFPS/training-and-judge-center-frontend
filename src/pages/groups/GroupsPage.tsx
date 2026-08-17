@@ -30,6 +30,24 @@ const JOIN_POLICY_LABELS: Record<string, string> = {
   INVITE: 'Invitación',
 }
 
+const ALL_SORT_OPTIONS: { value: string; label: string; sortBy: NonNullable<GroupListParams['sortBy']>; order: 'asc' | 'desc' }[] = [
+  { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', order: 'asc' },
+  { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', order: 'desc' },
+  { value: 'createdAt-desc', label: 'Más recientes primero', sortBy: 'createdAt', order: 'desc' },
+  { value: 'createdAt-asc', label: 'Más antiguos primero', sortBy: 'createdAt', order: 'asc' },
+  { value: 'memberCount-desc', label: 'Más miembros primero', sortBy: 'memberCount', order: 'desc' },
+  { value: 'memberCount-asc', label: 'Menos miembros primero', sortBy: 'memberCount', order: 'asc' },
+]
+
+const MY_SORT_OPTIONS: { value: string; label: string; sortBy: NonNullable<MyGroupsParams['sortBy']>; order: 'asc' | 'desc' }[] = [
+  { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', order: 'asc' },
+  { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', order: 'desc' },
+  { value: 'joinedAt-desc', label: 'Ingreso más reciente', sortBy: 'joinedAt', order: 'desc' },
+  { value: 'joinedAt-asc', label: 'Ingreso más antiguo', sortBy: 'joinedAt', order: 'asc' },
+  { value: 'memberCount-desc', label: 'Más miembros primero', sortBy: 'memberCount', order: 'desc' },
+  { value: 'memberCount-asc', label: 'Menos miembros primero', sortBy: 'memberCount', order: 'asc' },
+]
+
 const JOIN_POLICY_VARIANTS: Record<string, 'success' | 'warning' | 'default'> = {
   OPEN: 'success',
   REQUEST: 'warning',
@@ -62,17 +80,24 @@ export function GroupsPage() {
   const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 5 })
   const [allSearchInput, setAllSearchInput] = useState('')
   const [mySearchInput, setMySearchInput] = useState('')
+  const [allSortValue, setAllSortValue] = useState('createdAt-desc')
+  const [mySortValue, setMySortValue] = useState('name-asc')
 
   const debouncedAllSearch = useDebounce(allSearchInput)
   const debouncedMySearch = useDebounce(mySearchInput)
 
+  const selectedAllSort = ALL_SORT_OPTIONS.find((s) => s.value === allSortValue)
+  const selectedMySort = MY_SORT_OPTIONS.find((s) => s.value === mySortValue)
+
   const allQueryParams: GroupListParams = {
     ...allParams,
     search: debouncedAllSearch || undefined,
+    ...(selectedAllSort && { sortBy: selectedAllSort.sortBy, order: selectedAllSort.order }),
   }
   const myQueryParams: MyGroupsParams = {
     ...myParams,
     search: debouncedMySearch || undefined,
+    ...(selectedMySort && { sortBy: selectedMySort.sortBy, order: selectedMySort.order }),
   }
 
   const allGroups = useGroups(allQueryParams)
@@ -132,6 +157,28 @@ export function GroupsPage() {
                   <SelectItem value="INVITE">Invitación</SelectItem>
                 </SelectContent>
               </Select>
+              <Select
+                onValueChange={(v) => setAllParams((p) => ({ ...p, visibility: v === 'ALL' ? undefined : v as GroupListParams['visibility'], page: 1 }))}
+                defaultValue="ALL"
+              >
+                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Visibilidad" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Toda visibilidad</SelectItem>
+                  <SelectItem value="VISIBLE">Visible</SelectItem>
+                  <SelectItem value="NOT_VISIBLE">No visible</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={allSortValue}
+                onValueChange={(v) => { setAllSortValue(v); setAllParams((p) => ({ ...p, page: 1 })) }}
+              >
+                <SelectTrigger className="w-48 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+                <SelectContent>
+                  {ALL_SORT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Results count */}
@@ -170,14 +217,38 @@ export function GroupsPage() {
 
           {/* === My Groups Tab === */}
           <TabsContent value="mine" className="mt-4 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
-              <Input
-                placeholder="Buscar en mis grupos..."
-                className="pl-9"
-                value={mySearchInput}
-                onChange={(e) => { setMySearchInput(e.target.value); setMyParams((p) => ({ ...p, page: 1 })) }}
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+                <Input
+                  placeholder="Buscar en mis grupos..."
+                  className="pl-9"
+                  value={mySearchInput}
+                  onChange={(e) => { setMySearchInput(e.target.value); setMyParams((p) => ({ ...p, page: 1 })) }}
+                />
+              </div>
+              <Select
+                onValueChange={(v) => setMyParams((p) => ({ ...p, role: v === 'ALL' ? undefined : v as MyGroupsParams['role'], page: 1 }))}
+                defaultValue="ALL"
+              >
+                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Rol" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todo rol</SelectItem>
+                  <SelectItem value="LEAD">Líder</SelectItem>
+                  <SelectItem value="MEMBER">Miembro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={mySortValue}
+                onValueChange={(v) => { setMySortValue(v); setMyParams((p) => ({ ...p, page: 1 })) }}
+              >
+                <SelectTrigger className="w-48 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+                <SelectContent>
+                  {MY_SORT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {myGroups.error && <Alert variant="error">Error al cargar tus grupos.</Alert>}

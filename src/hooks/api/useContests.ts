@@ -64,7 +64,7 @@ export function useRegistrationStatus(groupId: string, contestId: string) {
 export function useRegistrations(
   groupId: string,
   contestId: string,
-  params?: { page?: number; limit?: number },
+  params?: { page?: number; limit?: number; search?: string },
 ) {
   return useQuery({
     queryKey: contestKeys.registrations(groupId, contestId, params),
@@ -126,8 +126,13 @@ export function useUpdateContest() {
       contestId: string
       data: UpdateContestRequest
     }) => contestsApi.updateContest(groupId, contestId, data),
-    onSuccess: (_, { groupId, contestId }) => {
-      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+    onSuccess: (data, { groupId, contestId }) => {
+      // The PUT response carries the full updated contest (problems included), but the GET used to
+      // refetch on invalidation is more permission-restricted and can omit problems for some Coaches
+      // (see hallazgo #6 del manual). Seed the cache with the PUT response directly and mark it merely
+      // stale (no immediate refetch) so this edit stays visible; a later full reload still hits GET.
+      queryClient.setQueryData(contestKeys.detail(groupId, contestId), data)
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId), refetchType: 'none' })
       queryClient.invalidateQueries({ queryKey: contestKeys.all })
     },
   })

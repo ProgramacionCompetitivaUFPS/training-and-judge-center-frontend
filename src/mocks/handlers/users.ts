@@ -29,8 +29,9 @@ export const usersHandlers = [
     return HttpResponse.json(user)
   }),
 
-  // Get user by nickname (public profile)
-  http.get(url('/users/:nickname'), async ({ params }) => {
+  // Get user by nickname (public profile) — full payload (email/country/city/updatedAt)
+  // only when the viewer is Admin or is viewing their own profile.
+  http.get(url('/users/:nickname'), async ({ params, request }) => {
     await delay(200)
     const { nickname } = params as { nickname: string }
     const user = mockUsers.find((u) => u.nickname === nickname)
@@ -42,7 +43,13 @@ export const usersHandlers = [
       )
     }
 
-    return HttpResponse.json(toPublicProfile(user))
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const viewerNickname = token.replace('mock-jwt-token-', '')
+    const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
+    const full = viewer?.role === 'ADMIN' || viewerNickname === nickname
+
+    return HttpResponse.json(toPublicProfile(user, full))
   }),
 
   // Update profile
@@ -110,15 +117,24 @@ export const usersHandlers = [
       search: searchParams.get('searchTerm') || undefined,
       role: searchParams.get('role') || undefined,
       status: searchParams.get('status') || undefined,
+      sort: searchParams.get('sort') || undefined,
+      order: searchParams.get('order') || undefined,
     })
 
     return HttpResponse.json(result)
   }),
 
-  http.put(url('/admin/users/:id'), async ({ request }) => {
+  http.put(url('/admin/users/:id'), async ({ params, request }) => {
     await delay(300)
+    const { id } = params as { id: string }
+    const idx = mockUsers.findIndex((u) => u.id === id)
+    if (idx === -1) {
+      return HttpResponse.json({ error: 'USER_NOT_FOUND', message: 'Usuario no encontrado' }, { status: 404 })
+    }
     const body = (await request.json()) as Record<string, string>
-    return HttpResponse.json({ ...mockCurrentUser, ...body, updatedAt: new Date().toISOString() })
+    const updated = { ...mockUsers[idx], ...body, updatedAt: new Date().toISOString() }
+    mockUsers[idx] = updated
+    return HttpResponse.json(updated)
   }),
 
   http.post(url('/admin/users/:id/deactivate'), async () => {

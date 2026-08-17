@@ -106,6 +106,22 @@ export const changeEmailSchema = z.object({
 
 export type ChangeEmailFormData = z.infer<typeof changeEmailSchema>
 
+export const confirmEmailChangeSchema = z.object({
+  code: z
+    .string()
+    .min(1, 'El código de verificación es requerido'),
+})
+
+export type ConfirmEmailChangeFormData = z.infer<typeof confirmEmailChangeSchema>
+
+export const confirmDeactivationSchema = z.object({
+  code: z
+    .string()
+    .min(1, 'El código de confirmación es requerido'),
+})
+
+export type ConfirmDeactivationFormData = z.infer<typeof confirmDeactivationSchema>
+
 export const recoverPasswordSchema = z.object({
   email: emailField,
 })

@@ -34,6 +34,12 @@ export interface PublicUserProfile {
   institution: string
   role: UserRole
   createdAt: string
+  // Only present when the viewer is an Admin or is viewing their own profile — the backend
+  // sends the full payload in those cases, the reduced one otherwise.
+  email?: string
+  country?: string
+  city?: string
+  updatedAt?: string
 }
 
 // === Auth ===

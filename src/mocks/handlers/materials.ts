@@ -15,6 +15,11 @@ export const materialsHandlers = [
       pinned: sp.get('pinned') || undefined,
       tags: sp.get('tags') || undefined,
       q: sp.get('q') || undefined,
+      author: sp.get('author') || undefined,
+      publishedFrom: sp.get('publishedFrom') || undefined,
+      publishedTo: sp.get('publishedTo') || undefined,
+      sort: sp.get('sort') || undefined,
+      status: sp.get('status') || undefined,
     })
     return HttpResponse.json(result)
   }),

@@ -1,14 +1,19 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockMyTeams, mockTeamDetails, mockTeamInvitations } from '../data'
+import { mockMyTeams, mockTeamDetails, mockTeamInvitations, mockTeamRegistrations, mockContests } from '../data'
 import { url } from './utils'
 
 export const teamsHandlers = [
   // My teams
-  http.get(url('/users/me/teams'), async () => {
+  http.get(url('/users/me/teams'), async ({ request }) => {
     await delay(200)
+    const sp = new URL(request.url).searchParams
+    const page = Number(sp.get('page')) || 1
+    const limit = Number(sp.get('limit')) || 20
+    const start = (page - 1) * limit
+    const paged = mockMyTeams.slice(start, start + limit)
     return HttpResponse.json({
-      teams: mockMyTeams,
-      pagination: { page: 1, limit: 20, total: mockMyTeams.length, totalPages: 1 },
+      teams: paged,
+      pagination: { page, limit, total: mockMyTeams.length, totalPages: Math.ceil(mockMyTeams.length / limit) || 1 },
     })
   }),
 
@@ -99,6 +104,18 @@ export const teamsHandlers = [
     if (!team) {
       return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
     }
+
+    const isInActiveContest = mockContests.some((c) => {
+      if (c.status !== 'ACTIVE') return false
+      return (mockTeamRegistrations[c.id] || []).some((r) => r.team.id === teamId)
+    })
+    if (isInActiveContest) {
+      return HttpResponse.json({
+        error: 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST',
+        message: 'No puedes salir del equipo mientras esté seleccionado en una competencia activa',
+      }, { status: 409 })
+    }
+
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -127,9 +144,11 @@ export const teamsHandlers = [
   }),
 
   // Contest team registrations
-  http.get(url('/groups/:groupId/contests/:contestId/team-registrations'), async () => {
+  http.get(url('/groups/:groupId/contests/:contestId/team-registrations'), async ({ params }) => {
     await delay(200)
-    return HttpResponse.json({ teams: [], total: 0 })
+    const { contestId } = params as { groupId: string; contestId: string }
+    const teams = mockTeamRegistrations[contestId] || []
+    return HttpResponse.json({ teams, total: teams.length })
   }),
 
   // Register team to contest
@@ -137,13 +156,33 @@ export const teamsHandlers = [
     await delay(300)
     const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
     const body = (await request.json()) as { selectedMembers: string[] }
-    return HttpResponse.json({
-      id: 'reg-' + Date.now(),
-      contestId,
-      team: { id: teamId, name: 'Mock Team' },
-      selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    const existing = mockTeamRegistrations[contestId] || []
+    if (existing.some((r) => r.team.id === teamId)) {
+      return HttpResponse.json({ error: 'ALREADY_REGISTERED', message: 'Este equipo ya está registrado' }, { status: 409 })
+    }
+
+    const registration = {
+      team: { id: team.id, name: team.name },
+      selectedMembers: body.selectedMembers.map((id) => {
+        const member = team.members.find((m) => m.id === id)
+        return { id, nickname: member?.nickname || id }
+      }),
       registeredAt: new Date().toISOString(),
-    }, { status: 201 })
+    }
+    mockTeamRegistrations[contestId] = [...existing, registration]
+
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (contest) {
+      contest.isRegistered = true
+      contest.participantCount += 1
+    }
+
+    return HttpResponse.json({ id: 'reg-' + Date.now(), contestId, ...registration }, { status: 201 })
   }),
 
   // Update team registration
@@ -151,18 +190,40 @@ export const teamsHandlers = [
     await delay(300)
     const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
     const body = (await request.json()) as { selectedMembers: string[] }
-    return HttpResponse.json({
-      id: 'reg-updated',
-      contestId,
-      team: { id: teamId, name: 'Mock Team' },
-      selectedMembers: body.selectedMembers.map((id) => ({ id, nickname: 'user-' + id.slice(-4) })),
-      registeredAt: new Date().toISOString(),
-    })
+    const team = mockTeamDetails[teamId]
+    const existing = mockTeamRegistrations[contestId] || []
+    const idx = existing.findIndex((r) => r.team.id === teamId)
+    if (!team || idx === -1) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Registro de equipo no encontrado' }, { status: 404 })
+    }
+
+    const updated = {
+      team: { id: team.id, name: team.name },
+      selectedMembers: body.selectedMembers.map((id) => {
+        const member = team.members.find((m) => m.id === id)
+        return { id, nickname: member?.nickname || id }
+      }),
+      registeredAt: existing[idx].registeredAt,
+    }
+    existing[idx] = updated
+    mockTeamRegistrations[contestId] = existing
+
+    return HttpResponse.json({ id: 'reg-updated', contestId, ...updated })
   }),
 
   // Unregister team from contest
-  http.delete(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async () => {
+  http.delete(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async ({ params }) => {
     await delay(200)
+    const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
+    const existing = mockTeamRegistrations[contestId] || []
+    mockTeamRegistrations[contestId] = existing.filter((r) => r.team.id !== teamId)
+
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (contest) {
+      contest.isRegistered = false
+      contest.participantCount = Math.max(0, contest.participantCount - 1)
+    }
+
     return new HttpResponse(null, { status: 204 })
   }),
 ]

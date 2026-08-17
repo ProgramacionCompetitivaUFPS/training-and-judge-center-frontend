@@ -197,19 +197,111 @@ export const problemsHandlers = [
     return HttpResponse.json(stats)
   }),
 
-  // Upload file (mock)
-  http.post(url('/problems/p/:slug/files'), async ({ params }) => {
+  // Upload file
+  http.post(url('/problems/p/:slug/files'), async ({ params, request }) => {
     await delay(500)
     const { slug } = params as { slug: string }
     const problem = mockProblems.find((p) => p.slug === slug)
     if (!problem) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
     }
+
+    const formData = await request.formData()
+    const fileType = (formData.get('fileType') as string) || 'testCases'
+    const file = formData.get('file') as File | null
+    const fileName = file?.name || `${fileType}.txt`
+
+    if (!problem.files) {
+      problem.files = { testCases: false, solutions: [], checker: false, validator: false }
+    }
+    if (fileType === 'solution') {
+      if (!problem.files.solutions.includes(fileName)) {
+        problem.files.solutions = [...problem.files.solutions, fileName]
+      }
+    } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
+      problem.files[fileType] = true
+    }
+
     return HttpResponse.json({
       message: 'Archivo subido exitosamente',
-      fileType: 'testCases',
-      fileName: 'testcases.zip',
-      files: problem.files || { testCases: true, solutions: [], checker: false, validator: false },
+      fileType,
+      fileName,
+      files: problem.files,
     })
+  }),
+
+  // Delete file
+  http.delete(url('/problems/p/:slug/files/:fileType'), async ({ params, request }) => {
+    await delay(300)
+    const { slug, fileType } = params as { slug: string; fileType: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem || !problem.files) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+
+    const searchParams = new URL(request.url).searchParams
+    const fileName = searchParams.get('fileName')
+
+    if (fileType === 'solution' && fileName) {
+      problem.files.solutions = problem.files.solutions.filter((f) => f !== fileName)
+    } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
+      problem.files[fileType] = false
+    }
+
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Get modifiers
+  http.get(url('/problems/p/:slug/modifiers'), async ({ params }) => {
+    await delay(200)
+    const { slug } = params as { slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json(problem.modifiers || [])
+  }),
+
+  // Add modifier
+  http.post(url('/problems/p/:slug/modifiers'), async ({ params, request }) => {
+    await delay(300)
+    const { slug } = params as { slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    const body = (await request.json()) as { userNickname: string }
+    const user = mockUsers.find((u) => u.nickname === body.userNickname)
+    if (!user) {
+      return HttpResponse.json({ error: 'USER_NOT_FOUND', message: `No existe un usuario con nickname '${body.userNickname}'` }, { status: 404 })
+    }
+    if (!problem.modifiers) problem.modifiers = []
+    if (!problem.modifiers.some((m) => m.nickname === user.nickname)) {
+      problem.modifiers = [...problem.modifiers, { nickname: user.nickname, name: user.name }]
+    }
+    return HttpResponse.json({ message: 'Colaborador agregado', modifiers: problem.modifiers })
+  }),
+
+  // Remove modifier
+  http.delete(url('/problems/p/:slug/modifiers/:nickname'), async ({ params }) => {
+    await delay(300)
+    const { slug, nickname } = params as { slug: string; nickname: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem || !problem.modifiers) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    problem.modifiers = problem.modifiers.filter((m) => m.nickname !== nickname)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Admin rejudge (global)
+  http.post(url('/admin/problems/:slug/rejudge'), async ({ params }) => {
+    await delay(400)
+    const { slug } = params as { slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    return new HttpResponse(null, { status: 204 })
   }),
 ]

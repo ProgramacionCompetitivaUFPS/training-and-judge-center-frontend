@@ -17,6 +17,7 @@ import {
   useMaterialDetail, useDeleteMaterial, usePublishMaterial,
   useUnpublishMaterial, usePinMaterial, useUnpinMaterial,
 } from '@/hooks/api/useMaterials'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -31,6 +32,7 @@ export function MaterialDetailPage() {
   const { toast } = useToastContext()
 
   const { data: material, isLoading } = useMaterialDetail(groupId!, materialId!)
+  const { data: groupDetail } = useGroupDetail(groupId!)
   const deleteMutation = useDeleteMaterial()
   const publishMutation = usePublishMaterial()
   const unpublishMutation = useUnpublishMaterial()
@@ -41,8 +43,10 @@ export function MaterialDetailPage() {
 
   const isAdmin = user?.role === 'ADMIN'
   const isAuthor = material?.author.nickname === user?.nickname
+  const isRealLead = groupDetail?.userMembership.role === 'LEAD'
   const canEdit = isAdmin || isAuthor
-  const canPin = isAdmin || user?.role === 'COACH'
+  // Matches PinMaterialUseCase: allowed for the real leader of this group, or the material's author.
+  const canPin = isAdmin || isRealLead || isAuthor
   const canSeeStatus = isAdmin || user?.role === 'COACH'
 
   const handleDelete = async () => {

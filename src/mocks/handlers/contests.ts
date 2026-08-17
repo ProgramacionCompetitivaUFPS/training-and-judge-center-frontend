@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, mockStandings, mockContestSubmissions } from '../data'
+import { mockContests, buildContestList, buildRegistrations, mockStandings, mockContestSubmissions, mockProblems } from '../data'
 import { url } from './utils'
 
 export const contestsHandlers = [
@@ -76,12 +76,41 @@ export const contestsHandlers = [
   http.put(url('/groups/:groupId/contests/:contestId'), async ({ params, request }) => {
     await delay(300)
     const { contestId } = params as { groupId: string; contestId: string }
-    const contest = mockContests.find((c) => c.id === contestId)
-    if (!contest) {
+    const idx = mockContests.findIndex((c) => c.id === contestId)
+    if (idx === -1) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
     }
-    const body = (await request.json()) as Record<string, unknown>
-    return HttpResponse.json({ ...contest, ...body, updatedAt: new Date().toISOString() })
+    const contest = mockContests[idx]
+    const body = (await request.json()) as Record<string, unknown> & {
+      problems?: Array<{ slug: string; order: number }>
+    }
+
+    const resolvedProblems = body.problems
+      ? body.problems
+        .map((p) => {
+          const problem = mockProblems.find((mp) => mp.slug === p.slug)
+          if (!problem) return null
+          return {
+            position: p.order,
+            slug: problem.slug,
+            title: problem.title,
+            timeLimit: problem.timeLimit ?? 1000,
+            memoryLimit: problem.memoryLimit ?? 256,
+          }
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .sort((a, b) => a.position - b.position)
+      : contest.problems
+
+    const updated = {
+      ...contest,
+      ...body,
+      problems: resolvedProblems,
+      problemCount: resolvedProblems.length,
+      updatedAt: new Date().toISOString(),
+    }
+    mockContests[idx] = updated
+    return HttpResponse.json(updated)
   }),
 
   // Delete contest
@@ -119,16 +148,15 @@ export const contestsHandlers = [
   }),
 
   // Registrations list
-  http.get(url('/groups/:groupId/contests/:contestId/registrations'), async () => {
+  http.get(url('/groups/:groupId/contests/:contestId/registrations'), async ({ request }) => {
     await delay(200)
-    return HttpResponse.json({
-      registrations: [
-        { nickname: 'carloscp', registeredAt: '2026-03-15T10:00:00Z' },
-        { nickname: 'anagarcia', registeredAt: '2026-03-15T11:00:00Z' },
-        { nickname: 'sofiarodriguez', registeredAt: '2026-03-15T12:00:00Z' },
-      ],
-      pagination: { page: 1, limit: 50, total: 3, totalPages: 1, hasMore: false },
+    const sp = new URL(request.url).searchParams
+    const result = buildRegistrations({
+      page: Number(sp.get('page')) || 1,
+      limit: Number(sp.get('limit')) || 50,
+      search: sp.get('search') || undefined,
     })
+    return HttpResponse.json(result)
   }),
 
   // Standings
@@ -178,5 +206,16 @@ export const contestsHandlers = [
       submissions: mockContestSubmissions,
       pagination: { page: 1, limit: 50, total: mockContestSubmissions.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
     })
+  }),
+
+  // Rejudge all submissions of a problem within a contest
+  http.post(url('/groups/:groupId/contests/:contestId/problems/:problemSlug/rejudge'), async ({ params }) => {
+    await delay(400)
+    const { contestId } = params as { groupId: string; contestId: string; problemSlug: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return new HttpResponse(null, { status: 204 })
   }),
 ]

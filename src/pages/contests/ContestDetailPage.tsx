@@ -9,7 +9,8 @@ import { ContestProblemsTable } from '@/components/features/ContestProblemsTable
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
-import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
+import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
@@ -43,6 +44,7 @@ export function ContestDetailPage() {
   const { toast } = useToast()
 
   const { data: contest, isLoading } = useContestDetail(groupId || '', id || '')
+  const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
@@ -53,8 +55,17 @@ export function ContestDetailPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
   const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const { data: teamRegistrationsData } = useContestTeamRegistrations(groupId || '', id || '')
   const registerTeamMutation = useRegisterTeamToContest()
+  const updateTeamRegistrationMutation = useUpdateTeamRegistration()
   const unregisterTeamMutation = useUnregisterTeamFromContest()
+
+  // Scoped to the roster of this specific registration, not general team membership — a team
+  // member left out of the selected lineup (e.g. didn't play that day) has no say over it, and
+  // if the same person competes via a different team for this contest, that's a separate registration.
+  const myRegistration = teamRegistrationsData?.teams.find((r) =>
+    r.selectedMembers.some((m) => m.nickname === user?.nickname)
+  )
 
   if (!id || !groupId) return null
 
@@ -70,10 +81,14 @@ export function ContestDetailPage() {
 
   if (!contest) return null
 
-  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+  // Real leadership of the group that owns this contest — not just having the Coach role
+  // platform-wide, which the backend already rejects for management actions on contests
+  // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
+  const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
-  const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered
+  // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
+  const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
   const handleRegister = () => {
     registerMutation.mutate(
@@ -133,6 +148,16 @@ export function ContestDetailPage() {
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
         onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
+      },
+    )
+  }
+
+  const handleUpdateTeamRegistration = (teamId: string, selectedMembers: string[]) => {
+    updateTeamRegistrationMutation.mutate(
+      { groupId, contestId: contest.id, teamId, data: { selectedMembers } },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Alineación actualizada', description: 'Los miembros del equipo fueron actualizados' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo actualizar la alineación' }),
       },
     )
   }
@@ -303,7 +328,7 @@ export function ContestDetailPage() {
                     Registrarse
                   </Button>
                 )}
-                {showTeamRegistration && !contest.isRegistered && (
+                {showTeamRegistration && (
                   <TeamContestRegistration
                     contestId={contest.id}
                     contestStatus={contest.status}
@@ -316,10 +341,13 @@ export function ContestDetailPage() {
                     isLoadingTeams={isLoadingTeams}
                     selectedTeamDetail={teamDetail}
                     isLoadingTeamDetail={isLoadingTeamDetail}
-                    registeredTeamId={undefined}
+                    myRegistration={myRegistration}
+                    currentUserNickname={user?.nickname}
                     onRegisterTeam={handleRegisterTeam}
+                    onUpdateTeamRegistration={handleUpdateTeamRegistration}
                     onUnregisterTeam={handleUnregisterTeam}
                     isRegistering={registerTeamMutation.isPending}
+                    isUpdating={updateTeamRegistrationMutation.isPending}
                     isUnregistering={unregisterTeamMutation.isPending}
                     registrationError={registerTeamMutation.error?.message}
                     onTeamSelect={setSelectedTeamId}
@@ -330,7 +358,7 @@ export function ContestDetailPage() {
                     Cancelar registro
                   </Button>
                 )}
-                {contest.isRegistered && (
+                {contest.isRegistered && !myRegistration && (
                   <Badge variant="success" className="self-center text-sm px-4 py-2">Registrado</Badge>
                 )}
               </div>
@@ -502,6 +530,7 @@ export function ContestDetailPage() {
                 </CardContent>
               </Card>
 
+              <ContestQuickLinks groupId={groupId} contestId={contest.id} />
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
               {isLead && (

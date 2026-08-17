@@ -214,7 +214,6 @@ export interface InvitationResponse {
   id: string
   groupId: string
   inviteeUserId: string
-  invitationUrl: string
   expiresAt: string
 }
 

@@ -116,6 +116,6 @@ export function getInvitations(groupId: string, params?: { page?: number; size?:
   return apiClient.get(`/groups/${groupId}/invitations`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 
-export function acceptInvitation(groupId: string, token: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/invitations/accept`, null, { params: { token } })
+export function acceptInvitation(groupId: string, invitationId: string): Promise<void> {
+  return apiClient.post(`/groups/${groupId}/invitations/accept`, { invitationId })
 }

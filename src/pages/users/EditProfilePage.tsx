@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
@@ -13,17 +14,24 @@ import {
   useUpdateProfile,
   useChangePassword,
   useRequestEmailChange,
+  useConfirmEmailChange,
   useRequestDeactivation,
+  useConfirmDeactivation,
 } from '@/hooks/api/useUsers'
 import {
   updateProfileSchema,
   changePasswordSchema,
   changeEmailSchema,
+  confirmEmailChangeSchema,
+  confirmDeactivationSchema,
   type UpdateProfileFormData,
   type ChangePasswordFormData,
   type ChangeEmailFormData,
+  type ConfirmEmailChangeFormData,
+  type ConfirmDeactivationFormData,
 } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
+import { ROUTES } from '@/lib/constants'
 
 export function EditProfilePage() {
   const { user } = useAuth()
@@ -209,7 +217,9 @@ function PasswordSection() {
 
 function EmailSection() {
   const emailMutation = useRequestEmailChange()
+  const confirmMutation = useConfirmEmailChange()
   const { toast } = useToastContext()
+  const [step, setStep] = useState<'request' | 'confirm'>('request')
 
   const {
     register,
@@ -222,6 +232,16 @@ function EmailSection() {
     defaultValues: { newEmail: '', password: '' },
   })
 
+  const {
+    register: registerConfirm,
+    handleSubmit: handleSubmitConfirm,
+    formState: { errors: confirmErrors },
+    reset: resetConfirm,
+  } = useForm<ConfirmEmailChangeFormData>({
+    resolver: zodResolver(confirmEmailChangeSchema),
+    defaultValues: { code: '' },
+  })
+
   const onSubmit = async (data: ChangeEmailFormData) => {
     try {
       await emailMutation.mutateAsync(data)
@@ -231,6 +251,7 @@ function EmailSection() {
         description: 'Se envió un código de confirmación a tu nuevo correo.',
       })
       reset()
+      setStep('confirm')
     } catch (error) {
       if (error instanceof ApiClientError && error.details?.length) {
         error.details.forEach((d) => setError(d.field as keyof ChangeEmailFormData, { message: d.message }))
@@ -244,6 +265,21 @@ function EmailSection() {
     }
   }
 
+  const onSubmitConfirm = async (data: ConfirmEmailChangeFormData) => {
+    try {
+      await confirmMutation.mutateAsync(data)
+      toast({ variant: 'success', title: 'Correo actualizado', description: 'Tu correo electrónico se cambió correctamente.' })
+      resetConfirm()
+      setStep('request')
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Código inválido o expirado',
+        description: error instanceof ApiClientError ? error.message : undefined,
+      })
+    }
+  }
+
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
@@ -253,32 +289,64 @@ function EmailSection() {
           </div>
           <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
         </div>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="newEmail" className="text-sm font-medium text-neutral-text-primary">Nuevo correo</label>
-          <Input id="newEmail" type="email" placeholder="nuevo@correo.com" {...register('newEmail')} />
-          {errors.newEmail && <p className="text-sm text-status-error">{errors.newEmail.message}</p>}
-        </div>
-        <PasswordInput
-          id="emailPassword"
-          label="Contraseña actual"
-          error={errors.password?.message}
-          {...register('password')}
-        />
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
-        </Button>
-      </form>
+      {step === 'request' ? (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="newEmail" className="text-sm font-medium text-neutral-text-primary">Nuevo correo</label>
+            <Input id="newEmail" type="email" placeholder="nuevo@correo.com" {...register('newEmail')} />
+            {errors.newEmail && <p className="text-sm text-status-error">{errors.newEmail.message}</p>}
+          </div>
+          <PasswordInput
+            id="emailPassword"
+            label="Contraseña actual"
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Enviando...' : 'Solicitar Cambio'}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmitConfirm(onSubmitConfirm)} className="space-y-4">
+          <p className="text-sm text-neutral-text-muted">
+            Ingresa el código de verificación que enviamos a tu nuevo correo para completar el cambio.
+          </p>
+          <div className="space-y-2">
+            <label htmlFor="emailConfirmCode" className="text-sm font-medium text-neutral-text-primary">Código de verificación</label>
+            <Input id="emailConfirmCode" placeholder="Ingresa el código" {...registerConfirm('code')} />
+            {confirmErrors.code && <p className="text-sm text-status-error">{confirmErrors.code.message}</p>}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setStep('request')}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={confirmMutation.isPending}>
+              {confirmMutation.isPending ? 'Confirmando...' : 'Confirmar Cambio'}
+            </Button>
+          </div>
+        </form>
+      )}
       </CardContent>
     </Card>
   )
 }
 
 function DeactivateSection() {
+  const navigate = useNavigate()
   const deactivateMutation = useRequestDeactivation()
+  const confirmMutation = useConfirmDeactivation()
   const { toast } = useToastContext()
+  const [stage, setStage] = useState<'idle' | 'password' | 'code'>('idle')
   const [password, setPassword] = useState('')
-  const [showConfirm, setShowConfirm] = useState(false)
+
+  const {
+    register: registerConfirm,
+    handleSubmit: handleSubmitConfirm,
+    formState: { errors: confirmErrors },
+  } = useForm<ConfirmDeactivationFormData>({
+    resolver: zodResolver(confirmDeactivationSchema),
+    defaultValues: { code: '' },
+  })
 
   const handleDeactivate = async () => {
     try {
@@ -288,12 +356,26 @@ function DeactivateSection() {
         title: 'Código enviado',
         description: 'Se envió un código de confirmación a tu correo para desactivar la cuenta.',
       })
-      setShowConfirm(false)
+      setStage('code')
       setPassword('')
     } catch (error) {
       toast({
         variant: 'error',
         title: 'Error al solicitar desactivación',
+        description: error instanceof ApiClientError ? error.message : undefined,
+      })
+    }
+  }
+
+  const onConfirmDeactivation = async (data: ConfirmDeactivationFormData) => {
+    try {
+      await confirmMutation.mutateAsync(data)
+      toast({ variant: 'success', title: 'Cuenta desactivada', description: 'Tu cuenta fue desactivada correctamente.' })
+      navigate(ROUTES.LOGIN)
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Código inválido o expirado',
         description: error instanceof ApiClientError ? error.message : undefined,
       })
     }
@@ -311,11 +393,12 @@ function DeactivateSection() {
       <p className="text-sm text-neutral-text-muted">
         Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
       </p>
-      {!showConfirm ? (
-        <Button variant="outline" onClick={() => setShowConfirm(true)} className="text-status-error border-status-error/30">
+      {stage === 'idle' && (
+        <Button variant="outline" onClick={() => setStage('password')} className="text-status-error border-status-error/30">
           Desactivar mi cuenta
         </Button>
-      ) : (
+      )}
+      {stage === 'password' && (
         <div className="space-y-3">
           <PasswordInput
             id="deactivatePassword"
@@ -324,7 +407,7 @@ function DeactivateSection() {
             onChange={(e) => setPassword(e.target.value)}
           />
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setShowConfirm(false); setPassword('') }}>
+            <Button variant="outline" onClick={() => { setStage('idle'); setPassword('') }}>
               Cancelar
             </Button>
             <Button
@@ -336,6 +419,30 @@ function DeactivateSection() {
             </Button>
           </div>
         </div>
+      )}
+      {stage === 'code' && (
+        <form onSubmit={handleSubmitConfirm(onConfirmDeactivation)} className="space-y-3">
+          <p className="text-sm text-neutral-text-muted">
+            Ingresa el código de confirmación que enviamos a tu correo para completar la desactivación.
+          </p>
+          <div className="space-y-2">
+            <label htmlFor="deactivateConfirmCode" className="text-sm font-medium text-neutral-text-primary">Código de confirmación</label>
+            <Input id="deactivateConfirmCode" placeholder="Ingresa el código" {...registerConfirm('code')} />
+            {confirmErrors.code && <p className="text-sm text-status-error">{confirmErrors.code.message}</p>}
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setStage('idle')}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={confirmMutation.isPending}
+              className="bg-status-error hover:bg-status-error/90"
+            >
+              {confirmMutation.isPending ? 'Procesando...' : 'Confirmar Desactivación'}
+            </Button>
+          </div>
+        </form>
       )}
       </CardContent>
     </Card>
