@@ -29,10 +29,18 @@ export const usersHandlers = [
     return HttpResponse.json(user)
   }),
 
-  // User search/autocomplete — registered before ':nickname' below, since MSW matches
-  // handlers in array order and ':nickname' would otherwise also match the literal 'search'.
+  // User search/autocomplete — Coach/Admin only. Registered before ':nickname' below, since
+  // MSW matches handlers in array order and ':nickname' would otherwise also match 'search'.
   http.get(url('/users/search'), async ({ request }) => {
     await delay(200)
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const viewerNickname = token.replace('mock-jwt-token-', '')
+    const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
+    if (viewer?.role !== 'ADMIN' && viewer?.role !== 'COACH') {
+      return HttpResponse.json({ error: 'FORBIDDEN', message: 'Requiere rol Coach o Administrador' }, { status: 403 })
+    }
+
     const sp = new URL(request.url).searchParams
     const q = (sp.get('q') || '').trim()
     if (q.length < 2) {
@@ -43,13 +51,13 @@ export const usersHandlers = [
     }
     const limit = Math.min(Number(sp.get('limit')) || 10, 20)
     const needle = q.toLowerCase()
+    // Only name/nickname match — email/institution no longer searched (avoids the endpoint
+    // doubling as an oracle for whether an email exists on the platform).
     const results = mockUsers
       .filter((u) => u.status === 'ACTIVE')
       .filter((u) =>
         u.name.toLowerCase().includes(needle) ||
-        u.nickname.toLowerCase().includes(needle) ||
-        u.email.toLowerCase().includes(needle) ||
-        u.institution.toLowerCase().includes(needle)
+        u.nickname.toLowerCase().includes(needle)
       )
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, limit)

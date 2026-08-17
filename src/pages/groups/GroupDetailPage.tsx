@@ -136,10 +136,14 @@ export function GroupDetailPage() {
   const [requestOpen, setRequestOpen] = useState(false)
   const [requestMessage, setRequestMessage] = useState('')
 
+  // GET /users/search is Coach/Admin-only. canManage below is domain-scoped (group lead or
+  // platform Admin) and doesn't guarantee platform role Coach, so gate the search itself
+  // separately — otherwise a lead who isn't a Coach would trigger a 403 from the backend.
+  const canSearchUsers = user?.role === 'ADMIN' || user?.role === 'COACH'
   const debouncedAddNickname = useDebounce(addNickname)
-  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname)
+  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname, undefined, canSearchUsers)
   const debouncedInviteNickname = useDebounce(inviteNickname)
-  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname)
+  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname, undefined, canSearchUsers)
 
   if (!id) return null
 

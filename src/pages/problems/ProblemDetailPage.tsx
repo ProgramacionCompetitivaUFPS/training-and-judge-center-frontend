@@ -255,7 +255,7 @@ export function ProblemDetailPage() {
 
           {/* Modifiers (only for modifiers) */}
           {canEdit && (
-            <ModifiersManager problem={problem} />
+            <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
           )}
         </div>
 
@@ -701,15 +701,15 @@ function FilesManager({ problem }: FilesManagerProps) {
   )
 }
 
-interface ModifiersManagerProps { problem: ProblemDetail }
+interface ModifiersManagerProps { problem: ProblemDetail; canSearchUsers: boolean }
 
-function ModifiersManager({ problem }: ModifiersManagerProps) {
+function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
   const addMutation = useAddModifier()
   const removeMutation = useRemoveModifier()
   const { toast } = useToastContext()
   const [userQuery, setUserQuery] = useState('')
   const debouncedUserQuery = useDebounce(userQuery)
-  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
 
   const modifiers = problem.modifiers ?? []

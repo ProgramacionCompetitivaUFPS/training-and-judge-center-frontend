@@ -46,12 +46,15 @@ export function useUserProfile(nickname: string) {
   })
 }
 
-// Caller is expected to debounce `q`; this only guards the backend's own 2-char minimum.
-export function useSearchUsers(q: string, limit?: number) {
+// Caller is expected to debounce `q`. `GET /users/search` is Coach/Admin-only — pass
+// `canSearch: false` when the viewer's platform role isn't one of those, even if some
+// domain-level check (group lead, problem modifier) would otherwise let the UI show through,
+// so a Contestant never fires a request that the backend would 403 anyway.
+export function useSearchUsers(q: string, limit?: number, canSearch = true) {
   return useQuery({
     queryKey: userKeys.search(q),
     queryFn: () => usersApi.searchUsers(q, limit),
-    enabled: q.trim().length >= 2,
+    enabled: canSearch && q.trim().length >= 2,
   })
 }
 
