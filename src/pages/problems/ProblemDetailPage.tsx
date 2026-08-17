@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS } from '@/lib/constants'
+import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail } from '@/types/problem'
 
 export function ProblemDetailPage() {
@@ -107,7 +108,13 @@ export function ProblemDetailPage() {
     if (!problem) return
     unpublishMutation.mutate(problem.slug, {
       onSuccess: () => toast({ variant: 'success', title: 'Problema despublicado' }),
-      onError: () => toast({ variant: 'error', title: 'Error al despublicar' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+          toast({ variant: 'error', title: 'No se puede despublicar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+        } else {
+          toast({ variant: 'error', title: 'Error al despublicar' })
+        }
+      },
     })
   }
 

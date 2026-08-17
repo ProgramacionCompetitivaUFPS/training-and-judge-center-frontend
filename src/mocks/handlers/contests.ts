@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, computeContestStatus, mockStandings, mockContestSubmissions, mockProblems, mockTeamRegistrations, mockGroupDetails } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { url } from './utils'
 
 export const contestsHandlers = [
@@ -222,26 +222,38 @@ export const contestsHandlers = [
     })
   }),
 
-  // Contest submissions
-  http.get(url('/groups/:groupId/contests/:contestId/submissions'), async ({ params }) => {
+  // Contest submissions — Leads/Admins are exempt from freeze masking (list_contest_submissions.go).
+  http.get(url('/groups/:groupId/contests/:contestId/submissions'), async ({ params, request }) => {
     await delay(300)
     const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
     }
-    return HttpResponse.json({
-      contest: {
-        id: contest.id,
-        name: contest.name,
-        status: contest.status,
-        startTime: contest.startTime,
-        endTime: contest.endTime,
-        freezeMinutes: contest.freezeMinutes,
-      },
-      submissions: mockContestSubmissions,
-      pagination: { page: 1, limit: 50, total: mockContestSubmissions.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const viewerNickname = token.replace('mock-jwt-token-', '')
+    const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
+    const isRealLead = (mockGroupMembers[contest.group.id] || []).some(
+      (m) => m.nickname === viewerNickname && m.role === 'LEAD',
+    )
+    const isPrivileged = viewer?.role === 'ADMIN' || isRealLead
+
+    const sp = new URL(request.url).searchParams
+    const result = buildContestSubmissionsList({
+      contestId,
+      page: Number(sp.get('page')) || 1,
+      limit: Number(sp.get('limit')) || 50,
+      phase: sp.get('phase') || undefined,
+      problemSlug: sp.get('problemSlug') || undefined,
+      nickname: sp.get('nickname') || undefined,
+      isPrivileged,
     })
+    if (!result) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+    }
+    return HttpResponse.json(result)
   }),
 
   // Rejudge all submissions of a problem within a contest

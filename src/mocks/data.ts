@@ -1394,6 +1394,34 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-20T10:00:00Z',
     updatedAt: '2026-03-20T10:00:00Z',
   },
+  {
+    // ACTIVE, currently inside its own freeze window (ends soon, freezeMinutes covers "now") —
+    // used to test that Leads/Admins see real verdicts during freeze while others see '?'.
+    id: 'contest-6',
+    name: 'Contest en Freeze',
+    description: 'Competencia activa actualmente en periodo de freeze.',
+    startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 20 * 60 * 1000).toISOString(),
+    duration: 8400,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1641,6 +1669,78 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     status: 'ACCEPTED',
   },
 ]
+
+export function buildContestSubmissionsList(params: {
+  contestId: string
+  page?: number
+  limit?: number
+  phase?: string
+  problemSlug?: string
+  nickname?: string
+  isPrivileged: boolean
+}) {
+  const contest = mockContests.find((c) => c.id === params.contestId)
+  if (!contest) return null
+
+  let filtered = [...mockContestSubmissions]
+
+  if (params.problemSlug) {
+    filtered = filtered.filter((s) => s.problem.slug === params.problemSlug)
+  }
+  if (params.nickname) {
+    filtered = filtered.filter((s) =>
+      s.submittedBy.type === 'INDIVIDUAL'
+        ? s.submittedBy.nickname === params.nickname
+        : s.submittedBy.members?.includes(params.nickname!)
+    )
+  }
+  if (params.phase === 'competition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() <= new Date(contest.endTime).getTime())
+  } else if (params.phase === 'postcompetition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() > new Date(contest.endTime).getTime())
+  }
+
+  // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
+  // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
+  const nowMs = Date.now()
+  const endMs = new Date(contest.endTime).getTime()
+  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
+  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+
+  filtered = filtered.map((s) => {
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    return isFrozenSubmission ? { ...s, status: '?', executionTime: undefined, memoryUsed: undefined } : s
+  })
+
+  filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 50
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    contest: {
+      id: contest.id,
+      name: contest.name,
+      status: contest.status,
+      startTime: contest.startTime,
+      endTime: contest.endTime,
+      freezeMinutes: contest.freezeMinutes,
+      freezeTime: freezeStartMs != null ? new Date(freezeStartMs).toISOString() : undefined,
+      inFreeze,
+    },
+    submissions: paged,
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
 
 // === Mock Materials ===
 

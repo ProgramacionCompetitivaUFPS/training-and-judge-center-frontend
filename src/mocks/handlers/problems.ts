@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser } from '../data'
+import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
 import type { ProblemDetail } from '@/types/problem'
 import { url } from './utils'
 
@@ -172,6 +172,15 @@ export const problemsHandlers = [
     }
     if (problem.status === 'DRAFT') {
       return HttpResponse.json({ error: 'ALREADY_DRAFT', message: 'El problema ya está en borrador' }, { status: 409 })
+    }
+    const inActiveContest = mockContests.some(
+      (c) => c.status === 'ACTIVE' && c.problems.some((p) => p.slug === slug),
+    )
+    if (inActiveContest) {
+      return HttpResponse.json({
+        error: 'PROBLEM_IN_ACTIVE_CONTEST',
+        message: 'No se puede despublicar: el problema está siendo usado en una competencia activa',
+      }, { status: 409 })
     }
 
     problem.status = 'DRAFT'
