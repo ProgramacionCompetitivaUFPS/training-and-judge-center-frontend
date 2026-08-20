@@ -5,7 +5,8 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
-import { useLogin } from '@/hooks/api/useUsers'
+import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
+import { useLogin, useGoogleLogin } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { loginSchema, type LoginFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
@@ -15,6 +16,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const loginMutation = useLogin()
+  const googleLoginMutation = useGoogleLogin()
   const { toast } = useToastContext()
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || ROUTES.DASHBOARD
@@ -40,6 +42,31 @@ export function LoginPage() {
           title: error.status === 401 ? 'Credenciales incorrectas' : 'Error al iniciar sesión',
           description: error.status === 401 ? undefined : error.message,
         })
+      } else {
+        toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
+      }
+    }
+  }
+
+  const handleGoogleCredential = async (idToken: string) => {
+    try {
+      await googleLoginMutation.mutateAsync({ id_token: idToken, rememberSession: true })
+      navigate(from, { replace: true })
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        if (error.code === 'GOOGLE_ACCOUNT_LINK_REQUIRED') {
+          toast({
+            variant: 'error',
+            title: 'Ya existe una cuenta con este correo',
+            description: 'Iniciá sesión con tu contraseña y vinculá Google desde tu perfil.',
+          })
+        } else {
+          toast({
+            variant: 'error',
+            title: 'Error al iniciar sesión con Google',
+            description: error.message,
+          })
+        }
       } else {
         toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
@@ -88,6 +115,14 @@ export function LoginPage() {
         <Button type="submit" className="w-full" isLoading={isSubmitting} disabled={isSubmitting}>
           Iniciar Sesión
         </Button>
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-neutral-border" />
+          <span className="text-xs text-neutral-text-muted">o</span>
+          <div className="h-px flex-1 bg-neutral-border" />
+        </div>
+
+        <GoogleSignInButton onCredential={handleGoogleCredential} text="continue_with" />
 
         <p className="text-center text-sm text-neutral-text-muted">
           ¿No tienes cuenta?{' '}

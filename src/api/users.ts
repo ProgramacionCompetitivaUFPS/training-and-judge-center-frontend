@@ -3,6 +3,8 @@ import type {
   User,
   LoginRequest,
   LoginResponse,
+  GoogleLoginRequest,
+  LinkGoogleRequest,
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
@@ -30,6 +32,18 @@ export function register(data: RegisterRequest): Promise<User> {
 // Orphan endpoint decision: kept as auth infrastructure — required for user authentication flow
 export function login(data: LoginRequest): Promise<LoginResponse> {
   return apiClient.post('/auth/login', data)
+}
+
+export function googleLogin(data: GoogleLoginRequest): Promise<LoginResponse> {
+  return apiClient.post('/auth/google', data)
+}
+
+export function linkGoogleAccount(data: LinkGoogleRequest): Promise<void> {
+  return apiClient.post('/users/google', data)
+}
+
+export function unlinkGoogleAccount(): Promise<void> {
+  return apiClient.delete('/users/google')
 }
 
 // === Profile ===

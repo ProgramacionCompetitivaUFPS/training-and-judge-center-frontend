@@ -16,6 +16,8 @@ export interface User {
   createdAt: string
   updatedAt?: string
   deactivatedAt?: string
+  /** Solo viene poblado por GET /users/me — ausente en login/link/unlink y en otros endpoints de usuario */
+  googleLinked?: boolean
 }
 
 export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
@@ -62,6 +64,15 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string
   user: User
+}
+
+export interface GoogleLoginRequest {
+  id_token: string
+  rememberSession: boolean
+}
+
+export interface LinkGoogleRequest {
+  id_token: string
 }
 
 export interface RegisterRequest {

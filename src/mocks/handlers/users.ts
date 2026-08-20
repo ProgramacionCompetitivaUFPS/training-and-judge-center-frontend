@@ -7,6 +7,10 @@ import {
 } from '../data'
 import { url } from './utils'
 
+// Mutable mock state — googleLinked isn't part of the persisted mockUsers records
+// (matches backend: it's derived from a separate OAuth identity lookup, not the User row)
+const mockGoogleLinkedByNickname = new Map<string, boolean>()
+
 export const usersHandlers = [
   // === Profile ===
 
@@ -25,8 +29,47 @@ export const usersHandlers = [
     const token = auth.replace('Bearer ', '')
     const nickname = token.replace('mock-jwt-token-', '')
     const user = mockUsers.find((u) => u.nickname === nickname) || mockCurrentUser
+    const googleLinked = mockGoogleLinkedByNickname.get(user.nickname) ?? user.googleLinked ?? false
 
-    return HttpResponse.json(user)
+    return HttpResponse.json({ ...user, googleLinked })
+  }),
+
+  // === Google OAuth ===
+
+  http.post(url('/users/google'), async ({ request }) => {
+    await delay(300)
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Token requerido' },
+        { status: 401 }
+      )
+    }
+    const nickname = auth.replace('Bearer ', '').replace('mock-jwt-token-', '')
+    mockGoogleLinkedByNickname.set(nickname, true)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.delete(url('/users/google'), async ({ request }) => {
+    await delay(300)
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Token requerido' },
+        { status: 401 }
+      )
+    }
+    const nickname = auth.replace('Bearer ', '').replace('mock-jwt-token-', '')
+    const user = mockUsers.find((u) => u.nickname === nickname) || mockCurrentUser
+    const linked = mockGoogleLinkedByNickname.get(nickname) ?? user.googleLinked ?? false
+    if (!linked) {
+      return HttpResponse.json(
+        { error: 'OAUTH_IDENTITY_NOT_FOUND', message: 'No había una cuenta de Google vinculada' },
+        { status: 404 }
+      )
+    }
+    mockGoogleLinkedByNickname.set(nickname, false)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // User search/autocomplete — Coach/Admin only. Registered before ':nickname' below, since

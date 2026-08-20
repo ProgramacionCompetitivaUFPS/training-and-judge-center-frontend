@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
+import { User, Lock, Mail, AlertTriangle, Link2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -17,6 +18,8 @@ import {
   useConfirmEmailChange,
   useRequestDeactivation,
   useConfirmDeactivation,
+  useLinkGoogle,
+  useUnlinkGoogle,
 } from '@/hooks/api/useUsers'
 import {
   updateProfileSchema,
@@ -45,6 +48,7 @@ export function EditProfilePage() {
         <ProfileSection user={user} />
         <PasswordSection />
         <EmailSection />
+        <GoogleAccountSection googleLinked={user.googleLinked} />
         <DeactivateSection />
       </div>
     </AppLayout>
@@ -326,6 +330,88 @@ function EmailSection() {
           </div>
         </form>
       )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface GoogleAccountSectionProps {
+  googleLinked?: boolean
+}
+
+function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
+  const linkMutation = useLinkGoogle()
+  const unlinkMutation = useUnlinkGoogle()
+  const { toast } = useToastContext()
+
+  const handleLinkCredential = async (idToken: string) => {
+    try {
+      await linkMutation.mutateAsync({ id_token: idToken })
+      toast({ variant: 'success', title: 'Cuenta de Google vinculada' })
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        const messages: Record<string, string> = {
+          OAUTH_IDENTITY_CONFLICT: 'Esa cuenta de Google ya está vinculada a otro usuario.',
+          OAUTH_IDENTITY_ALREADY_LINKED: 'Tu cuenta ya tiene Google vinculado.',
+          INVALID_GOOGLE_TOKEN: 'No se pudo validar el token de Google. Intenta de nuevo.',
+          GOOGLE_EMAIL_NOT_VERIFIED: 'El correo de tu cuenta de Google no está verificado.',
+        }
+        toast({
+          variant: 'error',
+          title: 'Error al vincular Google',
+          description: messages[error.code] ?? error.message,
+        })
+      } else {
+        toast({ variant: 'error', title: 'Error al vincular Google' })
+      }
+    }
+  }
+
+  const handleUnlink = async () => {
+    try {
+      await unlinkMutation.mutateAsync()
+      toast({ variant: 'success', title: 'Cuenta de Google desvinculada' })
+    } catch (error) {
+      if (error instanceof ApiClientError && error.code === 'OAUTH_IDENTITY_NOT_FOUND') {
+        toast({ variant: 'error', title: 'No tenías una cuenta de Google vinculada' })
+      } else {
+        toast({ variant: 'error', title: 'Error al desvincular Google' })
+      }
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Link2 className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cuenta de Google</h2>
+        </div>
+        {googleLinked ? (
+          <>
+            <p className="text-sm text-neutral-text-muted">
+              Tu cuenta tiene Google vinculado como método de inicio de sesión. Al desvincularla, te
+              enviaremos un correo de seguridad confirmando el cambio.
+            </p>
+            <Button
+              variant="outline"
+              onClick={handleUnlink}
+              disabled={unlinkMutation.isPending}
+            >
+              {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular cuenta de Google'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-neutral-text-muted">
+              Vinculá tu cuenta de Google para poder iniciar sesión con ella. Vas a necesitar
+              autenticarte con Google nuevamente.
+            </p>
+            <GoogleSignInButton onCredential={handleLinkCredential} text="continue_with" />
+          </>
+        )}
       </CardContent>
     </Card>
   )

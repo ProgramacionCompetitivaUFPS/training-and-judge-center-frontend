@@ -18,6 +18,18 @@ export const authHandlers = [
     })
   }),
 
+  // Google login — mock always succeeds and logs in as the default mock user
+  http.post(url('/auth/google'), async () => {
+    await delay(300)
+    const user = mockCurrentUser
+
+    return HttpResponse.json({
+      token: 'mock-jwt-token-' + user.nickname,
+      sessionExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      user,
+    })
+  }),
+
   // Register
   // NOTE: POST /users is register (auth flow), not profile update
   http.post(url('/users'), async ({ request }) => {

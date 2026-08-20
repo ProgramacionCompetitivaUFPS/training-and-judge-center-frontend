@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import * as usersApi from '@/api/users'
 import type {
   LoginRequest,
+  GoogleLoginRequest,
+  LinkGoogleRequest,
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
@@ -91,6 +93,40 @@ export function useLogin() {
     onSuccess: (response) => {
       localStorage.setItem('auth_token', response.token)
       queryClient.setQueryData(userKeys.me, response.user)
+      // login response doesn't include googleLinked — refetch to pick it up
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useGoogleLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: GoogleLoginRequest) => usersApi.googleLogin(data),
+    onSuccess: (response) => {
+      localStorage.setItem('auth_token', response.token)
+      queryClient.setQueryData(userKeys.me, response.user)
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useLinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: LinkGoogleRequest) => usersApi.linkGoogleAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useUnlinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => usersApi.unlinkGoogleAccount(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
     },
   })
 }
