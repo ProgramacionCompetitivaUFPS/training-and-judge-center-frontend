@@ -27,7 +27,6 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    mode: 'onBlur',
     defaultValues: { email: '', password: '' },
   })
 

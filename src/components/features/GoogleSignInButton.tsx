@@ -12,6 +12,11 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
   const containerRef = useRef<HTMLDivElement>(null)
   const [loadError, setLoadError] = useState(!GOOGLE_CLIENT_ID)
 
+  const onCredentialRef = useRef(onCredential)
+  useEffect(() => {
+    onCredentialRef.current = onCredential
+  }, [onCredential])
+
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return
 
@@ -22,8 +27,9 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
         if (cancelled || !containerRef.current) return
         accountsId.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => onCredential(response.credential),
+          callback: (response) => onCredentialRef.current(response.credential),
         })
+        containerRef.current.innerHTML = ''
         accountsId.renderButton(containerRef.current, {
           type: 'standard',
           theme: 'outline',
@@ -40,7 +46,7 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
     return () => {
       cancelled = true
     }
-  }, [onCredential, text])
+  }, [text])
 
   if (loadError) return null
 
