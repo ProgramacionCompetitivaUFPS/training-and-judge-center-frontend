@@ -27,7 +27,10 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
         if (cancelled || !containerRef.current) return
         accountsId.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => onCredentialRef.current(response.credential),
+          callback: (response) => {
+            if (cancelled) return
+            onCredentialRef.current(response.credential)
+          },
         })
         containerRef.current.innerHTML = ''
         accountsId.renderButton(containerRef.current, {

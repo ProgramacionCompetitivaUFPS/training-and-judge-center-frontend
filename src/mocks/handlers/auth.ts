@@ -2,6 +2,7 @@ import { http, HttpResponse, delay } from 'msw'
 import { mockUsers, mockCurrentUser } from '../data'
 import type { User } from '@/types/user'
 import { url } from './utils'
+import { mockGoogleLinkedByNickname, mockHasPasswordByNickname } from './users'
 
 export const authHandlers = [
   // Login
@@ -18,15 +19,25 @@ export const authHandlers = [
     })
   }),
 
-  // Google login — mock always succeeds and logs in as the default mock user
+  // Google login — mock always succeeds and logs in as the default mock user.
+  // Simulates a Google-only account (linked, no password) the first time, so the
+  // "Crear Contraseña" flow and CANNOT_UNLINK_LAST_CREDENTIAL are reproducible.
   http.post(url('/auth/google'), async () => {
     await delay(300)
     const user = mockCurrentUser
+    mockGoogleLinkedByNickname.set(user.nickname, true)
+    if (!mockHasPasswordByNickname.has(user.nickname)) {
+      mockHasPasswordByNickname.set(user.nickname, false)
+    }
 
     return HttpResponse.json({
       token: 'mock-jwt-token-' + user.nickname,
       sessionExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      user,
+      user: {
+        ...user,
+        googleLinked: true,
+        hasPassword: mockHasPasswordByNickname.get(user.nickname),
+      },
     })
   }),
 

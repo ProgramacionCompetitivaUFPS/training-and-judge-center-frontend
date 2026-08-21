@@ -8,9 +8,10 @@ import {
 import { url } from './utils'
 
 // Mutable mock state — googleLinked isn't part of the persisted mockUsers records
-// (matches backend: it's derived from a separate OAuth identity lookup, not the User row)
-const mockGoogleLinkedByNickname = new Map<string, boolean>()
-const mockHasPasswordByNickname = new Map<string, boolean>()
+// (matches backend: it's derived from a separate OAuth identity lookup, not the User row).
+// Exported so the /auth/google mock (handlers/auth.ts) can simulate a Google-only user.
+export const mockGoogleLinkedByNickname = new Map<string, boolean>()
+export const mockHasPasswordByNickname = new Map<string, boolean>()
 
 export const usersHandlers = [
   // === Profile ===

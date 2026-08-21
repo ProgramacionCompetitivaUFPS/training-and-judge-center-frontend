@@ -39,6 +39,12 @@ import {
 import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
 
+function scrollToPasswordSection() {
+  const section = document.getElementById('password-section')
+  section?.scrollIntoView({ behavior: 'smooth' })
+  section?.querySelector<HTMLInputElement>('input')?.focus()
+}
+
 export function EditProfilePage() {
   const { user } = useAuth()
 
@@ -327,10 +333,7 @@ function EmailSection({ hasPassword }: EmailSectionProps) {
             Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
             primero creá una contraseña.
           </p>
-          <Button
-            variant="outline"
-            onClick={() => document.getElementById('password-section')?.scrollIntoView({ behavior: 'smooth' })}
-          >
+          <Button variant="outline" onClick={scrollToPasswordSection}>
             Crear Contraseña
           </Button>
         </CardContent>
@@ -467,6 +470,7 @@ function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
   const { toast } = useToastContext()
 
   const handleLinkCredential = async (idToken: string) => {
+    if (linkMutation.isPending) return
     try {
       await linkMutation.mutateAsync({ id_token: idToken })
       toast({ variant: 'success', title: 'Cuenta de Google vinculada' })
@@ -502,7 +506,7 @@ function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
           title: 'Necesitás configurar una contraseña antes de desvincular tu cuenta de Google',
           description: 'Es tu única forma de iniciar sesión por ahora.',
         })
-        document.getElementById('password-section')?.scrollIntoView({ behavior: 'smooth' })
+        scrollToPasswordSection()
       } else {
         toast({ variant: 'error', title: 'Error al desvincular Google' })
       }
