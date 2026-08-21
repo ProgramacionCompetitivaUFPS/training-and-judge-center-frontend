@@ -2,36 +2,48 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { User, Lock, Mail, AlertTriangle } from 'lucide-react'
+import { User, Lock, Mail, AlertTriangle, Link2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
   useUpdateProfile,
   useChangePassword,
+  useSetPassword,
   useRequestEmailChange,
   useConfirmEmailChange,
   useRequestDeactivation,
   useConfirmDeactivation,
+  useLinkGoogle,
+  useUnlinkGoogle,
 } from '@/hooks/api/useUsers'
 import {
   updateProfileSchema,
   changePasswordSchema,
+  setPasswordSchema,
   changeEmailSchema,
   confirmEmailChangeSchema,
   confirmDeactivationSchema,
   type UpdateProfileFormData,
   type ChangePasswordFormData,
+  type SetPasswordFormData,
   type ChangeEmailFormData,
   type ConfirmEmailChangeFormData,
   type ConfirmDeactivationFormData,
 } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
+
+function scrollToPasswordSection() {
+  const section = document.getElementById('password-section')
+  section?.scrollIntoView({ behavior: 'smooth' })
+  section?.querySelector<HTMLInputElement>('input')?.focus()
+}
 
 export function EditProfilePage() {
   const { user } = useAuth()
@@ -43,8 +55,9 @@ export function EditProfilePage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">Configuración</h1>
         <ProfileSection user={user} />
-        <PasswordSection />
-        <EmailSection />
+        <PasswordSection hasPassword={user.hasPassword} />
+        <EmailSection hasPassword={user.hasPassword} />
+        <GoogleAccountSection googleLinked={user.googleLinked} hasPassword={user.hasPassword} />
         <DeactivateSection />
       </div>
     </AppLayout>
@@ -134,7 +147,15 @@ function ProfileSection({ user }: ProfileSectionProps) {
   )
 }
 
-function PasswordSection() {
+interface PasswordSectionProps {
+  hasPassword?: boolean
+}
+
+function PasswordSection({ hasPassword }: PasswordSectionProps) {
+  return hasPassword === false ? <SetPasswordForm /> : <ChangePasswordForm />
+}
+
+function ChangePasswordForm() {
   const changeMutation = useChangePassword()
   const { toast } = useToastContext()
 
@@ -174,7 +195,7 @@ function PasswordSection() {
   }
 
   return (
-    <Card>
+    <Card id="password-section">
       <CardContent className="pt-6 space-y-4">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
@@ -215,7 +236,115 @@ function PasswordSection() {
   )
 }
 
-function EmailSection() {
+function SetPasswordForm() {
+  const setMutation = useSetPassword()
+  const { toast } = useToastContext()
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+    reset,
+    setError,
+  } = useForm<SetPasswordFormData>({
+    resolver: zodResolver(setPasswordSchema),
+    defaultValues: { newPassword: '', confirmNewPassword: '' },
+  })
+
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
+
+  const onSubmit = async (data: SetPasswordFormData) => {
+    try {
+      await setMutation.mutateAsync({ newPassword: data.newPassword })
+      toast({ variant: 'success', title: 'Contraseña creada', description: 'Ya podés iniciar sesión también con tu correo y contraseña.' })
+      reset()
+    } catch (error) {
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof SetPasswordFormData, { message: d.message }))
+      } else if (error instanceof ApiClientError && error.code === 'PASSWORD_ALREADY_SET') {
+        toast({ variant: 'error', title: 'Ya tenés una contraseña configurada' })
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al crear la contraseña',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
+    }
+  }
+
+  return (
+    <Card id="password-section">
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Lock className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Crear Contraseña</h2>
+        </div>
+        <p className="text-sm text-neutral-text-muted">
+          Hoy solo podés iniciar sesión con Google. Configurá una contraseña para poder entrar
+          también con tu correo, o si en algún momento perdés acceso a tu cuenta de Google.
+        </p>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <PasswordInput
+            id="setNewPassword"
+            label="Nueva contraseña"
+            showStrength
+            strengthValue={newPasswordValue}
+            helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+            error={errors.newPassword?.message}
+            {...register('newPassword')}
+          />
+          <PasswordInput
+            id="setConfirmNewPassword"
+            label="Confirmar"
+            error={errors.confirmNewPassword?.message}
+            {...register('confirmNewPassword')}
+          />
+        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creando...' : 'Crear Contraseña'}
+        </Button>
+      </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface EmailSectionProps {
+  hasPassword?: boolean
+}
+
+function EmailSection({ hasPassword }: EmailSectionProps) {
+  if (hasPassword === false) {
+    return (
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+              <Mail className="h-4 w-4" />
+            </div>
+            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+          </div>
+          <p className="text-sm text-neutral-text-muted">
+            Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
+            primero creá una contraseña.
+          </p>
+          <Button variant="outline" onClick={scrollToPasswordSection}>
+            Crear Contraseña
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return <EmailChangeForm />
+}
+
+function EmailChangeForm() {
   const emailMutation = useRequestEmailChange()
   const confirmMutation = useConfirmEmailChange()
   const { toast } = useToastContext()
@@ -326,6 +455,98 @@ function EmailSection() {
           </div>
         </form>
       )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface GoogleAccountSectionProps {
+  googleLinked?: boolean
+  hasPassword?: boolean
+}
+
+function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectionProps) {
+  const linkMutation = useLinkGoogle()
+  const unlinkMutation = useUnlinkGoogle()
+  const { toast } = useToastContext()
+
+  const handleLinkCredential = async (idToken: string) => {
+    if (linkMutation.isPending) return
+    try {
+      await linkMutation.mutateAsync({ id_token: idToken })
+      toast({ variant: 'success', title: 'Cuenta de Google vinculada' })
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        const messages: Record<string, string> = {
+          OAUTH_IDENTITY_CONFLICT: 'Esa cuenta de Google ya está vinculada a otro usuario.',
+          OAUTH_IDENTITY_ALREADY_LINKED: 'Tu cuenta ya tiene Google vinculado.',
+          INVALID_GOOGLE_TOKEN: 'No se pudo validar el token de Google. Intenta de nuevo.',
+          GOOGLE_EMAIL_NOT_VERIFIED: 'El correo de tu cuenta de Google no está verificado.',
+        }
+        toast({
+          variant: 'error',
+          title: 'Error al vincular Google',
+          description: messages[error.code] ?? error.message,
+        })
+      } else {
+        toast({ variant: 'error', title: 'Error al vincular Google' })
+      }
+    }
+  }
+
+  const handleUnlink = async () => {
+    try {
+      await unlinkMutation.mutateAsync()
+      toast({ variant: 'success', title: 'Cuenta de Google desvinculada' })
+    } catch (error) {
+      if (error instanceof ApiClientError && error.code === 'OAUTH_IDENTITY_NOT_FOUND') {
+        toast({ variant: 'error', title: 'No tenías una cuenta de Google vinculada' })
+      } else if (error instanceof ApiClientError && error.code === 'CANNOT_UNLINK_LAST_CREDENTIAL') {
+        toast({
+          variant: 'error',
+          title: 'Necesitás configurar una contraseña antes de desvincular tu cuenta de Google',
+          description: 'Es tu única forma de iniciar sesión por ahora.',
+        })
+        scrollToPasswordSection()
+      } else {
+        toast({ variant: 'error', title: 'Error al desvincular Google' })
+      }
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Link2 className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cuenta de Google</h2>
+        </div>
+        {googleLinked ? (
+          <>
+            <p className="text-sm text-neutral-text-muted">
+              {hasPassword === false
+                ? 'Como todavía no tenés una contraseña, Google es tu única forma de iniciar sesión. Creá una contraseña antes de desvincularla.'
+                : 'Tu cuenta tiene Google vinculado como método de inicio de sesión. Al desvincularla, te enviaremos un correo de seguridad confirmando el cambio.'}
+            </p>
+            <Button
+              variant="outline"
+              onClick={hasPassword === false ? scrollToPasswordSection : handleUnlink}
+              disabled={unlinkMutation.isPending}
+            >
+              {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular cuenta de Google'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-neutral-text-muted">
+              Vinculá tu cuenta de Google para poder iniciar sesión con ella. Vas a necesitar
+              autenticarte con Google nuevamente.
+            </p>
+            <GoogleSignInButton onCredential={handleLinkCredential} text="continue_with" />
+          </>
+        )}
       </CardContent>
     </Card>
   )

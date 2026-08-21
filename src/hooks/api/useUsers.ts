@@ -2,9 +2,12 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import * as usersApi from '@/api/users'
 import type {
   LoginRequest,
+  GoogleLoginRequest,
+  LinkGoogleRequest,
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
+  SetPasswordRequest,
   RequestEmailChangeRequest,
   ConfirmEmailChangeRequest,
   RecoverPasswordRequest,
@@ -91,6 +94,40 @@ export function useLogin() {
     onSuccess: (response) => {
       localStorage.setItem('auth_token', response.token)
       queryClient.setQueryData(userKeys.me, response.user)
+      // login response doesn't include googleLinked — refetch to pick it up
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useGoogleLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: GoogleLoginRequest) => usersApi.googleLogin(data),
+    onSuccess: (response) => {
+      localStorage.setItem('auth_token', response.token)
+      queryClient.setQueryData(userKeys.me, response.user)
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useLinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: LinkGoogleRequest) => usersApi.linkGoogleAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useUnlinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => usersApi.unlinkGoogleAccount(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
     },
   })
 }
@@ -106,7 +143,11 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: UpdateProfileRequest) => usersApi.updateProfile(data),
     onSuccess: (updatedUser) => {
-      queryClient.setQueryData(userKeys.me, updatedUser)
+      // PUT /users doesn't echo back hasPassword/googleLinked (only GET /users/me does) —
+      // merge onto the existing cache instead of replacing it, or those fields revert to undefined.
+      queryClient.setQueryData(userKeys.me, (old: typeof updatedUser | undefined) =>
+        old ? { ...old, ...updatedUser } : updatedUser
+      )
     },
   })
 }
@@ -114,6 +155,16 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) => usersApi.changePassword(data),
+  })
+}
+
+export function useSetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: SetPasswordRequest) => usersApi.setPassword(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
   })
 }
 

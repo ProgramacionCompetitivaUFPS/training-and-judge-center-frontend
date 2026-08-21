@@ -24,7 +24,6 @@ export function RegisterPage() {
     setError,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    mode: 'onBlur',
     defaultValues: {
       email: '',
       password: '',
