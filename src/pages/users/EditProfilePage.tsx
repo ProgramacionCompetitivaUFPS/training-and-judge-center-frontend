@@ -57,7 +57,7 @@ export function EditProfilePage() {
         <ProfileSection user={user} />
         <PasswordSection hasPassword={user.hasPassword} />
         <EmailSection hasPassword={user.hasPassword} />
-        <GoogleAccountSection googleLinked={user.googleLinked} />
+        <GoogleAccountSection googleLinked={user.googleLinked} hasPassword={user.hasPassword} />
         <DeactivateSection />
       </div>
     </AppLayout>
@@ -462,9 +462,10 @@ function EmailChangeForm() {
 
 interface GoogleAccountSectionProps {
   googleLinked?: boolean
+  hasPassword?: boolean
 }
 
-function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
+function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectionProps) {
   const linkMutation = useLinkGoogle()
   const unlinkMutation = useUnlinkGoogle()
   const { toast } = useToastContext()
@@ -525,12 +526,13 @@ function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
         {googleLinked ? (
           <>
             <p className="text-sm text-neutral-text-muted">
-              Tu cuenta tiene Google vinculado como método de inicio de sesión. Al desvincularla, te
-              enviaremos un correo de seguridad confirmando el cambio.
+              {hasPassword === false
+                ? 'Como todavía no tenés una contraseña, Google es tu única forma de iniciar sesión. Creá una contraseña antes de desvincularla.'
+                : 'Tu cuenta tiene Google vinculado como método de inicio de sesión. Al desvincularla, te enviaremos un correo de seguridad confirmando el cambio.'}
             </p>
             <Button
               variant="outline"
-              onClick={handleUnlink}
+              onClick={hasPassword === false ? scrollToPasswordSection : handleUnlink}
               disabled={unlinkMutation.isPending}
             >
               {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular cuenta de Google'}
