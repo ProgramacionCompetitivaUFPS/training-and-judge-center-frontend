@@ -1,17 +1,35 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
-import { useProblemDetail, useProblemStatistics, usePublishProblem, useUnpublishProblem, useDeleteProblem } from '@/hooks/api/useProblems'
+import {
+  useProblemDetail,
+  useProblemStatistics,
+  usePublishProblem,
+  useUnpublishProblem,
+  useDeleteProblem,
+  useUploadProblemFile,
+  useDeleteProblemFile,
+  useAddModifier,
+  useRemoveModifier,
+  useAdminRejudgeProblem,
+} from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
-import { useState } from 'react'
+import { useRejudgeContestProblem } from '@/hooks/api/useContests'
+import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useSearchUsers } from '@/hooks/api/useUsers'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS } from '@/lib/constants'
+import { ApiClientError } from '@/lib/errors'
+import type { ProblemDetail } from '@/types/problem'
 
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
@@ -30,12 +48,18 @@ export function ProblemDetailPage() {
 
   const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
   const { data: stats } = useProblemStatistics(resolvedSlug || '')
+  const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
   const publishMutation = usePublishProblem()
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
+  const adminRejudgeMutation = useAdminRejudgeProblem()
+  const rejudgeContestMutation = useRejudgeContestProblem()
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
+  const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
+  const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
+  const [publishLogs, setPublishLogs] = useState<string[] | null>(null)
 
   if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
@@ -64,11 +88,18 @@ export function ProblemDetailPage() {
   const canEdit = isAdmin || isModifier
   const canDelete = isAdmin || problem.author.nickname === user?.nickname
   const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
+  // Real leadership of the contest's group — scoped narrower than canSeeManagement, since
+  // the backend rejects contest management actions from a Coach who isn't actually a leader
+  // of that specific group (same rule as ContestDetailPage.tsx).
+  const isContestLead = isAdmin || contestGroup?.userMembership.role === 'LEAD'
 
   function handlePublish() {
     if (!problem) return
     publishMutation.mutate(problem.slug, {
-      onSuccess: () => toast({ variant: 'success', title: 'Problema publicado' }),
+      onSuccess: (data) => {
+        toast({ variant: 'success', title: 'Problema publicado' })
+        if (data.validationLogs?.length) setPublishLogs(data.validationLogs)
+      },
       onError: () => toast({ variant: 'error', title: 'Error al publicar' }),
     })
   }
@@ -77,7 +108,13 @@ export function ProblemDetailPage() {
     if (!problem) return
     unpublishMutation.mutate(problem.slug, {
       onSuccess: () => toast({ variant: 'success', title: 'Problema despublicado' }),
-      onError: () => toast({ variant: 'error', title: 'Error al despublicar' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+          toast({ variant: 'error', title: 'No se puede despublicar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+        } else {
+          toast({ variant: 'error', title: 'Error al despublicar' })
+        }
+      },
     })
   }
 
@@ -93,6 +130,27 @@ export function ProblemDetailPage() {
         onError: () => toast({ variant: 'error', title: 'Error al eliminar' }),
       },
     )
+  }
+
+  function handleAdminRejudge() {
+    if (!problem) return
+    adminRejudgeMutation.mutate(problem.slug, {
+      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
+      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+    })
+    setAdminRejudgeDialogOpen(false)
+  }
+
+  function handleContestRejudge() {
+    if (!problem || !groupId || !contestId) return
+    rejudgeContestMutation.mutate(
+      { groupId, contestId, problemSlug: problem.slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
+        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+      },
+    )
+    setContestRejudgeDialogOpen(false)
   }
 
   const breadcrumbs = contestId
@@ -199,37 +257,12 @@ export function ProblemDetailPage() {
 
           {/* Files (only for modifiers) */}
           {canEdit && problem.files && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Archivos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <FileIndicator label="Test cases" available={problem.files.testCases} />
-                  <FileIndicator label="Soluciones" available={problem.files.solutions.length > 0} detail={problem.files.solutions.length > 0 ? problem.files.solutions.join(', ') : undefined} />
-                  <FileIndicator label="Checker" available={problem.files.checker} />
-                  <FileIndicator label="Validator" available={problem.files.validator} />
-                </div>
-              </CardContent>
-            </Card>
+            <FilesManager problem={problem} />
           )}
 
           {/* Modifiers (only for modifiers) */}
-          {canEdit && problem.modifiers && problem.modifiers.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Modificadores</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {problem.modifiers.map((m) => (
-                    <Badge key={m.nickname} variant="outline">
-                      {m.name} (@{m.nickname})
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          {canEdit && (
+            <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
           )}
         </div>
 
@@ -409,6 +442,12 @@ export function ProblemDetailPage() {
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
+                {isAdmin && (
+                  <Button variant="outline" className="w-full gap-2" onClick={() => setAdminRejudgeDialogOpen(true)} isLoading={adminRejudgeMutation.isPending}>
+                    <RefreshCw className="h-4 w-4" />
+                    Rejuzgar (global)
+                  </Button>
+                )}
                 {canDelete && (
                   <Button variant="danger" className="w-full gap-2" onClick={() => setDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
@@ -418,8 +457,72 @@ export function ProblemDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Contest-scoped rejudge (only within a contest, for the group's real leads/admin) */}
+          {isContestContext && isContestLead && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Gestión de la competencia</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setContestRejudgeDialogOpen(true)}
+                  isLoading={rejudgeContestMutation.isPending}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Rejuzgar envíos
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </aside>
       </div>
+
+      {/* Admin rejudge (global) confirm dialog */}
+      <ConfirmDialog
+        open={adminRejudgeDialogOpen}
+        onOpenChange={setAdminRejudgeDialogOpen}
+        title="Rejuzgar en toda la plataforma"
+        description="Esta acción reevalúa todos los envíos de este problema en todas las competencias y en modo práctica. Puede tardar según la cantidad de envíos."
+        variant="warning"
+        confirmLabel="Rejuzgar"
+        onConfirm={handleAdminRejudge}
+        isLoading={adminRejudgeMutation.isPending}
+      />
+
+      {/* Contest rejudge confirm dialog */}
+      <ConfirmDialog
+        open={contestRejudgeDialogOpen}
+        onOpenChange={setContestRejudgeDialogOpen}
+        title="Rejuzgar envíos de este problema"
+        description="Esta acción reevalúa todos los envíos afectados de este problema dentro de esta competencia."
+        variant="warning"
+        confirmLabel="Rejuzgar"
+        onConfirm={handleContestRejudge}
+        isLoading={rejudgeContestMutation.isPending}
+      />
+
+      {/* Publish validation logs */}
+      <Dialog open={!!publishLogs} onOpenChange={(open) => !open && setPublishLogs(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-status-success" />
+              Detalle de la validación
+            </DialogTitle>
+          </DialogHeader>
+          <ul className="space-y-2">
+            {publishLogs?.map((log, i) => (
+              <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button onClick={() => setPublishLogs(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -469,17 +572,233 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
   )
 }
 
-interface FileIndicatorProps { label: string; available: boolean; detail?: string }
+const FILE_TYPE_LABELS: Record<string, string> = {
+  testCases: 'Casos de prueba',
+  checker: 'Checker',
+  validator: 'Validator',
+}
 
-function FileIndicator({ label, available, detail }: FileIndicatorProps) {
+interface FilesManagerProps { problem: ProblemDetail }
+
+function FilesManager({ problem }: FilesManagerProps) {
+  const uploadMutation = useUploadProblemFile()
+  const deleteMutation = useDeleteProblemFile()
+  const { toast } = useToastContext()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [pendingFileType, setPendingFileType] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
+
+  if (!problem.files) return null
+  const files = problem.files
+
+  function triggerUpload(fileType: string) {
+    setPendingFileType(fileType)
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !pendingFileType) return
+    uploadMutation.mutate(
+      { slug: problem.slug, fileType: pendingFileType, file },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
+        onError: () => toast({ variant: 'error', title: 'Error al subir el archivo' }),
+      },
+    )
+    setPendingFileType(null)
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return
+    deleteMutation.mutate(
+      { slug: problem.slug, fileType: deleteTarget.fileType, fileName: deleteTarget.fileName },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Archivo eliminado' }),
+        onError: () => toast({ variant: 'error', title: 'Error al eliminar el archivo' }),
+      },
+    )
+    setDeleteTarget(null)
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <div className={`h-2 w-2 rounded-full ${available ? 'bg-status-success' : 'bg-neutral-border'}`} />
-      <div>
-        <div className="text-neutral-text-primary">{label}</div>
-        {detail && <div className="text-xs text-neutral-text-muted">{detail}</div>}
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Archivos</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+
+        {(['testCases', 'checker', 'validator'] as const).map((fileType) => (
+          <div key={fileType} className="flex items-center justify-between text-sm py-1">
+            <div className="flex items-center gap-2">
+              <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
+              <span className="text-neutral-text-primary">{FILE_TYPE_LABELS[fileType]}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerUpload(fileType)}
+                isLoading={uploadMutation.isPending && pendingFileType === fileType}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                {files[fileType] ? 'Reemplazar' : 'Subir'}
+              </Button>
+              {files[fileType] && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget({ fileType, label: FILE_TYPE_LABELS[fileType] })}
+                  className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                  aria-label={`Eliminar ${FILE_TYPE_LABELS[fileType]}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <div className="pt-2 border-t border-neutral-border">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="text-neutral-text-primary font-medium">Soluciones</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => triggerUpload('solution')}
+              isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Agregar
+            </Button>
+          </div>
+          {files.solutions.length === 0 ? (
+            <p className="text-xs text-neutral-text-muted">Sin soluciones cargadas.</p>
+          ) : (
+            <ul className="space-y-1">
+              {files.solutions.map((fileName) => (
+                <li key={fileName} className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-text-muted font-mono text-xs">{fileName}</span>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName, label: fileName })}
+                    className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                    aria-label={`Eliminar ${fileName}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar archivo"
+        description={`¿Seguro que quieres eliminar "${deleteTarget?.label}"? Esta acción no se puede deshacer.`}
+        variant="warning"
+        onConfirm={handleDeleteConfirm}
+        isLoading={deleteMutation.isPending}
+      />
+    </Card>
+  )
+}
+
+interface ModifiersManagerProps { problem: ProblemDetail; canSearchUsers: boolean }
+
+function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
+  const addMutation = useAddModifier()
+  const removeMutation = useRemoveModifier()
+  const { toast } = useToastContext()
+  const [userQuery, setUserQuery] = useState('')
+  const debouncedUserQuery = useDebounce(userQuery)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers)
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null)
+
+  const modifiers = problem.modifiers ?? []
+
+  function handleAdd(targetNickname: string) {
+    addMutation.mutate(
+      { slug: problem.slug, userNickname: targetNickname },
+      {
+        onSuccess: () => {
+          toast({ variant: 'success', title: 'Colaborador agregado' })
+          setUserQuery('')
+        },
+        onError: () => toast({ variant: 'error', title: 'Error al agregar colaborador' }),
+      },
+    )
+  }
+
+  function handleRemoveConfirm() {
+    if (!removeTarget) return
+    removeMutation.mutate(
+      { slug: problem.slug, nickname: removeTarget },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Colaborador removido' }),
+        onError: () => toast({ variant: 'error', title: 'Error al remover colaborador' }),
+      },
+    )
+    setRemoveTarget(null)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Modificadores</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <SearchSelect
+          query={userQuery}
+          onQueryChange={setUserQuery}
+          results={(userSearchData?.users ?? []).filter((u) => !modifiers.some((m) => m.nickname === u.nickname))}
+          isSearching={isSearchingUsers}
+          placeholder="Buscar usuario por nombre o nickname..."
+          emptyLabel="Sin resultados (o ya es colaborador)"
+          hintLabel="Escribe al menos 2 caracteres"
+          getKey={(u) => u.id}
+          renderItem={(u) => (
+            <div>
+              <p className="font-medium text-neutral-text-primary">{u.name}</p>
+              <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+            </div>
+          )}
+          onSelect={(u) => handleAdd(u.nickname)}
+        />
+        {addMutation.isPending && <p className="text-xs text-neutral-text-muted">Agregando...</p>}
+        {modifiers.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {modifiers.map((m) => (
+              <Badge key={m.nickname} variant="outline" className="gap-1 pr-1">
+                {m.name} (@{m.nickname})
+                <button
+                  type="button"
+                  onClick={() => setRemoveTarget(m.nickname)}
+                  className="ml-1 p-0.5 rounded-full hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                  aria-label={`Quitar a ${m.nickname}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title="Quitar colaborador"
+        description={`¿Seguro que quieres quitar a @${removeTarget} como colaborador de este problema?`}
+        variant="warning"
+        onConfirm={handleRemoveConfirm}
+        isLoading={removeMutation.isPending}
+      />
+    </Card>
   )
 }
 

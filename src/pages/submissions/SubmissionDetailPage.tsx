@@ -6,7 +6,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
-import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
+import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -22,7 +22,8 @@ export function SubmissionDetailPage() {
 
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
-  const rejudgeMutation = useRejudgeSubmission()
+  const ownRejudgeMutation = useRejudgeSubmission()
+  const adminRejudgeMutation = useAdminRejudgeSubmission()
 
   if (isLoading) {
     return (
@@ -71,7 +72,8 @@ export function SubmissionDetailPage() {
 
   function handleRejudge() {
     if (!submission) return
-    rejudgeMutation.mutate(submission.id, {
+    const mutation = isAdmin ? adminRejudgeMutation : ownRejudgeMutation
+    mutation.mutate(submission.id, {
       onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
       onError: () => toast({ variant: 'error', title: 'Error al rejuzgar submission' }),
     })
@@ -125,11 +127,11 @@ export function SubmissionDetailPage() {
                 )}
               </Button>
             )}
-            {isAdmin && (
+            {(isAdmin || isOwner) && (
               <Button
                 variant="outline"
                 onClick={handleRejudge}
-                isLoading={rejudgeMutation.isPending}
+                isLoading={isAdmin ? adminRejudgeMutation.isPending : ownRejudgeMutation.isPending}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Rejuzgar

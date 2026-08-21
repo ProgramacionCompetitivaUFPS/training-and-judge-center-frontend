@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as teamsApi from '@/api/teams'
+import { contestKeys } from '@/hooks/api/useContests'
 import type {
   MyTeamsParams,
   CreateTeamRequest,
@@ -120,6 +121,7 @@ export function useRegisterTeamToContest() {
     }) => teamsApi.registerTeamToContest(groupId, contestId, teamId, { selectedMembers }),
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
     },
   })
 }
@@ -158,6 +160,7 @@ export function useUnregisterTeamFromContest() {
     }) => teamsApi.unregisterTeamFromContest(groupId, contestId, teamId),
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
     },
   })
 }

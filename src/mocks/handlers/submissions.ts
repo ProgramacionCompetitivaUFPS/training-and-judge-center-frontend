@@ -17,6 +17,8 @@ export const submissionsHandlers = [
       verdict: sp.get('verdict') || undefined,
       problemSlug: sp.get('problemSlug') || undefined,
       language: sp.get('language') || undefined,
+      from: sp.get('from') || undefined,
+      to: sp.get('to') || undefined,
       userNickname: userNickname || 'luisadmin',
     })
     return HttpResponse.json(result)
@@ -44,6 +46,30 @@ export const submissionsHandlers = [
     const body = (await request.json()) as { visibility: 'PUBLIC' | 'PRIVATE' }
     submission.visibility = body.visibility
     return HttpResponse.json({ id: submission.id, visibility: submission.visibility, message: 'Visibilidad actualizada' })
+  }),
+
+  // Rejudge submission (owner/self)
+  http.post(url('/submissions/:id/rejudge'), async ({ params }) => {
+    await delay(300)
+    const { id } = params as { id: string }
+    const submission = mockSubmissions.find((s) => s.id === id)
+    if (!submission) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    submission.status = 'PENDING'
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Rejudge submission (admin)
+  http.post(url('/admin/submissions/:id/rejudge'), async ({ params }) => {
+    await delay(300)
+    const { id } = params as { id: string }
+    const submission = mockSubmissions.find((s) => s.id === id)
+    if (!submission) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    submission.status = 'PENDING'
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // List problem submissions

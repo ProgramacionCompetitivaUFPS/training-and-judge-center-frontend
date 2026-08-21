@@ -27,6 +27,16 @@ export function useProblems(params?: ProblemListParams) {
   })
 }
 
+// Caller is expected to debounce `search`; only published problems, only fetches at 2+ chars.
+export function useProblemSearch(search: string) {
+  const params: ProblemListParams = { search, status: 'PUBLISHED', limit: 10 }
+  return useQuery({
+    queryKey: problemKeys.list(params),
+    queryFn: () => problemsApi.getProblems(params),
+    enabled: search.trim().length >= 2,
+  })
+}
+
 export function useProblemDetail(slug: string) {
   return useQuery({
     queryKey: problemKeys.detail(slug),

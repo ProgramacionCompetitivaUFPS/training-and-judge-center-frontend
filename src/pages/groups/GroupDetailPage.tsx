@@ -6,6 +6,8 @@ import { StatCard } from '@/components/features/StatCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,8 @@ import {
   useGroupDetail,
   useGroupMembers,
   useJoinRequests,
+  useMyJoinRequest,
+  useInvitations,
   useJoinGroup,
   useCreateJoinRequest,
   useCancelJoinRequest,
@@ -46,13 +50,16 @@ import {
 } from '@/hooks/api/useGroups'
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useContests } from '@/hooks/api/useContests'
+import { useSearchUsers } from '@/hooks/api/useUsers'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
+import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
+import { ApiClientError } from '@/lib/errors'
 import type { GroupRole } from '@/types/group'
 import {
   Shield,
@@ -66,6 +73,7 @@ import {
   Clock,
   Users,
   FileText,
+  Copy,
   Calendar,
 } from 'lucide-react'
 
@@ -97,6 +105,10 @@ export function GroupDetailPage() {
   const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
   const { data: requestsData } = useJoinRequests(id!, { status: 'PENDING' })
+  const { data: myJoinRequest } = useMyJoinRequest(id!, {
+    enabled: !isMember && group?.joinPolicy === 'REQUEST' && !group?.userMembership.hasPendingRequest,
+  })
+  const { data: invitationsData } = useInvitations(id!)
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const { data: contestsData } = useContests(id!, { limit: 10, sortBy: 'startTime', sortOrder: 'desc' })
 
@@ -117,22 +129,41 @@ export function GroupDetailPage() {
   const [addNickname, setAddNickname] = useState('')
   const [addRole, setAddRole] = useState<GroupRole>('MEMBER')
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteMethod, setInviteMethod] = useState<'nickname' | 'email'>('nickname')
   const [inviteNickname, setInviteNickname] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null)
+  const [requestOpen, setRequestOpen] = useState(false)
+  const [requestMessage, setRequestMessage] = useState('')
+
+  // GET /users/search is Coach/Admin-only. canManage below is domain-scoped (group lead or
+  // platform Admin) and doesn't guarantee platform role Coach, so gate the search itself
+  // separately — otherwise a lead who isn't a Coach would trigger a 403 from the backend.
+  const canSearchUsers = user?.role === 'ADMIN' || user?.role === 'COACH'
+  const debouncedAddNickname = useDebounce(addNickname)
+  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname, undefined, canSearchUsers)
+  const debouncedInviteNickname = useDebounce(inviteNickname)
+  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname, undefined, canSearchUsers)
 
   if (!id) return null
 
-  const handleJoin = async () => {
-    if (!group) return
+  const handleJoinOpen = async () => {
     try {
-      if (group.joinPolicy === 'OPEN') {
-        await joinMutation.mutateAsync(id)
-        toast({ variant: 'success', title: 'Te has unido al grupo' })
-      } else if (group.joinPolicy === 'REQUEST') {
-        await requestMutation.mutateAsync({ groupId: id })
-        toast({ variant: 'success', title: 'Solicitud enviada' })
-      }
+      await joinMutation.mutateAsync(id)
+      toast({ variant: 'success', title: 'Te has unido al grupo' })
     } catch {
       toast({ variant: 'error', title: 'Error al unirse al grupo' })
+    }
+  }
+
+  const handleSubmitRequest = async () => {
+    try {
+      await requestMutation.mutateAsync({ groupId: id, data: requestMessage.trim() ? { message: requestMessage.trim() } : undefined })
+      toast({ variant: 'success', title: 'Solicitud enviada' })
+      setRequestOpen(false)
+      setRequestMessage('')
+    } catch {
+      toast({ variant: 'error', title: 'Error al enviar la solicitud' })
     }
   }
 
@@ -151,8 +182,12 @@ export function GroupDetailPage() {
       await leaveMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Has salido del grupo' })
       navigate(ROUTES.GROUPS)
-    } catch {
-      toast({ variant: 'error', title: 'Error al salir del grupo' })
+    } catch (error) {
+      if (error instanceof ApiClientError && error.code === 'CANNOT_LEAVE_AS_LAST_LEAD') {
+        toast({ variant: 'error', title: 'No puedes salir: eres el único líder del grupo', description: 'Asigna otro líder primero.' })
+      } else {
+        toast({ variant: 'error', title: 'Error al salir del grupo' })
+      }
     }
   }
 
@@ -210,15 +245,33 @@ export function GroupDetailPage() {
   }
 
   const handleInvite = async () => {
-    if (!inviteNickname.trim()) return
+    const data = inviteMethod === 'nickname'
+      ? { inviteeNickname: inviteNickname.trim() }
+      : { inviteeEmail: inviteEmail.trim() }
+    if (inviteMethod === 'nickname' ? !inviteNickname.trim() : !inviteEmail.trim()) return
     try {
-      await inviteMutation.mutateAsync({ groupId: id, data: { inviteeNickname: inviteNickname.trim() } })
+      const response = await inviteMutation.mutateAsync({ groupId: id, data })
       toast({ variant: 'success', title: 'Invitación enviada' })
-      setInviteOpen(false)
+      // The backend never returns a ready-made link — only `id` — so the frontend builds it,
+      // matching the same route the invitation email itself points to.
+      setGeneratedInviteUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(id, response.id)}`)
       setInviteNickname('')
+      setInviteEmail('')
     } catch {
       toast({ variant: 'error', title: 'Error al enviar invitación' })
     }
+  }
+
+  const handleCopyInviteUrl = async () => {
+    if (!generatedInviteUrl) return
+    await navigator.clipboard.writeText(generatedInviteUrl)
+    toast({ variant: 'success', title: 'Enlace copiado' })
+  }
+
+  const closeInviteDialog = () => {
+    setInviteOpen(false)
+    setGeneratedInviteUrl(null)
+    setInviteMethod('nickname')
   }
 
   // Build primary action based on membership state
@@ -232,17 +285,17 @@ export function GroupDetailPage() {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }
     if (group.joinPolicy === 'OPEN') {
-      return { label: 'Unirse', onClick: handleJoin, icon: UserPlus, variant: 'primary' as const }
+      return { label: 'Unirse', onClick: handleJoinOpen, icon: UserPlus, variant: 'primary' as const }
     }
     if (group.joinPolicy === 'REQUEST') {
-      return { label: 'Solicitar Ingreso', onClick: handleJoin, icon: UserPlus, variant: 'primary' as const }
+      return { label: 'Solicitar Ingreso', onClick: () => setRequestOpen(true), icon: UserPlus, variant: 'primary' as const }
     }
     return undefined
   }
 
   const buildAdditionalActions = () => {
     const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
-    if (isMember && !canManage) {
+    if (isMember && !group?.isGlobal) {
       actions.push({ label: 'Salir del grupo', onClick: handleLeave, icon: LogOut, variant: 'danger' })
     }
     if (canManage) {
@@ -350,6 +403,39 @@ export function GroupDetailPage() {
             ))}
             {(!requestsData || requestsData.requests.length === 0) && (
               <TableRow><TableCell colSpan={4} className="text-center text-neutral-text-muted py-8">No hay solicitudes pendientes</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  ) : null
+
+  const invitationsTab = canManage ? (
+    <Card>
+      <CardContent className="pt-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invitado</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Expira</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invitationsData?.invitations.map((inv) => (
+              <TableRow key={inv.id}>
+                <TableCell>
+                  <div>
+                    <p className="font-medium">{inv.invitee.fullName}</p>
+                    <p className="text-xs text-neutral-text-muted">@{inv.invitee.nickname}</p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-neutral-text-muted">{inv.invitee.email}</TableCell>
+                <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString()}</TableCell>
+              </TableRow>
+            ))}
+            {(!invitationsData || invitationsData.invitations.length === 0) && (
+              <TableRow><TableCell colSpan={3} className="text-center text-neutral-text-muted py-8">No hay invitaciones pendientes</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -545,6 +631,7 @@ export function GroupDetailPage() {
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
     ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.requests.length }] : []),
+    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.invitations.length }] : []),
   ]
 
   return (
@@ -558,8 +645,8 @@ export function GroupDetailPage() {
         metadata={metadata}
         tabs={tabs}
         defaultTab="info"
-        onEdit={canManage ? () => navigate(`/groups/${id}/edit`) : undefined}
-        onDelete={canManage ? () => setDeleteOpen(true) : undefined}
+        onEdit={canManage && !group?.isGlobal ? () => navigate(`/groups/${id}/edit`) : undefined}
+        onDelete={canManage && !group?.isGlobal ? () => setDeleteOpen(true) : undefined}
         primaryAction={buildPrimaryAction()}
         additionalActions={buildAdditionalActions()}
       />
@@ -586,7 +673,28 @@ export function GroupDetailPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Agregar miembro</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <Input label="Nickname" value={addNickname} onChange={(e) => setAddNickname(e.target.value)} placeholder="nickname del usuario" />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Usuario</label>
+              <SearchSelect
+                query={addNickname}
+                onQueryChange={setAddNickname}
+                results={(addMemberSearchData?.users ?? []).filter(
+                  (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
+                )}
+                isSearching={isSearchingAddMember}
+                placeholder="Buscar usuario por nombre o nickname..."
+                emptyLabel="Sin resultados (o ya es miembro)"
+                hintLabel="Escribe al menos 2 caracteres"
+                getKey={(u) => u.id}
+                renderItem={(u) => (
+                  <div>
+                    <p className="font-medium text-neutral-text-primary">{u.name}</p>
+                    <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+                  </div>
+                )}
+                onSelect={(u) => setAddNickname(u.nickname)}
+              />
+            </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select value={addRole} onValueChange={(v) => setAddRole(v as GroupRole)}>
@@ -606,13 +714,107 @@ export function GroupDetailPage() {
       </Dialog>
 
       {/* Invite dialog */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <Dialog open={inviteOpen} onOpenChange={(open) => (open ? setInviteOpen(true) : closeInviteDialog())}>
         <DialogContent>
           <DialogHeader><DialogTitle>Invitar usuario</DialogTitle></DialogHeader>
-          <Input label="Nickname" value={inviteNickname} onChange={(e) => setInviteNickname(e.target.value)} placeholder="nickname del usuario" />
+          {generatedInviteUrl ? (
+            <div className="space-y-3">
+              <p className="text-sm text-neutral-text-muted">
+                Invitación generada. Comparte este enlace con la persona invitada (también se le envía automáticamente):
+              </p>
+              <div className="flex items-center gap-2">
+                <Input value={generatedInviteUrl} readOnly className="flex-1" />
+                <Button variant="outline" size="sm" onClick={handleCopyInviteUrl}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-1">
+                <Button
+                  variant={inviteMethod === 'nickname' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setInviteMethod('nickname')}
+                >
+                  Por nickname
+                </Button>
+                <Button
+                  variant={inviteMethod === 'email' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setInviteMethod('email')}
+                >
+                  Por correo
+                </Button>
+              </div>
+              {inviteMethod === 'nickname' ? (
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Usuario</label>
+                  <SearchSelect
+                    query={inviteNickname}
+                    onQueryChange={setInviteNickname}
+                    results={inviteSearchData?.users ?? []}
+                    isSearching={isSearchingInvite}
+                    placeholder="Buscar usuario por nombre o nickname..."
+                    hintLabel="Escribe al menos 2 caracteres"
+                    getKey={(u) => u.id}
+                    renderItem={(u) => (
+                      <div>
+                        <p className="font-medium text-neutral-text-primary">{u.name}</p>
+                        <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+                      </div>
+                    )}
+                    onSelect={(u) => setInviteNickname(u.nickname)}
+                  />
+                </div>
+              ) : (
+                <Input label="Correo electrónico" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+              )}
+            </>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancelar</Button>
-            <Button onClick={handleInvite} disabled={!inviteNickname.trim()}>Enviar invitación</Button>
+            {generatedInviteUrl ? (
+              <Button onClick={closeInviteDialog}>Cerrar</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeInviteDialog}>Cancelar</Button>
+                <Button
+                  onClick={handleInvite}
+                  isLoading={inviteMutation.isPending}
+                  disabled={inviteMethod === 'nickname' ? !inviteNickname.trim() : !inviteEmail.trim()}
+                >
+                  Enviar invitación
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Join request dialog (REQUEST policy) */}
+      <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar ingreso</DialogTitle>
+            <DialogDescription>Puedes agregar un mensaje opcional para los líderes del grupo.</DialogDescription>
+          </DialogHeader>
+          {myJoinRequest?.status === 'REJECTED' && (
+            <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
+              Tu solicitud anterior a este grupo fue rechazada
+              {myJoinRequest.createdAt && ` el ${new Date(myJoinRequest.createdAt).toLocaleDateString('es')}`}.
+              Puedes intentarlo de nuevo.
+            </div>
+          )}
+          <Textarea
+            label="Mensaje (opcional)"
+            value={requestMessage}
+            onChange={(e) => setRequestMessage(e.target.value)}
+            placeholder="Cuéntales por qué quieres unirte..."
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSubmitRequest} isLoading={requestMutation.isPending}>Enviar solicitud</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

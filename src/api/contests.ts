@@ -79,7 +79,7 @@ export function getRegistrationStatus(
 export function getRegistrations(
   groupId: string,
   contestId: string,
-  params?: { page?: number; limit?: number },
+  params?: { page?: number; limit?: number; search?: string },
 ): Promise<RegistrationListResponse> {
   return apiClient.get(`/groups/${groupId}/contests/${contestId}/registrations`, {
     params: params as Record<string, string | number | boolean | undefined>,

@@ -92,10 +92,10 @@ export function ProfilePage() {
                         {profile.institution}
                       </span>
                     )}
-                    {isOwnProfile && currentUser?.city && currentUser?.country && (
+                    {profile.city && profile.country && (
                       <span className="flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        {currentUser.city}, {currentUser.country}
+                        {profile.city}, {profile.country}
                       </span>
                     )}
                     <span className="flex items-center gap-1.5">
@@ -106,10 +106,10 @@ export function ProfilePage() {
                         year: 'numeric',
                       })}
                     </span>
-                    {isOwnProfile && currentUser?.email && (
+                    {profile.email && (
                       <span className="flex items-center gap-1.5">
                         <Mail className="h-3.5 w-3.5 shrink-0" />
-                        {currentUser.email}
+                        {profile.email}
                       </span>
                     )}
                   </div>

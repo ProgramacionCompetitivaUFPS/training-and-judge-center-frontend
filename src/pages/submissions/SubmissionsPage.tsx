@@ -160,6 +160,20 @@ export function SubmissionsPage() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            type="date"
+            aria-label="Desde"
+            className="w-[160px]"
+            value={filters.from ?? ''}
+            onChange={(e) => setFilters((prev) => ({ ...prev, from: e.target.value || undefined, page: 1 }))}
+          />
+          <Input
+            type="date"
+            aria-label="Hasta"
+            className="w-[160px]"
+            value={filters.to ?? ''}
+            onChange={(e) => setFilters((prev) => ({ ...prev, to: e.target.value || undefined, page: 1 }))}
+          />
         </div>
 
         {/* Results count */}

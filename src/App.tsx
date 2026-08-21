@@ -23,6 +23,7 @@ import { UsersListPage } from '@/pages/admin/UsersListPage'
 import { GroupsPage } from '@/pages/groups/GroupsPage'
 import { GroupDetailPage } from '@/pages/groups/GroupDetailPage'
 import { GroupFormPage } from '@/pages/groups/GroupFormPage'
+import { AcceptInvitationPage } from '@/pages/groups/AcceptInvitationPage'
 
 // Existing pages (legacy, will be replaced)
 import { ProblemsPage } from '@/pages/problems/ProblemsPage'
@@ -41,6 +42,7 @@ import { ContestDetailPage } from '@/pages/contests/ContestDetailPage'
 import { ContestFormPage } from '@/pages/contests/ContestFormPage'
 import { ContestStandingsPage } from '@/pages/contests/ContestStandingsPage'
 import { ContestSubmissionsPage } from '@/pages/contests/ContestSubmissionsPage'
+import { ContestParticipantsPage } from '@/pages/contests/ContestParticipantsPage'
 
 // Material pages
 import { MaterialsPage } from '@/pages/materials/MaterialsPage'
@@ -131,12 +133,14 @@ export default function App() {
               <Route path={ROUTES.GROUP_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_ACCEPT_INVITATION} element={<ProtectedRoute><AcceptInvitationPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><ContestsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><ContestDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_PARTICIPANTS} element={<ProtectedRoute><ContestParticipantsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_PROBLEM} element={<ProtectedRoute><ProblemDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMIT_SOLUTION} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMIT} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />

@@ -93,6 +93,19 @@ export function GroupFormPage() {
     )
   }
 
+  if (isEdit && group?.isGlobal) {
+    return (
+      <AppLayout breadcrumbs={breadcrumbs}>
+        <div className="text-center py-12">
+          <p className="text-neutral-text-muted">El grupo Global no se puede editar.</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate(`/groups/${id}`)}>
+            Volver al grupo
+          </Button>
+        </div>
+      </AppLayout>
+    )
+  }
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <form onSubmit={handleSubmit(onSubmit)}>

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { UsersRound, Check } from 'lucide-react'
+import { UsersRound, Check, LogOut } from 'lucide-react'
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,9 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/Select'
-import type { MyTeamItem, TeamDetail } from '@/types/team'
+import type { MyTeamItem, TeamDetail, ContestTeamRegistrationsResponse } from '@/types/team'
+
+type TeamRegistration = ContestTeamRegistrationsResponse['teams'][number]
 
 interface TeamContestRegistrationProps {
   contestId: string
@@ -32,10 +35,15 @@ interface TeamContestRegistrationProps {
   isLoadingTeams: boolean
   selectedTeamDetail: TeamDetail | undefined
   isLoadingTeamDetail: boolean
-  registeredTeamId: string | undefined
+  /** The registration whose roster includes the current user — scoped by roster membership, not team membership. */
+  myRegistration: TeamRegistration | undefined
+  currentUserNickname: string | undefined
   onRegisterTeam: (teamId: string, selectedMembers: string[]) => void
+  /** Used only for self-removal (dropping the current user from the roster), never to edit other members. */
+  onUpdateTeamRegistration: (teamId: string, selectedMembers: string[]) => void
   onUnregisterTeam: (teamId: string) => void
   isRegistering: boolean
+  isUpdating: boolean
   isUnregistering: boolean
   registrationError: string | undefined
   onTeamSelect: (teamId: string) => void
@@ -50,18 +58,27 @@ export function TeamContestRegistration({
   variant = 'card',
   teams,
   selectedTeamDetail,
+  myRegistration,
+  currentUserNickname,
   onRegisterTeam,
+  onUpdateTeamRegistration,
+  onUnregisterTeam,
   isRegistering,
+  isUpdating,
+  isUnregistering,
   onTeamSelect,
 }: TeamContestRegistrationProps) {
   const [showDialog, setShowDialog] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [leaveOpen, setLeaveOpen] = useState(false)
 
-  const canRegisterTeam = contestStatus === 'SCHEDULED' && !isRegistered &&
+  const canRegisterTeam = contestStatus === 'SCHEDULED' && !isRegistered && !myRegistration &&
     (participationMode === 'TEAM' || participationMode === 'MIXED')
+  const canManageRegistration = contestStatus === 'SCHEDULED' && !!myRegistration
 
-  if (!canRegisterTeam) return null
+  if (!canRegisterTeam && !canManageRegistration) return null
 
   const toggleMember = (memberId: string) => {
     setSelectedMembers((prev) =>
@@ -79,6 +96,12 @@ export function TeamContestRegistration({
     onTeamSelect(teamId)
   }
 
+  const openRegisterDialog = () => {
+    setSelectedTeamId('')
+    setSelectedMembers([])
+    setShowDialog(true)
+  }
+
   const handleRegister = () => {
     if (!selectedTeamId || selectedMembers.length === 0) return
     onRegisterTeam(selectedTeamId, selectedMembers)
@@ -87,35 +110,101 @@ export function TeamContestRegistration({
     setSelectedMembers([])
   }
 
+  const handleCancelRegistration = () => {
+    if (!myRegistration) return
+    onUnregisterTeam(myRegistration.team.id)
+    setCancelOpen(false)
+  }
+
+  const myMemberId = myRegistration?.selectedMembers.find((m) => m.nickname === currentUserNickname)?.id
+  const rosterSizeAfterLeaving = (myRegistration?.selectedMembers.length ?? 0) - 1
+  const canLeaveRoster = rosterSizeAfterLeaving >= teamSizeMin
+
+  const handleLeaveRoster = () => {
+    if (!myRegistration || !myMemberId) return
+    onUpdateTeamRegistration(
+      myRegistration.team.id,
+      myRegistration.selectedMembers.filter((m) => m.id !== myMemberId).map((m) => m.id),
+    )
+    setLeaveOpen(false)
+  }
+
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax
 
-  const triggerButton = (
-    <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={() => setShowDialog(true)}>
+  const registerTrigger = (
+    <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={openRegisterDialog}>
       <UsersRound className="h-4 w-4 mr-2" />
       Registrar equipo
     </Button>
   )
 
+  const registeredActions = myRegistration && (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={() => setLeaveOpen(true)}
+        disabled={!canLeaveRoster}
+        title={!canLeaveRoster ? `No puedes salir: el equipo quedaría por debajo del mínimo (${teamSizeMin})` : undefined}
+      >
+        <LogOut className="h-4 w-4 mr-2" />
+        Salir de esta competencia
+      </Button>
+      <Button variant="outline" onClick={() => setCancelOpen(true)}>
+        Cancelar registro
+      </Button>
+    </div>
+  )
+
+  const registeredContent = myRegistration && (
+    variant === 'inline' ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="success" className="text-sm px-3 py-1.5">
+          Equipo registrado: {myRegistration.team.name}
+        </Badge>
+        {registeredActions}
+      </div>
+    ) : (
+      <Card className="border-brand-accent/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <UsersRound className="h-4 w-4 text-brand-accent" />
+            Tu equipo está registrado
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-neutral-text-muted">
+            <span className="font-semibold text-neutral-text-primary">{myRegistration.team.name}</span>
+            {' — '}
+            {myRegistration.selectedMembers.map((m) => m.nickname).join(', ')}
+          </p>
+          {registeredActions}
+        </CardContent>
+      </Card>
+    )
+  )
+
   return (
     <>
-      {variant === 'inline' ? (
-        triggerButton
-      ) : (
-        <Card className="border-brand-accent/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <UsersRound className="h-4 w-4 text-brand-accent" />
-              Registro por equipo
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-neutral-text-muted mb-3">
-              Este contest permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
-              Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
-            </p>
-            {triggerButton}
-          </CardContent>
-        </Card>
+      {canManageRegistration ? registeredContent : (
+        variant === 'inline' ? (
+          registerTrigger
+        ) : (
+          <Card className="border-brand-accent/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <UsersRound className="h-4 w-4 text-brand-accent" />
+                Registro por equipo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-neutral-text-muted mb-3">
+                Este contest permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
+                Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
+              </p>
+              {registerTrigger}
+            </CardContent>
+          </Card>
+        )
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -128,7 +217,6 @@ export function TeamContestRegistration({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Team selector */}
             <div>
               <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Equipo</label>
               {teams.length === 0 ? (
@@ -204,6 +292,28 @@ export function TeamContestRegistration({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Salir de esta competencia"
+        description={`Dejarás de participar con "${myRegistration?.team.name}" en este contest. El resto del equipo sigue registrado. ¿Continuar?`}
+        confirmLabel="Salir"
+        variant="warning"
+        onConfirm={handleLeaveRoster}
+        isLoading={isUpdating}
+      />
+
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Cancelar registro del equipo"
+        description={`¿Seguro que deseas cancelar el registro de "${myRegistration?.team.name}" a este contest? Esto afecta a todo el equipo, no solo a ti. Deberán registrarse de nuevo si cambian de opinión.`}
+        confirmLabel="Cancelar registro"
+        variant="warning"
+        onConfirm={handleCancelRegistration}
+        isLoading={isUnregistering}
+      />
     </>
   )
 }

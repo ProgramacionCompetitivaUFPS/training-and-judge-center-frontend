@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FileText, Info, Timer, Tags, Settings, X, Upload, Plus, Trash2, Languages } from 'lucide-react'
+import { FileText, Info, Timer, Tags, Settings, X, Upload, Plus, Trash2, Languages, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { Textarea } from '@/components/ui/Textarea'
@@ -331,6 +331,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showZipHelp, setShowZipHelp] = useState(false)
 
   function handleImportClick() {
     fileInputRef.current?.click()
@@ -344,10 +345,20 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">Crear problema</h1>
         <div className="flex gap-2">
           <input ref={fileInputRef} type="file" accept=".zip" className="hidden" onChange={handleFileChange} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-neutral-text-muted"
+            onClick={() => setShowZipHelp((v) => !v)}
+          >
+            <HelpCircle className="h-4 w-4" />
+            Formato del ZIP
+          </Button>
           <Button type="button" variant="outline" onClick={handleImportClick} isLoading={isImporting} className="gap-2">
             <Upload className="h-4 w-4" />
             Importar ZIP
@@ -356,6 +367,20 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
           <Button type="submit" variant="primary" isLoading={isSubmitting}>Crear</Button>
         </div>
       </div>
+
+      {showZipHelp && (
+        <div className="mb-4 rounded-md border border-neutral-border bg-neutral-surface p-4 text-sm text-neutral-text-muted space-y-2">
+          <p className="font-semibold text-neutral-text-primary">Estructura esperada del ZIP (formato ICPC):</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><code className="font-mono">problem.yaml</code> — requerido, en la raíz del problema</li>
+            <li><code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code></li>
+            <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional</li>
+            <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional</li>
+            <li><code className="font-mono">checker.&lt;ext&gt;</code> y <code className="font-mono">validator.&lt;ext&gt;</code> — opcionales</li>
+          </ul>
+          <p>El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[5fr_4fr] gap-6">
         {/* Left: Form fields */}

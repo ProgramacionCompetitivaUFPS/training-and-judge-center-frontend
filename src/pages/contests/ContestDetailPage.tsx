@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, Plus, X } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@/components/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect } from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
-import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUnregisterTeamFromContest } from '@/hooks/api/useTeams'
+import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useProblemSearch } from '@/hooks/api/useProblems'
+import { useDebounce } from '@/hooks/useDebounce'
+import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
@@ -43,18 +46,30 @@ export function ContestDetailPage() {
   const { toast } = useToast()
 
   const { data: contest, isLoading } = useContestDetail(groupId || '', id || '')
+  const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
   const updateMutation = useUpdateContest()
 
-  const [problemSlug, setProblemSlug] = useState('')
+  const [problemSearchQuery, setProblemSearchQuery] = useState('')
+  const debouncedProblemSearch = useDebounce(problemSearchQuery)
+  const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
   const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const { data: teamRegistrationsData } = useContestTeamRegistrations(groupId || '', id || '')
   const registerTeamMutation = useRegisterTeamToContest()
+  const updateTeamRegistrationMutation = useUpdateTeamRegistration()
   const unregisterTeamMutation = useUnregisterTeamFromContest()
+
+  // Scoped to the roster of this specific registration, not general team membership — a team
+  // member left out of the selected lineup (e.g. didn't play that day) has no say over it, and
+  // if the same person competes via a different team for this contest, that's a separate registration.
+  const myRegistration = teamRegistrationsData?.teams.find((r) =>
+    r.selectedMembers.some((m) => m.nickname === user?.nickname)
+  )
 
   if (!id || !groupId) return null
 
@@ -70,10 +85,14 @@ export function ContestDetailPage() {
 
   if (!contest) return null
 
-  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
+  // Real leadership of the group that owns this contest — not just having the Coach role
+  // platform-wide, which the backend already rejects for management actions on contests
+  // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
+  const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
-  const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered
+  // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
+  const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
   const handleRegister = () => {
     registerMutation.mutate(
@@ -137,6 +156,16 @@ export function ContestDetailPage() {
     )
   }
 
+  const handleUpdateTeamRegistration = (teamId: string, selectedMembers: string[]) => {
+    updateTeamRegistrationMutation.mutate(
+      { groupId, contestId: contest.id, teamId, data: { selectedMembers } },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Alineación actualizada', description: 'Los miembros del equipo fueron actualizados' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo actualizar la alineación' }),
+      },
+    )
+  }
+
   const handleUnregisterTeam = (teamId: string) => {
     unregisterTeamMutation.mutate(
       { groupId, contestId: contest.id, teamId },
@@ -147,9 +176,8 @@ export function ContestDetailPage() {
     )
   }
 
-  const handleAddProblem = () => {
-    const slug = problemSlug.trim()
-    if (!slug) return
+  const handleAddProblem = (slug: string) => {
+    if (!slug.trim()) return
     const newProblems = [
       ...contest.problems.map((p) => ({ slug: p.slug, order: p.position })),
       { slug, order: contest.problems.length + 1 },
@@ -159,7 +187,7 @@ export function ContestDetailPage() {
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
-          setProblemSlug('')
+          setProblemSearchQuery('')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
       },
@@ -303,7 +331,7 @@ export function ContestDetailPage() {
                     Registrarse
                   </Button>
                 )}
-                {showTeamRegistration && !contest.isRegistered && (
+                {showTeamRegistration && (
                   <TeamContestRegistration
                     contestId={contest.id}
                     contestStatus={contest.status}
@@ -316,10 +344,13 @@ export function ContestDetailPage() {
                     isLoadingTeams={isLoadingTeams}
                     selectedTeamDetail={teamDetail}
                     isLoadingTeamDetail={isLoadingTeamDetail}
-                    registeredTeamId={undefined}
+                    myRegistration={myRegistration}
+                    currentUserNickname={user?.nickname}
                     onRegisterTeam={handleRegisterTeam}
+                    onUpdateTeamRegistration={handleUpdateTeamRegistration}
                     onUnregisterTeam={handleUnregisterTeam}
                     isRegistering={registerTeamMutation.isPending}
+                    isUpdating={updateTeamRegistrationMutation.isPending}
                     isUnregistering={unregisterTeamMutation.isPending}
                     registrationError={registerTeamMutation.error?.message}
                     onTeamSelect={setSelectedTeamId}
@@ -330,7 +361,7 @@ export function ContestDetailPage() {
                     Cancelar registro
                   </Button>
                 )}
-                {contest.isRegistered && (
+                {contest.isRegistered && !myRegistration && (
                   <Badge variant="success" className="self-center text-sm px-4 py-2">Registrado</Badge>
                 )}
               </div>
@@ -426,25 +457,28 @@ export function ContestDetailPage() {
                     <CardTitle>Gestión de problemas</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Slug del problema"
-                        value={problemSlug}
-                        onChange={(e) => setProblemSlug(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddProblem() }}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleAddProblem}
-                        isLoading={updateMutation.isPending}
-                        disabled={!problemSlug.trim()}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Agregar
-                      </Button>
-                    </div>
+                    <SearchSelect
+                      query={problemSearchQuery}
+                      onQueryChange={setProblemSearchQuery}
+                      results={(problemSearchData?.problems ?? []).filter(
+                        (p) => !contest.problems.some((cp) => cp.slug === p.slug),
+                      )}
+                      isSearching={isSearchingProblems}
+                      placeholder="Buscar problema publicado por título..."
+                      emptyLabel="Sin resultados (o ya está agregado)"
+                      hintLabel="Escribe al menos 2 caracteres"
+                      getKey={(p) => p.slug}
+                      renderItem={(p) => (
+                        <div>
+                          <p className="font-medium text-neutral-text-primary">{p.title}</p>
+                          <p className="text-xs text-neutral-text-muted font-mono">{p.slug}</p>
+                        </div>
+                      )}
+                      onSelect={(p) => handleAddProblem(p.slug)}
+                    />
+                    {updateMutation.isPending && (
+                      <p className="text-xs text-neutral-text-muted">Agregando...</p>
+                    )}
                     {contest.problems.length > 0 && (
                       <ul className="divide-y divide-neutral-border">
                         {contest.problems.map((p) => (
@@ -502,6 +536,7 @@ export function ContestDetailPage() {
                 </CardContent>
               </Card>
 
+              <ContestQuickLinks groupId={groupId} contestId={contest.id} />
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
               {isLead && (

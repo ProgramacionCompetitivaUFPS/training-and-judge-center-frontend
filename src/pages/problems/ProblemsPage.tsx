@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileCode2, Filter, Plus, X } from 'lucide-react'
+import { FileCode2, Filter, Plus, X, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge } from '@/components/ui'
 import { EmptyState } from '@/components/patterns'
@@ -36,14 +36,17 @@ export function ProblemsPage() {
   const canCreate = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const [filters, setFilters] = useState<ProblemListParams>({ page: 1, limit: 5 })
+  const [searchInput, setSearchInput] = useState('')
   const [authorInput, setAuthorInput] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
+  const debouncedSearch = useDebounce(searchInput)
   const debouncedAuthor = useDebounce(authorInput)
 
   const queryParams: ProblemListParams = {
     ...filters,
+    search: debouncedSearch || undefined,
     author: debouncedAuthor || undefined,
     tags: selectedTag || undefined,
   }
@@ -85,6 +88,17 @@ export function ProblemsPage() {
               Crear problema
             </Button>
           )}
+        </div>
+
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+          <Input
+            placeholder="Buscar problemas por título..."
+            className="pl-9"
+            value={searchInput}
+            onChange={(e) => { setSearchInput(e.target.value); setFilters((prev) => ({ ...prev, page: 1 })) }}
+          />
         </div>
 
         {/* Collapsible Filters */}

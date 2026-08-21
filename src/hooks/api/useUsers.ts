@@ -24,6 +24,7 @@ export const userKeys = {
   stats: ['users', 'stats'] as const,
   profile: (nickname: string) => ['users', 'profile', nickname] as const,
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
+  search: (q: string) => ['users', 'search', q] as const,
 }
 
 // === Queries ===
@@ -42,6 +43,18 @@ export function useUserProfile(nickname: string) {
     queryKey: userKeys.profile(nickname),
     queryFn: () => usersApi.getUserByNickname(nickname),
     enabled: !!nickname,
+  })
+}
+
+// Caller is expected to debounce `q`. `GET /users/search` is Coach/Admin-only — pass
+// `canSearch: false` when the viewer's platform role isn't one of those, even if some
+// domain-level check (group lead, problem modifier) would otherwise let the UI show through,
+// so a Contestant never fires a request that the backend would 403 anyway.
+export function useSearchUsers(q: string, limit?: number, canSearch = true) {
+  return useQuery({
+    queryKey: userKeys.search(q),
+    queryFn: () => usersApi.searchUsers(q, limit),
+    enabled: canSearch && q.trim().length >= 2,
   })
 }
 

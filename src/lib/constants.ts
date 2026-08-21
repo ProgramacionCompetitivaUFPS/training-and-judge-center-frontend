@@ -68,12 +68,14 @@ export const ROUTES = {
   GROUP_NEW: '/groups/new',
   GROUP_DETAIL: '/groups/:id',
   GROUP_EDIT: '/groups/:id/edit',
+  GROUP_ACCEPT_INVITATION: '/groups/:groupId/invitations/:invitationId/accept',
   CONTESTS: '/contests',
   CONTEST_NEW: '/groups/:groupId/contests/new',
   CONTEST_DETAIL: '/groups/:groupId/contests/:id',
   CONTEST_EDIT: '/groups/:groupId/contests/:id/edit',
   CONTEST_STANDINGS: '/groups/:groupId/contests/:id/standings',
   CONTEST_SUBMISSIONS: '/groups/:groupId/contests/:id/submissions',
+  CONTEST_PARTICIPANTS: '/groups/:groupId/contests/:id/participants',
   CONTEST_PROBLEM: '/groups/:groupId/contests/:contestId/problems/:letter',
   MATERIALS: '/groups/:groupId/materials',
   MATERIAL_NEW: '/groups/:groupId/materials/new',
@@ -95,12 +97,14 @@ export const PATHS = {
   // Groups
   group: (id: string) => `/groups/${id}`,
   groupEdit: (id: string) => `/groups/${id}/edit`,
+  groupAcceptInvitation: (groupId: string, invitationId: string) => `/groups/${groupId}/invitations/${invitationId}/accept`,
   // Contests
   contest: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}`,
   contestNew: (groupId: string) => `/groups/${groupId}/contests/new`,
   contestEdit: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/edit`,
   contestStandings: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/standings`,
   contestSubmissions: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/submissions`,
+  contestParticipants: (groupId: string, id: string) => `/groups/${groupId}/contests/${id}/participants`,
   contestProblem: (groupId: string, contestId: string, letter: string) =>
     `/groups/${groupId}/contests/${contestId}/problems/${letter}`,
   contestSubmit: (groupId: string, contestId: string, problem?: string) =>

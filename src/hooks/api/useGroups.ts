@@ -22,6 +22,7 @@ export const groupKeys = {
   myGroups: (params?: MyGroupsParams) => ['groups', 'mine', params] as const,
   members: (groupId: string) => ['groups', groupId, 'members'] as const,
   joinRequests: (groupId: string) => ['groups', groupId, 'requests'] as const,
+  invitations: (groupId: string) => ['groups', groupId, 'invitations'] as const,
 }
 
 // === Queries ===
@@ -60,6 +61,24 @@ export function useJoinRequests(groupId: string, params?: { status?: string; pag
   return useQuery({
     queryKey: [...groupKeys.joinRequests(groupId), params],
     queryFn: () => groupsApi.getJoinRequests(groupId, params),
+    enabled: !!groupId,
+  })
+}
+
+// A 404 (never requested) is an expected outcome here, not a transient failure — don't retry it.
+export function useMyJoinRequest(groupId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...groupKeys.joinRequests(groupId), 'me'],
+    queryFn: () => groupsApi.getMyJoinRequest(groupId),
+    enabled: (options?.enabled ?? true) && !!groupId,
+    retry: false,
+  })
+}
+
+export function useInvitations(groupId: string, params?: { page?: number; size?: number }) {
+  return useQuery({
+    queryKey: [...groupKeys.invitations(groupId), params],
+    queryFn: () => groupsApi.getInvitations(groupId, params),
     enabled: !!groupId,
   })
 }
@@ -195,6 +214,19 @@ export function useCreateInvitation() {
     mutationFn: ({ groupId, data }: { groupId: string; data: CreateInvitationRequest }) =>
       groupsApi.createInvitation(groupId, data),
     onSuccess: (_, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) })
+      queryClient.invalidateQueries({ queryKey: groupKeys.invitations(groupId) })
+    },
+  })
+}
+
+export function useAcceptInvitation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, invitationId }: { groupId: string; invitationId: string }) =>
+      groupsApi.acceptInvitation(groupId, invitationId),
+    onSuccess: (_, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.all })
       queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) })
     },
   })

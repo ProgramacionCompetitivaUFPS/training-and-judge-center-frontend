@@ -3,6 +3,7 @@ import {
   mockGroupDetails,
   mockGroupMembers,
   mockJoinRequests,
+  mockInvitations,
   buildGroupList,
   buildMyGroupsList,
 } from '../data'
@@ -19,6 +20,8 @@ export const groupsHandlers = [
       search: sp.get('search') || undefined,
       joinPolicy: sp.get('joinPolicy') || undefined,
       visibility: sp.get('visibility') || undefined,
+      sortBy: sp.get('sortBy') || undefined,
+      order: sp.get('order') || undefined,
     })
     return HttpResponse.json(result)
   }),
@@ -43,6 +46,8 @@ export const groupsHandlers = [
       limit: Number(sp.get('limit')) || 10,
       search: sp.get('search') || undefined,
       role: sp.get('role') || undefined,
+      sortBy: sp.get('sortBy') || undefined,
+      order: sp.get('order') || undefined,
     })
     return HttpResponse.json(result)
   }),
@@ -115,6 +120,28 @@ export const groupsHandlers = [
     }, { status: 201 })
   }),
 
+  // Leave group — registered before the generic ':nickname' routes below, since
+  // MSW matches handlers in array order and ':nickname' would otherwise also match 'me'.
+  http.delete(url('/groups/:groupId/members/me'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId } = params as { groupId: string }
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+
+    const members = mockGroupMembers[groupId] || []
+    const me = members.find((m) => m.nickname === userNickname)
+    const leadCount = members.filter((m) => m.role === 'LEAD').length
+    if (me?.role === 'LEAD' && leadCount <= 1) {
+      return HttpResponse.json({
+        error: 'CANNOT_LEAVE_AS_LAST_LEAD',
+        message: 'No puedes salir del grupo porque eres el único líder. Asigna otro líder primero.',
+      }, { status: 400 })
+    }
+
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Remove member
   http.delete(url('/groups/:groupId/members/:nickname'), async () => {
     await delay(300)
@@ -134,12 +161,6 @@ export const groupsHandlers = [
       role: body.role,
       joinedAt: '2024-06-01T10:00:00Z',
     })
-  }),
-
-  // Leave group
-  http.delete(url('/groups/:groupId/members/me'), async () => {
-    await delay(300)
-    return new HttpResponse(null, { status: 204 })
   }),
 
   // Join group (OPEN)
@@ -172,6 +193,21 @@ export const groupsHandlers = [
     }, { status: 201 })
   }),
 
+  // My join request for this group (404 if never requested)
+  http.get(url('/groups/:groupId/requests/me'), async ({ params, request }) => {
+    await delay(200)
+    const { groupId } = params as { groupId: string }
+    const auth = request.headers.get('Authorization')
+    const token = auth?.replace('Bearer ', '') || ''
+    const userNickname = token.replace('mock-jwt-token-', '')
+
+    const myRequest = (mockJoinRequests[groupId] || []).find((r) => r.requester.nickname === userNickname)
+    if (!myRequest) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'No tienes una solicitud para este grupo' }, { status: 404 })
+    }
+    return HttpResponse.json(myRequest)
+  }),
+
   // Cancel join request
   http.delete(url('/groups/:groupId/requests/me'), async () => {
     await delay(300)
@@ -192,31 +228,38 @@ export const groupsHandlers = [
     })
   }),
 
-  // Create invitation
+  // Create invitation — note: the real backend never returns a ready-made link, only `id`;
+  // the frontend builds the accept URL itself from groupId + id.
   http.post(url('/groups/:groupId/invitations'), async ({ params }) => {
     await delay(300)
     const { groupId } = params as { groupId: string }
     return HttpResponse.json({
-      id: 'inv-new',
+      id: 'inv-' + Date.now(),
       groupId,
       inviteeUserId: 'u-resolved',
-      invitationUrl: `https://training-center.com/groups/${groupId}/accept?token=mock-jwt-token`,
       expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     }, { status: 201 })
   }),
 
   // List invitations
-  http.get(url('/groups/:groupId/invitations'), async () => {
+  http.get(url('/groups/:groupId/invitations'), async ({ params }) => {
     await delay(200)
+    const { groupId } = params as { groupId: string }
+    const invitations = mockInvitations[groupId] || []
     return HttpResponse.json({
-      invitations: [],
-      pagination: { page: 1, size: 20, totalItems: 0, totalPages: 0 },
+      invitations,
+      pagination: { page: 1, size: 20, totalItems: invitations.length, totalPages: invitations.length > 0 ? 1 : 0 },
     })
   }),
 
-  // Accept invitation
-  http.post(url('/groups/:groupId/invitations/accept'), async () => {
+  // Accept invitation — invitationId travels in the JSON body, not the URL (real backend
+  // resolves identity purely from invitationId + the authenticated JWT user, no token at all).
+  http.post(url('/groups/:groupId/invitations/accept'), async ({ request }) => {
     await delay(300)
+    const body = (await request.json()) as { invitationId?: string }
+    if (!body.invitationId) {
+      return HttpResponse.json({ error: 'INVALID_REQUEST', message: 'invitationId es requerido' }, { status: 400 })
+    }
     return new HttpResponse(null, { status: 204 })
   }),
 ]

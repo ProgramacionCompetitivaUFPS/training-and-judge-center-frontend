@@ -28,12 +28,28 @@ export interface UserPreferences {
 // === Perfiles ===
 
 /** Perfil público visible por otros usuarios */
+export interface UserSearchResult {
+  id: string
+  nickname: string
+  name: string
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[]
+}
+
 export interface PublicUserProfile {
   name: string
   nickname: string
   institution: string
   role: UserRole
   createdAt: string
+  // Only present when the viewer is an Admin or is viewing their own profile — the backend
+  // sends the full payload in those cases, the reduced one otherwise.
+  email?: string
+  country?: string
+  city?: string
+  updatedAt?: string
 }
 
 // === Auth ===

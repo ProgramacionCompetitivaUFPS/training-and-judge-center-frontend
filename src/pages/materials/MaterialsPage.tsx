@@ -28,16 +28,22 @@ export function MaterialsPage() {
   const { groupId } = useParams<{ groupId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
-
   const { data: groupDetail } = useGroupDetail(groupId!)
+  // Real leadership of this specific group — the backend already rejects create/pin/unpin from
+  // a Coach who isn't actually a leader of this group (create_material.go, pin_material.go).
+  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
 
   const [search, setSearch] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [pinnedFilter, setPinnedFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [authorInput, setAuthorInput] = useState('')
+  const [publishedFrom, setPublishedFrom] = useState('')
+  const [publishedTo, setPublishedTo] = useState('')
+  const [sort, setSort] = useState<MaterialListParams['sort']>('relevance')
   const [pageQuery, setPageQuery] = useState({ page: 1, limit: 5 })
   const debouncedSearch = useDebounce(search, 300)
+  const debouncedAuthor = useDebounce(authorInput, 300)
 
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPageQuery)
 
@@ -48,6 +54,10 @@ export function MaterialsPage() {
     ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
     ...(selectedTag && { tags: selectedTag }),
     ...(statusFilter !== 'all' && { status: statusFilter as MaterialStatus }),
+    ...(debouncedAuthor && { author: debouncedAuthor }),
+    ...(publishedFrom && { publishedFrom }),
+    ...(publishedTo && { publishedTo }),
+    ...(sort && sort !== 'relevance' && { sort }),
   }
 
   const { data, isLoading } = useMaterials(groupId!, params)
@@ -112,6 +122,37 @@ export function MaterialsPage() {
                 </SelectContent>
               </Select>
             )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Filtrar por autor (nickname)..."
+              className="w-56"
+              value={authorInput}
+              onChange={(e) => { setAuthorInput(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+            />
+            <Input
+              type="date"
+              aria-label="Publicado desde"
+              className="w-40"
+              value={publishedFrom}
+              onChange={(e) => { setPublishedFrom(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+            />
+            <Input
+              type="date"
+              aria-label="Publicado hasta"
+              className="w-40"
+              value={publishedTo}
+              onChange={(e) => { setPublishedTo(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+            />
+            <Select value={sort} onValueChange={(v) => { setSort(v as MaterialListParams['sort']); setPageQuery((p) => ({ ...p, page: 1 })) }}>
+              <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">Relevancia (fijados primero)</SelectItem>
+                <SelectItem value="publishedAt">Fecha de publicación</SelectItem>
+                <SelectItem value="title">Título</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Tag chips */}

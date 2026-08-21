@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Clock, UsersRound } from 'lucide-react'
+import { Clock, UsersRound, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Card, CardContent } from '@/components/ui'
+import { Badge, Card, CardContent, Input } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
+import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
@@ -24,27 +28,35 @@ export function ContestSubmissionsPage() {
   const { user } = useAuth()
 
   const { data: contest } = useContestDetail(groupId || '', id || '')
+  const { data: ownerGroup } = useGroupDetail(groupId || '')
 
   const [phase, setPhase] = useState<string>('all')
   const [problemSlug, setProblemSlug] = useState<string>('all')
-  const [page, setPage] = useState(1)
+  const [nicknameInput, setNicknameInput] = useState('')
+  const debouncedNickname = useDebounce(nicknameInput)
+  const [pagination, setPagination] = useState({ page: 1, limit: 50 })
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
   const params: ContestSubmissionsParams = {
-    page,
-    limit: 50,
+    ...pagination,
     phase: phase !== 'all' ? (phase as 'competition' | 'postcompetition') : undefined,
     problemSlug: problemSlug !== 'all' ? problemSlug : undefined,
+    nickname: debouncedNickname || undefined,
   }
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
   const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
+  // Real leadership of the group that owns this contest, or platform Admin — mirrors the
+  // freeze exemption already applied server-side in list_contest_submissions.go.
+  const isPrivilegedViewer = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
 
-  // During ACTIVE contest, only own submissions are clickable
+  // During ACTIVE contest, only own submissions are clickable — except for the organizer/Admin,
+  // who (like the freeze exemption) can already see everyone's real verdict.
   const canViewSubmission = (nickname: string) => {
     if (!isActive) return true // FINISHED: all submissions viewable
-    return nickname === user?.nickname // ACTIVE: only own
+    return nickname === user?.nickname || isPrivilegedViewer
   }
 
   return (
@@ -75,8 +87,17 @@ export function ContestSubmissionsPage() {
 
         {/* Filters inline */}
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <Input
+              placeholder="Filtrar por nickname..."
+              className="pl-9"
+              value={nicknameInput}
+              onChange={(e) => { setNicknameInput(e.target.value); setPagination((p) => ({ ...p, page: 1 })) }}
+            />
+          </div>
           {contest && contest.problems.length > 0 && (
-            <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
+            <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPagination((p) => ({ ...p, page: 1 })) }}>
               <SelectTrigger className="w-56 shrink-0">
                 <SelectValue placeholder="Todos los problemas" />
               </SelectTrigger>
@@ -90,7 +111,7 @@ export function ContestSubmissionsPage() {
               </SelectContent>
             </Select>
           )}
-          <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
+          <Select value={phase} onValueChange={(v) => { setPhase(v); setPagination((p) => ({ ...p, page: 1 })) }}>
             <SelectTrigger className="w-48 shrink-0">
               <SelectValue placeholder="Todas las fases" />
             </SelectTrigger>
@@ -101,6 +122,18 @@ export function ContestSubmissionsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {data && !isLoading && (
+          <PaginationSummary
+            total={data.pagination.total}
+            totalLabel="envíos"
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            limit={pagination.limit}
+            onLimitChange={handleLimitChange}
+            sizeOptions={[25, 50, 100]}
+          />
+        )}
 
         {data?.contest.inFreeze && (
           <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
@@ -197,6 +230,14 @@ export function ContestSubmissionsPage() {
           <div className="text-center py-12 text-neutral-text-muted">
             No hay submissions en este contest.
           </div>
+        )}
+
+        {data && (
+          <PaginationControls
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

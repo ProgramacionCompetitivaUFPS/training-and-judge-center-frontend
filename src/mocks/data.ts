@@ -1,5 +1,5 @@
 import type { User, UserDashboard, UserProfileStats, PublicUserProfile, AdminUserListResponse } from '@/types/user'
-import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest } from '@/types/group'
+import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest, InvitationListItem } from '@/types/group'
 
 // === Mock Users ===
 
@@ -163,20 +163,28 @@ export const mockProfileStats: UserProfileStats = {
 
 // === Helper to build public profile from User ===
 
-export function toPublicProfile(user: User): PublicUserProfile {
+// `full` mirrors the backend's own rule: fullUserResponse for Admin viewers or when viewing
+// your own profile, publicUserResponse (no email/country/city/updatedAt) otherwise.
+export function toPublicProfile(user: User, full: boolean): PublicUserProfile {
   return {
     name: user.name,
     nickname: user.nickname,
     institution: user.institution,
     role: user.role,
     createdAt: user.createdAt,
+    ...(full && {
+      email: user.email,
+      country: user.country,
+      city: user.city,
+      updatedAt: user.updatedAt,
+    }),
   }
 }
 
 // === Helper to build paginated admin user list ===
 
 export function buildAdminUserList(
-  params: { page?: number; limit?: number; search?: string; role?: string; status?: string }
+  params: { page?: number; limit?: number; search?: string; role?: string; status?: string; sort?: string; order?: string }
 ): AdminUserListResponse {
   let filtered = [...mockUsers] as (User & { id: string })[]
 
@@ -191,6 +199,16 @@ export function buildAdminUserList(
   }
   if (params.status) {
     filtered = filtered.filter((u) => u.status === params.status)
+  }
+
+  if (params.sort === 'name' || params.sort === 'nickname' || params.sort === 'createdAt') {
+    const sortKey = params.sort
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return aVal.localeCompare(bVal) * direction
+    })
   }
 
   const page = params.page || 1
@@ -273,7 +291,7 @@ export const mockGroups: GroupListItem[] = [
     contestCount: 3,
     materialCount: 2,
     activeContestCount: 0,
-    userRole: null,
+    userRole: 'LEAD',
     createdAt: '2025-01-10T14:00:00Z',
   },
   {
@@ -290,6 +308,21 @@ export const mockGroups: GroupListItem[] = [
     activeContestCount: 3,
     userRole: 'MEMBER',
     createdAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'group-5',
+    name: 'Olimpiadas Regionales',
+    description: 'Grupo de preparación para olimpiadas regionales de programación.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'REQUEST',
+    isGlobal: false,
+    memberCount: 12,
+    leadCount: 1,
+    contestCount: 2,
+    materialCount: 3,
+    activeContestCount: 0,
+    userRole: null,
+    createdAt: '2025-03-01T10:00:00Z',
   },
 ]
 
@@ -363,6 +396,74 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
     createdAt: '2024-09-01T12:00:00Z',
   },
+  'group-4': {
+    id: 'group-4',
+    name: 'Equipo Privado UBA',
+    description: 'Grupo privado del equipo de la UBA.',
+    visibility: 'NOT_VISIBLE',
+    joinPolicy: 'INVITE',
+    isGlobal: false,
+    statistics: {
+      memberCount: 8,
+      leadCount: 1,
+      contestCount: 3,
+      materialCount: 2,
+      activeContestCount: 0,
+      scheduledContestCount: 1,
+      finishedContestCount: 2,
+    },
+    leads: [
+      { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+    ],
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    createdAt: '2025-01-10T14:00:00Z',
+  },
+  'group-global': {
+    id: 'group-global',
+    name: 'Training Center Global',
+    description: 'Grupo global de la plataforma. Todos los usuarios pertenecen automáticamente.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'OPEN',
+    isGlobal: true,
+    statistics: {
+      memberCount: 150,
+      leadCount: 5,
+      contestCount: 30,
+      materialCount: 40,
+      activeContestCount: 3,
+      scheduledContestCount: 4,
+      finishedContestCount: 23,
+    },
+    leads: [
+      { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+      { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
+    ],
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    createdAt: '2024-01-01T00:00:00Z',
+  },
+  'group-5': {
+    id: 'group-5',
+    name: 'Olimpiadas Regionales',
+    description: 'Grupo de preparación para olimpiadas regionales de programación.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'REQUEST',
+    isGlobal: false,
+    statistics: {
+      memberCount: 12,
+      leadCount: 1,
+      contestCount: 2,
+      materialCount: 3,
+      activeContestCount: 0,
+      scheduledContestCount: 1,
+      finishedContestCount: 1,
+    },
+    leads: [
+      { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
+    ],
+    // Rejected once before — used to test distinguishing "rejected" from "never requested".
+    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    createdAt: '2025-03-01T10:00:00Z',
+  },
 }
 
 export const mockGroupMembers: Record<string, GroupMember[]> = {
@@ -379,6 +480,18 @@ export const mockGroupMembers: Record<string, GroupMember[]> = {
     { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
     { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-09-10T10:00:00Z' },
   ],
+  'group-4': [
+    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
+    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2025-01-12T09:00:00Z' },
+  ],
+  'group-global': [
+    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
+  ],
+  'group-5': [
+    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2025-03-01T10:00:00Z' },
+  ],
 }
 
 export const mockJoinRequests: Record<string, JoinRequest[]> = {
@@ -390,6 +503,27 @@ export const mockJoinRequests: Record<string, JoinRequest[]> = {
       message: 'Me gustaría unirme para entrenar para ICPC.',
       status: 'PENDING',
       createdAt: '2026-03-10T14:00:00Z',
+    },
+  ],
+  'group-5': [
+    {
+      id: 'req-2',
+      groupId: 'group-5',
+      requester: { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+      message: 'Quiero prepararme para las regionales.',
+      status: 'REJECTED',
+      createdAt: '2026-02-01T10:00:00Z',
+    },
+  ],
+}
+
+export const mockInvitations: Record<string, InvitationListItem[]> = {
+  'group-1': [
+    {
+      id: 'inv-1',
+      groupId: 'group-1',
+      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', fullName: 'Pedro Inactivo' },
+      expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ],
 }
@@ -440,6 +574,21 @@ export const mockMyGroups: MyGroupItem[] = [
     activeContestCount: 3,
     unreadNotifications: 0,
   },
+  {
+    id: 'group-4',
+    name: 'Equipo Privado UBA',
+    description: 'Grupo privado del equipo de la UBA.',
+    visibility: 'NOT_VISIBLE',
+    joinPolicy: 'INVITE',
+    isGlobal: false,
+    myRole: 'LEAD',
+    joinedAt: '2025-01-10T14:00:00Z',
+    memberCount: 8,
+    contestCount: 3,
+    materialCount: 2,
+    activeContestCount: 0,
+    unreadNotifications: 0,
+  },
 ]
 
 // === Group helpers ===
@@ -450,6 +599,8 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
+  sortBy?: string
+  order?: string
 }) {
   let filtered = [...mockGroups]
 
@@ -462,6 +613,18 @@ export function buildGroupList(params: {
   }
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
+  }
+
+  if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {
+    const sortKey = params.sortBy
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return typeof aVal === 'number' && typeof bVal === 'number'
+        ? (aVal - bVal) * direction
+        : String(aVal).localeCompare(String(bVal)) * direction
+    })
   }
 
   const page = params.page || 1
@@ -487,6 +650,8 @@ export function buildMyGroupsList(params: {
   limit?: number
   search?: string
   role?: string
+  sortBy?: string
+  order?: string
 }) {
   let filtered = [...mockMyGroups]
 
@@ -496,6 +661,18 @@ export function buildMyGroupsList(params: {
   }
   if (params.role) {
     filtered = filtered.filter((g) => g.myRole === params.role)
+  }
+
+  if (params.sortBy === 'name' || params.sortBy === 'joinedAt' || params.sortBy === 'memberCount') {
+    const sortKey = params.sortBy
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return typeof aVal === 'number' && typeof bVal === 'number'
+        ? (aVal - bVal) * direction
+        : String(aVal).localeCompare(String(bVal)) * direction
+    })
   }
 
   const page = params.page || 1
@@ -719,6 +896,7 @@ export function buildProblemList(params: {
   accessibility?: string
   tags?: string
   author?: string
+  search?: string
   userNickname?: string
 }) {
   let filtered = [...mockProblems]
@@ -745,6 +923,10 @@ export function buildProblemList(params: {
   }
   if (params.author) {
     filtered = filtered.filter((p) => p.author.nickname === params.author)
+  }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((p) => p.title.toLowerCase().includes(s))
   }
 
   // Sort by createdAt desc
@@ -969,6 +1151,8 @@ export function buildMySubmissionsList(params: {
   verdict?: string
   problemSlug?: string
   language?: string
+  from?: string
+  to?: string
   userNickname: string
 }) {
   let filtered = mockSubmissions.filter((s) => s.submittedBy.nickname === params.userNickname)
@@ -981,6 +1165,14 @@ export function buildMySubmissionsList(params: {
   }
   if (params.language) {
     filtered = filtered.filter((s) => s.language === params.language)
+  }
+  if (params.from) {
+    const fromTime = new Date(params.from).getTime()
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() >= fromTime)
+  }
+  if (params.to) {
+    const toTime = new Date(params.to).getTime() + 24 * 60 * 60 * 1000 - 1
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() <= toTime)
   }
 
   filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
@@ -1054,7 +1246,7 @@ import type {
 } from '@/types/contest'
 
 // Helper to compute contest status
-function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
+export function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
   const now = Date.now()
   const start = new Date(startTime).getTime()
   const end = new Date(endTime).getTime()
@@ -1177,6 +1369,59 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-18T14:00:00Z',
     updatedAt: '2026-03-18T14:00:00Z',
   },
+  {
+    // Belongs to group-3, where mariacoach (COACH, not Admin) is NOT a leader — used to test
+    // that contest management actions are hidden for a Coach who doesn't actually lead this group.
+    id: 'contest-5',
+    name: 'Contest de Bienvenida',
+    description: 'Contest introductorio para nuevos miembros.',
+    startTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
+    duration: 10800,
+    status: 'SCHEDULED',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 0,
+    isRegistered: false,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-3', name: 'Principiantes CP' },
+    owner: { id: 'u1', nickname: 'luisadmin' },
+    problems: [],
+    problemCount: 0,
+    createdAt: '2026-03-20T10:00:00Z',
+    updatedAt: '2026-03-20T10:00:00Z',
+  },
+  {
+    // ACTIVE, currently inside its own freeze window (ends soon, freezeMinutes covers "now") —
+    // used to test that Leads/Admins see real verdicts during freeze while others see '?'.
+    id: 'contest-6',
+    name: 'Contest en Freeze',
+    description: 'Competencia activa actualmente en periodo de freeze.',
+    startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 20 * 60 * 1000).toISOString(),
+    duration: 8400,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1203,6 +1448,7 @@ export function buildContestList(params: {
   page?: number
   limit?: number
   status?: string
+  search?: string
   sortBy?: string
   sortOrder?: string
 }) {
@@ -1216,6 +1462,10 @@ export function buildContestList(params: {
 
   if (params.status) {
     filtered = filtered.filter((c) => c.status === params.status)
+  }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((c) => c.name.toLowerCase().includes(s))
   }
 
   const sortBy = params.sortBy || 'startTime'
@@ -1241,6 +1491,34 @@ export function buildContestList(params: {
       totalPages: Math.ceil(filtered.length / limit) || 1,
       hasNextPage: start + limit < filtered.length,
       hasPrevPage: page > 1,
+    },
+  }
+}
+
+export function buildRegistrations(params: { page?: number; limit?: number; search?: string }) {
+  let filtered = mockUsers.map((u, i) => ({
+    nickname: u.nickname,
+    registeredAt: new Date(Date.UTC(2026, 2, 15, 10 + i, 0, 0)).toISOString(),
+  }))
+
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((r) => r.nickname.toLowerCase().includes(s))
+  }
+
+  const page = params.page || 1
+  const limit = params.limit || 50
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    registrations: paged,
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasMore: start + limit < filtered.length,
     },
   }
 }
@@ -1391,6 +1669,78 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     status: 'ACCEPTED',
   },
 ]
+
+export function buildContestSubmissionsList(params: {
+  contestId: string
+  page?: number
+  limit?: number
+  phase?: string
+  problemSlug?: string
+  nickname?: string
+  isPrivileged: boolean
+}) {
+  const contest = mockContests.find((c) => c.id === params.contestId)
+  if (!contest) return null
+
+  let filtered = [...mockContestSubmissions]
+
+  if (params.problemSlug) {
+    filtered = filtered.filter((s) => s.problem.slug === params.problemSlug)
+  }
+  if (params.nickname) {
+    filtered = filtered.filter((s) =>
+      s.submittedBy.type === 'INDIVIDUAL'
+        ? s.submittedBy.nickname === params.nickname
+        : s.submittedBy.members?.includes(params.nickname!)
+    )
+  }
+  if (params.phase === 'competition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() <= new Date(contest.endTime).getTime())
+  } else if (params.phase === 'postcompetition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() > new Date(contest.endTime).getTime())
+  }
+
+  // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
+  // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
+  const nowMs = Date.now()
+  const endMs = new Date(contest.endTime).getTime()
+  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
+  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+
+  filtered = filtered.map((s) => {
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    return isFrozenSubmission ? { ...s, status: '?', executionTime: undefined, memoryUsed: undefined } : s
+  })
+
+  filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 50
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    contest: {
+      id: contest.id,
+      name: contest.name,
+      status: contest.status,
+      startTime: contest.startTime,
+      endTime: contest.endTime,
+      freezeMinutes: contest.freezeMinutes,
+      freezeTime: freezeStartMs != null ? new Date(freezeStartMs).toISOString() : undefined,
+      inFreeze,
+    },
+    submissions: paged,
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
 
 // === Mock Materials ===
 
@@ -1636,6 +1986,22 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     updatedAt: '2026-02-20T08:00:00Z',
     publishedAt: '2026-02-19T12:00:00Z',
   },
+  {
+    // Belongs to group-3, where mariacoach is NOT a leader — used to test that "Nuevo Material"
+    // and fijar/desfijar are hidden for a Coach who doesn't actually lead this group.
+    id: 'mat-006',
+    title: 'Guía de bienvenida para principiantes',
+    content: '# Bienvenidos a Principiantes CP\n\nAlgunos recursos para empezar.',
+    tags: ['welcome', 'resources'],
+    status: 'PUBLISHED',
+    pinned: false,
+    pinnedAt: null,
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    group: { id: 'group-3', name: 'Principiantes CP' },
+    createdAt: '2026-03-20T10:00:00Z',
+    updatedAt: '2026-03-20T10:00:00Z',
+    publishedAt: '2026-03-20T10:00:00Z',
+  },
 ]
 
 export function buildMaterialList(params: {
@@ -1645,6 +2011,11 @@ export function buildMaterialList(params: {
   pinned?: string
   tags?: string
   q?: string
+  author?: string
+  publishedFrom?: string
+  publishedTo?: string
+  sort?: string
+  status?: string
 }): MaterialListResponse {
   let filtered = mockMaterials.filter((m) => m.group.id === params.groupId)
 
@@ -1663,17 +2034,45 @@ export function buildMaterialList(params: {
     )
   }
 
-  // Sort: pinned first by pinnedAt DESC, then by publishedAt DESC
-  filtered.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1
-    if (!a.pinned && b.pinned) return 1
-    if (a.pinned && b.pinned) {
-      return new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()
-    }
-    const aDate = a.publishedAt ?? a.createdAt
-    const bDate = b.publishedAt ?? b.createdAt
-    return new Date(bDate).getTime() - new Date(aDate).getTime()
-  })
+  if (params.status) {
+    filtered = filtered.filter((m) => m.status === params.status)
+  }
+
+  if (params.author) {
+    const a = params.author.toLowerCase()
+    filtered = filtered.filter((m) => m.author.nickname.toLowerCase().includes(a))
+  }
+
+  if (params.publishedFrom) {
+    const fromTime = new Date(params.publishedFrom).getTime()
+    filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() >= fromTime)
+  }
+  if (params.publishedTo) {
+    const toTime = new Date(params.publishedTo).getTime() + 24 * 60 * 60 * 1000 - 1
+    filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() <= toTime)
+  }
+
+  if (params.sort === 'title') {
+    filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
+  } else if (params.sort === 'publishedAt') {
+    filtered = [...filtered].sort((a, b) => {
+      const aDate = a.publishedAt ?? a.createdAt
+      const bDate = b.publishedAt ?? b.createdAt
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+  } else {
+    // Default ("relevance"): pinned first by pinnedAt DESC, then by publishedAt DESC
+    filtered.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      if (a.pinned && b.pinned) {
+        return new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()
+      }
+      const aDate = a.publishedAt ?? a.createdAt
+      const bDate = b.publishedAt ?? b.createdAt
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+  }
 
   const page = params.page || 1
   const limit = params.limit || 20
@@ -1696,7 +2095,7 @@ export function buildMaterialList(params: {
 
 // === Teams ===
 
-import type { MyTeamItem, TeamDetail, TeamInvitationItem } from '@/types/team'
+import type { MyTeamItem, TeamDetail, TeamInvitationItem, ContestTeamRegistrationsResponse } from '@/types/team'
 
 export const mockMyTeams: MyTeamItem[] = [
   {
@@ -1712,6 +2111,13 @@ export const mockMyTeams: MyTeamItem[] = [
     memberCount: 4,
     joinedAt: '2026-02-01T14:00:00Z',
     createdAt: '2026-01-20T12:00:00Z',
+  },
+  {
+    id: 'team-4',
+    name: 'Byte Busters',
+    memberCount: 2,
+    joinedAt: '2026-03-01T09:00:00Z',
+    createdAt: '2026-02-25T10:00:00Z',
   },
 ]
 
@@ -1748,6 +2154,44 @@ export const mockTeamDetails: Record<string, TeamDetail> = {
     ],
     pendingInvitations: [],
   },
+  'team-3': {
+    id: 'team-3',
+    name: 'Code Warriors',
+    createdBy: { id: 'u5', nickname: 'pedromartinez' },
+    createdAt: '2026-02-01T09:00:00Z',
+    members: [
+      { id: 'u5', nickname: 'pedromartinez', joinedAt: '2026-02-01T09:00:00Z' },
+      { id: 'u6', nickname: 'sofiarodriguez', joinedAt: '2026-02-03T11:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+  'team-4': {
+    id: 'team-4',
+    name: 'Byte Busters',
+    createdBy: { id: 'u1', nickname: 'luisadmin' },
+    createdAt: '2026-02-25T10:00:00Z',
+    members: [
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-03-01T09:00:00Z' },
+      { id: 'u6', nickname: 'sofiarodriguez', joinedAt: '2026-03-01T09:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+}
+
+// Keyed by contestId. Mutated by the register/update/unregister team-registration mock handlers
+// so the "equipo ya registrado" flow (modificar alineación / cancelar registro) is testable.
+export const mockTeamRegistrations: Record<string, ContestTeamRegistrationsResponse['teams']> = {
+  // team-1 registered to contest-2 (ACTIVE) — used to test blocking "leave team" mid-contest.
+  'contest-2': [
+    {
+      team: { id: 'team-1', name: 'Competitive Coders' },
+      selectedMembers: [
+        { id: 'u1', nickname: 'luisadmin' },
+        { id: 'u3', nickname: 'carloscp' },
+      ],
+      registeredAt: '2026-03-18T09:00:00Z',
+    },
+  ],
 }
 
 export const mockTeamInvitations: TeamInvitationItem[] = [
