@@ -94,6 +94,15 @@ export const changePasswordSchema = z.object({
 
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>
 
+export const setPasswordSchema = z.object({
+  newPassword: passwordField,
+  confirmNewPassword: z
+    .string()
+    .min(1, 'Confirma tu contraseña'),
+}).refine((data) => data.newPassword === data.confirmNewPassword, passwordsMatch('confirmNewPassword'))
+
+export type SetPasswordFormData = z.infer<typeof setPasswordSchema>
+
 export const changeEmailSchema = z.object({
   newEmail: z
     .string()

@@ -18,6 +18,8 @@ export interface User {
   deactivatedAt?: string
   /** Solo viene poblado por GET /users/me — ausente en login/link/unlink y en otros endpoints de usuario */
   googleLinked?: boolean
+  /** Solo viene poblado por GET /users/me — mismo caveat que googleLinked */
+  hasPassword?: boolean
 }
 
 export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
@@ -97,6 +99,10 @@ export interface UpdateProfileRequest {
 
 export interface ChangePasswordRequest {
   currentPassword: string
+  newPassword: string
+}
+
+export interface SetPasswordRequest {
   newPassword: string
 }
 

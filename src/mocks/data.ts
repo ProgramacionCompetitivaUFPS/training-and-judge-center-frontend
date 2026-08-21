@@ -16,6 +16,7 @@ export const mockCurrentUser: User = {
   createdAt: '2024-06-15T10:00:00Z',
   updatedAt: '2025-01-10T14:30:00Z',
   googleLinked: false,
+  hasPassword: true,
 }
 
 export const mockUsers: User[] = [

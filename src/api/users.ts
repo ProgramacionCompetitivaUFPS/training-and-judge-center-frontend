@@ -8,6 +8,7 @@ import type {
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
+  SetPasswordRequest,
   RequestEmailChangeRequest,
   ConfirmEmailChangeRequest,
   RecoverPasswordRequest,
@@ -68,6 +69,10 @@ export function updateProfile(data: UpdateProfileRequest): Promise<User> {
 
 export function changePassword(data: ChangePasswordRequest): Promise<void> {
   return apiClient.put('/users/password', data)
+}
+
+export function setPassword(data: SetPasswordRequest): Promise<void> {
+  return apiClient.post('/users/password', data)
 }
 
 export function recoverPassword(data: RecoverPasswordRequest): Promise<void> {

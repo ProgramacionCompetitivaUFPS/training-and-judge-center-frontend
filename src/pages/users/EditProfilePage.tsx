@@ -14,6 +14,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import {
   useUpdateProfile,
   useChangePassword,
+  useSetPassword,
   useRequestEmailChange,
   useConfirmEmailChange,
   useRequestDeactivation,
@@ -24,11 +25,13 @@ import {
 import {
   updateProfileSchema,
   changePasswordSchema,
+  setPasswordSchema,
   changeEmailSchema,
   confirmEmailChangeSchema,
   confirmDeactivationSchema,
   type UpdateProfileFormData,
   type ChangePasswordFormData,
+  type SetPasswordFormData,
   type ChangeEmailFormData,
   type ConfirmEmailChangeFormData,
   type ConfirmDeactivationFormData,
@@ -46,8 +49,8 @@ export function EditProfilePage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">Configuración</h1>
         <ProfileSection user={user} />
-        <PasswordSection />
-        <EmailSection />
+        <PasswordSection hasPassword={user.hasPassword} />
+        <EmailSection hasPassword={user.hasPassword} />
         <GoogleAccountSection googleLinked={user.googleLinked} />
         <DeactivateSection />
       </div>
@@ -138,7 +141,15 @@ function ProfileSection({ user }: ProfileSectionProps) {
   )
 }
 
-function PasswordSection() {
+interface PasswordSectionProps {
+  hasPassword?: boolean
+}
+
+function PasswordSection({ hasPassword }: PasswordSectionProps) {
+  return hasPassword === false ? <SetPasswordForm /> : <ChangePasswordForm />
+}
+
+function ChangePasswordForm() {
   const changeMutation = useChangePassword()
   const { toast } = useToastContext()
 
@@ -178,7 +189,7 @@ function PasswordSection() {
   }
 
   return (
-    <Card>
+    <Card id="password-section">
       <CardContent className="pt-6 space-y-4">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
@@ -219,7 +230,118 @@ function PasswordSection() {
   )
 }
 
-function EmailSection() {
+function SetPasswordForm() {
+  const setMutation = useSetPassword()
+  const { toast } = useToastContext()
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+    reset,
+    setError,
+  } = useForm<SetPasswordFormData>({
+    resolver: zodResolver(setPasswordSchema),
+    defaultValues: { newPassword: '', confirmNewPassword: '' },
+  })
+
+  const newPasswordValue = useWatch({ control, name: 'newPassword' })
+
+  const onSubmit = async (data: SetPasswordFormData) => {
+    try {
+      await setMutation.mutateAsync({ newPassword: data.newPassword })
+      toast({ variant: 'success', title: 'Contraseña creada', description: 'Ya podés iniciar sesión también con tu correo y contraseña.' })
+      reset()
+    } catch (error) {
+      if (error instanceof ApiClientError && error.details?.length) {
+        error.details.forEach((d) => setError(d.field as keyof SetPasswordFormData, { message: d.message }))
+      } else if (error instanceof ApiClientError && error.code === 'PASSWORD_ALREADY_SET') {
+        toast({ variant: 'error', title: 'Ya tenés una contraseña configurada' })
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error al crear la contraseña',
+          description: error instanceof ApiClientError ? error.message : undefined,
+        })
+      }
+    }
+  }
+
+  return (
+    <Card id="password-section">
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+            <Lock className="h-4 w-4" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Crear Contraseña</h2>
+        </div>
+        <p className="text-sm text-neutral-text-muted">
+          Hoy solo podés iniciar sesión con Google. Configurá una contraseña para poder entrar
+          también con tu correo, o si en algún momento perdés acceso a tu cuenta de Google.
+        </p>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <PasswordInput
+            id="setNewPassword"
+            label="Nueva contraseña"
+            showStrength
+            strengthValue={newPasswordValue}
+            helperText="Mínimo 8 caracteres, con mayúscula, número y carácter especial."
+            error={errors.newPassword?.message}
+            {...register('newPassword')}
+          />
+          <PasswordInput
+            id="setConfirmNewPassword"
+            label="Confirmar"
+            error={errors.confirmNewPassword?.message}
+            {...register('confirmNewPassword')}
+          />
+        </div>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creando...' : 'Crear Contraseña'}
+        </Button>
+      </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface EmailSectionProps {
+  hasPassword?: boolean
+}
+
+function EmailSection({ hasPassword }: EmailSectionProps) {
+  if (hasPassword === false) {
+    return (
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
+              <Mail className="h-4 w-4" />
+            </div>
+            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+          </div>
+          <p className="text-sm text-neutral-text-muted">
+            Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
+            primero creá una contraseña.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('password-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Crear Contraseña
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return <EmailChangeForm />
+}
+
+function EmailChangeForm() {
   const emailMutation = useRequestEmailChange()
   const confirmMutation = useConfirmEmailChange()
   const { toast } = useToastContext()
@@ -374,6 +496,13 @@ function GoogleAccountSection({ googleLinked }: GoogleAccountSectionProps) {
     } catch (error) {
       if (error instanceof ApiClientError && error.code === 'OAUTH_IDENTITY_NOT_FOUND') {
         toast({ variant: 'error', title: 'No tenías una cuenta de Google vinculada' })
+      } else if (error instanceof ApiClientError && error.code === 'CANNOT_UNLINK_LAST_CREDENTIAL') {
+        toast({
+          variant: 'error',
+          title: 'Necesitás configurar una contraseña antes de desvincular tu cuenta de Google',
+          description: 'Es tu única forma de iniciar sesión por ahora.',
+        })
+        document.getElementById('password-section')?.scrollIntoView({ behavior: 'smooth' })
       } else {
         toast({ variant: 'error', title: 'Error al desvincular Google' })
       }

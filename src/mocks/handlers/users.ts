@@ -10,6 +10,7 @@ import { url } from './utils'
 // Mutable mock state — googleLinked isn't part of the persisted mockUsers records
 // (matches backend: it's derived from a separate OAuth identity lookup, not the User row)
 const mockGoogleLinkedByNickname = new Map<string, boolean>()
+const mockHasPasswordByNickname = new Map<string, boolean>()
 
 export const usersHandlers = [
   // === Profile ===
@@ -30,8 +31,9 @@ export const usersHandlers = [
     const nickname = token.replace('mock-jwt-token-', '')
     const user = mockUsers.find((u) => u.nickname === nickname) || mockCurrentUser
     const googleLinked = mockGoogleLinkedByNickname.get(user.nickname) ?? user.googleLinked ?? false
+    const hasPassword = mockHasPasswordByNickname.get(user.nickname) ?? user.hasPassword ?? true
 
-    return HttpResponse.json({ ...user, googleLinked })
+    return HttpResponse.json({ ...user, googleLinked, hasPassword })
   }),
 
   // === Google OAuth ===
@@ -66,6 +68,16 @@ export const usersHandlers = [
       return HttpResponse.json(
         { error: 'OAUTH_IDENTITY_NOT_FOUND', message: 'No había una cuenta de Google vinculada' },
         { status: 404 }
+      )
+    }
+    const hasPassword = mockHasPasswordByNickname.get(nickname) ?? user.hasPassword ?? true
+    if (!hasPassword) {
+      return HttpResponse.json(
+        {
+          error: 'CANNOT_UNLINK_LAST_CREDENTIAL',
+          message: 'cannot unlink Google account without a password set; set a password first',
+        },
+        { status: 409 }
       )
     }
     mockGoogleLinkedByNickname.set(nickname, false)
@@ -148,6 +160,28 @@ export const usersHandlers = [
 
   http.put(url('/users/password'), async () => {
     await delay(300)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(url('/users/password'), async ({ request }) => {
+    await delay(300)
+    const auth = request.headers.get('Authorization')
+    if (!auth) {
+      return HttpResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Token requerido' },
+        { status: 401 }
+      )
+    }
+    const nickname = auth.replace('Bearer ', '').replace('mock-jwt-token-', '')
+    const user = mockUsers.find((u) => u.nickname === nickname) || mockCurrentUser
+    const hasPassword = mockHasPasswordByNickname.get(nickname) ?? user.hasPassword ?? true
+    if (hasPassword) {
+      return HttpResponse.json(
+        { error: 'PASSWORD_ALREADY_SET', message: 'El usuario ya tiene una contraseña configurada' },
+        { status: 409 }
+      )
+    }
+    mockHasPasswordByNickname.set(nickname, true)
     return new HttpResponse(null, { status: 204 })
   }),
 

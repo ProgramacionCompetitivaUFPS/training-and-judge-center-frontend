@@ -7,6 +7,7 @@ import type {
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
+  SetPasswordRequest,
   RequestEmailChangeRequest,
   ConfirmEmailChangeRequest,
   RecoverPasswordRequest,
@@ -142,7 +143,11 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: UpdateProfileRequest) => usersApi.updateProfile(data),
     onSuccess: (updatedUser) => {
-      queryClient.setQueryData(userKeys.me, updatedUser)
+      // PUT /users doesn't echo back hasPassword/googleLinked (only GET /users/me does) —
+      // merge onto the existing cache instead of replacing it, or those fields revert to undefined.
+      queryClient.setQueryData(userKeys.me, (old: typeof updatedUser | undefined) =>
+        old ? { ...old, ...updatedUser } : updatedUser
+      )
     },
   })
 }
@@ -150,6 +155,16 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) => usersApi.changePassword(data),
+  })
+}
+
+export function useSetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: SetPasswordRequest) => usersApi.setPassword(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
   })
 }
 
