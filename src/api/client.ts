@@ -1,5 +1,6 @@
 import { getAccessToken, setAccessToken, clearAccessToken, notifySessionExpired, isLoggingOut } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
+import type { RefreshSessionResponse } from '@/types/user'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -40,14 +41,24 @@ class ApiClient {
     return this.refreshPromise
   }
 
+  async refreshSession(): Promise<RefreshSessionResponse> {
+    const response = await fetch(this.buildUrl('/auth/refresh'), {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: 'UNKNOWN',
+        message: response.statusText,
+      }))
+      throw new ApiClientError(response.status, error.error, error.message, error.details)
+    }
+    return response.json()
+  }
+
   private async performRefresh(): Promise<boolean> {
     try {
-      const response = await fetch(this.buildUrl('/auth/refresh'), {
-        method: 'POST',
-        credentials: 'include',
-      })
-      if (!response.ok) return false
-      const data = (await response.json()) as { token: string }
+      const data = await this.refreshSession()
       setAccessToken(data.token)
       return true
     } catch {

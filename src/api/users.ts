@@ -41,7 +41,7 @@ export function googleLogin(data: GoogleLoginRequest): Promise<LoginResponse> {
 }
 
 export function refreshSession(): Promise<RefreshSessionResponse> {
-  return apiClient.post('/auth/refresh')
+  return apiClient.refreshSession()
 }
 
 export function logout(): Promise<void> {
