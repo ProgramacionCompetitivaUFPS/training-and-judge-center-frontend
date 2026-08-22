@@ -159,15 +159,15 @@ class ApiClient {
   }
 
   async delete<T>(path: string, config?: RequestConfig & { body?: unknown }): Promise<T> {
-    const headers: Record<string, string> = { ...this.getAuthHeaders(), ...config?.headers }
-    if (config?.body) {
-      headers['Content-Type'] = 'application/json'
-    }
     const response = await this.executeWithAuthRetry(() =>
       fetch(this.buildUrl(path, config?.params), {
         method: 'DELETE',
         credentials: 'include',
-        headers,
+        headers: {
+          ...this.getAuthHeaders(),
+          ...(config?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...config?.headers,
+        },
         body: config?.body ? JSON.stringify(config.body) : undefined,
       })
     )
