@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser, useLogout } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
 import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired } from '@/lib/tokenStore'
@@ -16,6 +17,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [bootstrapping, setBootstrapping] = useState(true)
   const logoutMutation = useLogout()
   const { toast } = useToastContext()
+  const queryClient = useQueryClient()
+  const previousTokenRef = useRef(token)
+
+  useEffect(() => {
+    if (previousTokenRef.current && !token) {
+      queryClient.clear()
+    }
+    previousTokenRef.current = token
+  }, [token, queryClient])
 
   useEffect(() => {
     let cancelled = false
