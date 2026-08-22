@@ -65,3 +65,22 @@ export function loadGoogleIdentity(): Promise<GoogleAccountsId> {
 
   return scriptLoading
 }
+
+let initializedClientId: string | null = null
+let activeCredentialHandler: ((idToken: string) => void) | null = null
+
+export function initializeGoogleIdentity(
+  accountsId: GoogleAccountsId,
+  clientId: string,
+  onCredential: (idToken: string) => void,
+): void {
+  activeCredentialHandler = onCredential
+
+  if (initializedClientId === clientId) return
+  initializedClientId = clientId
+
+  accountsId.initialize({
+    client_id: clientId,
+    callback: (response) => activeCredentialHandler?.(response.credential),
+  })
+}

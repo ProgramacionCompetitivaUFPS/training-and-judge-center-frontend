@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { loadGoogleIdentity } from '@/lib/googleIdentity'
+import { loadGoogleIdentity, initializeGoogleIdentity } from '@/lib/googleIdentity'
 
 interface GoogleSignInButtonProps {
   onCredential: (idToken: string) => void
@@ -25,12 +25,9 @@ export function GoogleSignInButton({ onCredential, text = 'continue_with' }: Goo
     loadGoogleIdentity()
       .then((accountsId) => {
         if (cancelled || !containerRef.current) return
-        accountsId.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            if (cancelled) return
-            onCredentialRef.current(response.credential)
-          },
+        initializeGoogleIdentity(accountsId, GOOGLE_CLIENT_ID, (idToken) => {
+          if (cancelled) return
+          onCredentialRef.current(idToken)
         })
         containerRef.current.innerHTML = ''
         accountsId.renderButton(containerRef.current, {
