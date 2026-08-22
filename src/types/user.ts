@@ -68,6 +68,11 @@ export interface LoginResponse {
   user: User
 }
 
+export interface RefreshSessionResponse {
+  token: string
+  sessionExpiresAt: string
+}
+
 export interface GoogleLoginRequest {
   id_token: string
   rememberSession: boolean

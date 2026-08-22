@@ -3,6 +3,7 @@ import type {
   User,
   LoginRequest,
   LoginResponse,
+  RefreshSessionResponse,
   GoogleLoginRequest,
   LinkGoogleRequest,
   RegisterRequest,
@@ -37,6 +38,14 @@ export function login(data: LoginRequest): Promise<LoginResponse> {
 
 export function googleLogin(data: GoogleLoginRequest): Promise<LoginResponse> {
   return apiClient.post('/auth/google', data)
+}
+
+export function refreshSession(): Promise<RefreshSessionResponse> {
+  return apiClient.refreshSession()
+}
+
+export function logout(): Promise<void> {
+  return apiClient.post('/auth/logout')
 }
 
 export function linkGoogleAccount(data: LinkGoogleRequest): Promise<void> {

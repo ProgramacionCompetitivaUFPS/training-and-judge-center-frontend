@@ -1,3 +1,7 @@
+import { getAccessToken, setAccessToken, clearAccessToken, notifySessionExpired, isLoggingOut } from '@/lib/tokenStore'
+import { ApiClientError } from '@/lib/errors'
+import type { RefreshSessionResponse } from '@/types/user'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 interface RequestConfig {
@@ -7,13 +11,14 @@ interface RequestConfig {
 
 class ApiClient {
   private baseUrl: string
+  private refreshPromise: Promise<boolean> | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
   }
 
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('auth_token')
+    const token = getAccessToken()
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
@@ -25,6 +30,62 @@ class ApiClient {
       })
     }
     return url.toString()
+  }
+
+  private ensureFreshToken(): Promise<boolean> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.performRefresh().finally(() => {
+        this.refreshPromise = null
+      })
+    }
+    return this.refreshPromise
+  }
+
+  async refreshSession(): Promise<RefreshSessionResponse> {
+    const response = await fetch(this.buildUrl('/auth/refresh'), {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: 'UNKNOWN',
+        message: response.statusText,
+      }))
+      throw new ApiClientError(response.status, error.error, error.message, error.details)
+    }
+    return response.json()
+  }
+
+  private async performRefresh(): Promise<boolean> {
+    try {
+      const data = await this.refreshSession()
+      setAccessToken(data.token)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private async executeWithAuthRetry(doFetch: () => Promise<Response>, isRetry = false): Promise<Response> {
+    const response = await doFetch()
+    if (response.status !== 401 || isRetry) return response
+
+    const body = await response.clone().json().catch(() => null)
+    if (body?.error !== 'UNAUTHORIZED') return response
+
+    if (isLoggingOut()) {
+      clearAccessToken()
+      return response
+    }
+
+    const refreshed = await this.ensureFreshToken()
+    if (!refreshed) {
+      clearAccessToken()
+      notifySessionExpired()
+      return response
+    }
+
+    return this.executeWithAuthRetry(doFetch, true)
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
@@ -44,77 +105,98 @@ class ApiClient {
   }
 
   async get<T>(path: string, config?: RequestConfig): Promise<T> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      headers: { ...this.getAuthHeaders(), ...config?.headers },
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        credentials: 'include',
+        headers: { ...this.getAuthHeaders(), ...config?.headers },
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async post<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-        ...config?.headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+          ...config?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async postFormData<T>(path: string, formData: FormData, config?: RequestConfig): Promise<T> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      method: 'POST',
-      headers: { ...this.getAuthHeaders(), ...config?.headers },
-      body: formData,
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { ...this.getAuthHeaders(), ...config?.headers },
+        body: formData,
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async put<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-        ...config?.headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+          ...config?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async delete<T>(path: string, config?: RequestConfig & { body?: unknown }): Promise<T> {
-    const headers: Record<string, string> = { ...this.getAuthHeaders(), ...config?.headers }
-    if (config?.body) {
-      headers['Content-Type'] = 'application/json'
-    }
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      method: 'DELETE',
-      headers,
-      body: config?.body ? JSON.stringify(config.body) : undefined,
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          ...this.getAuthHeaders(),
+          ...(config?.body ? { 'Content-Type': 'application/json' } : {}),
+          ...config?.headers,
+        },
+        body: config?.body ? JSON.stringify(config.body) : undefined,
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async patch<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
-        ...config?.headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+          ...config?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+    )
     return this.handleResponse<T>(response)
   }
 
   async getBlob(path: string, config?: RequestConfig): Promise<Blob> {
-    const response = await fetch(this.buildUrl(path, config?.params), {
-      headers: { ...this.getAuthHeaders(), ...config?.headers },
-    })
+    const response = await this.executeWithAuthRetry(() =>
+      fetch(this.buildUrl(path, config?.params), {
+        credentials: 'include',
+        headers: { ...this.getAuthHeaders(), ...config?.headers },
+      })
+    )
     if (!response.ok) {
       const error = await response.json().catch(() => ({
         error: 'UNKNOWN',
@@ -125,9 +207,5 @@ class ApiClient {
     return response.blob()
   }
 }
-
-import { ApiClientError } from '@/lib/errors'
-
-export { ApiClientError } from '@/lib/errors'
 
 export const apiClient = new ApiClient(API_BASE_URL)
