@@ -1,4 +1,4 @@
-import { getAccessToken, setAccessToken, clearAccessToken, notifySessionExpired } from '@/lib/tokenStore'
+import { getAccessToken, setAccessToken, clearAccessToken, notifySessionExpired, isLoggingOut } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -61,6 +61,11 @@ class ApiClient {
 
     const body = await response.clone().json().catch(() => null)
     if (body?.error !== 'UNAUTHORIZED') return response
+
+    if (isLoggingOut()) {
+      clearAccessToken()
+      return response
+    }
 
     const refreshed = await this.ensureFreshToken()
     if (!refreshed) {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
-import { setAccessToken, clearAccessToken, notifyLogout } from '@/lib/tokenStore'
+import { setAccessToken, clearAccessToken, notifyLogout, setLoggingOut } from '@/lib/tokenStore'
 import type {
   LoginRequest,
   GoogleLoginRequest,
@@ -216,10 +216,14 @@ export function useLogout() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => usersApi.logout(),
+    onMutate: () => {
+      setLoggingOut(true)
+    },
     onSettled: () => {
       clearAccessToken()
       notifyLogout()
       queryClient.clear()
+      setLoggingOut(false)
     },
   })
 }

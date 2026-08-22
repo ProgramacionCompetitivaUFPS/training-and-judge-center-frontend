@@ -25,6 +25,16 @@ export function clearAccessToken(): void {
   setAccessToken(null)
 }
 
+let loggingOut = false
+
+export function setLoggingOut(value: boolean): void {
+  loggingOut = value
+}
+
+export function isLoggingOut(): boolean {
+  return loggingOut
+}
+
 export function notifyLogout(): void {
   logoutChannel?.postMessage('logout')
 }
