@@ -41,6 +41,21 @@ export const authHandlers = [
     })
   }),
 
+  // Refresh — always succeeds for the default mock user
+  http.post(url('/auth/refresh'), async () => {
+    await delay(200)
+    const user = mockCurrentUser
+    return HttpResponse.json({
+      token: 'mock-jwt-token-' + user.nickname,
+      sessionExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    })
+  }),
+
+  http.post(url('/auth/logout'), async () => {
+    await delay(200)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Register
   // NOTE: POST /users is register (auth flow), not profile update
   http.post(url('/users'), async ({ request }) => {
