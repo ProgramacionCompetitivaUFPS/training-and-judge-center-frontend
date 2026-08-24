@@ -1,10 +1,11 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
 import { useLogin, useGoogleLogin } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -24,10 +25,12 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    control,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', rememberSession: false },
   })
 
   const onSubmit = async (data: LoginFormData) => {
@@ -49,7 +52,7 @@ export function LoginPage() {
 
   const handleGoogleCredential = async (idToken: string) => {
     try {
-      await googleLoginMutation.mutateAsync({ id_token: idToken, rememberSession: true })
+      await googleLoginMutation.mutateAsync({ id_token: idToken, rememberSession: getValues('rememberSession') })
       navigate(from, { replace: true })
     } catch (error) {
       if (error instanceof ApiClientError) {
@@ -122,6 +125,23 @@ export function LoginPage() {
         </div>
 
         <GoogleSignInButton onCredential={handleGoogleCredential} text="continue_with" />
+
+        <div className="flex items-center gap-2">
+          <Controller
+            control={control}
+            name="rememberSession"
+            render={({ field }) => (
+              <Checkbox
+                id="rememberSession"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            )}
+          />
+          <label htmlFor="rememberSession" className="text-sm text-neutral-text-primary">
+            Mantener sesión iniciada por 30 días
+          </label>
+        </div>
 
         <p className="text-center text-sm text-neutral-text-muted">
           ¿No tienes cuenta?{' '}
