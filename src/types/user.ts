@@ -61,6 +61,7 @@ export interface PublicUserProfile {
 export interface LoginRequest {
   email: string
   password: string
+  rememberSession: boolean
 }
 
 export interface LoginResponse {
