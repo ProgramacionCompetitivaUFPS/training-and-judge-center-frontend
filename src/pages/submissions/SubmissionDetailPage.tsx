@@ -11,6 +11,7 @@ import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { ApiClientError } from '@/lib/errors'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -75,7 +76,15 @@ export function SubmissionDetailPage() {
     const mutation = isAdmin ? adminRejudgeMutation : ownRejudgeMutation
     mutation.mutate(submission.id, {
       onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar submission' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'CANNOT_REJUDGE_IN_ACTIVE_CONTEST') {
+          toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'No puedes rejuzgar tus propios envíos de una competencia que todavía está activa.' })
+        } else if (err instanceof ApiClientError && err.code === 'NO_REJUDGE_NEEDED') {
+          toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'Este envío no necesita rejuzgarse: los componentes de juzgamiento del problema no han cambiado desde que se envió.' })
+        } else {
+          toast({ variant: 'error', title: 'Error al rejuzgar submission' })
+        }
+      },
     })
   }
 
