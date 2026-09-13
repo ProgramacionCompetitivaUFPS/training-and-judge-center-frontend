@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect } from '@/components/ui'
+import {
+  Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect, Input,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
@@ -55,6 +58,9 @@ export function ContestDetailPage() {
   const [problemSearchQuery, setProblemSearchQuery] = useState('')
   const debouncedProblemSearch = useDebounce(problemSearchQuery)
   const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
@@ -125,6 +131,11 @@ export function ContestDetailPage() {
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
       },
     )
+  }
+
+  const handleDeleteClick = () => {
+    setConfirmName('')
+    setDeleteDialogOpen(true)
   }
 
   const handleLockToggle = () => {
@@ -211,6 +222,31 @@ export function ContestDetailPage() {
     { label: 'Competencias', href: '/contests' },
     { label: contest.name },
   ]
+
+  const deleteDialog = (
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar competencia</DialogTitle>
+          <DialogDescription>
+            Escribe <span className="font-bold">{contest.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nombre de la competencia" />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={deleteMutation.isPending}
+            disabled={confirmName !== contest.name}
+          >
+            Eliminar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 
   // ═══════════════════════════════════════════════
   // ACTIVE: Competition mode layout
@@ -559,13 +595,14 @@ export function ContestDetailPage() {
                 <ContestAdminActions
                   contestId={contest.id}
                   groupId={groupId}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteClick}
                   isDeleting={deleteMutation.isPending}
                 />
               )}
             </div>
           </div>
         </div>
+        {deleteDialog}
       </AppLayout>
     )
   }
@@ -652,13 +689,14 @@ export function ContestDetailPage() {
               <ContestAdminActions
                 contestId={contest.id}
                 groupId={groupId}
-                onDelete={handleDelete}
+                onDelete={handleDeleteClick}
                 isDeleting={deleteMutation.isPending}
               />
             )}
           </aside>
         </div>
       </div>
+      {deleteDialog}
     </AppLayout>
   )
 }
