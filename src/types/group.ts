@@ -205,27 +205,31 @@ export interface ProcessJoinRequestBody {
 // === Invitations ===
 
 export interface CreateInvitationRequest {
-  inviteeUserId?: string
-  inviteeNickname?: string
-  inviteeEmail?: string
+  userId?: string
+  userNickname?: string
+  userEmail?: string
+}
+
+export interface InvitationInvitee {
+  userId: string
+  nickname: string
+  name: string
+  email: string
 }
 
 export interface InvitationResponse {
   id: string
   groupId: string
-  inviteeUserId: string
+  invitee?: InvitationInvitee
+  status: string
   expiresAt: string
+  createdAt: string
 }
 
 export interface InvitationListItem {
   id: string
   groupId: string
-  invitee: {
-    userId: string
-    nickname: string
-    email: string
-    fullName: string
-  }
+  invitee?: InvitationInvitee
   expiresAt: string
 }
 

@@ -263,8 +263,8 @@ export function GroupDetailPage() {
 
   const handleInvite = async () => {
     const data = inviteMethod === 'nickname'
-      ? { inviteeNickname: inviteNickname.trim() }
-      : { inviteeEmail: inviteEmail.trim() }
+      ? { userNickname: inviteNickname.trim() }
+      : { userEmail: inviteEmail.trim() }
     if (inviteMethod === 'nickname' ? !inviteNickname.trim() : !inviteEmail.trim()) return
     try {
       const response = await inviteMutation.mutateAsync({ groupId: id, data })
@@ -490,11 +490,13 @@ export function GroupDetailPage() {
                 <TableRow key={inv.id}>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{inv.invitee.fullName}</p>
-                      <p className="text-xs text-neutral-text-muted">@{inv.invitee.nickname}</p>
+                      <p className="font-medium">{inv.invitee?.name ?? 'Invitación general'}</p>
+                      {inv.invitee && (
+                        <p className="text-xs text-neutral-text-muted">@{inv.invitee.nickname}</p>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{inv.invitee.email}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{inv.invitee?.email ?? '—'}</TableCell>
                   <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

@@ -236,15 +236,28 @@ export const groupsHandlers = [
   }),
 
   // Create invitation — note: the real backend never returns a ready-made link, only `id`;
-  // the frontend builds the accept URL itself from groupId + id.
-  http.post(url('/groups/:groupId/invitations'), async ({ params }) => {
+  // the frontend builds the accept URL itself from groupId + id. Body uses userId/userNickname/
+  // userEmail (matching the real backend's generateInviteReq); omitting all three creates a
+  // general invitation with no resolved invitee.
+  http.post(url('/groups/:groupId/invitations'), async ({ params, request }) => {
     await delay(300)
     const { groupId } = params as { groupId: string }
+    const body = (await request.json().catch(() => ({}))) as { userId?: string; userNickname?: string; userEmail?: string }
+    const invitee = body.userId || body.userNickname || body.userEmail
+      ? {
+          userId: 'u-resolved',
+          nickname: body.userNickname || 'usuarioinvitado',
+          name: 'Usuario Invitado',
+          email: body.userEmail || 'invitado@trainingcenter.com',
+        }
+      : undefined
     return HttpResponse.json({
       id: 'inv-' + Date.now(),
       groupId,
-      inviteeUserId: 'u-resolved',
+      invitee,
+      status: 'PENDING',
       expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
     }, { status: 201 })
   }),
 

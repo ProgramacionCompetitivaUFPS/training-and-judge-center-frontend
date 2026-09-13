@@ -559,8 +559,13 @@ export const mockInvitations: Record<string, InvitationListItem[]> = {
     {
       id: 'inv-1',
       groupId: 'group-1',
-      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', fullName: 'Pedro Inactivo' },
+      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', name: 'Pedro Inactivo' },
       expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'inv-2',
+      groupId: 'group-1',
+      expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ],
 }
