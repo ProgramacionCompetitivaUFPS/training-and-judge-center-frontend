@@ -621,6 +621,7 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
+  hasActiveContests?: boolean
   sortBy?: string
   order?: string
 }) {
@@ -635,6 +636,9 @@ export function buildGroupList(params: {
   }
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
+  }
+  if (params.hasActiveContests) {
+    filtered = filtered.filter((g) => g.activeContestCount > 0)
   }
 
   if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {

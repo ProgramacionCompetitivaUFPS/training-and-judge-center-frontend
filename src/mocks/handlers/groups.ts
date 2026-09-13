@@ -20,6 +20,7 @@ export const groupsHandlers = [
       search: sp.get('search') || undefined,
       joinPolicy: sp.get('joinPolicy') || undefined,
       visibility: sp.get('visibility') || undefined,
+      hasActiveContests: sp.get('hasActiveContests') === 'true' || undefined,
       sortBy: sp.get('sortBy') || undefined,
       order: sp.get('order') || undefined,
     })

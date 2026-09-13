@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
@@ -179,6 +180,16 @@ export function GroupsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2 shrink-0">
+                <Checkbox
+                  id="hasActiveContests"
+                  checked={allParams.hasActiveContests ?? false}
+                  onCheckedChange={(checked) => setAllParams((p) => ({ ...p, hasActiveContests: checked === true ? true : undefined, page: 1 }))}
+                />
+                <label htmlFor="hasActiveContests" className="text-sm text-neutral-text-primary whitespace-nowrap cursor-pointer">
+                  Con competencias activas
+                </label>
+              </div>
             </div>
 
             {/* Results count */}
