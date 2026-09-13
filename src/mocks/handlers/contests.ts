@@ -196,13 +196,33 @@ export const contestsHandlers = [
   }),
 
   // Standings
-  http.get(url('/groups/:groupId/contests/:contestId/standings'), async ({ params }) => {
+  http.get(url('/groups/:groupId/contests/:contestId/standings'), async ({ params, request }) => {
     await delay(300)
     const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
       return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
     }
+
+    const sp = new URL(request.url).searchParams
+    const page = Number(sp.get('page')) || 1
+    const limit = Number(sp.get('limit')) || 50
+    const country = sp.get('country')?.toLowerCase() || undefined
+    const city = sp.get('city')?.toLowerCase() || undefined
+    const institution = sp.get('institution')?.toLowerCase() || undefined
+
+    const filtered = mockStandings.filter((entry) => {
+      const p = entry.participant
+      if (country && !p.country?.toLowerCase().includes(country)) return false
+      if (city && !p.city?.toLowerCase().includes(city)) return false
+      if (institution && !p.institution?.toLowerCase().includes(institution)) return false
+      return true
+    })
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / limit))
+    const start = (page - 1) * limit
+    const paged = filtered.slice(start, start + limit)
+
     return HttpResponse.json({
       contest: {
         id: contest.id,
@@ -216,9 +236,16 @@ export const contestsHandlers = [
         frozenAt: null,
       },
       problems: contest.problems.map((p) => ({ position: p.position, slug: p.slug, title: p.title })),
-      standings: mockStandings,
-      pagination: { page: 1, limit: 50, total: mockStandings.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
-      filters: { country: null, city: null, institution: null, filteredTotal: mockStandings.length },
+      standings: paged,
+      pagination: {
+        page,
+        limit,
+        total: filtered.length,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+      filters: { country: country || null, city: city || null, institution: institution || null, filteredTotal: filtered.length },
     })
   }),
 
