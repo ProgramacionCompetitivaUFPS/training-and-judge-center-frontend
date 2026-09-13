@@ -24,13 +24,22 @@ export const submissionsHandlers = [
     return HttpResponse.json(result)
   }),
 
-  // Submission detail
+  // Submission detail — simulates judging progress across polls so the
+  // auto-refresh on SubmissionDetailPage has something to observe.
   http.get(url('/submissions/:id'), async ({ params }) => {
     await delay(200)
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
       return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+    }
+    if (submission.status === 'PENDING') {
+      submission.status = 'RUNNING'
+    } else if (submission.status === 'RUNNING') {
+      submission.status = 'ACCEPTED'
+      submission.judgedAt = new Date().toISOString()
+      submission.executionTime = 42
+      submission.memoryUsed = 2048
     }
     return HttpResponse.json(submission)
   }),
