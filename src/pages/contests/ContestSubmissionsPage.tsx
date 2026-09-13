@@ -15,6 +15,7 @@ import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
@@ -46,7 +47,6 @@ export function ContestSubmissionsPage() {
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
   // Real leadership of the group that owns this contest, or platform Admin — mirrors the
   // freeze exemption already applied server-side in list_contest_submissions.go.
@@ -105,7 +105,7 @@ export function ContestSubmissionsPage() {
                 <SelectItem value="all">Todos los problemas</SelectItem>
                 {contest.problems.map((p) => (
                   <SelectItem key={p.slug} value={p.slug}>
-                    {labels[p.position - 1] || p.position} - {p.title}
+                    {problemLabel(p.position)} - {p.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -198,7 +198,7 @@ export function ContestSubmissionsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="font-mono font-bold mr-1">
-                          {labels[sub.problem.order - 1] || sub.problem.order}
+                          {problemLabel(sub.problem.order)}
                         </span>
                         {sub.problem.title}
                       </TableCell>

@@ -19,7 +19,7 @@ import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegis
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
-import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
+import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 
 function LockedProblemsPlaceholder() {
   return (
@@ -531,7 +531,8 @@ export function ContestDetailPage() {
                         {contest.problems.map((p) => (
                           <li key={p.slug} className="flex items-center justify-between py-2">
                             <span className="text-sm font-medium text-neutral-text-primary">
-                              {p.position}. {p.title} <span className="text-neutral-text-muted">({p.slug})</span>
+                              {problemLabel(p.position)}. {p.title}{' '}
+                              <span className="text-neutral-text-muted">({p.slug})</span>
                             </span>
                             <button
                               type="button"

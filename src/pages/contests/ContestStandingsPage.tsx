@@ -12,7 +12,7 @@ import { useStandings } from '@/hooks/api/useContests'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { cn, problemLabel } from '@/lib/utils'
 import type { StandingProblemResult, StandingsParams } from '@/types/contest'
 
 interface ProblemCellProps { result: StandingProblemResult }
@@ -60,8 +60,6 @@ export function ContestStandingsPage() {
   const handleCountryFilter = (v: string) => { setCountryInput(v); setPagination((p) => ({ ...p, page: 1 })) }
   const handleCityFilter = (v: string) => { setCityInput(v); setPagination((p) => ({ ...p, page: 1 })) }
   const handleInstitutionFilter = (v: string) => { setInstitutionInput(v); setPagination((p) => ({ ...p, page: 1 })) }
-
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
   return (
     <AppLayout
@@ -153,7 +151,7 @@ export function ContestStandingsPage() {
                   <TableHead className="w-20 text-center">Penalización</TableHead>
                   {data.problems.map((p) => (
                     <TableHead key={p.slug} className="w-20 text-center">
-                      {labels[p.position - 1] || p.position}
+                      {problemLabel(p.position)}
                     </TableHead>
                   ))}
                 </TableRow>

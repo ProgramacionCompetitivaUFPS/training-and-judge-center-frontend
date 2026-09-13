@@ -14,6 +14,7 @@ import { useProblemDetail } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -30,8 +31,6 @@ const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
   java17: { ext: 'java', accept: ['.java'] },
   python310: { ext: 'py', accept: ['.py'] },
 }
-
-const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 export function SubmitSolutionPage() {
   const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
@@ -56,7 +55,7 @@ export function SubmitSolutionPage() {
     if (!isContestContext) return selectedProblem
     if (!activeContest?.problems) return ''
     const p = activeContest.problems.find(
-      (prob) => (LABELS[prob.position - 1] || String(prob.position)) === selectedProblem.toUpperCase()
+      (prob) => problemLabel(prob.position) === selectedProblem.toUpperCase()
     )
     return p?.slug || ''
   }, [isContestContext, selectedProblem, activeContest])
@@ -314,7 +313,7 @@ export function SubmitSolutionPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {contestProblems.map((p) => {
-                          const letter = LABELS[p.position - 1] || String(p.position)
+                          const letter = problemLabel(p.position)
                           return (
                             <SelectItem key={p.slug} value={letter}>
                               {letter} — {p.title}
