@@ -106,6 +106,9 @@ export function ContestDetailPage() {
   // platform-wide, which the backend already rejects for management actions on contests
   // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
   const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
+  // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
+  // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
+  const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
@@ -587,7 +590,7 @@ export function ContestDetailPage() {
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-              {isLead && (
+              {isContestOwner && (
                 <Card>
                   <CardContent className="pt-5 space-y-2">
                     <Button
@@ -681,7 +684,7 @@ export function ContestDetailPage() {
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-            {isLead && (
+            {isContestOwner && (
               <Card>
                 <CardContent className="pt-5 space-y-2">
                   <Button
