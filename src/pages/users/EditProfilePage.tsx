@@ -554,11 +554,13 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
 
 function DeactivateSection() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const deactivateMutation = useRequestDeactivation()
   const confirmMutation = useConfirmDeactivation()
   const { toast } = useToastContext()
   const [stage, setStage] = useState<'idle' | 'password' | 'code'>('idle')
   const [password, setPassword] = useState('')
+  const isAdmin = user?.role === 'ADMIN'
 
   const {
     register: registerConfirm,
@@ -614,7 +616,13 @@ function DeactivateSection() {
       <p className="text-sm text-neutral-text-muted">
         Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
       </p>
-      {stage === 'idle' && (
+      {isAdmin && (
+        <p className="text-sm text-status-error">
+          Como Administrador no puedes desactivar tu propia cuenta desde aquí, para evitar quedarte sin
+          acceso. Pídele a otro Administrador que la desactive por ti si es necesario.
+        </p>
+      )}
+      {stage === 'idle' && !isAdmin && (
         <Button variant="outline" onClick={() => setStage('password')} className="text-status-error border-status-error/30">
           Desactivar mi cuenta
         </Button>
