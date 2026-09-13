@@ -63,6 +63,7 @@ import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import { ApiClientError } from '@/lib/errors'
 import type { GroupRole, JoinRequestStatus } from '@/types/group'
+import type { ContestStatus } from '@/types/contest'
 import {
   Shield,
   BookOpen,
@@ -119,7 +120,15 @@ export function GroupDetailPage() {
   const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, size: 10 })
   const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
-  const { data: contestsData } = useContests(id!, { limit: 10, sortBy: 'startTime', sortOrder: 'desc' })
+  const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
+  const [contestsPageQuery, setContestsPageQuery] = useState({ page: 1, limit: 10 })
+  const { data: contestsData } = useContests(id!, {
+    status: contestsStatus === 'all' ? undefined : contestsStatus,
+    page: contestsPageQuery.page,
+    limit: contestsPageQuery.limit,
+    sortBy: 'startTime',
+    sortOrder: 'desc',
+  })
 
   const joinMutation = useJoinGroup()
   const requestMutation = useCreateJoinRequest()
@@ -161,6 +170,11 @@ export function GroupDetailPage() {
   }
   const handleInvitationsPageChange = (page: number) => setInvitationsPageQuery((p) => ({ ...p, page }))
   const handleInvitationsSizeChange = (size: number) => setInvitationsPageQuery({ page: 1, size })
+  const { handlePageChange: handleContestsPageChange, handleLimitChange: handleContestsLimitChange } = usePaginationHandlers(setContestsPageQuery)
+  const handleContestsStatusChange = (value: string) => {
+    setContestsStatus(value as ContestStatus | 'all')
+    setContestsPageQuery((p) => ({ ...p, page: 1 }))
+  }
 
   if (!id) return null
 
@@ -653,6 +667,25 @@ export function GroupDetailPage() {
           </Button>
         )}
       </div>
+      <Select value={contestsStatus} onValueChange={handleContestsStatusChange}>
+        <SelectTrigger className="w-48"><SelectValue placeholder="Estado" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas</SelectItem>
+          <SelectItem value="SCHEDULED">Programadas</SelectItem>
+          <SelectItem value="ACTIVE">En curso</SelectItem>
+          <SelectItem value="FINISHED">Finalizadas</SelectItem>
+        </SelectContent>
+      </Select>
+      {contestsData && (
+        <PaginationSummary
+          total={contestsData.pagination.total}
+          totalLabel="competencias"
+          currentPage={contestsData.pagination.page}
+          totalPages={contestsData.pagination.totalPages}
+          limit={contestsPageQuery.limit}
+          onLimitChange={handleContestsLimitChange}
+        />
+      )}
       {contestsData?.data && contestsData.data.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {contestsData.data.map((c) => (
@@ -688,20 +721,27 @@ export function GroupDetailPage() {
       ) : (
         <div className="py-8 text-center text-neutral-text-muted">
           <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No hay competencias en este grupo</p>
-          {canManage && (
+          <p>No hay competencias{contestsStatus !== 'all' ? ' con este estado' : ' en este grupo'}</p>
+          {canManage && contestsStatus === 'all' && (
             <Button size="sm" className="mt-3" onClick={() => navigate(PATHS.contestNew(id))}>
               Crear primera competencia
             </Button>
           )}
         </div>
       )}
+      {contestsData && (
+        <PaginationControls
+          currentPage={contestsData.pagination.page}
+          totalPages={contestsData.pagination.totalPages}
+          onPageChange={handleContestsPageChange}
+        />
+      )}
     </div>
   )
 
   const tabs = [
     { id: 'info', label: 'Información', content: infoTab },
-    { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.data?.length },
+    { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
     ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
