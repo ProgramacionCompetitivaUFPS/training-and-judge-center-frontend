@@ -255,8 +255,9 @@ export function ProblemDetailPage() {
             </Card>
           )}
 
-          {/* Files (only for modifiers) */}
-          {canEdit && problem.files && (
+          {/* Files (only for modifiers, and only while the problem is still a draft — the
+              backend rejects uploads to a published problem) */}
+          {canEdit && problem.files && problem.status !== 'PUBLISHED' && (
             <FilesManager problem={problem} />
           )}
 
@@ -604,7 +605,13 @@ function FilesManager({ problem }: FilesManagerProps) {
       { slug: problem.slug, fileType: pendingFileType, file },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
-        onError: () => toast({ variant: 'error', title: 'Error al subir el archivo' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+            toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+          } else {
+            toast({ variant: 'error', title: 'Error al subir el archivo' })
+          }
+        },
       },
     )
     setPendingFileType(null)
@@ -616,7 +623,13 @@ function FilesManager({ problem }: FilesManagerProps) {
       { slug: problem.slug, fileType: deleteTarget.fileType, fileName: deleteTarget.fileName },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Archivo eliminado' }),
-        onError: () => toast({ variant: 'error', title: 'Error al eliminar el archivo' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+            toast({ variant: 'error', title: 'No se puede eliminar el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+          } else {
+            toast({ variant: 'error', title: 'Error al eliminar el archivo' })
+          }
+        },
       },
     )
     setDeleteTarget(null)
