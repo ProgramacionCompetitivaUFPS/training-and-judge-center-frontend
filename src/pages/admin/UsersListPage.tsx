@@ -129,6 +129,8 @@ export function UsersListPage() {
     if (editingUser) {
       editForm.reset({
         name: editingUser.name,
+        email: editingUser.email,
+        nickname: editingUser.nickname,
         role: editingUser.role,
         institution: editingUser.institution,
       })
@@ -427,6 +429,17 @@ export function UsersListPage() {
               label="Nombre"
               {...editForm.register('name')}
               error={editForm.formState.errors.name?.message}
+            />
+            <Input
+              label="Email"
+              type="email"
+              {...editForm.register('email')}
+              error={editForm.formState.errors.email?.message}
+            />
+            <Input
+              label="Nickname"
+              {...editForm.register('nickname')}
+              error={editForm.formState.errors.nickname?.message}
             />
             <Input
               label="Institución"

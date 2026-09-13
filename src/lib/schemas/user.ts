@@ -157,6 +157,13 @@ export const adminUpdateUserSchema = z.object({
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede exceder 100 caracteres')
     .optional(),
+  email: emailField.optional(),
+  nickname: z
+    .string()
+    .min(3, 'El nickname debe tener al menos 3 caracteres')
+    .max(30, 'El nickname no puede exceder 30 caracteres')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Solo letras, números, guiones y guiones bajos')
+    .optional(),
   role: z
     .enum(['ADMIN', 'COACH', 'CONTESTANT'], { message: 'Rol inválido' })
     .optional(),
