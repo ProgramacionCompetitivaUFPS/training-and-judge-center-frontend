@@ -127,7 +127,13 @@ export function ProblemDetailPage() {
           toast({ variant: 'success', title: 'Problema eliminado' })
           navigate('/problems')
         },
-        onError: () => toast({ variant: 'error', title: 'Error al eliminar' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+            toast({ variant: 'error', title: 'No se puede eliminar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+          } else {
+            toast({ variant: 'error', title: 'Error al eliminar' })
+          }
+        },
       },
     )
   }
