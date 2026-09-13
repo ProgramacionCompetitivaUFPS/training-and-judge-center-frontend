@@ -304,6 +304,59 @@ export const problemsHandlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // Import from ZIP
+  http.post(url('/problems/import'), async ({ request }) => {
+    await delay(600)
+    const auth = request.headers.get('Authorization')
+    if (!auth) return HttpResponse.json({ error: 'UNAUTHORIZED', message: 'Token requerido' }, { status: 401 })
+
+    const token = auth.replace('Bearer ', '')
+    const userNickname = token.replace('mock-jwt-token-', '')
+    const user = mockUsers.find((u) => u.nickname === userNickname) || mockCurrentUser
+
+    if (user.role === 'CONTESTANT') {
+      return HttpResponse.json({ error: 'INSUFFICIENT_PERMISSIONS', message: 'Solo Coach y Admin pueden crear problemas' }, { status: 403 })
+    }
+
+    const formData = await request.formData()
+    const slug = formData.get('slug') as string | null
+    const file = formData.get('file') as File | null
+
+    if (!slug) {
+      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Missing required form field 'slug'" }, { status: 400 })
+    }
+    if (!file) {
+      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Missing required form field 'file'" }, { status: 400 })
+    }
+    if (mockProblems.some((p) => p.slug === slug)) {
+      return HttpResponse.json({ error: 'SLUG_ALREADY_EXISTS', message: `Ya existe un problema con slug '${slug}'` }, { status: 409 })
+    }
+
+    const newProblem: ProblemDetail = {
+      slug,
+      title: slug,
+      statement: null,
+      inputFormat: null,
+      outputFormat: null,
+      examples: [],
+      timeLimit: 2000,
+      memoryLimit: 256,
+      languageOverrides: [],
+      tags: [],
+      status: 'DRAFT',
+      accessibility: 'PRIVATE',
+      author: { nickname: user.nickname, name: user.name },
+      modifiers: [{ nickname: user.nickname, name: user.name }],
+      files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: false },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      problemJudgingUpdatedAt: null,
+    }
+
+    mockProblems.push(newProblem)
+    return HttpResponse.json(newProblem, { status: 201 })
+  }),
+
   // Admin rejudge (global)
   http.post(url('/admin/problems/:slug/rejudge'), async ({ params }) => {
     await delay(400)

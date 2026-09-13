@@ -107,8 +107,8 @@ export function ProblemFormPage() {
               },
             )
           }}
-          onImport={(file) => {
-            importMutation.mutate(file, {
+          onImport={(file, slug) => {
+            importMutation.mutate({ file, slug }, {
               onSuccess: (created) => {
                 toast({ variant: 'success', title: 'Problema importado correctamente' })
                 navigate(`/problems/${created.slug}`)
@@ -315,14 +315,14 @@ function LanguageOverridesEditor({ value, onChange }: LanguageOverridesEditorPro
 
 interface CreateFormProps {
   onSubmit: (data: CreateProblemFormData) => void
-  onImport: (file: File) => void
+  onImport: (file: File, slug: string) => void
   isSubmitting: boolean
   isImporting: boolean
   onCancel: () => void
 }
 
 function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }: CreateFormProps) {
-  const { register, handleSubmit, formState: { errors }, control, setValue } = useForm<CreateProblemFormData>({
+  const { register, handleSubmit, formState: { errors }, control, setValue, getValues, trigger } = useForm<CreateProblemFormData>({
     resolver: zodResolver(createProblemSchema),
     defaultValues: { slug: '', title: '', statement: '', tags: '', languageOverrides: [] },
   })
@@ -337,10 +337,13 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) onImport(file)
     e.target.value = ''
+    if (!file) return
+    const slugValid = await trigger('slug')
+    if (!slugValid) return
+    onImport(file, getValues('slug'))
   }
 
   return (

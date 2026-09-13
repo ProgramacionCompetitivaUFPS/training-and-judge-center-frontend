@@ -159,7 +159,7 @@ export function useRemoveModifier() {
 export function useImportProblem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => problemsApi.importProblem(file),
+    mutationFn: ({ file, slug }: { file: File; slug: string }) => problemsApi.importProblem(file, slug),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },

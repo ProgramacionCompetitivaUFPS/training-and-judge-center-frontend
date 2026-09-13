@@ -77,8 +77,9 @@ export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
 
 // === Import ===
 
-export function importProblem(file: File): Promise<ProblemDetail> {
+export function importProblem(file: File, slug: string): Promise<ProblemDetail> {
   const formData = new FormData()
+  formData.append('slug', slug)
   formData.append('file', file)
   return apiClient.postFormData('/problems/import', formData)
 }
