@@ -11,7 +11,7 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest, useStandings } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -75,6 +75,17 @@ export function ContestDetailPage() {
   // if the same person competes via a different team for this contest, that's a separate registration.
   const myRegistration = teamRegistrationsData?.teams.find((r) =>
     r.selectedMembers.some((m) => m.nickname === user?.nickname)
+  )
+
+  // Large limit so the current user's row is included regardless of their rank —
+  // there's no "find me" endpoint, so we fetch the full table and search client-side.
+  const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000 }, {
+    enabled: contest?.status === 'ACTIVE' && !!contest?.isRegistered,
+  })
+  const myStanding = standingsData?.standings.find((entry) =>
+    entry.participant.type === 'TEAM'
+      ? entry.participant.id === myRegistration?.team.id
+      : entry.participant.nickname === user?.nickname,
   )
 
   if (!id || !groupId) return null
@@ -301,20 +312,20 @@ export function ContestDetailPage() {
 
             <aside className="lg:col-span-4 space-y-4">
               {/* User position — first in sidebar for visibility */}
-              {contest.isRegistered && (
+              {contest.isRegistered && myStanding && (
                 <Card>
                   <CardContent className="pt-5">
                     <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-3">Tu posición actual</p>
                     <div className="flex items-baseline gap-1.5 mb-3">
-                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#3</span>
+                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#{myStanding.rank}</span>
                       <span className="text-sm text-neutral-text-muted font-medium">/ {contest.participantCount}</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="px-2.5 py-1 bg-status-success/10 text-status-success text-xs font-bold rounded-md">
-                        2 Resueltos
+                        {myStanding.problemsSolved} Resueltos
                       </span>
                       <span className="px-2.5 py-1 bg-neutral-background text-neutral-text-muted text-xs font-bold rounded-md">
-                        85 min
+                        {myStanding.totalPenalty} min
                       </span>
                     </div>
                   </CardContent>
