@@ -139,7 +139,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          <nav className="flex-1 overflow-y-auto p-4 space-y-1 sidebar-nav-scroll">
             {/* Contest Mode */}
             {activeContest && activeContest.status === 'ACTIVE' && (
               <div className="mb-4 pb-4 border-b border-white/15 space-y-3">
