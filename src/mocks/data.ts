@@ -186,7 +186,18 @@ export function toPublicProfile(user: User, full: boolean): PublicUserProfile {
 // === Helper to build paginated admin user list ===
 
 export function buildAdminUserList(
-  params: { page?: number; limit?: number; search?: string; role?: string; status?: string; sort?: string; order?: string }
+  params: {
+    page?: number
+    limit?: number
+    search?: string
+    role?: string
+    status?: string
+    country?: string
+    city?: string
+    institution?: string
+    sort?: string
+    order?: string
+  }
 ): AdminUserListResponse {
   let filtered = [...mockUsers] as (User & { id: string })[]
 
@@ -201,6 +212,15 @@ export function buildAdminUserList(
   }
   if (params.status) {
     filtered = filtered.filter((u) => u.status === params.status)
+  }
+  if (params.country) {
+    filtered = filtered.filter((u) => u.country.toLowerCase() === params.country!.toLowerCase())
+  }
+  if (params.city) {
+    filtered = filtered.filter((u) => u.city.toLowerCase() === params.city!.toLowerCase())
+  }
+  if (params.institution) {
+    filtered = filtered.filter((u) => u.institution.toLowerCase() === params.institution!.toLowerCase())
   }
 
   if (params.sort === 'name' || params.sort === 'nickname' || params.sort === 'createdAt') {

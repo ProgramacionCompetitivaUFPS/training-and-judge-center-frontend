@@ -232,6 +232,9 @@ export const usersHandlers = [
       search: searchParams.get('searchTerm') || undefined,
       role: searchParams.get('role') || undefined,
       status: searchParams.get('status') || undefined,
+      country: searchParams.get('country') || undefined,
+      city: searchParams.get('city') || undefined,
+      institution: searchParams.get('institution') || undefined,
       sort: searchParams.get('sort') || undefined,
       order: searchParams.get('order') || undefined,
     })

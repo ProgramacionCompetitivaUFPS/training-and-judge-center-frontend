@@ -89,6 +89,12 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
+  const [countryInput, setCountryInput] = useState('')
+  const debouncedCountry = useDebounce(countryInput, 300)
+  const [cityInput, setCityInput] = useState('')
+  const debouncedCity = useDebounce(cityInput, 300)
+  const [institutionInput, setInstitutionInput] = useState('')
+  const debouncedInstitution = useDebounce(institutionInput, 300)
   const [sortValue, setSortValue] = useState<string>('createdAt-desc')
   const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -102,6 +108,9 @@ export function UsersListPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
+    ...(debouncedCountry && { country: debouncedCountry }),
+    ...(debouncedCity && { city: debouncedCity }),
+    ...(debouncedInstitution && { institution: debouncedInstitution }),
     ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
   }
 
@@ -149,6 +158,21 @@ export function UsersListPage() {
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status === 'ALL' ? undefined : (status as UserStatus))
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleCountryFilter = (country: string) => {
+    setCountryInput(country)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleCityFilter = (city: string) => {
+    setCityInput(city)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleInstitutionFilter = (institution: string) => {
+    setInstitutionInput(institution)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
@@ -233,6 +257,27 @@ export function UsersListPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
+            placeholder="País"
+            className="flex-1"
+            value={countryInput}
+            onChange={(e) => handleCountryFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Ciudad"
+            className="flex-1"
+            value={cityInput}
+            onChange={(e) => handleCityFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Institución"
+            className="flex-1"
+            value={institutionInput}
+            onChange={(e) => handleInstitutionFilter(e.target.value)}
+          />
         </div>
 
         {error && (
