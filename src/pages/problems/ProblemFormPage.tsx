@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem } from '@/hooks/api/useProblems'
+import { useAuth } from '@/hooks/useAuth'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
 import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
@@ -28,6 +29,7 @@ export function ProblemFormPage() {
   const isEditing = !!slug
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  const { user } = useAuth()
 
   const { data: existingProblem, isLoading: isLoadingProblem } = useProblemDetail(slug || '')
   const createMutation = useCreateProblem()
@@ -43,6 +45,24 @@ export function ProblemFormPage() {
         </div>
       </AppLayout>
     )
+  }
+
+  if (isEditing && existingProblem) {
+    const isAdmin = user?.role === 'ADMIN'
+    const isAuthor = existingProblem.author.nickname === user?.nickname
+    const isModifier = existingProblem.modifiers?.some((m) => m.nickname === user?.nickname)
+    if (!isAdmin && !isAuthor && !isModifier) {
+      return (
+        <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: 'Acceso denegado' }]}>
+          <div className="text-center py-12">
+            <p className="text-neutral-text-muted">No tienes permiso para editar este problema.</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate(`/problems/${slug}`)}>
+              Volver al detalle
+            </Button>
+          </div>
+        </AppLayout>
+      )
+    }
   }
 
   if (isEditing && existingProblem?.status === 'PUBLISHED') {
