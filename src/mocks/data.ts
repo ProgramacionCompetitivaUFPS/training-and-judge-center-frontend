@@ -526,6 +526,21 @@ export const mockJoinRequests: Record<string, JoinRequest[]> = {
       status: 'PENDING',
       createdAt: '2026-03-10T14:00:00Z',
     },
+    {
+      id: 'req-3',
+      groupId: 'group-1',
+      requester: { userId: 'u5', nickname: 'pedromartinez', name: 'Pedro Martínez' },
+      message: 'Ya participé en regionales anteriores.',
+      status: 'APPROVED',
+      createdAt: '2026-02-20T09:00:00Z',
+    },
+    {
+      id: 'req-4',
+      groupId: 'group-1',
+      requester: { userId: 'u8', nickname: 'pedroinactive', name: 'Pedro Inactivo' },
+      status: 'REJECTED',
+      createdAt: '2026-02-15T11:00:00Z',
+    },
   ],
   'group-5': [
     {

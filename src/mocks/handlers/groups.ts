@@ -171,13 +171,19 @@ export const groupsHandlers = [
   }),
 
   // Join requests
-  http.get(url('/groups/:groupId/requests'), async ({ params }) => {
+  http.get(url('/groups/:groupId/requests'), async ({ params, request }) => {
     await delay(200)
     const { groupId } = params as { groupId: string }
-    const requests = mockJoinRequests[groupId] || []
+    const sp = new URL(request.url).searchParams
+    const status = sp.get('status')
+    const page = Number(sp.get('page')) || 1
+    const limit = Number(sp.get('limit')) || 50
+    const filtered = (mockJoinRequests[groupId] || []).filter((r) => !status || r.status === status)
+    const total = filtered.length
+    const totalPages = Math.max(1, Math.ceil(total / limit))
     return HttpResponse.json({
-      requests,
-      pagination: { page: 1, limit: 50, total: requests.length, totalPages: 1 },
+      requests: filtered.slice((page - 1) * limit, page * limit),
+      pagination: { page, limit, total, totalPages },
     })
   }),
 
@@ -243,13 +249,18 @@ export const groupsHandlers = [
   }),
 
   // List invitations
-  http.get(url('/groups/:groupId/invitations'), async ({ params }) => {
+  http.get(url('/groups/:groupId/invitations'), async ({ params, request }) => {
     await delay(200)
     const { groupId } = params as { groupId: string }
+    const sp = new URL(request.url).searchParams
+    const page = Number(sp.get('page')) || 1
+    const size = Number(sp.get('size')) || 20
     const invitations = mockInvitations[groupId] || []
+    const totalItems = invitations.length
+    const totalPages = totalItems > 0 ? Math.max(1, Math.ceil(totalItems / size)) : 0
     return HttpResponse.json({
-      invitations,
-      pagination: { page: 1, size: 20, totalItems: invitations.length, totalPages: invitations.length > 0 ? 1 : 0 },
+      invitations: invitations.slice((page - 1) * size, page * size),
+      pagination: { page, size, totalItems, totalPages },
     })
   }),
 
