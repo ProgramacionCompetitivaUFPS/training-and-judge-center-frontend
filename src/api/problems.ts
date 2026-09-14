@@ -98,6 +98,6 @@ export function getModifiers(slug: string): Promise<ProblemModifier[]> {
 
 // === Admin Rejudge ===
 
-export function adminRejudgeProblem(slug: string): Promise<void> {
-  return apiClient.post(`/admin/problems/${slug}/rejudge`)
+export function adminRejudgeProblem(slug: string, contestId?: string): Promise<void> {
+  return apiClient.post(`/admin/problems/${slug}/rejudge`, undefined, { params: { contestId } })
 }

@@ -88,10 +88,14 @@ export function ProblemDetailPage() {
   const canEdit = isAdmin || isModifier
   const canDelete = isAdmin || problem.author.nickname === user?.nickname
   const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
-  // Real leadership of the contest's group — scoped narrower than canSeeManagement, since
-  // the backend rejects contest management actions from a Coach who isn't actually a leader
-  // of that specific group (same rule as ContestDetailPage.tsx).
-  const isContestLead = isAdmin || contestGroup?.userMembership.role === 'LEAD'
+  // Real leadership of the contest's group, or ownership of the contest itself — the two
+  // identities the backend's contest-scoped rejudge endpoint actually accepts (same rule as
+  // ContestDetailPage.tsx). An Admin who is neither still sees the button (manual grants
+  // Admin access too) but must be routed to the admin rejudge endpoint instead — see
+  // handleContestRejudge.
+  const isContestOwnerOrLead =
+    contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
+  const isContestLead = isAdmin || isContestOwnerOrLead
 
   function handlePublish() {
     if (!problem) return
@@ -140,22 +144,30 @@ export function ProblemDetailPage() {
 
   function handleAdminRejudge() {
     if (!problem) return
-    adminRejudgeMutation.mutate(problem.slug, {
-      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
-    })
+    adminRejudgeMutation.mutate(
+      { slug: problem.slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
+        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+      },
+    )
     setAdminRejudgeDialogOpen(false)
   }
 
   function handleContestRejudge() {
     if (!problem || !groupId || !contestId) return
-    rejudgeContestMutation.mutate(
-      { groupId, contestId, problemSlug: problem.slug },
-      {
-        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
-        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
-      },
-    )
+    const onSettled = {
+      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
+      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+    }
+    // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
+    // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
+    // ?contestId= is the one designed for that case (see PRB-09 in docs/seguimiento).
+    if (isContestOwnerOrLead) {
+      rejudgeContestMutation.mutate({ groupId, contestId, problemSlug: problem.slug }, onSettled)
+    } else {
+      adminRejudgeMutation.mutate({ slug: problem.slug, contestId }, onSettled)
+    }
     setContestRejudgeDialogOpen(false)
   }
 
@@ -465,7 +477,8 @@ export function ProblemDetailPage() {
             </Card>
           )}
 
-          {/* Contest-scoped rejudge (only within a contest, for the group's real leads/admin) */}
+          {/* Contest-scoped rejudge (only within a contest, for the group's real leads, the
+              contest's owner, or Admin — see handleContestRejudge for the endpoint routing) */}
           {isContestContext && isContestLead && (
             <Card>
               <CardHeader>
@@ -476,7 +489,7 @@ export function ProblemDetailPage() {
                   variant="outline"
                   className="w-full gap-2"
                   onClick={() => setContestRejudgeDialogOpen(true)}
-                  isLoading={rejudgeContestMutation.isPending}
+                  isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
                 >
                   <RefreshCw className="h-4 w-4" />
                   Rejuzgar envíos
@@ -508,7 +521,7 @@ export function ProblemDetailPage() {
         variant="warning"
         confirmLabel="Rejuzgar"
         onConfirm={handleContestRejudge}
-        isLoading={rejudgeContestMutation.isPending}
+        isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
       />
 
       {/* Publish validation logs */}

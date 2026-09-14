@@ -194,6 +194,7 @@ export function useGetModifiers(slug: string) {
 
 export function useAdminRejudgeProblem() {
   return useMutation({
-    mutationFn: (slug: string) => problemsApi.adminRejudgeProblem(slug),
+    mutationFn: ({ slug, contestId }: { slug: string; contestId?: string }) =>
+      problemsApi.adminRejudgeProblem(slug, contestId),
   })
 }

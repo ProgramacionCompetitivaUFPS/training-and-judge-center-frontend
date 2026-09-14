@@ -357,7 +357,7 @@ export const problemsHandlers = [
     return HttpResponse.json(newProblem, { status: 201 })
   }),
 
-  // Admin rejudge (global)
+  // Admin rejudge (global, or scoped to a contest via ?contestId=)
   http.post(url('/admin/problems/:slug/rejudge'), async ({ params }) => {
     await delay(400)
     const { slug } = params as { slug: string }
