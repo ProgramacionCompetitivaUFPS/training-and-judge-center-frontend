@@ -165,7 +165,7 @@ export const adminUpdateUserSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/, 'Solo letras, números, guiones y guiones bajos')
     .optional(),
   role: z
-    .enum(['ADMIN', 'COACH', 'CONTESTANT'], { message: 'Rol inválido' })
+    .enum(['COACH', 'CONTESTANT'], { message: 'Rol inválido' })
     .optional(),
   institution: z
     .string()

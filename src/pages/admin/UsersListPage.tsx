@@ -131,7 +131,7 @@ export function UsersListPage() {
         name: editingUser.name,
         email: editingUser.email,
         nickname: editingUser.nickname,
-        role: editingUser.role,
+        role: editingUser.role === 'ADMIN' ? undefined : editingUser.role,
         institution: editingUser.institution,
       })
     }
@@ -450,13 +450,12 @@ export function UsersListPage() {
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select
                 value={editRole}
-                onValueChange={(v) => editForm.setValue('role', v as UserRole, { shouldValidate: true })}
+                onValueChange={(v) => editForm.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CONTESTANT">Contestant</SelectItem>
                   <SelectItem value="COACH">Coach</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
