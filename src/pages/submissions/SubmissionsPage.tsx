@@ -5,17 +5,17 @@ import { AppLayout } from '@/components/layout'
 import { DataTable, EmptyState } from '@/components/patterns'
 import type { Column } from '@/components/patterns/DataTable'
 import { Input } from '@/components/ui/Input'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'Todos los veredictos' },
+  { value: 'ALL', label: 'Todos' },
   { value: 'ACCEPTED', label: 'Accepted' },
   { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
   { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
@@ -24,6 +24,11 @@ const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
   { value: 'PENDING', label: 'Pending' },
   { value: 'RUNNING', label: 'Running' },
+]
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todos' },
+  ...PROGRAMMING_LANGUAGES,
 ]
 
 const columns: Column<SubmissionListItem>[] = [
@@ -115,65 +120,109 @@ export function SubmissionsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+        <div className="space-y-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
             <Input
+              variant="ghost"
               placeholder="Filtrar por problema (slug)..."
-              className="pl-9"
+              className="pl-7"
               value={problemInput}
               onChange={(e) => setProblemInput(e.target.value)}
             />
           </div>
-          <Select
-            onValueChange={(v) =>
-              setFilters((prev) => ({
-                ...prev,
-                verdict: v === 'ALL' ? undefined : (v as SubmissionStatus),
-                page: 1,
-              }))
-            }
-            defaultValue="ALL"
-          >
-            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Veredicto" /></SelectTrigger>
-            <SelectContent>
-              {VERDICT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            onValueChange={(v) =>
-              setFilters((prev) => ({
-                ...prev,
-                language: v === 'ALL' ? undefined : (v as SubmissionLanguage),
-                page: 1,
-              }))
-            }
-            defaultValue="ALL"
-          >
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Lenguaje" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos los lenguajes</SelectItem>
-              {PROGRAMMING_LANGUAGES.map((lang) => (
-                <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            aria-label="Desde"
-            className="w-[160px]"
-            value={filters.from ?? ''}
-            onChange={(e) => setFilters((prev) => ({ ...prev, from: e.target.value || undefined, page: 1 }))}
-          />
-          <Input
-            type="date"
-            aria-label="Hasta"
-            className="w-[160px]"
-            value={filters.to ?? ''}
-            onChange={(e) => setFilters((prev) => ({ ...prev, to: e.target.value || undefined, page: 1 }))}
-          />
+
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Fecha</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-neutral-text-muted">Desde</span>
+                <Input
+                  type="date"
+                  variant="ghost"
+                  containerClassName="w-[170px]"
+                  className={cn(
+                    'pr-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:hover:opacity-80',
+                    !filters.from && 'text-neutral-text-muted'
+                  )}
+                  aria-label="Desde"
+                  value={filters.from ?? ''}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, from: e.target.value || undefined, page: 1 }))}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-neutral-text-muted">Hasta</span>
+                <Input
+                  type="date"
+                  variant="ghost"
+                  containerClassName="w-[170px]"
+                  className={cn(
+                    'pr-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:hover:opacity-80',
+                    !filters.to && 'text-neutral-text-muted'
+                  )}
+                  aria-label="Hasta"
+                  value={filters.to ?? ''}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, to: e.target.value || undefined, page: 1 }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Veredicto</span>
+              {VERDICT_OPTIONS.map((opt) => {
+                const isActive = opt.value === 'ALL' ? !filters.verdict : filters.verdict === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        verdict: opt.value === 'ALL' ? undefined : (opt.value as SubmissionStatus),
+                        page: 1,
+                      }))
+                    }
+                    className={cn(
+                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                      isActive
+                        ? 'bg-brand-primary text-neutral-surface'
+                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Lenguaje</span>
+              {LANGUAGE_OPTIONS.map((opt) => {
+                const isActive = opt.value === 'ALL' ? !filters.language : filters.language === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        language: opt.value === 'ALL' ? undefined : (opt.value as SubmissionLanguage),
+                        page: 1,
+                      }))
+                    }
+                    className={cn(
+                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                      isActive
+                        ? 'bg-brand-primary text-neutral-surface'
+                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Results count */}

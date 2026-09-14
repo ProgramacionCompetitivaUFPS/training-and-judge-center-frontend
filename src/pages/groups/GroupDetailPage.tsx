@@ -399,15 +399,29 @@ export function GroupDetailPage() {
 
   const requestsTab = canManage ? (
     <div className="space-y-4">
-      <Select value={requestsStatus} onValueChange={handleRequestsStatusChange}>
-        <SelectTrigger className="w-48"><SelectValue placeholder="Estado" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas</SelectItem>
-          <SelectItem value="PENDING">Pendientes</SelectItem>
-          <SelectItem value="APPROVED">Aprobadas</SelectItem>
-          <SelectItem value="REJECTED">Rechazadas</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
+        {[
+          { value: 'all', label: 'Todas' },
+          { value: 'PENDING', label: 'Pendientes' },
+          { value: 'APPROVED', label: 'Aprobadas' },
+          { value: 'REJECTED', label: 'Rechazadas' },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => handleRequestsStatusChange(opt.value)}
+            className={cn(
+              'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+              requestsStatus === opt.value
+                ? 'bg-brand-primary text-neutral-surface'
+                : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
       {requestsData && (
         <PaginationSummary
           total={requestsData.pagination.total}
@@ -667,15 +681,29 @@ export function GroupDetailPage() {
           </Button>
         )}
       </div>
-      <Select value={contestsStatus} onValueChange={handleContestsStatusChange}>
-        <SelectTrigger className="w-48"><SelectValue placeholder="Estado" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Todas</SelectItem>
-          <SelectItem value="SCHEDULED">Programadas</SelectItem>
-          <SelectItem value="ACTIVE">En curso</SelectItem>
-          <SelectItem value="FINISHED">Finalizadas</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
+        {[
+          { value: 'all', label: 'Todas' },
+          { value: 'SCHEDULED', label: 'Programadas' },
+          { value: 'ACTIVE', label: 'En curso' },
+          { value: 'FINISHED', label: 'Finalizadas' },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => handleContestsStatusChange(opt.value)}
+            className={cn(
+              'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+              contestsStatus === opt.value
+                ? 'bg-brand-primary text-neutral-surface'
+                : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
       {contestsData && (
         <PaginationSummary
           total={contestsData.pagination.total}
