@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import type JSZip from 'jszip'
 import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
@@ -628,6 +629,33 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
 
 type ProblemFileType = keyof typeof PROBLEM_FILE_TYPE_INFO
 
+// JSZip.loadAsync reads the whole file into memory (Blob.arrayBuffer()) to list entries —
+// there's no cheaper way to peek at a zip's structure client-side. Past this size the memory
+// spike isn't worth it just to check two folder names; skip silently and let the backend
+// (which allows up to 200 MB) be the sole validator for those files.
+const MAX_ZIP_STRUCTURE_CHECK_BYTES = 25 * 1024 * 1024
+
+// Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
+// only confirms the two required folders exist somewhere in the archive, without
+// validating .in/.ans pairing, file sizes, or the exact ICPC root-detection rules —
+// that stays the backend's job so the two don't drift out of sync.
+async function checkTestCasesZipStructure(file: File): Promise<string | null> {
+  let zip: JSZip
+  try {
+    const { default: JSZipCtor } = await import('jszip')
+    zip = await JSZipCtor.loadAsync(file)
+  } catch {
+    return 'El archivo no se pudo leer como un ZIP válido.'
+  }
+  const paths = Object.keys(zip.files)
+  const hasSample = paths.some((p) => p.includes('data/sample/'))
+  const hasSecret = paths.some((p) => p.includes('data/secret/'))
+  if (!hasSample || !hasSecret) {
+    return 'El ZIP debe contener las carpetas data/sample/ y data/secret/ con los casos de prueba.'
+  }
+  return null
+}
+
 interface FilesManagerProps { problem: ProblemDetail }
 
 function FilesManager({ problem }: FilesManagerProps) {
@@ -636,6 +664,7 @@ function FilesManager({ problem }: FilesManagerProps) {
   const { toast } = useToastContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
 
   if (!problem.files) return null
@@ -647,7 +676,7 @@ function FilesManager({ problem }: FilesManagerProps) {
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !pendingFileType) return
@@ -662,6 +691,17 @@ function FilesManager({ problem }: FilesManagerProps) {
       })
       setPendingFileType(null)
       return
+    }
+
+    if (pendingFileType === 'testCases' && file.size <= MAX_ZIP_STRUCTURE_CHECK_BYTES) {
+      setIsCheckingZip(true)
+      const structureError = await checkTestCasesZipStructure(file)
+      setIsCheckingZip(false)
+      if (structureError) {
+        toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
+        setPendingFileType(null)
+        return
+      }
     }
 
     uploadMutation.mutate(
@@ -722,7 +762,7 @@ function FilesManager({ problem }: FilesManagerProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => triggerUpload(fileType)}
-                isLoading={uploadMutation.isPending && pendingFileType === fileType}
+                isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 {files[fileType] ? 'Reemplazar' : 'Subir'}
