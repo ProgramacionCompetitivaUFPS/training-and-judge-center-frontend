@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect } from '@/components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useContestSession } from '@/hooks/useContestSession'
@@ -27,9 +27,21 @@ import { useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
-import { SUBMISSION_STATUS_CONFIG, PATHS } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail } from '@/types/problem'
+
+interface PublishRequirement { label: string; met: (problem: ProblemDetail) => boolean }
+
+// Mirrors the backend's requiredFieldsForPublish (checker/validator are optional there,
+// so they're intentionally left out here too).
+const PUBLISH_REQUIREMENTS: PublishRequirement[] = [
+  { label: 'Enunciado', met: (p) => !!p.statement },
+  { label: 'Límite de tiempo', met: (p) => p.timeLimit != null },
+  { label: 'Límite de memoria', met: (p) => p.memoryLimit != null },
+  { label: 'Casos de prueba', met: (p) => !!p.files?.testCases },
+  { label: 'Al menos una solución', met: (p) => (p.files?.solutions.length ?? 0) > 0 },
+]
 
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
@@ -96,6 +108,7 @@ export function ProblemDetailPage() {
   const isContestOwnerOrLead =
     contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
   const isContestLead = isAdmin || isContestOwnerOrLead
+  const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
 
   function handlePublish() {
     if (!problem) return
@@ -183,6 +196,7 @@ export function ProblemDetailPage() {
       ]
 
   return (
+    <TooltipProvider>
     <AppLayout breadcrumbs={breadcrumbs}>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
         {/* === Left Column: Content === */}
@@ -446,10 +460,29 @@ export function ProblemDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {problem.status === 'DRAFT' && (
-                  <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
-                    <ArrowUpCircle className="h-4 w-4" />
-                    Publicar
-                  </Button>
+                  missingPublishRequirements.length > 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="block">
+                          <Button variant="primary" className="w-full gap-2" disabled>
+                            <ArrowUpCircle className="h-4 w-4" />
+                            Publicar
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
+                        <ul className="mt-1 list-disc list-inside">
+                          {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+                      <ArrowUpCircle className="h-4 w-4" />
+                      Publicar
+                    </Button>
+                  )
                 )}
                 {problem.status === 'PUBLISHED' && (
                   <Button variant="outline" className="w-full gap-2" onClick={handleUnpublish} isLoading={unpublishMutation.isPending}>
@@ -573,6 +606,7 @@ export function ProblemDetailPage() {
         </DialogContent>
       </Dialog>
     </AppLayout>
+    </TooltipProvider>
   )
 }
 
@@ -592,11 +626,7 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
   )
 }
 
-const FILE_TYPE_LABELS: Record<string, string> = {
-  testCases: 'Casos de prueba',
-  checker: 'Checker',
-  validator: 'Validator',
-}
+type ProblemFileType = keyof typeof PROBLEM_FILE_TYPE_INFO
 
 interface FilesManagerProps { problem: ProblemDetail }
 
@@ -605,14 +635,15 @@ function FilesManager({ problem }: FilesManagerProps) {
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [pendingFileType, setPendingFileType] = useState<string | null>(null)
+  const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
 
   if (!problem.files) return null
   const files = problem.files
 
-  function triggerUpload(fileType: string) {
+  function triggerUpload(fileType: ProblemFileType) {
     setPendingFileType(fileType)
+    if (fileInputRef.current) fileInputRef.current.accept = PROBLEM_FILE_TYPE_INFO[fileType].accept
     fileInputRef.current?.click()
   }
 
@@ -620,6 +651,19 @@ function FilesManager({ problem }: FilesManagerProps) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !pendingFileType) return
+
+    const info = PROBLEM_FILE_TYPE_INFO[pendingFileType]
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    if (!(info.extensions as readonly string[]).includes(extension)) {
+      toast({
+        variant: 'error',
+        title: 'Formato de archivo incorrecto',
+        description: `${info.label} espera ${info.extensions.join(' o ')}. ${info.help}`,
+      })
+      setPendingFileType(null)
+      return
+    }
+
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file },
       {
@@ -627,6 +671,8 @@ function FilesManager({ problem }: FilesManagerProps) {
         onError: (err) => {
           if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
             toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+          } else if (err instanceof ApiClientError) {
+            toast({ variant: 'error', title: 'Error al subir el archivo', description: err.message })
           } else {
             toast({ variant: 'error', title: 'Error al subir el archivo' })
           }
@@ -666,7 +712,10 @@ function FilesManager({ problem }: FilesManagerProps) {
           <div key={fileType} className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
-              <span className="text-neutral-text-primary">{FILE_TYPE_LABELS[fileType]}</span>
+              <span className="text-neutral-text-primary inline-flex items-center gap-1">
+                {PROBLEM_FILE_TYPE_INFO[fileType].label}
+                <FileFormatHint fileType={fileType} />
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <Button
@@ -681,9 +730,9 @@ function FilesManager({ problem }: FilesManagerProps) {
               {files[fileType] && (
                 <button
                   type="button"
-                  onClick={() => setDeleteTarget({ fileType, label: FILE_TYPE_LABELS[fileType] })}
+                  onClick={() => setDeleteTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
                   className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                  aria-label={`Eliminar ${FILE_TYPE_LABELS[fileType]}`}
+                  aria-label={`Eliminar ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -694,7 +743,10 @@ function FilesManager({ problem }: FilesManagerProps) {
 
         <div className="pt-2 border-t border-neutral-border">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-neutral-text-primary font-medium">Soluciones</span>
+            <span className="text-neutral-text-primary font-medium inline-flex items-center gap-1">
+              Soluciones
+              <FileFormatHint fileType="solution" />
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -737,6 +789,29 @@ function FilesManager({ problem }: FilesManagerProps) {
         isLoading={deleteMutation.isPending}
       />
     </Card>
+  )
+}
+
+function FileFormatHint({ fileType }: { fileType: ProblemFileType }) {
+  const info = PROBLEM_FILE_TYPE_INFO[fileType]
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="align-super text-neutral-text-muted hover:text-brand-primary"
+          aria-label={`Formato esperado para ${info.label}`}
+        >
+          <HelpCircle className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{info.help}</p>
+        <pre className="mt-1.5 whitespace-pre-wrap rounded bg-neutral-background p-1.5 font-mono text-[11px] text-neutral-text-muted">
+          {info.example}
+        </pre>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

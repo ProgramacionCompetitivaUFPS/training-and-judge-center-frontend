@@ -2,6 +2,7 @@ import { http, HttpResponse, delay } from 'msw'
 import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
 import type { ProblemDetail } from '@/types/problem'
 import { url } from './utils'
+import { PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 
 export const problemsHandlers = [
   // List problems
@@ -220,6 +221,18 @@ export const problemsHandlers = [
     const fileType = (formData.get('fileType') as string) || 'testCases'
     const file = formData.get('file') as File | null
     const fileName = file?.name || `${fileType}.txt`
+
+    const info = PROBLEM_FILE_TYPE_INFO[fileType as keyof typeof PROBLEM_FILE_TYPE_INFO]
+    if (!info) {
+      return HttpResponse.json({ error: 'PROBLEM_INVALID_FILE_TYPE', message: 'Invalid file type. Allowed: testCases, solution, checker, validator' }, { status: 400 })
+    }
+    const extension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase()
+    if (!(info.extensions as readonly string[]).includes(extension)) {
+      return HttpResponse.json(
+        { error: 'VALIDATION_ERROR', message: `Unsupported ${fileType} file type`, details: [{ field: 'file', message: `Expected ${info.extensions.join(' or ')}` }] },
+        { status: 400 },
+      )
+    }
 
     if (!problem.files) {
       problem.files = { testCases: false, solutions: [], checker: false, validator: false }

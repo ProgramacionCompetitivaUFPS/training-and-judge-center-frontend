@@ -46,6 +46,42 @@ export const PROGRAMMING_LANGUAGES = [
   { value: 'blockly', label: 'Blockly' },
 ] as const
 
+// Source-file extensions the backend maps to a supported judging language
+// (config/virtual_object.json → languageExtensions). Checker/validator/solution
+// uploads must be one of these; anything else is rejected before it's even sent.
+export const PROBLEM_SOURCE_FILE_EXTENSIONS = ['.cpp', '.py', '.java'] as const
+
+export const PROBLEM_FILE_TYPE_INFO = {
+  testCases: {
+    label: 'Casos de prueba',
+    accept: '.zip',
+    extensions: ['.zip'],
+    help: 'ZIP con estructura ICPC: pares de archivos .in/.ans dentro de data/sample/ (ejemplos visibles) y data/secret/ (casos reales de evaluación). Tamaño máximo: 200 MB.',
+    example: 'casos.zip\n└── data/\n    ├── sample/\n    │   ├── 1.in\n    │   └── 1.ans\n    └── secret/\n        ├── 1.in\n        ├── 1.ans\n        ├── 2.in\n        └── 2.ans',
+  },
+  checker: {
+    label: 'Checker',
+    accept: PROBLEM_SOURCE_FILE_EXTENSIONS.join(','),
+    extensions: PROBLEM_SOURCE_FILE_EXTENSIONS,
+    help: 'Un único archivo de código fuente que compara la salida del participante contra la respuesta esperada (C++20, Python 3.10 o Java 17). Tamaño máximo: 2 MB.',
+    example: 'checker.cpp',
+  },
+  validator: {
+    label: 'Validator',
+    accept: PROBLEM_SOURCE_FILE_EXTENSIONS.join(','),
+    extensions: PROBLEM_SOURCE_FILE_EXTENSIONS,
+    help: 'Un único archivo de código fuente que valida que cada caso de entrada cumpla el formato del enunciado, antes de juzgar (C++20, Python 3.10 o Java 17). Tamaño máximo: 2 MB.',
+    example: 'validator.cpp',
+  },
+  solution: {
+    label: 'Solución',
+    accept: PROBLEM_SOURCE_FILE_EXTENSIONS.join(','),
+    extensions: PROBLEM_SOURCE_FILE_EXTENSIONS,
+    help: 'Un archivo de código fuente por solución de referencia (C++20, Python 3.10 o Java 17). Puedes subir varias, por ejemplo una óptima y otra de fuerza bruta. Tamaño máximo: 2 MB.',
+    example: 'solucion_optima.cpp',
+  },
+} as const satisfies Record<string, { label: string; accept: string; extensions: readonly string[]; help: string; example: string }>
+
 export const CONTEST_STATUS_CONFIG = {
   SCHEDULED: { label: 'Programado', color: 'default' },
   ACTIVE: { label: 'En curso', color: 'success' },
