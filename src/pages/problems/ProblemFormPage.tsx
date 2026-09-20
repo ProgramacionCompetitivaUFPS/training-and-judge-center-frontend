@@ -16,7 +16,8 @@ import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, t
 import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS } from '@/lib/constants'
+import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 
 const SUGGESTED_TAGS = [
   'dp', 'graphs', 'arrays', 'strings', 'binary-search',
@@ -333,6 +334,20 @@ function LanguageOverridesEditor({ value, onChange }: LanguageOverridesEditorPro
 
 // === Create Form ===
 
+// Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
+// only confirms problem.yaml exists somewhere in the archive, without validating its
+// fields, the data/checker/validator rules, or file size/count limits — that stays the
+// backend's job so the two don't drift out of sync.
+async function checkPackageZipStructure(file: File): Promise<string | null> {
+  const paths = await peekZipEntryPaths(file)
+  if (!paths) return 'El archivo no se pudo leer como un ZIP válido.'
+  const hasYaml = paths.some((p) => p === 'problem.yaml' || p.endsWith('/problem.yaml'))
+  if (!hasYaml) {
+    return 'El ZIP debe contener un archivo problem.yaml en la raíz del problema.'
+  }
+  return null
+}
+
 interface CreateFormProps {
   onSubmit: (data: CreateProblemFormData) => void
   onImport: (file: File, slug: string) => void
@@ -346,12 +361,14 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     resolver: zodResolver(createProblemSchema),
     defaultValues: { slug: '', title: '', statement: '', tags: '', languageOverrides: [] },
   })
+  const { toast } = useToastContext()
 
   const statement = useWatch({ control, name: 'statement' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showZipHelp, setShowZipHelp] = useState(false)
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
 
   function handleImportClick() {
     fileInputRef.current?.click()
@@ -361,8 +378,26 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    if (extension !== '.zip') {
+      toast({ variant: 'error', title: 'Formato de archivo incorrecto', description: 'El import espera un archivo .zip con el paquete del problema.' })
+      return
+    }
+
     const slugValid = await trigger('slug')
     if (!slugValid) return
+
+    if (!exceedsZipStructureCheckSize(file)) {
+      setIsCheckingZip(true)
+      const structureError = await checkPackageZipStructure(file)
+      setIsCheckingZip(false)
+      if (structureError) {
+        toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
+        return
+      }
+    }
+
     onImport(file, getValues('slug'))
   }
 
@@ -382,7 +417,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
             <HelpCircle className="h-4 w-4" />
             Formato del ZIP
           </Button>
-          <Button type="button" variant="outline" onClick={handleImportClick} isLoading={isImporting} className="gap-2">
+          <Button type="button" variant="outline" onClick={handleImportClick} isLoading={isImporting || isCheckingZip} className="gap-2">
             <Upload className="h-4 w-4" />
             Importar ZIP
           </Button>
@@ -395,13 +430,27 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         <div className="mb-4 rounded-md border border-neutral-border bg-neutral-surface p-4 text-sm text-neutral-text-muted space-y-2">
           <p className="font-semibold text-neutral-text-primary">Estructura esperada del ZIP (formato ICPC):</p>
           <ul className="list-disc list-inside space-y-1">
-            <li><code className="font-mono">problem.yaml</code> — requerido, en la raíz del problema</li>
-            <li><code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code></li>
-            <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional</li>
-            <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional</li>
-            <li><code className="font-mono">checker.&lt;ext&gt;</code> y <code className="font-mono">validator.&lt;ext&gt;</code> — opcionales</li>
+            <li>
+              <code className="font-mono">problem.yaml</code> — requerido, en la raíz del problema (máx. 2 MB). Debe
+              incluir <code className="font-mono">name</code>; opcionalmente <code className="font-mono">time_limit</code> (segundos)
+              y <code className="font-mono">memory_limit</code> (MB) para no tener que completarlos después
+            </li>
+            <li>
+              <code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de
+              prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code>, opcional (se
+              pueden subir después); hasta 200 MB en total, máx. 10 casos de ejemplo
+            </li>
+            <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional (máx. 2 MB)</li>
+            <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional (máx. 2 MB cada una)</li>
+            <li>
+              <code className="font-mono">checker.&lt;ext&gt;</code> y <code className="font-mono">validator.&lt;ext&gt;</code> — opcionales
+              (máx. 2 MB); a lo sumo uno de cada uno, si hay más de un archivo que coincida se rechaza todo el import
+            </li>
           </ul>
-          <p>El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.</p>
+          <p>
+            Extensiones de código soportadas: <code className="font-mono">{PROBLEM_SOURCE_FILE_EXTENSIONS.join(', ')}</code>.
+            El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.
+          </p>
         </div>
       )}
 

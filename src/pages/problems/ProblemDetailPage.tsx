@@ -1,5 +1,4 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import type JSZip from 'jszip'
 import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
@@ -30,6 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail } from '@/types/problem'
 
 interface PublishRequirement { label: string; met: (problem: ProblemDetail) => boolean }
@@ -629,25 +629,13 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
 
 type ProblemFileType = keyof typeof PROBLEM_FILE_TYPE_INFO
 
-// JSZip.loadAsync reads the whole file into memory (Blob.arrayBuffer()) to list entries —
-// there's no cheaper way to peek at a zip's structure client-side. Past this size the memory
-// spike isn't worth it just to check two folder names; skip silently and let the backend
-// (which allows up to 200 MB) be the sole validator for those files.
-const MAX_ZIP_STRUCTURE_CHECK_BYTES = 25 * 1024 * 1024
-
 // Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
 // only confirms the two required folders exist somewhere in the archive, without
 // validating .in/.ans pairing, file sizes, or the exact ICPC root-detection rules —
 // that stays the backend's job so the two don't drift out of sync.
 async function checkTestCasesZipStructure(file: File): Promise<string | null> {
-  let zip: JSZip
-  try {
-    const { default: JSZipCtor } = await import('jszip')
-    zip = await JSZipCtor.loadAsync(file)
-  } catch {
-    return 'El archivo no se pudo leer como un ZIP válido.'
-  }
-  const paths = Object.keys(zip.files)
+  const paths = await peekZipEntryPaths(file)
+  if (!paths) return 'El archivo no se pudo leer como un ZIP válido.'
   const hasSample = paths.some((p) => p.includes('data/sample/'))
   const hasSecret = paths.some((p) => p.includes('data/secret/'))
   if (!hasSample || !hasSecret) {
@@ -693,7 +681,7 @@ function FilesManager({ problem }: FilesManagerProps) {
       return
     }
 
-    if (pendingFileType === 'testCases' && file.size <= MAX_ZIP_STRUCTURE_CHECK_BYTES) {
+    if (pendingFileType === 'testCases' && !exceedsZipStructureCheckSize(file)) {
       setIsCheckingZip(true)
       const structureError = await checkTestCasesZipStructure(file)
       setIsCheckingZip(false)

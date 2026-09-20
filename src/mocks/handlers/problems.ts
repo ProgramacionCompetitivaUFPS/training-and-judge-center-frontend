@@ -2,7 +2,7 @@ import { http, HttpResponse, delay } from 'msw'
 import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
 import type { ProblemDetail } from '@/types/problem'
 import { url } from './utils'
-import { PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
+import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS } from '@/lib/constants'
 
 export const problemsHandlers = [
   // List problems
@@ -345,22 +345,65 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'SLUG_ALREADY_EXISTS', message: `Ya existe un problema con slug '${slug}'` }, { status: 409 })
     }
 
+    const { default: JSZip } = await import('jszip')
+    let zip: Awaited<ReturnType<typeof JSZip.loadAsync>>
+    try {
+      zip = await JSZip.loadAsync(file)
+    } catch {
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'El archivo no es un ZIP válido' }, { status: 400 })
+    }
+
+    const paths = Object.keys(zip.files)
+    const yamlPath = paths.find((p) => p === 'problem.yaml' || p.endsWith('/problem.yaml'))
+    if (!yamlPath) {
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'El ZIP debe contener un archivo problem.yaml en la raíz del problema' }, { status: 400 })
+    }
+    const prefix = yamlPath.slice(0, yamlPath.length - 'problem.yaml'.length)
+
+    const yamlContent = await zip.files[yamlPath].async('string')
+    const name = yamlContent.match(/^name:\s*"?([^"\n]+?)"?\s*$/m)?.[1]
+    const timeLimitSec = yamlContent.match(/^time_limit:\s*([\d.]+)/m)?.[1]
+    const memoryLimitMb = yamlContent.match(/^memory_limit:\s*(\d+)/m)?.[1]
+
+    if (!name) {
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'problem.yaml no tiene el campo requerido: name' }, { status: 400 })
+    }
+
+    const extPattern = new RegExp(`^(checker|validator)(${PROBLEM_SOURCE_FILE_EXTENSIONS.map((e) => e.replace('.', '\\.')).join('|')})$`)
+    const rootEntries = paths.filter((p) => p.startsWith(prefix) && !zip.files[p].dir).map((p) => p.slice(prefix.length))
+    const checkerMatches = rootEntries.filter((p) => extPattern.test(p) && p.startsWith('checker'))
+    const validatorMatches = rootEntries.filter((p) => extPattern.test(p) && p.startsWith('validator'))
+    if (checkerMatches.length > 1) {
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Multiple checker files found: only one is allowed' }, { status: 400 })
+    }
+    if (validatorMatches.length > 1) {
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Multiple validator files found: only one is allowed' }, { status: 400 })
+    }
+
+    const hasSample = paths.some((p) => p.startsWith(`${prefix}data/sample/`) && !zip.files[p].dir)
+    const hasSecret = paths.some((p) => p.startsWith(`${prefix}data/secret/`) && !zip.files[p].dir)
+    const solutionsPrefix = `${prefix}solutions/`
+    const solutionFiles = paths.filter((p) => p.startsWith(solutionsPrefix) && !zip.files[p].dir).map((p) => p.slice(solutionsPrefix.length))
+
+    const statementPath = `${prefix}problem_statement/problem.en.tex`
+    const statement = paths.includes(statementPath) ? await zip.files[statementPath].async('string') : null
+
     const newProblem: ProblemDetail = {
       slug,
-      title: slug,
-      statement: null,
+      title: name,
+      statement,
       inputFormat: null,
       outputFormat: null,
       examples: [],
-      timeLimit: 2000,
-      memoryLimit: 256,
+      timeLimit: timeLimitSec ? Math.round(parseFloat(timeLimitSec) * 1000) : null,
+      memoryLimit: memoryLimitMb ? parseInt(memoryLimitMb, 10) : null,
       languageOverrides: [],
       tags: [],
       status: 'DRAFT',
       accessibility: 'PRIVATE',
       author: { nickname: user.nickname, name: user.name },
       modifiers: [{ nickname: user.nickname, name: user.name }],
-      files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: false },
+      files: { testCases: hasSample && hasSecret, solutions: solutionFiles, checker: checkerMatches.length === 1, validator: validatorMatches.length === 1 },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       problemJudgingUpdatedAt: null,
