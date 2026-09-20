@@ -2,7 +2,7 @@ import { http, HttpResponse, delay } from 'msw'
 import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
 import type { ProblemDetail } from '@/types/problem'
 import { url } from './utils'
-import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS } from '@/lib/constants'
+import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS, PROBLEM_LANGUAGE_BY_EXTENSION } from '@/lib/constants'
 
 export const problemsHandlers = [
   // List problems
@@ -83,9 +83,6 @@ export const problemsHandlers = [
       slug: body.slug as string,
       title: body.title as string,
       statement: (body.statement as string) || null,
-      inputFormat: null,
-      outputFormat: null,
-      examples: [],
       timeLimit: (body.timeLimit as number) || null,
       memoryLimit: (body.memoryLimit as number) || null,
       languageOverrides: (body.languageOverrides as []) || [],
@@ -238,8 +235,9 @@ export const problemsHandlers = [
       problem.files = { testCases: false, solutions: [], checker: false, validator: false }
     }
     if (fileType === 'solution') {
-      if (!problem.files.solutions.includes(fileName)) {
-        problem.files.solutions = [...problem.files.solutions, fileName]
+      if (!problem.files.solutions.some((sol) => sol.filename === fileName)) {
+        const language = PROBLEM_LANGUAGE_BY_EXTENSION[extension] ?? 'cpp20'
+        problem.files.solutions = [...problem.files.solutions, { filename: fileName, language }]
       }
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = true
@@ -266,7 +264,7 @@ export const problemsHandlers = [
     const fileName = searchParams.get('fileName')
 
     if (fileType === 'solution' && fileName) {
-      problem.files.solutions = problem.files.solutions.filter((f) => f !== fileName)
+      problem.files.solutions = problem.files.solutions.filter((sol) => sol.filename !== fileName)
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = false
     }
@@ -383,7 +381,13 @@ export const problemsHandlers = [
     const hasSample = paths.some((p) => p.startsWith(`${prefix}data/sample/`) && !zip.files[p].dir)
     const hasSecret = paths.some((p) => p.startsWith(`${prefix}data/secret/`) && !zip.files[p].dir)
     const solutionsPrefix = `${prefix}solutions/`
-    const solutionFiles = paths.filter((p) => p.startsWith(solutionsPrefix) && !zip.files[p].dir).map((p) => p.slice(solutionsPrefix.length))
+    const solutionFiles = paths
+      .filter((p) => p.startsWith(solutionsPrefix) && !zip.files[p].dir)
+      .map((p) => p.slice(solutionsPrefix.length))
+      .map((filename) => {
+        const ext = filename.slice(filename.lastIndexOf('.'))
+        return { filename, language: PROBLEM_LANGUAGE_BY_EXTENSION[ext] ?? 'cpp20' }
+      })
 
     const statementPath = `${prefix}problem_statement/problem.en.tex`
     const statement = paths.includes(statementPath) ? await zip.files[statementPath].async('string') : null
@@ -392,9 +396,6 @@ export const problemsHandlers = [
       slug,
       title: name,
       statement,
-      inputFormat: null,
-      outputFormat: null,
-      examples: [],
       timeLimit: timeLimitSec ? Math.round(parseFloat(timeLimitSec) * 1000) : null,
       memoryLimit: memoryLimitMb ? parseInt(memoryLimitMb, 10) : null,
       languageOverrides: [],

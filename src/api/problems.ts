@@ -11,6 +11,7 @@ import type {
   ProblemStatistics,
   ProblemModifier,
   ProblemAccessibility,
+  ProblemFiles,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -47,7 +48,7 @@ export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
 
 // === Files ===
 
-export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: { testCases: boolean; solutions: string[]; checker: boolean; validator: boolean } }> {
+export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
   const formData = new FormData()
   formData.append('fileType', fileType)
   formData.append('file', file)

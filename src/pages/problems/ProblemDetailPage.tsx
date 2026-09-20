@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -247,46 +247,6 @@ export function ProblemDetailPage() {
               )}
             </CardContent>
           </Card>
-
-          {/* Input / Output as separate cards */}
-          {(problem.inputFormat || problem.outputFormat) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {problem.inputFormat && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-wider">Entrada</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <MarkdownRenderer content={problem.inputFormat} />
-                  </CardContent>
-                </Card>
-              )}
-              {problem.outputFormat && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-wider">Salida</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <MarkdownRenderer content={problem.outputFormat} />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Examples */}
-          {problem.examples && problem.examples.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ejemplos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {problem.examples.map((ex, idx) => (
-                  <ExampleBlock key={idx} index={idx + 1} input={ex.input} output={ex.output} explanation={ex.explanation} />
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Files (only for modifiers, and only while the problem is still a draft — the
               backend rejects uploads to a published problem) */}
@@ -789,14 +749,14 @@ function FilesManager({ problem }: FilesManagerProps) {
             <p className="text-xs text-neutral-text-muted">Sin soluciones cargadas.</p>
           ) : (
             <ul className="space-y-1">
-              {files.solutions.map((fileName) => (
-                <li key={fileName} className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-text-muted font-mono text-xs">{fileName}</span>
+              {files.solutions.map((sol) => (
+                <li key={sol.filename} className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-text-muted font-mono text-xs">{sol.filename}</span>
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName, label: fileName })}
+                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
                     className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                    aria-label={`Eliminar ${fileName}`}
+                    aria-label={`Eliminar ${sol.filename}`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -937,57 +897,3 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
   )
 }
 
-interface ExampleBlockProps { index: number; input: string; output: string; explanation?: string }
-
-function ExampleBlock({ index, input, output, explanation }: ExampleBlockProps) {
-  return (
-    <div className="border border-neutral-border rounded-lg overflow-hidden">
-      <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border flex items-center justify-between">
-        <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index}</span>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
-            <CopyButton text={input} />
-          </div>
-          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{input}</pre>
-        </div>
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
-            <CopyButton text={output} />
-          </div>
-          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{output}</pre>
-        </div>
-      </div>
-      {explanation && (
-        <div className="px-4 py-3 border-t border-neutral-border bg-brand-primary-muted/30">
-          <MarkdownRenderer content={`**Nota:** ${explanation}`} className="text-sm" />
-        </div>
-      )}
-    </div>
-  )
-}
-
-interface CopyButtonProps { text: string }
-
-function CopyButton({ text }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 rounded hover:bg-neutral-border/50 transition-colors text-neutral-text-muted hover:text-neutral-text-primary"
-      title="Copiar"
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  )
-}

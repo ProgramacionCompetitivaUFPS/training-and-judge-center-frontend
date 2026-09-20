@@ -16,7 +16,7 @@ import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, t
 import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
-import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 
 const SUGGESTED_TAGS = [
@@ -359,7 +359,15 @@ interface CreateFormProps {
 function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }: CreateFormProps) {
   const { register, handleSubmit, formState: { errors }, control, setValue, getValues, trigger } = useForm<CreateProblemFormData>({
     resolver: zodResolver(createProblemSchema),
-    defaultValues: { slug: '', title: '', statement: '', tags: '', languageOverrides: [] },
+    defaultValues: {
+      slug: '',
+      title: '',
+      statement: DEFAULT_PROBLEM_STATEMENT_MARKDOWN,
+      tags: '',
+      languageOverrides: [],
+      timeLimit: DEFAULT_PROBLEM_TIME_LIMIT_MS,
+      memoryLimit: DEFAULT_PROBLEM_MEMORY_LIMIT_MB,
+    },
   })
   const { toast } = useToastContext()
 
@@ -477,8 +485,8 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
 
           <FormSection icon={<Timer className="h-4 w-4" />} title="Límites de ejecución">
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Tiempo límite (ms)" type="number" {...register('timeLimit', { valueAsNumber: true })} error={errors.timeLimit?.message} placeholder="2000" />
-              <Input label="Memoria límite (MiB)" type="number" {...register('memoryLimit', { valueAsNumber: true })} error={errors.memoryLimit?.message} placeholder="256" />
+              <Input label="Tiempo límite (ms)" type="number" {...register('timeLimit', { valueAsNumber: true })} error={errors.timeLimit?.message} placeholder={String(DEFAULT_PROBLEM_TIME_LIMIT_MS)} />
+              <Input label="Memoria límite (MiB)" type="number" {...register('memoryLimit', { valueAsNumber: true })} error={errors.memoryLimit?.message} placeholder={String(DEFAULT_PROBLEM_MEMORY_LIMIT_MB)} />
             </div>
           </FormSection>
 
@@ -536,8 +544,8 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
     defaultValues: {
       title: problem.title,
       statement: problem.statement || '',
-      timeLimit: problem.timeLimit || undefined,
-      memoryLimit: problem.memoryLimit || undefined,
+      timeLimit: problem.timeLimit ?? DEFAULT_PROBLEM_TIME_LIMIT_MS,
+      memoryLimit: problem.memoryLimit ?? DEFAULT_PROBLEM_MEMORY_LIMIT_MB,
       tags: problem.tags.join(', '),
       accessibility: problem.accessibility,
       languageOverrides: problem.languageOverrides || [],

@@ -15,9 +15,14 @@ export interface ProblemModifier {
   name: string
 }
 
+export interface ProblemSolution {
+  filename: string
+  language: string
+}
+
 export interface ProblemFiles {
   testCases: boolean
-  solutions: string[]
+  solutions: ProblemSolution[]
   checker: boolean
   validator: boolean
 }
@@ -28,21 +33,15 @@ export interface LanguageOverride {
   memoryLimit?: number
 }
 
-export interface ProblemExample {
-  input: string
-  output: string
-  explanation?: string
-}
-
 // === Detalle completo (GET /problems/:slug) ===
+// The backend models a problem statement as a single Markdown blob (see problemToDTO /
+// getProblemResponse in the backend) — there's no separate inputFormat/outputFormat/examples
+// on the wire; those sections belong inside `statement` itself.
 
 export interface ProblemDetail {
   slug: string
   title: string
   statement: string | null
-  inputFormat: string | null
-  outputFormat: string | null
-  examples: ProblemExample[]
   timeLimit: number | null
   memoryLimit: number | null
   languageOverrides: LanguageOverride[]

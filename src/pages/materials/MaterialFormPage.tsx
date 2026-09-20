@@ -21,6 +21,7 @@ import {
   type CreateMaterialFormData,
 } from '@/lib/schemas/material'
 import { X } from 'lucide-react'
+import { DEFAULT_MATERIAL_CONTENT_MARKDOWN } from '@/lib/constants'
 
 export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -39,7 +40,7 @@ export function MaterialFormPage() {
   const schema = isEditing ? updateMaterialSchema : createMaterialSchema
   const form = useForm<CreateMaterialFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', content: '', tags: [] },
+    defaultValues: { title: '', content: isEditing ? '' : DEFAULT_MATERIAL_CONTENT_MARKDOWN, tags: [] },
   })
 
   const [tagInput, setTagInput] = useState('')
