@@ -234,12 +234,17 @@ export function ProblemDetailPage() {
             )}
           </div>
 
-          {/* Statement */}
+          {/* Statement — the "Enunciado" label is only useful while reviewing a draft
+              alongside the Archivos/Gestión cards; once published, this is the only thing
+              on the page and a contestant is just here to read the problem, so the label
+              would be redundant chrome. */}
           <Card>
-            <CardHeader>
-              <CardTitle>Enunciado</CardTitle>
-            </CardHeader>
-            <CardContent>
+            {problem.status !== 'PUBLISHED' && (
+              <CardHeader>
+                <CardTitle>Enunciado</CardTitle>
+              </CardHeader>
+            )}
+            <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
               {problem.statement ? (
                 <MarkdownRenderer content={problem.statement} />
               ) : (
