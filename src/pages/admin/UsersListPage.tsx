@@ -89,6 +89,12 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
+  const [countryInput, setCountryInput] = useState('')
+  const debouncedCountry = useDebounce(countryInput, 300)
+  const [cityInput, setCityInput] = useState('')
+  const debouncedCity = useDebounce(cityInput, 300)
+  const [institutionInput, setInstitutionInput] = useState('')
+  const debouncedInstitution = useDebounce(institutionInput, 300)
   const [sortValue, setSortValue] = useState<string>('createdAt-desc')
   const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -102,6 +108,9 @@ export function UsersListPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
+    ...(debouncedCountry && { country: debouncedCountry }),
+    ...(debouncedCity && { city: debouncedCity }),
+    ...(debouncedInstitution && { institution: debouncedInstitution }),
     ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
   }
 
@@ -120,7 +129,9 @@ export function UsersListPage() {
     if (editingUser) {
       editForm.reset({
         name: editingUser.name,
-        role: editingUser.role,
+        email: editingUser.email,
+        nickname: editingUser.nickname,
+        role: editingUser.role === 'ADMIN' ? undefined : editingUser.role,
         institution: editingUser.institution,
       })
     }
@@ -149,6 +160,21 @@ export function UsersListPage() {
 
   const handleStatusFilter = (status: string) => {
     setStatusFilter(status === 'ALL' ? undefined : (status as UserStatus))
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleCountryFilter = (country: string) => {
+    setCountryInput(country)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleCityFilter = (city: string) => {
+    setCityInput(city)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleInstitutionFilter = (institution: string) => {
+    setInstitutionInput(institution)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
@@ -233,6 +259,27 @@ export function UsersListPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
+            placeholder="País"
+            className="flex-1"
+            value={countryInput}
+            onChange={(e) => handleCountryFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Ciudad"
+            className="flex-1"
+            value={cityInput}
+            onChange={(e) => handleCityFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Institución"
+            className="flex-1"
+            value={institutionInput}
+            onChange={(e) => handleInstitutionFilter(e.target.value)}
+          />
         </div>
 
         {error && (
@@ -384,6 +431,17 @@ export function UsersListPage() {
               error={editForm.formState.errors.name?.message}
             />
             <Input
+              label="Email"
+              type="email"
+              {...editForm.register('email')}
+              error={editForm.formState.errors.email?.message}
+            />
+            <Input
+              label="Nickname"
+              {...editForm.register('nickname')}
+              error={editForm.formState.errors.nickname?.message}
+            />
+            <Input
               label="Institución"
               {...editForm.register('institution')}
               error={editForm.formState.errors.institution?.message}
@@ -392,13 +450,12 @@ export function UsersListPage() {
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select
                 value={editRole}
-                onValueChange={(v) => editForm.setValue('role', v as UserRole, { shouldValidate: true })}
+                onValueChange={(v) => editForm.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CONTESTANT">Contestant</SelectItem>
                   <SelectItem value="COACH">Coach</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

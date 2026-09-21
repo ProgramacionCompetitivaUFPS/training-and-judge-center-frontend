@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { EntityFormPage } from '@/components/patterns'
+import { AppLayout } from '@/components/layout/AppLayout'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Badge } from '@/components/ui/Badge'
@@ -13,18 +14,21 @@ import {
   useMaterialDetail, useCreateMaterial, useUpdateMaterial,
 } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,
 } from '@/lib/schemas/material'
 import { X } from 'lucide-react'
+import { DEFAULT_MATERIAL_CONTENT_MARKDOWN } from '@/lib/constants'
 
 export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
   const navigate = useNavigate()
   const { toast } = useToastContext()
-  const { data: groupDetail } = useGroupDetail(groupId!)
+  const { user } = useAuth()
+  const { data: groupDetail, isLoading: isLoadingGroup } = useGroupDetail(groupId!)
   const isEditing = !!materialId
 
   const { data: existing, isLoading: isLoadingDetail } = useMaterialDetail(
@@ -36,7 +40,7 @@ export function MaterialFormPage() {
   const schema = isEditing ? updateMaterialSchema : createMaterialSchema
   const form = useForm<CreateMaterialFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', content: '', tags: [] },
+    defaultValues: { title: '', content: isEditing ? '' : DEFAULT_MATERIAL_CONTENT_MARKDOWN, tags: [] },
   })
 
   const [tagInput, setTagInput] = useState('')
@@ -81,6 +85,29 @@ export function MaterialFormPage() {
   }
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
+
+  // Real leadership of the group, not just having the Coach role platform-wide — the backend
+  // already rejects create on a group the Coach doesn't lead (create_material.go); this just
+  // prevents a non-lead Coach from reaching the form via direct URL.
+  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
+  if (groupDetail && !isLead) {
+    return (
+      <AppLayout breadcrumbs={[
+        { label: 'Grupos', href: '/groups' },
+        { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
+        { label: 'Materiales', href: `/groups/${groupId}/materials` },
+        { label: isEditing ? 'Editar' : 'Nuevo' },
+      ]}
+      >
+        <div className="text-center py-12">
+          <p className="text-neutral-text-muted">No tienes permiso para {isEditing ? 'editar' : 'crear'} materiales en este grupo.</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate(`/groups/${groupId}/materials`)}>
+            Volver a materiales
+          </Button>
+        </div>
+      </AppLayout>
+    )
+  }
 
   const sections = [
     {
@@ -180,7 +207,7 @@ export function MaterialFormPage() {
       onSubmit={form.handleSubmit(onSubmit)}
       onCancel={() => navigate(isEditing ? `/groups/${groupId}/materials/${materialId}` : `/groups/${groupId}/materials`)}
       isSubmitting={isSubmitting}
-      isLoading={isEditing && isLoadingDetail}
+      isLoading={(isEditing && isLoadingDetail) || isLoadingGroup}
       sections={sections}
     >
       {null}

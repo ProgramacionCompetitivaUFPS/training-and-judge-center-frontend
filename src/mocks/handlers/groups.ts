@@ -20,6 +20,7 @@ export const groupsHandlers = [
       search: sp.get('search') || undefined,
       joinPolicy: sp.get('joinPolicy') || undefined,
       visibility: sp.get('visibility') || undefined,
+      hasActiveContests: sp.get('hasActiveContests') === 'true' || undefined,
       sortBy: sp.get('sortBy') || undefined,
       order: sp.get('order') || undefined,
     })
@@ -170,13 +171,19 @@ export const groupsHandlers = [
   }),
 
   // Join requests
-  http.get(url('/groups/:groupId/requests'), async ({ params }) => {
+  http.get(url('/groups/:groupId/requests'), async ({ params, request }) => {
     await delay(200)
     const { groupId } = params as { groupId: string }
-    const requests = mockJoinRequests[groupId] || []
+    const sp = new URL(request.url).searchParams
+    const status = sp.get('status')
+    const page = Number(sp.get('page')) || 1
+    const limit = Number(sp.get('limit')) || 50
+    const filtered = (mockJoinRequests[groupId] || []).filter((r) => !status || r.status === status)
+    const total = filtered.length
+    const totalPages = Math.max(1, Math.ceil(total / limit))
     return HttpResponse.json({
-      requests,
-      pagination: { page: 1, limit: 50, total: requests.length, totalPages: 1 },
+      requests: filtered.slice((page - 1) * limit, page * limit),
+      pagination: { page, limit, total, totalPages },
     })
   }),
 
@@ -229,26 +236,44 @@ export const groupsHandlers = [
   }),
 
   // Create invitation — note: the real backend never returns a ready-made link, only `id`;
-  // the frontend builds the accept URL itself from groupId + id.
-  http.post(url('/groups/:groupId/invitations'), async ({ params }) => {
+  // the frontend builds the accept URL itself from groupId + id. Body uses userId/userNickname/
+  // userEmail (matching the real backend's generateInviteReq); omitting all three creates a
+  // general invitation with no resolved invitee.
+  http.post(url('/groups/:groupId/invitations'), async ({ params, request }) => {
     await delay(300)
     const { groupId } = params as { groupId: string }
+    const body = (await request.json().catch(() => ({}))) as { userId?: string; userNickname?: string; userEmail?: string }
+    const invitee = body.userId || body.userNickname || body.userEmail
+      ? {
+          userId: 'u-resolved',
+          nickname: body.userNickname || 'usuarioinvitado',
+          name: 'Usuario Invitado',
+          email: body.userEmail || 'invitado@trainingcenter.com',
+        }
+      : undefined
     return HttpResponse.json({
       id: 'inv-' + Date.now(),
       groupId,
-      inviteeUserId: 'u-resolved',
+      invitee,
+      status: 'PENDING',
       expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
     }, { status: 201 })
   }),
 
   // List invitations
-  http.get(url('/groups/:groupId/invitations'), async ({ params }) => {
+  http.get(url('/groups/:groupId/invitations'), async ({ params, request }) => {
     await delay(200)
     const { groupId } = params as { groupId: string }
+    const sp = new URL(request.url).searchParams
+    const page = Number(sp.get('page')) || 1
+    const size = Number(sp.get('size')) || 20
     const invitations = mockInvitations[groupId] || []
+    const totalItems = invitations.length
+    const totalPages = totalItems > 0 ? Math.max(1, Math.ceil(totalItems / size)) : 0
     return HttpResponse.json({
-      invitations,
-      pagination: { page: 1, size: 20, totalItems: invitations.length, totalPages: invitations.length > 0 ? 1 : 0 },
+      invitations: invitations.slice((page - 1) * size, page * size),
+      pagination: { page, size, totalItems, totalPages },
     })
   }),
 

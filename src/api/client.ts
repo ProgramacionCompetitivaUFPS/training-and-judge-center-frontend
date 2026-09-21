@@ -51,7 +51,7 @@ class ApiClient {
         error: 'UNKNOWN',
         message: response.statusText,
       }))
-      throw new ApiClientError(response.status, error.error, error.message, error.details)
+      throw new ApiClientError(response.status, error.error, error.message, error.details, error)
     }
     return response.json()
   }
@@ -94,7 +94,7 @@ class ApiClient {
         error: 'UNKNOWN',
         message: response.statusText,
       }))
-      throw new ApiClientError(response.status, error.error, error.message, error.details)
+      throw new ApiClientError(response.status, error.error, error.message, error.details, error)
     }
 
     if (response.status === 204) {
@@ -202,7 +202,7 @@ class ApiClient {
         error: 'UNKNOWN',
         message: response.statusText,
       }))
-      throw new ApiClientError(response.status, error.error, error.message, error.details)
+      throw new ApiClientError(response.status, error.error, error.message, error.details, error)
     }
     return response.blob()
   }

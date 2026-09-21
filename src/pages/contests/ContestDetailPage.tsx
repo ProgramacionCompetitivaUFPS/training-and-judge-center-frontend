@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect } from '@/components/ui'
+import {
+  Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect, Input,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest, useStandings } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -16,7 +19,7 @@ import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegis
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
-import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
+import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 
 function LockedProblemsPlaceholder() {
   return (
@@ -56,6 +59,9 @@ export function ContestDetailPage() {
   const debouncedProblemSearch = useDebounce(problemSearchQuery)
   const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
   const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
@@ -69,6 +75,17 @@ export function ContestDetailPage() {
   // if the same person competes via a different team for this contest, that's a separate registration.
   const myRegistration = teamRegistrationsData?.teams.find((r) =>
     r.selectedMembers.some((m) => m.nickname === user?.nickname)
+  )
+
+  // Large limit so the current user's row is included regardless of their rank —
+  // there's no "find me" endpoint, so we fetch the full table and search client-side.
+  const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000 }, {
+    enabled: contest?.status === 'ACTIVE' && !!contest?.isRegistered,
+  })
+  const myStanding = standingsData?.standings.find((entry) =>
+    entry.participant.type === 'TEAM'
+      ? entry.participant.id === myRegistration?.team.id
+      : entry.participant.nickname === user?.nickname,
   )
 
   if (!id || !groupId) return null
@@ -89,6 +106,9 @@ export function ContestDetailPage() {
   // platform-wide, which the backend already rejects for management actions on contests
   // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
   const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
+  // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
+  // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
+  const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
@@ -125,6 +145,11 @@ export function ContestDetailPage() {
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
       },
     )
+  }
+
+  const handleDeleteClick = () => {
+    setConfirmName('')
+    setDeleteDialogOpen(true)
   }
 
   const handleLockToggle = () => {
@@ -212,6 +237,31 @@ export function ContestDetailPage() {
     { label: contest.name },
   ]
 
+  const deleteDialog = (
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar competencia</DialogTitle>
+          <DialogDescription>
+            Escribe <span className="font-bold">{contest.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nombre de la competencia" />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={deleteMutation.isPending}
+            disabled={confirmName !== contest.name}
+          >
+            Eliminar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
   // ═══════════════════════════════════════════════
   // ACTIVE: Competition mode layout
   // ═══════════════════════════════════════════════
@@ -265,20 +315,20 @@ export function ContestDetailPage() {
 
             <aside className="lg:col-span-4 space-y-4">
               {/* User position — first in sidebar for visibility */}
-              {contest.isRegistered && (
+              {contest.isRegistered && myStanding && (
                 <Card>
                   <CardContent className="pt-5">
                     <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-3">Tu posición actual</p>
                     <div className="flex items-baseline gap-1.5 mb-3">
-                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#3</span>
+                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#{myStanding.rank}</span>
                       <span className="text-sm text-neutral-text-muted font-medium">/ {contest.participantCount}</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="px-2.5 py-1 bg-status-success/10 text-status-success text-xs font-bold rounded-md">
-                        2 Resueltos
+                        {myStanding.problemsSolved} Resueltos
                       </span>
                       <span className="px-2.5 py-1 bg-neutral-background text-neutral-text-muted text-xs font-bold rounded-md">
-                        85 min
+                        {myStanding.totalPenalty} min
                       </span>
                     </div>
                   </CardContent>
@@ -484,7 +534,8 @@ export function ContestDetailPage() {
                         {contest.problems.map((p) => (
                           <li key={p.slug} className="flex items-center justify-between py-2">
                             <span className="text-sm font-medium text-neutral-text-primary">
-                              {p.position}. {p.title} <span className="text-neutral-text-muted">({p.slug})</span>
+                              {problemLabel(p.position)}. {p.title}{' '}
+                              <span className="text-neutral-text-muted">({p.slug})</span>
                             </span>
                             <button
                               type="button"
@@ -539,7 +590,7 @@ export function ContestDetailPage() {
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-              {isLead && (
+              {isContestOwner && (
                 <Card>
                   <CardContent className="pt-5 space-y-2">
                     <Button
@@ -559,13 +610,14 @@ export function ContestDetailPage() {
                 <ContestAdminActions
                   contestId={contest.id}
                   groupId={groupId}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteClick}
                   isDeleting={deleteMutation.isPending}
                 />
               )}
             </div>
           </div>
         </div>
+        {deleteDialog}
       </AppLayout>
     )
   }
@@ -632,7 +684,7 @@ export function ContestDetailPage() {
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-            {isLead && (
+            {isContestOwner && (
               <Card>
                 <CardContent className="pt-5 space-y-2">
                   <Button
@@ -652,13 +704,14 @@ export function ContestDetailPage() {
               <ContestAdminActions
                 contestId={contest.id}
                 groupId={groupId}
-                onDelete={handleDelete}
+                onDelete={handleDeleteClick}
                 isDeleting={deleteMutation.isPending}
               />
             )}
           </aside>
         </div>
       </div>
+      {deleteDialog}
     </AppLayout>
   )
 }

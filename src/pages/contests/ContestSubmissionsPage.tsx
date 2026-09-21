@@ -15,9 +15,16 @@ import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
+import { cn, problemLabel } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
+
+const PHASE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'competition', label: 'Competencia' },
+  { value: 'postcompetition', label: 'Post-competencia' },
+]
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -46,7 +53,6 @@ export function ContestSubmissionsPage() {
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
   // Real leadership of the group that owns this contest, or platform Admin — mirrors the
   // freeze exemption already applied server-side in list_contest_submissions.go.
@@ -85,42 +91,61 @@ export function ContestSubmissionsPage() {
           )}
         </div>
 
-        {/* Filters inline */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative w-56">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
-            <Input
-              placeholder="Filtrar por nickname..."
-              className="pl-9"
-              value={nicknameInput}
-              onChange={(e) => { setNicknameInput(e.target.value); setPagination((p) => ({ ...p, page: 1 })) }}
-            />
+        {/* Filters */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-5">
+            <div className="relative w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+              <Input
+                placeholder="Filtrar por nickname..."
+                className="pl-9"
+                value={nicknameInput}
+                onChange={(e) => { setNicknameInput(e.target.value); setPagination((p) => ({ ...p, page: 1 })) }}
+              />
+            </div>
+            {contest && contest.problems.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-neutral-text-muted">Problema</span>
+                <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPagination((p) => ({ ...p, page: 1 })) }}>
+                  <SelectTrigger className="w-56 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los problemas</SelectItem>
+                    {contest.problems.map((p) => (
+                      <SelectItem key={p.slug} value={p.slug}>
+                        {problemLabel(p.position)} - {p.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-          {contest && contest.problems.length > 0 && (
-            <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPagination((p) => ({ ...p, page: 1 })) }}>
-              <SelectTrigger className="w-56 shrink-0">
-                <SelectValue placeholder="Todos los problemas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los problemas</SelectItem>
-                {contest.problems.map((p) => (
-                  <SelectItem key={p.slug} value={p.slug}>
-                    {labels[p.position - 1] || p.position} - {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+          {/* "Post-competencia" only exists once the contest has actually finished — before that,
+              every submission is by definition within the competition, so the filter has nothing
+              real to distinguish (see mocks/data.ts: postcompetition = submittedAt > endTime). */}
+          {data?.contest.status === 'FINISHED' && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Fase</span>
+              {PHASE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { setPhase(opt.value); setPagination((p) => ({ ...p, page: 1 })) }}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    phase === opt.value
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           )}
-          <Select value={phase} onValueChange={(v) => { setPhase(v); setPagination((p) => ({ ...p, page: 1 })) }}>
-            <SelectTrigger className="w-48 shrink-0">
-              <SelectValue placeholder="Todas las fases" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las fases</SelectItem>
-              <SelectItem value="competition">Competencia</SelectItem>
-              <SelectItem value="postcompetition">Post-competencia</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {data && !isLoading && (
@@ -198,7 +223,7 @@ export function ContestSubmissionsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="font-mono font-bold mr-1">
-                          {labels[sub.problem.order - 1] || sub.problem.order}
+                          {problemLabel(sub.problem.order)}
                         </span>
                         {sub.problem.title}
                       </TableCell>

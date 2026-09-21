@@ -3,6 +3,7 @@ import { Send } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
 
 interface ContestProblem {
   position: number
@@ -18,8 +19,6 @@ interface ContestProblemsTableProps {
   contestId: string
   showSubmit?: boolean
 }
-
-const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 export function ContestProblemsTable({ problems, groupId, contestId, showSubmit }: ContestProblemsTableProps) {
   const navigate = useNavigate()
@@ -41,7 +40,7 @@ export function ContestProblemsTable({ problems, groupId, contestId, showSubmit 
       </TableHeader>
       <TableBody>
         {problems.map((p) => {
-          const letter = LABELS[p.position - 1] || String(p.position)
+          const letter = problemLabel(p.position)
           return (
             <TableRow key={p.slug} className="group">
               <TableCell className="pl-6">

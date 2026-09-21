@@ -157,6 +157,9 @@ export interface AdminUserListParams extends PaginationParams {
   search?: string
   role?: UserRole
   status?: UserStatus
+  country?: string
+  city?: string
+  institution?: string
   sortBy?: 'name' | 'nickname' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
 }

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Copy, Check, Upload, X, RefreshCw, ClipboardCheck } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect } from '@/components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useContestSession } from '@/hooks/useContestSession'
@@ -27,9 +27,27 @@ import { useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
-import { SUBMISSION_STATUS_CONFIG, PATHS } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
-import type { ProblemDetail } from '@/types/problem'
+import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
+import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+
+interface PublishRequirement { key: string; label: string; met: (problem: ProblemDetail) => boolean }
+
+// Mirrors the backend's requiredFieldsForPublish (checker/validator are optional there,
+// so they're intentionally left out here too). `key` matches the strings the backend sends
+// back in a failed publish response's `missingFields` (see PublishFailureResponse).
+const PUBLISH_REQUIREMENTS: PublishRequirement[] = [
+  { key: 'statement', label: 'Enunciado', met: (p) => !!p.statement },
+  { key: 'timeLimit', label: 'Límite de tiempo', met: (p) => p.timeLimit != null },
+  { key: 'memoryLimit', label: 'Límite de memoria', met: (p) => p.memoryLimit != null },
+  { key: 'testCases', label: 'Casos de prueba', met: (p) => !!p.files?.testCases },
+  { key: 'solution', label: 'Al menos una solución', met: (p) => (p.files?.solutions.length ?? 0) > 0 },
+]
+
+function publishRequirementLabel(fieldKey: string): string {
+  return PUBLISH_REQUIREMENTS.find((r) => r.key === fieldKey)?.label ?? fieldKey
+}
 
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
@@ -59,7 +77,11 @@ export function ProblemDetailPage() {
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
-  const [publishLogs, setPublishLogs] = useState<string[] | null>(null)
+  const [publishResult, setPublishResult] = useState<
+    | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
+    | { kind: 'failure'; data: PublishFailureResponse }
+    | null
+  >(null)
 
   if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
@@ -88,19 +110,33 @@ export function ProblemDetailPage() {
   const canEdit = isAdmin || isModifier
   const canDelete = isAdmin || problem.author.nickname === user?.nickname
   const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
-  // Real leadership of the contest's group — scoped narrower than canSeeManagement, since
-  // the backend rejects contest management actions from a Coach who isn't actually a leader
-  // of that specific group (same rule as ContestDetailPage.tsx).
-  const isContestLead = isAdmin || contestGroup?.userMembership.role === 'LEAD'
+  // Real leadership of the contest's group, or ownership of the contest itself — the two
+  // identities the backend's contest-scoped rejudge endpoint actually accepts (same rule as
+  // ContestDetailPage.tsx). An Admin who is neither still sees the button (manual grants
+  // Admin access too) but must be routed to the admin rejudge endpoint instead — see
+  // handleContestRejudge.
+  const isContestOwnerOrLead =
+    contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
+  const isContestLead = isAdmin || isContestOwnerOrLead
+  const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
 
   function handlePublish() {
     if (!problem) return
     publishMutation.mutate(problem.slug, {
       onSuccess: (data) => {
         toast({ variant: 'success', title: 'Problema publicado' })
-        if (data.validationLogs?.length) setPublishLogs(data.validationLogs)
+        if (data.validationLogs?.length) {
+          setPublishResult({ kind: 'success', validationLogs: data.validationLogs, validationSummary: data.validationSummary })
+        }
       },
-      onError: () => toast({ variant: 'error', title: 'Error al publicar' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'VALIDATION_FAILED' && err.raw) {
+          toast({ variant: 'error', title: 'No se pudo publicar', description: 'Revisa el detalle de la validación.' })
+          setPublishResult({ kind: 'failure', data: err.raw as PublishFailureResponse })
+        } else {
+          toast({ variant: 'error', title: 'Error al publicar', description: err instanceof ApiClientError ? err.message : undefined })
+        }
+      },
     })
   }
 
@@ -127,29 +163,43 @@ export function ProblemDetailPage() {
           toast({ variant: 'success', title: 'Problema eliminado' })
           navigate('/problems')
         },
-        onError: () => toast({ variant: 'error', title: 'Error al eliminar' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+            toast({ variant: 'error', title: 'No se puede eliminar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+          } else {
+            toast({ variant: 'error', title: 'Error al eliminar' })
+          }
+        },
       },
     )
   }
 
   function handleAdminRejudge() {
     if (!problem) return
-    adminRejudgeMutation.mutate(problem.slug, {
-      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
-    })
+    adminRejudgeMutation.mutate(
+      { slug: problem.slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
+        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+      },
+    )
     setAdminRejudgeDialogOpen(false)
   }
 
   function handleContestRejudge() {
     if (!problem || !groupId || !contestId) return
-    rejudgeContestMutation.mutate(
-      { groupId, contestId, problemSlug: problem.slug },
-      {
-        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
-        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
-      },
-    )
+    const onSettled = {
+      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
+      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+    }
+    // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
+    // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
+    // ?contestId= is the one designed for that case (see PRB-09 in docs/seguimiento).
+    if (isContestOwnerOrLead) {
+      rejudgeContestMutation.mutate({ groupId, contestId, problemSlug: problem.slug }, onSettled)
+    } else {
+      adminRejudgeMutation.mutate({ slug: problem.slug, contestId }, onSettled)
+    }
     setContestRejudgeDialogOpen(false)
   }
 
@@ -165,6 +215,7 @@ export function ProblemDetailPage() {
       ]
 
   return (
+    <TooltipProvider>
     <AppLayout breadcrumbs={breadcrumbs}>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
         {/* === Left Column: Content === */}
@@ -201,12 +252,17 @@ export function ProblemDetailPage() {
             )}
           </div>
 
-          {/* Statement */}
+          {/* Statement — the "Enunciado" label is only useful while reviewing a draft
+              alongside the Archivos/Gestión cards; once published, this is the only thing
+              on the page and a contestant is just here to read the problem, so the label
+              would be redundant chrome. */}
           <Card>
-            <CardHeader>
-              <CardTitle>Enunciado</CardTitle>
-            </CardHeader>
-            <CardContent>
+            {problem.status !== 'PUBLISHED' && (
+              <CardHeader>
+                <CardTitle>Enunciado</CardTitle>
+              </CardHeader>
+            )}
+            <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
               {problem.statement ? (
                 <MarkdownRenderer content={problem.statement} />
               ) : (
@@ -215,48 +271,38 @@ export function ProblemDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Input / Output as separate cards */}
-          {(problem.inputFormat || problem.outputFormat) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {problem.inputFormat && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-wider">Entrada</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <MarkdownRenderer content={problem.inputFormat} />
-                  </CardContent>
-                </Card>
-              )}
-              {problem.outputFormat && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-wider">Salida</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <MarkdownRenderer content={problem.outputFormat} />
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Examples */}
-          {problem.examples && problem.examples.length > 0 && (
+          {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
+              `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
+          {problem.samples.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Ejemplos</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {problem.examples.map((ex, idx) => (
-                  <ExampleBlock key={idx} index={idx + 1} input={ex.input} output={ex.output} explanation={ex.explanation} />
+                {problem.samples.map((sample, index) => (
+                  <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
+                    <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+                      <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+                      <div className="p-4">
+                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
+                      </div>
+                      <div className="p-4">
+                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </CardContent>
             </Card>
           )}
 
-          {/* Files (only for modifiers) */}
-          {canEdit && problem.files && (
+          {/* Files (only for modifiers, and only while the problem is still a draft — the
+              backend rejects uploads to a published problem) */}
+          {canEdit && problem.files && problem.status !== 'PUBLISHED' && (
             <FilesManager problem={problem} />
           )}
 
@@ -427,10 +473,29 @@ export function ProblemDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {problem.status === 'DRAFT' && (
-                  <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
-                    <ArrowUpCircle className="h-4 w-4" />
-                    Publicar
-                  </Button>
+                  missingPublishRequirements.length > 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="block">
+                          <Button variant="primary" className="w-full gap-2" disabled>
+                            <ArrowUpCircle className="h-4 w-4" />
+                            Publicar
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
+                        <ul className="mt-1 list-disc list-inside">
+                          {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+                        </ul>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+                      <ArrowUpCircle className="h-4 w-4" />
+                      Publicar
+                    </Button>
+                  )
                 )}
                 {problem.status === 'PUBLISHED' && (
                   <Button variant="outline" className="w-full gap-2" onClick={handleUnpublish} isLoading={unpublishMutation.isPending}>
@@ -458,7 +523,8 @@ export function ProblemDetailPage() {
             </Card>
           )}
 
-          {/* Contest-scoped rejudge (only within a contest, for the group's real leads/admin) */}
+          {/* Contest-scoped rejudge (only within a contest, for the group's real leads, the
+              contest's owner, or Admin — see handleContestRejudge for the endpoint routing) */}
           {isContestContext && isContestLead && (
             <Card>
               <CardHeader>
@@ -469,7 +535,7 @@ export function ProblemDetailPage() {
                   variant="outline"
                   className="w-full gap-2"
                   onClick={() => setContestRejudgeDialogOpen(true)}
-                  isLoading={rejudgeContestMutation.isPending}
+                  isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
                 >
                   <RefreshCw className="h-4 w-4" />
                   Rejuzgar envíos
@@ -501,25 +567,104 @@ export function ProblemDetailPage() {
         variant="warning"
         confirmLabel="Rejuzgar"
         onConfirm={handleContestRejudge}
-        isLoading={rejudgeContestMutation.isPending}
+        isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
       />
 
-      {/* Publish validation logs */}
-      <Dialog open={!!publishLogs} onOpenChange={(open) => !open && setPublishLogs(null)}>
+      {/* Publish validation result — success (validation logs) or failure (real detail from
+          the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
+      <Dialog open={!!publishResult} onOpenChange={(open) => !open && setPublishResult(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-status-success" />
-              Detalle de la validación
+              {publishResult?.kind === 'failure' ? (
+                <>
+                  <XCircle className="h-5 w-5 text-status-error" />
+                  No se pudo publicar
+                </>
+              ) : (
+                <>
+                  <ClipboardCheck className="h-5 w-5 text-status-success" />
+                  Detalle de la validación
+                </>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <ul className="space-y-2">
-            {publishLogs?.map((log, i) => (
-              <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
-            ))}
-          </ul>
+
+          {publishResult?.kind === 'success' && (
+            <ul className="space-y-2">
+              {publishResult.validationLogs.map((log, i) => (
+                <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+              ))}
+            </ul>
+          )}
+
+          {publishResult?.kind === 'failure' && (
+            <div className="space-y-4">
+              <p className="text-sm text-neutral-text-primary">{publishResult.data.message}</p>
+
+              {!!publishResult.data.missingFields?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Faltan campos requeridos:</p>
+                  <ul className="mt-1 list-disc list-inside text-sm text-neutral-text-primary">
+                    {publishResult.data.missingFields.map((field) => (
+                      <li key={field}>{publishRequirementLabel(field)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {publishResult.data.compilationErrors && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">
+                    Error de compilación en <span className="font-mono">{publishResult.data.compilationErrors.file}</span>:
+                  </p>
+                  <pre className="mt-1 whitespace-pre-wrap rounded bg-neutral-background p-2 font-mono text-xs text-neutral-text-primary">
+                    {publishResult.data.compilationErrors.errors.join('\n')}
+                  </pre>
+                </div>
+              )}
+
+              {!!publishResult.data.failedTestCases?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Casos de prueba fallidos:</p>
+                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
+                    {publishResult.data.failedTestCases.map((tc) => (
+                      <li key={tc.case}>
+                        <span className="font-mono">{tc.case}</span>
+                        {(tc.status || tc.verdict) && <span className="text-neutral-text-muted"> — {tc.status || tc.verdict}</span>}
+                        {tc.details && <span className="block text-xs text-neutral-text-muted">{tc.details}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!publishResult.data.failedInputs?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Entradas rechazadas por el validator:</p>
+                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
+                    {publishResult.data.failedInputs.map((fi) => (
+                      <li key={fi.file}><span className="font-mono">{fi.file}</span>: {fi.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!publishResult.data.validationLogs?.length && (
+                <details>
+                  <summary className="cursor-pointer text-sm font-semibold text-neutral-text-primary">Ver logs completos</summary>
+                  <ul className="mt-2 space-y-1">
+                    {publishResult.data.validationLogs.map((log, i) => (
+                      <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button onClick={() => setPublishLogs(null)}>Cerrar</Button>
+            <Button onClick={() => setPublishResult(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -553,6 +698,7 @@ export function ProblemDetailPage() {
         </DialogContent>
       </Dialog>
     </AppLayout>
+    </TooltipProvider>
   )
 }
 
@@ -572,10 +718,21 @@ function MetadataRow({ icon: Icon, label, value }: MetadataRowProps) {
   )
 }
 
-const FILE_TYPE_LABELS: Record<string, string> = {
-  testCases: 'Casos de prueba',
-  checker: 'Checker',
-  validator: 'Validator',
+type ProblemFileType = keyof typeof PROBLEM_FILE_TYPE_INFO
+
+// Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
+// only confirms the two required folders exist somewhere in the archive, without
+// validating .in/.ans pairing, file sizes, or the exact ICPC root-detection rules —
+// that stays the backend's job so the two don't drift out of sync.
+async function checkTestCasesZipStructure(file: File): Promise<string | null> {
+  const paths = await peekZipEntryPaths(file)
+  if (!paths) return 'El archivo no se pudo leer como un ZIP válido.'
+  const hasSample = paths.some((p) => p.includes('data/sample/'))
+  const hasSecret = paths.some((p) => p.includes('data/secret/'))
+  if (!hasSample || !hasSecret) {
+    return 'El ZIP debe contener las carpetas data/sample/ y data/secret/ con los casos de prueba.'
+  }
+  return null
 }
 
 interface FilesManagerProps { problem: ProblemDetail }
@@ -585,26 +742,60 @@ function FilesManager({ problem }: FilesManagerProps) {
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [pendingFileType, setPendingFileType] = useState<string | null>(null)
+  const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
 
   if (!problem.files) return null
   const files = problem.files
 
-  function triggerUpload(fileType: string) {
+  function triggerUpload(fileType: ProblemFileType) {
     setPendingFileType(fileType)
+    if (fileInputRef.current) fileInputRef.current.accept = PROBLEM_FILE_TYPE_INFO[fileType].accept
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !pendingFileType) return
+
+    const info = PROBLEM_FILE_TYPE_INFO[pendingFileType]
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    if (!(info.extensions as readonly string[]).includes(extension)) {
+      toast({
+        variant: 'error',
+        title: 'Formato de archivo incorrecto',
+        description: `${info.label} espera ${info.extensions.join(' o ')}. ${info.help}`,
+      })
+      setPendingFileType(null)
+      return
+    }
+
+    if (pendingFileType === 'testCases' && !exceedsZipStructureCheckSize(file)) {
+      setIsCheckingZip(true)
+      const structureError = await checkTestCasesZipStructure(file)
+      setIsCheckingZip(false)
+      if (structureError) {
+        toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
+        setPendingFileType(null)
+        return
+      }
+    }
+
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
-        onError: () => toast({ variant: 'error', title: 'Error al subir el archivo' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+            toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+          } else if (err instanceof ApiClientError) {
+            toast({ variant: 'error', title: 'Error al subir el archivo', description: err.message })
+          } else {
+            toast({ variant: 'error', title: 'Error al subir el archivo' })
+          }
+        },
       },
     )
     setPendingFileType(null)
@@ -616,7 +807,13 @@ function FilesManager({ problem }: FilesManagerProps) {
       { slug: problem.slug, fileType: deleteTarget.fileType, fileName: deleteTarget.fileName },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Archivo eliminado' }),
-        onError: () => toast({ variant: 'error', title: 'Error al eliminar el archivo' }),
+        onError: (err) => {
+          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+            toast({ variant: 'error', title: 'No se puede eliminar el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+          } else {
+            toast({ variant: 'error', title: 'Error al eliminar el archivo' })
+          }
+        },
       },
     )
     setDeleteTarget(null)
@@ -634,14 +831,17 @@ function FilesManager({ problem }: FilesManagerProps) {
           <div key={fileType} className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
-              <span className="text-neutral-text-primary">{FILE_TYPE_LABELS[fileType]}</span>
+              <span className="text-neutral-text-primary inline-flex items-center gap-1">
+                {PROBLEM_FILE_TYPE_INFO[fileType].label}
+                <FileFormatHint fileType={fileType} />
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => triggerUpload(fileType)}
-                isLoading={uploadMutation.isPending && pendingFileType === fileType}
+                isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 {files[fileType] ? 'Reemplazar' : 'Subir'}
@@ -649,9 +849,9 @@ function FilesManager({ problem }: FilesManagerProps) {
               {files[fileType] && (
                 <button
                   type="button"
-                  onClick={() => setDeleteTarget({ fileType, label: FILE_TYPE_LABELS[fileType] })}
+                  onClick={() => setDeleteTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
                   className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                  aria-label={`Eliminar ${FILE_TYPE_LABELS[fileType]}`}
+                  aria-label={`Eliminar ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -662,7 +862,10 @@ function FilesManager({ problem }: FilesManagerProps) {
 
         <div className="pt-2 border-t border-neutral-border">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-neutral-text-primary font-medium">Soluciones</span>
+            <span className="text-neutral-text-primary font-medium inline-flex items-center gap-1">
+              Soluciones
+              <FileFormatHint fileType="solution" />
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -677,14 +880,14 @@ function FilesManager({ problem }: FilesManagerProps) {
             <p className="text-xs text-neutral-text-muted">Sin soluciones cargadas.</p>
           ) : (
             <ul className="space-y-1">
-              {files.solutions.map((fileName) => (
-                <li key={fileName} className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-text-muted font-mono text-xs">{fileName}</span>
+              {files.solutions.map((sol) => (
+                <li key={sol.filename} className="flex items-center justify-between text-sm">
+                  <span className="text-neutral-text-muted font-mono text-xs">{sol.filename}</span>
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName, label: fileName })}
+                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
                     className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                    aria-label={`Eliminar ${fileName}`}
+                    aria-label={`Eliminar ${sol.filename}`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -705,6 +908,29 @@ function FilesManager({ problem }: FilesManagerProps) {
         isLoading={deleteMutation.isPending}
       />
     </Card>
+  )
+}
+
+function FileFormatHint({ fileType }: { fileType: ProblemFileType }) {
+  const info = PROBLEM_FILE_TYPE_INFO[fileType]
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="align-super text-neutral-text-muted hover:text-brand-primary"
+          aria-label={`Formato esperado para ${info.label}`}
+        >
+          <HelpCircle className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{info.help}</p>
+        <pre className="mt-1.5 whitespace-pre-wrap rounded bg-neutral-background p-1.5 font-mono text-[11px] text-neutral-text-muted">
+          {info.example}
+        </pre>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -802,57 +1028,3 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
   )
 }
 
-interface ExampleBlockProps { index: number; input: string; output: string; explanation?: string }
-
-function ExampleBlock({ index, input, output, explanation }: ExampleBlockProps) {
-  return (
-    <div className="border border-neutral-border rounded-lg overflow-hidden">
-      <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border flex items-center justify-between">
-        <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index}</span>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
-            <CopyButton text={input} />
-          </div>
-          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{input}</pre>
-        </div>
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
-            <CopyButton text={output} />
-          </div>
-          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3">{output}</pre>
-        </div>
-      </div>
-      {explanation && (
-        <div className="px-4 py-3 border-t border-neutral-border bg-brand-primary-muted/30">
-          <MarkdownRenderer content={`**Nota:** ${explanation}`} className="text-sm" />
-        </div>
-      )}
-    </div>
-  )
-}
-
-interface CopyButtonProps { text: string }
-
-function CopyButton({ text }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 rounded hover:bg-neutral-border/50 transition-colors text-neutral-text-muted hover:text-neutral-text-primary"
-      title="Copiar"
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  )
-}

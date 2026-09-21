@@ -186,7 +186,18 @@ export function toPublicProfile(user: User, full: boolean): PublicUserProfile {
 // === Helper to build paginated admin user list ===
 
 export function buildAdminUserList(
-  params: { page?: number; limit?: number; search?: string; role?: string; status?: string; sort?: string; order?: string }
+  params: {
+    page?: number
+    limit?: number
+    search?: string
+    role?: string
+    status?: string
+    country?: string
+    city?: string
+    institution?: string
+    sort?: string
+    order?: string
+  }
 ): AdminUserListResponse {
   let filtered = [...mockUsers] as (User & { id: string })[]
 
@@ -201,6 +212,15 @@ export function buildAdminUserList(
   }
   if (params.status) {
     filtered = filtered.filter((u) => u.status === params.status)
+  }
+  if (params.country) {
+    filtered = filtered.filter((u) => u.country.toLowerCase() === params.country!.toLowerCase())
+  }
+  if (params.city) {
+    filtered = filtered.filter((u) => u.city.toLowerCase() === params.city!.toLowerCase())
+  }
+  if (params.institution) {
+    filtered = filtered.filter((u) => u.institution.toLowerCase() === params.institution!.toLowerCase())
   }
 
   if (params.sort === 'name' || params.sort === 'nickname' || params.sort === 'createdAt') {
@@ -506,6 +526,21 @@ export const mockJoinRequests: Record<string, JoinRequest[]> = {
       status: 'PENDING',
       createdAt: '2026-03-10T14:00:00Z',
     },
+    {
+      id: 'req-3',
+      groupId: 'group-1',
+      requester: { userId: 'u5', nickname: 'pedromartinez', name: 'Pedro Martínez' },
+      message: 'Ya participé en regionales anteriores.',
+      status: 'APPROVED',
+      createdAt: '2026-02-20T09:00:00Z',
+    },
+    {
+      id: 'req-4',
+      groupId: 'group-1',
+      requester: { userId: 'u8', nickname: 'pedroinactive', name: 'Pedro Inactivo' },
+      status: 'REJECTED',
+      createdAt: '2026-02-15T11:00:00Z',
+    },
   ],
   'group-5': [
     {
@@ -524,8 +559,13 @@ export const mockInvitations: Record<string, InvitationListItem[]> = {
     {
       id: 'inv-1',
       groupId: 'group-1',
-      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', fullName: 'Pedro Inactivo' },
+      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', name: 'Pedro Inactivo' },
       expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'inv-2',
+      groupId: 'group-1',
+      expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ],
 }
@@ -601,6 +641,7 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
+  hasActiveContests?: boolean
   sortBy?: string
   order?: string
 }) {
@@ -615,6 +656,9 @@ export function buildGroupList(params: {
   }
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
+  }
+  if (params.hasActiveContests) {
+    filtered = filtered.filter((g) => g.activeContestCount > 0)
   }
 
   if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {
@@ -703,13 +747,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'two-sum',
     title: 'Two Sum',
-    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
-    outputFormat: 'Imprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
-    examples: [
-      { input: '4 9\n2 7 11 15', output: '0 1', explanation: '$nums[0] + nums[1] = 2 + 7 = 9$' },
-      { input: '3 6\n3 2 4', output: '1 2' },
-      { input: '2 6\n3 3', output: '0 1' },
+    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
+    samples: [
+      { name: '1', input: '4 9\n2 7 11 15', output: '0 1' },
+      { name: '2', input: '3 6\n3 2 4', output: '1 2' },
+      { name: '3', input: '2 6\n3 3', output: '0 1' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -722,7 +764,7 @@ export const mockProblems: ProblemDetail[] = [
       { nickname: 'mariacoach', name: 'María Coach' },
       { nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    files: { testCases: true, solutions: ['solution.cpp', 'solution.py'], checker: false, validator: true },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }, { filename: 'solution.py', language: 'python310' }], checker: false, validator: true },
     createdAt: '2025-06-10T10:00:00Z',
     updatedAt: '2025-07-01T14:00:00Z',
     problemJudgingUpdatedAt: '2025-07-01T14:00:00Z',
@@ -730,12 +772,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'binary-search',
     title: 'Binary Search',
-    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.',
-    outputFormat: 'Imprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
-    examples: [
-      { input: '6 9\n-1 0 3 5 9 12', output: '4' },
-      { input: '6 2\n-1 0 3 5 9 12', output: '-1' },
+    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.\n\n## Salida\n\nImprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
+    samples: [
+      { name: '1', input: '6 9\n-1 0 3 5 9 12', output: '4' },
+      { name: '2', input: '6 2\n-1 0 3 5 9 12', output: '-1' },
     ],
     timeLimit: 1000,
     memoryLimit: 128,
@@ -751,12 +791,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'merge-sort',
     title: 'Merge Sort',
-    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$',
-    inputFormat: 'La primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
-    outputFormat: 'Imprime $n$ enteros separados por espacios: el arreglo ordenado.',
-    examples: [
-      { input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
-      { input: '3\n-1 -5 3', output: '-5 -1 3' },
+    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$\n\n## Entrada\n\nLa primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: el arreglo ordenado.',
+    samples: [
+      { name: '1', input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
+      { name: '2', input: '3\n-1 -5 3', output: '-5 -1 3' },
     ],
     timeLimit: 3000,
     memoryLimit: 512,
@@ -766,7 +804,7 @@ export const mockProblems: ProblemDetail[] = [
     accessibility: 'PRIVATE',
     author: { nickname: 'mariacoach', name: 'María Coach' },
     modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
-    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: false },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }], checker: false, validator: false },
     createdAt: '2025-08-20T09:00:00Z',
     updatedAt: '2025-09-05T11:00:00Z',
     problemJudgingUpdatedAt: '2025-09-05T11:00:00Z',
@@ -774,12 +812,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'graph-bfs',
     title: 'Graph BFS',
-    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.',
-    inputFormat: 'La primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.',
-    outputFormat: 'Imprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
-    examples: [
-      { input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2', explanation: 'Desde el vértice 1: distancia a 2 es 1, a 3 es 1, a 4 es 2.' },
-      { input: '3 1 1\n1 2', output: '0 1 -1' },
+    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n## Entrada\n\nLa primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
+    samples: [
+      { name: '1', input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2' },
+      { name: '2', input: '3 1 1\n1 2', output: '0 1 -1' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -795,12 +831,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.',
-    outputFormat: 'Imprime un entero: el valor máximo que se puede obtener.',
-    examples: [
-      { input: '3 50\n10 60\n20 100\n30 120', output: '220', explanation: 'Se toman los objetos 2 y 3 (peso total 50, valor 100+120=220).' },
-      { input: '2 10\n5 10\n5 10', output: '20' },
+    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.\n\n## Salida\n\nImprime un entero: el valor máximo que se puede obtener.',
+    samples: [
+      { name: '1', input: '3 50\n10 60\n20 100\n30 120', output: '220' },
+      { name: '2', input: '2 10\n5 10\n5 10', output: '20' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -816,12 +850,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'string-matching',
     title: 'String Matching (KMP)',
-    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.',
-    inputFormat: '```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.',
-    outputFormat: '```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
-    examples: [
-      { input: 'abcabcabc\nabc', output: '3\n0 3 6' },
-      { input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
+    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.\n\n## Entrada\n\n```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.\n\n## Salida\n\n```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
+    samples: [
+      { name: '1', input: 'abcabcabc\nabc', output: '3\n0 3 6' },
+      { name: '2', input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
     ],
     timeLimit: 1500,
     memoryLimit: 256,
@@ -831,7 +863,7 @@ export const mockProblems: ProblemDetail[] = [
     accessibility: 'PRIVATE',
     author: { nickname: 'mariacoach', name: 'María Coach' },
     modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
-    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: true },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }], checker: false, validator: true },
     createdAt: '2025-11-01T08:00:00Z',
     updatedAt: '2025-11-10T10:00:00Z',
     problemJudgingUpdatedAt: '2025-11-10T10:00:00Z',
@@ -840,9 +872,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'segment-tree-range',
     title: 'Segment Tree Range Query',
     statement: null,
-    inputFormat: null,
-    outputFormat: null,
-    examples: [],
+    samples: [],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [],
@@ -860,9 +890,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'minimum-spanning-tree',
     title: 'Minimum Spanning Tree',
     statement: null,
-    inputFormat: null,
-    outputFormat: null,
-    examples: [],
+    samples: [],
     timeLimit: null,
     memoryLimit: null,
     languageOverrides: [],

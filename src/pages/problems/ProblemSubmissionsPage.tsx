@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { FileCode2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/Table'
@@ -15,16 +15,22 @@ import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
 import { useProblemDetail } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import type { ProblemSubmissionsParams, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'Todos los veredictos' },
+  { value: 'ALL', label: 'Todos' },
   { value: 'ACCEPTED', label: 'Accepted' },
   { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
   { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
   { value: 'RUNTIME_EXCEPTION', label: 'Runtime Error' },
   { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
   { value: 'PENDING', label: 'Pending' },
+]
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todos' },
+  ...PROGRAMMING_LANGUAGES,
 ]
 
 export function ProblemSubmissionsPage() {
@@ -66,48 +72,67 @@ export function ProblemSubmissionsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select
-            onValueChange={(v) => setFilters((prev) => ({
-              ...prev,
-              verdict: v === 'ALL' ? undefined : (v as SubmissionStatus),
-              page: 1,
-            }))}
-            defaultValue="ALL"
-          >
-            <SelectTrigger className="w-52 shrink-0"><SelectValue placeholder="Veredicto" /></SelectTrigger>
-            <SelectContent>
-              {VERDICT_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            onValueChange={(v) => setFilters((prev) => ({
-              ...prev,
-              language: v === 'ALL' ? undefined : (v as SubmissionLanguage),
-              page: 1,
-            }))}
-            defaultValue="ALL"
-          >
-            <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Lenguaje" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos los lenguajes</SelectItem>
-              {PROGRAMMING_LANGUAGES.map((lang) => (
-                <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <button
-            onClick={() => { setMineOnly((prev) => !prev); setFilters((prev) => ({ ...prev, page: 1 })) }}
-            className={`px-4 py-2 rounded-pill text-xs font-bold transition-colors ${
-              mineOnly
-                ? 'bg-brand-primary text-neutral-surface'
-                : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-            }`}
-          >
-            Solo mis submissions
-          </button>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-semibold text-neutral-text-muted mr-1">Veredicto</span>
+            {VERDICT_OPTIONS.map((opt) => {
+              const isActive = opt.value === 'ALL' ? !filters.verdict : filters.verdict === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFilters((prev) => ({
+                    ...prev,
+                    verdict: opt.value === 'ALL' ? undefined : (opt.value as SubmissionStatus),
+                    page: 1,
+                  }))}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    isActive
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-semibold text-neutral-text-muted mr-1">Lenguaje</span>
+            {LANGUAGE_OPTIONS.map((opt) => {
+              const isActive = opt.value === 'ALL' ? !filters.language : filters.language === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFilters((prev) => ({
+                    ...prev,
+                    language: opt.value === 'ALL' ? undefined : (opt.value as SubmissionLanguage),
+                    page: 1,
+                  }))}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    isActive
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="mineOnly"
+              checked={mineOnly}
+              onCheckedChange={(checked) => { setMineOnly(checked === true); setFilters((prev) => ({ ...prev, page: 1 })) }}
+            />
+            <label htmlFor="mineOnly" className="text-sm text-neutral-text-primary whitespace-nowrap cursor-pointer">
+              Solo mis submissions
+            </label>
+          </div>
         </div>
 
         {/* Results count */}

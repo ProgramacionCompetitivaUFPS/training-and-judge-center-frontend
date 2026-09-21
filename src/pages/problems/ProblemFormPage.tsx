@@ -11,11 +11,13 @@ import { Badge } from '@/components/ui/Badge'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem } from '@/hooks/api/useProblems'
+import { useAuth } from '@/hooks/useAuth'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
 import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
+import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 
 const SUGGESTED_TAGS = [
   'dp', 'graphs', 'arrays', 'strings', 'binary-search',
@@ -28,6 +30,7 @@ export function ProblemFormPage() {
   const isEditing = !!slug
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  const { user } = useAuth()
 
   const { data: existingProblem, isLoading: isLoadingProblem } = useProblemDetail(slug || '')
   const createMutation = useCreateProblem()
@@ -43,6 +46,24 @@ export function ProblemFormPage() {
         </div>
       </AppLayout>
     )
+  }
+
+  if (isEditing && existingProblem) {
+    const isAdmin = user?.role === 'ADMIN'
+    const isAuthor = existingProblem.author.nickname === user?.nickname
+    const isModifier = existingProblem.modifiers?.some((m) => m.nickname === user?.nickname)
+    if (!isAdmin && !isAuthor && !isModifier) {
+      return (
+        <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: 'Acceso denegado' }]}>
+          <div className="text-center py-12">
+            <p className="text-neutral-text-muted">No tienes permiso para editar este problema.</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate(`/problems/${slug}`)}>
+              Volver al detalle
+            </Button>
+          </div>
+        </AppLayout>
+      )
+    }
   }
 
   if (isEditing && existingProblem?.status === 'PUBLISHED') {
@@ -107,8 +128,8 @@ export function ProblemFormPage() {
               },
             )
           }}
-          onImport={(file) => {
-            importMutation.mutate(file, {
+          onImport={(file, slug) => {
+            importMutation.mutate({ file, slug }, {
               onSuccess: (created) => {
                 toast({ variant: 'success', title: 'Problema importado correctamente' })
                 navigate(`/problems/${created.slug}`)
@@ -313,34 +334,79 @@ function LanguageOverridesEditor({ value, onChange }: LanguageOverridesEditorPro
 
 // === Create Form ===
 
+// Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
+// only confirms problem.yaml exists somewhere in the archive, without validating its
+// fields, the data/checker/validator rules, or file size/count limits — that stays the
+// backend's job so the two don't drift out of sync.
+async function checkPackageZipStructure(file: File): Promise<string | null> {
+  const paths = await peekZipEntryPaths(file)
+  if (!paths) return 'El archivo no se pudo leer como un ZIP válido.'
+  const hasYaml = paths.some((p) => p === 'problem.yaml' || p.endsWith('/problem.yaml'))
+  if (!hasYaml) {
+    return 'El ZIP debe contener un archivo problem.yaml en la raíz del problema.'
+  }
+  return null
+}
+
 interface CreateFormProps {
   onSubmit: (data: CreateProblemFormData) => void
-  onImport: (file: File) => void
+  onImport: (file: File, slug: string) => void
   isSubmitting: boolean
   isImporting: boolean
   onCancel: () => void
 }
 
 function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }: CreateFormProps) {
-  const { register, handleSubmit, formState: { errors }, control, setValue } = useForm<CreateProblemFormData>({
+  const { register, handleSubmit, formState: { errors }, control, setValue, getValues, trigger } = useForm<CreateProblemFormData>({
     resolver: zodResolver(createProblemSchema),
-    defaultValues: { slug: '', title: '', statement: '', tags: '', languageOverrides: [] },
+    defaultValues: {
+      slug: '',
+      title: '',
+      statement: DEFAULT_PROBLEM_STATEMENT_MARKDOWN,
+      tags: '',
+      languageOverrides: [],
+      timeLimit: DEFAULT_PROBLEM_TIME_LIMIT_MS,
+      memoryLimit: DEFAULT_PROBLEM_MEMORY_LIMIT_MB,
+    },
   })
+  const { toast } = useToastContext()
 
   const statement = useWatch({ control, name: 'statement' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showZipHelp, setShowZipHelp] = useState(false)
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
 
   function handleImportClick() {
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) onImport(file)
     e.target.value = ''
+    if (!file) return
+
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+    if (extension !== '.zip') {
+      toast({ variant: 'error', title: 'Formato de archivo incorrecto', description: 'El import espera un archivo .zip con el paquete del problema.' })
+      return
+    }
+
+    const slugValid = await trigger('slug')
+    if (!slugValid) return
+
+    if (!exceedsZipStructureCheckSize(file)) {
+      setIsCheckingZip(true)
+      const structureError = await checkPackageZipStructure(file)
+      setIsCheckingZip(false)
+      if (structureError) {
+        toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
+        return
+      }
+    }
+
+    onImport(file, getValues('slug'))
   }
 
   return (
@@ -359,7 +425,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
             <HelpCircle className="h-4 w-4" />
             Formato del ZIP
           </Button>
-          <Button type="button" variant="outline" onClick={handleImportClick} isLoading={isImporting} className="gap-2">
+          <Button type="button" variant="outline" onClick={handleImportClick} isLoading={isImporting || isCheckingZip} className="gap-2">
             <Upload className="h-4 w-4" />
             Importar ZIP
           </Button>
@@ -372,13 +438,27 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         <div className="mb-4 rounded-md border border-neutral-border bg-neutral-surface p-4 text-sm text-neutral-text-muted space-y-2">
           <p className="font-semibold text-neutral-text-primary">Estructura esperada del ZIP (formato ICPC):</p>
           <ul className="list-disc list-inside space-y-1">
-            <li><code className="font-mono">problem.yaml</code> — requerido, en la raíz del problema</li>
-            <li><code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code></li>
-            <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional</li>
-            <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional</li>
-            <li><code className="font-mono">checker.&lt;ext&gt;</code> y <code className="font-mono">validator.&lt;ext&gt;</code> — opcionales</li>
+            <li>
+              <code className="font-mono">problem.yaml</code> — requerido, en la raíz del problema (máx. 2 MB). Debe
+              incluir <code className="font-mono">name</code>; opcionalmente <code className="font-mono">time_limit</code> (segundos)
+              y <code className="font-mono">memory_limit</code> (MB) para no tener que completarlos después
+            </li>
+            <li>
+              <code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de
+              prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code>, opcional (se
+              pueden subir después); hasta 200 MB en total, máx. 10 casos de ejemplo
+            </li>
+            <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional (máx. 2 MB)</li>
+            <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional (máx. 2 MB cada una)</li>
+            <li>
+              <code className="font-mono">checker.&lt;ext&gt;</code> y <code className="font-mono">validator.&lt;ext&gt;</code> — opcionales
+              (máx. 2 MB); a lo sumo uno de cada uno, si hay más de un archivo que coincida se rechaza todo el import
+            </li>
           </ul>
-          <p>El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.</p>
+          <p>
+            Extensiones de código soportadas: <code className="font-mono">{PROBLEM_SOURCE_FILE_EXTENSIONS.join(', ')}</code>.
+            El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.
+          </p>
         </div>
       )}
 
@@ -405,8 +485,8 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
 
           <FormSection icon={<Timer className="h-4 w-4" />} title="Límites de ejecución">
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Tiempo límite (ms)" type="number" {...register('timeLimit', { valueAsNumber: true })} error={errors.timeLimit?.message} placeholder="2000" />
-              <Input label="Memoria límite (MiB)" type="number" {...register('memoryLimit', { valueAsNumber: true })} error={errors.memoryLimit?.message} placeholder="256" />
+              <Input label="Tiempo límite (ms)" type="number" {...register('timeLimit', { valueAsNumber: true })} error={errors.timeLimit?.message} placeholder={String(DEFAULT_PROBLEM_TIME_LIMIT_MS)} />
+              <Input label="Memoria límite (MiB)" type="number" {...register('memoryLimit', { valueAsNumber: true })} error={errors.memoryLimit?.message} placeholder={String(DEFAULT_PROBLEM_MEMORY_LIMIT_MB)} />
             </div>
           </FormSection>
 
@@ -464,8 +544,8 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
     defaultValues: {
       title: problem.title,
       statement: problem.statement || '',
-      timeLimit: problem.timeLimit || undefined,
-      memoryLimit: problem.memoryLimit || undefined,
+      timeLimit: problem.timeLimit ?? DEFAULT_PROBLEM_TIME_LIMIT_MS,
+      memoryLimit: problem.memoryLimit ?? DEFAULT_PROBLEM_MEMORY_LIMIT_MB,
       tags: problem.tags.join(', '),
       accessibility: problem.accessibility,
       languageOverrides: problem.languageOverrides || [],

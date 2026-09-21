@@ -1,19 +1,22 @@
 import React, { Suspense, useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon } from 'lucide-react'
+import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { RecoveryBanner } from '@/components/features/RecoveryBanner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
-import { useProblemDetail } from '@/hooks/api/useProblems'
+import { useProblemDetail, useProblemSearch } from '@/hooks/api/useProblems'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
+import { useDebounce } from '@/hooks/useDebounce'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -31,8 +34,6 @@ const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
   python310: { ext: 'py', accept: ['.py'] },
 }
 
-const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
 export function SubmitSolutionPage() {
   const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
   const [searchParams] = useSearchParams()
@@ -44,6 +45,9 @@ export function SubmitSolutionPage() {
 
   // State
   const [selectedProblem, setSelectedProblem] = useState(problemParam)
+  const [problemSearchQuery, setProblemSearchQuery] = useState('')
+  const debouncedProblemSearch = useDebounce(problemSearchQuery)
+  const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
   const [language, setLanguage] = useState('')
   const [code, setCode] = useState('')
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
@@ -56,7 +60,7 @@ export function SubmitSolutionPage() {
     if (!isContestContext) return selectedProblem
     if (!activeContest?.problems) return ''
     const p = activeContest.problems.find(
-      (prob) => (LABELS[prob.position - 1] || String(prob.position)) === selectedProblem.toUpperCase()
+      (prob) => problemLabel(prob.position) === selectedProblem.toUpperCase()
     )
     return p?.slug || ''
   }, [isContestContext, selectedProblem, activeContest])
@@ -314,7 +318,7 @@ export function SubmitSolutionPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {contestProblems.map((p) => {
-                          const letter = LABELS[p.position - 1] || String(p.position)
+                          const letter = problemLabel(p.position)
                           return (
                             <SelectItem key={p.slug} value={letter}>
                               {letter} — {p.title}
@@ -323,18 +327,44 @@ export function SubmitSolutionPage() {
                         })}
                       </SelectContent>
                     </Select>
+                  ) : selectedProblem ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-border bg-neutral-background px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-neutral-text-primary truncate">
+                          {problemDetail?.title ?? selectedProblem}
+                        </p>
+                        <p className="text-xs text-neutral-text-muted font-mono truncate">{selectedProblem}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProblem('')}
+                        className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                        aria-label="Cambiar problema"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   ) : (
-                    <Select value={selectedProblem} onValueChange={setSelectedProblem}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Slug del problema" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* In practice mode, if we came from a problem, show it */}
-                        {selectedProblem && problemDetail && (
-                          <SelectItem value={selectedProblem}>{problemDetail.title}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <SearchSelect
+                      query={problemSearchQuery}
+                      onQueryChange={setProblemSearchQuery}
+                      results={problemSearchData?.problems ?? []}
+                      isSearching={isSearchingProblems}
+                      placeholder="Buscar problema publicado por título..."
+                      emptyLabel="Sin resultados"
+                      hintLabel="Escribe al menos 2 caracteres"
+                      getKey={(p) => p.slug}
+                      renderItem={(p) => (
+                        <div>
+                          <p className="font-medium text-neutral-text-primary">{p.title}</p>
+                          <p className="text-xs text-neutral-text-muted font-mono">{p.slug}</p>
+                        </div>
+                      )}
+                      onSelect={(p) => {
+                        setSelectedProblem(p.slug)
+                        setProblemSearchQuery('')
+                      }}
+                    />
                   )}
                 </div>
 
