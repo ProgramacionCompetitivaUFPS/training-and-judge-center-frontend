@@ -129,11 +129,52 @@ export interface DeleteProblemRequest {
 
 // === Publish / Unpublish ===
 
+export interface ValidationSummary {
+  sampleCases: number
+  secretCases: number
+  solutionsTested: number
+  allPassed: boolean
+}
+
 export interface PublishResponse {
   slug: string
   status: ProblemStatus
   message: string
   validationLogs?: string[]
+  validationSummary?: ValidationSummary
+}
+
+// The 400 shape the real backend returns when publish validation fails — either the cheap
+// required-fields precheck (missingFields) or the deeper judge-backed validation
+// (failedTestCases/compilationErrors/failedInputs), never both at once in practice.
+export interface FailedTestCase {
+  case: string
+  verdict?: string
+  expected?: string
+  actual?: string
+  status?: string
+  details?: string
+  timeLimit?: number
+}
+
+export interface CompilationErrors {
+  file: string
+  errors: string[]
+}
+
+export interface FailedInput {
+  file: string
+  reason: string
+}
+
+export interface PublishFailureResponse {
+  error: string
+  message: string
+  validationLogs?: string[]
+  missingFields?: string[]
+  failedTestCases?: FailedTestCase[]
+  compilationErrors?: CompilationErrors
+  failedInputs?: FailedInput[]
 }
 
 export interface UnpublishResponse {

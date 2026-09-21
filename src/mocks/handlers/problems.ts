@@ -151,6 +151,57 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'ALREADY_PUBLISHED', message: 'El problema ya está publicado' }, { status: 409 })
     }
 
+    // Mirrors requiredFieldsForPublish on the real backend.
+    const missingFields: string[] = []
+    if (!problem.statement) missingFields.push('statement')
+    if (problem.timeLimit == null) missingFields.push('timeLimit')
+    if (problem.memoryLimit == null) missingFields.push('memoryLimit')
+    if (!problem.files?.testCases) missingFields.push('testCases')
+    if (!problem.files?.solutions.length) missingFields.push('solution')
+    if (missingFields.length > 0) {
+      return HttpResponse.json(
+        { error: 'VALIDATION_FAILED', message: 'Problem validation failed', validationLogs: [], missingFields },
+        { status: 400 },
+      )
+    }
+
+    // Dev-only convention (no backend equivalent) to exercise the deeper failure shapes from
+    // the UI: name a solution file "brokencompile.*" / "brokentest.*" / "brokeninput.*".
+    const solutionNames = problem.files?.solutions.map((s) => s.filename.toLowerCase()) ?? []
+    if (solutionNames.some((f) => f.includes('brokencompile'))) {
+      return HttpResponse.json(
+        {
+          error: 'VALIDATION_FAILED',
+          message: 'Compilation failed',
+          validationLogs: [],
+          compilationErrors: { file: 'solution.cpp', errors: ["error: 'cout' was not declared in this scope", "note: 'std::cout' is defined in header '<iostream>'"] },
+        },
+        { status: 400 },
+      )
+    }
+    if (solutionNames.some((f) => f.includes('brokentest'))) {
+      return HttpResponse.json(
+        {
+          error: 'VALIDATION_FAILED',
+          message: 'Solution failed test cases',
+          validationLogs: [],
+          failedTestCases: [{ case: 'secret/3', status: 'WRONG_ANSWER', details: 'Expected "42", got "41"' }],
+        },
+        { status: 400 },
+      )
+    }
+    if (solutionNames.some((f) => f.includes('brokeninput'))) {
+      return HttpResponse.json(
+        {
+          error: 'VALIDATION_FAILED',
+          message: 'Validator rejected test inputs',
+          validationLogs: [],
+          failedInputs: [{ file: 'secret/2.in', reason: 'expected exactly 2 integers on line 1, got 3' }],
+        },
+        { status: 400 },
+      )
+    }
+
     problem.status = 'PUBLISHED'
     problem.updatedAt = new Date().toISOString()
     return HttpResponse.json({

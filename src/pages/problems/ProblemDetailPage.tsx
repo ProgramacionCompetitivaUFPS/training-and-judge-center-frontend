@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -30,19 +30,24 @@ import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-import type { ProblemDetail } from '@/types/problem'
+import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 
-interface PublishRequirement { label: string; met: (problem: ProblemDetail) => boolean }
+interface PublishRequirement { key: string; label: string; met: (problem: ProblemDetail) => boolean }
 
 // Mirrors the backend's requiredFieldsForPublish (checker/validator are optional there,
-// so they're intentionally left out here too).
+// so they're intentionally left out here too). `key` matches the strings the backend sends
+// back in a failed publish response's `missingFields` (see PublishFailureResponse).
 const PUBLISH_REQUIREMENTS: PublishRequirement[] = [
-  { label: 'Enunciado', met: (p) => !!p.statement },
-  { label: 'Límite de tiempo', met: (p) => p.timeLimit != null },
-  { label: 'Límite de memoria', met: (p) => p.memoryLimit != null },
-  { label: 'Casos de prueba', met: (p) => !!p.files?.testCases },
-  { label: 'Al menos una solución', met: (p) => (p.files?.solutions.length ?? 0) > 0 },
+  { key: 'statement', label: 'Enunciado', met: (p) => !!p.statement },
+  { key: 'timeLimit', label: 'Límite de tiempo', met: (p) => p.timeLimit != null },
+  { key: 'memoryLimit', label: 'Límite de memoria', met: (p) => p.memoryLimit != null },
+  { key: 'testCases', label: 'Casos de prueba', met: (p) => !!p.files?.testCases },
+  { key: 'solution', label: 'Al menos una solución', met: (p) => (p.files?.solutions.length ?? 0) > 0 },
 ]
+
+function publishRequirementLabel(fieldKey: string): string {
+  return PUBLISH_REQUIREMENTS.find((r) => r.key === fieldKey)?.label ?? fieldKey
+}
 
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
@@ -72,7 +77,11 @@ export function ProblemDetailPage() {
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
-  const [publishLogs, setPublishLogs] = useState<string[] | null>(null)
+  const [publishResult, setPublishResult] = useState<
+    | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
+    | { kind: 'failure'; data: PublishFailureResponse }
+    | null
+  >(null)
 
   if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
@@ -116,9 +125,18 @@ export function ProblemDetailPage() {
     publishMutation.mutate(problem.slug, {
       onSuccess: (data) => {
         toast({ variant: 'success', title: 'Problema publicado' })
-        if (data.validationLogs?.length) setPublishLogs(data.validationLogs)
+        if (data.validationLogs?.length) {
+          setPublishResult({ kind: 'success', validationLogs: data.validationLogs, validationSummary: data.validationSummary })
+        }
       },
-      onError: () => toast({ variant: 'error', title: 'Error al publicar' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'VALIDATION_FAILED' && err.raw) {
+          toast({ variant: 'error', title: 'No se pudo publicar', description: 'Revisa el detalle de la validación.' })
+          setPublishResult({ kind: 'failure', data: err.raw as PublishFailureResponse })
+        } else {
+          toast({ variant: 'error', title: 'Error al publicar', description: err instanceof ApiClientError ? err.message : undefined })
+        }
+      },
     })
   }
 
@@ -552,22 +570,101 @@ export function ProblemDetailPage() {
         isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
       />
 
-      {/* Publish validation logs */}
-      <Dialog open={!!publishLogs} onOpenChange={(open) => !open && setPublishLogs(null)}>
+      {/* Publish validation result — success (validation logs) or failure (real detail from
+          the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
+      <Dialog open={!!publishResult} onOpenChange={(open) => !open && setPublishResult(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-status-success" />
-              Detalle de la validación
+              {publishResult?.kind === 'failure' ? (
+                <>
+                  <XCircle className="h-5 w-5 text-status-error" />
+                  No se pudo publicar
+                </>
+              ) : (
+                <>
+                  <ClipboardCheck className="h-5 w-5 text-status-success" />
+                  Detalle de la validación
+                </>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <ul className="space-y-2">
-            {publishLogs?.map((log, i) => (
-              <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
-            ))}
-          </ul>
+
+          {publishResult?.kind === 'success' && (
+            <ul className="space-y-2">
+              {publishResult.validationLogs.map((log, i) => (
+                <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+              ))}
+            </ul>
+          )}
+
+          {publishResult?.kind === 'failure' && (
+            <div className="space-y-4">
+              <p className="text-sm text-neutral-text-primary">{publishResult.data.message}</p>
+
+              {!!publishResult.data.missingFields?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Faltan campos requeridos:</p>
+                  <ul className="mt-1 list-disc list-inside text-sm text-neutral-text-primary">
+                    {publishResult.data.missingFields.map((field) => (
+                      <li key={field}>{publishRequirementLabel(field)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {publishResult.data.compilationErrors && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">
+                    Error de compilación en <span className="font-mono">{publishResult.data.compilationErrors.file}</span>:
+                  </p>
+                  <pre className="mt-1 whitespace-pre-wrap rounded bg-neutral-background p-2 font-mono text-xs text-neutral-text-primary">
+                    {publishResult.data.compilationErrors.errors.join('\n')}
+                  </pre>
+                </div>
+              )}
+
+              {!!publishResult.data.failedTestCases?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Casos de prueba fallidos:</p>
+                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
+                    {publishResult.data.failedTestCases.map((tc) => (
+                      <li key={tc.case}>
+                        <span className="font-mono">{tc.case}</span>
+                        {(tc.status || tc.verdict) && <span className="text-neutral-text-muted"> — {tc.status || tc.verdict}</span>}
+                        {tc.details && <span className="block text-xs text-neutral-text-muted">{tc.details}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!publishResult.data.failedInputs?.length && (
+                <div>
+                  <p className="text-sm font-semibold text-neutral-text-primary">Entradas rechazadas por el validator:</p>
+                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
+                    {publishResult.data.failedInputs.map((fi) => (
+                      <li key={fi.file}><span className="font-mono">{fi.file}</span>: {fi.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!publishResult.data.validationLogs?.length && (
+                <details>
+                  <summary className="cursor-pointer text-sm font-semibold text-neutral-text-primary">Ver logs completos</summary>
+                  <ul className="mt-2 space-y-1">
+                    {publishResult.data.validationLogs.map((log, i) => (
+                      <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button onClick={() => setPublishLogs(null)}>Cerrar</Button>
+            <Button onClick={() => setPublishResult(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
