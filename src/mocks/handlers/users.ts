@@ -242,6 +242,19 @@ export const usersHandlers = [
     return HttpResponse.json(result)
   }),
 
+  // Mirrors the backend: distinct, non-empty values, sorted ascending.
+  http.get(url('/admin/users/filters'), async () => {
+    await delay(150)
+    const distinctSorted = (values: string[]) =>
+      Array.from(new Set(values.filter((v) => v))).sort((a, b) => a.localeCompare(b))
+
+    return HttpResponse.json({
+      countries: distinctSorted(mockUsers.map((u) => u.country)),
+      cities: distinctSorted(mockUsers.map((u) => u.city)),
+      institutions: distinctSorted(mockUsers.map((u) => u.institution)),
+    })
+  }),
+
   http.put(url('/admin/users/:id'), async ({ params, request }) => {
     await delay(300)
     const { id } = params as { id: string }
@@ -255,8 +268,22 @@ export const usersHandlers = [
     return HttpResponse.json(updated)
   }),
 
-  http.post(url('/admin/users/:id/deactivate'), async () => {
+  http.post(url('/admin/users/:id/deactivate'), async ({ params, request }) => {
     await delay(300)
+    const { id } = params as { id: string }
+    const auth = request.headers.get('Authorization')
+    const requesterNickname = auth?.replace('Bearer ', '').replace('mock-jwt-token-', '') || ''
+    const requester = mockUsers.find((u) => u.nickname === requesterNickname)
+    const target = mockUsers.find((u) => u.id === id)
+    if (!target) {
+      return HttpResponse.json({ error: 'USER_NOT_FOUND', message: 'Usuario no encontrado' }, { status: 404 })
+    }
+    if (requester?.id === target.id) {
+      return HttpResponse.json({ error: 'CANNOT_SELF_DEACTIVATE', message: 'Administrators cannot deactivate their own account' }, { status: 403 })
+    }
+    if (target.role === 'ADMIN') {
+      return HttpResponse.json({ error: 'CANNOT_DEACTIVATE_ADMIN', message: 'Cannot deactivate another administrator' }, { status: 403 })
+    }
     return new HttpResponse(null, { status: 204 })
   }),
 ]

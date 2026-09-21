@@ -176,6 +176,14 @@ export interface AdminUserListResponse {
   }
 }
 
+// Distinct, non-empty country/city/institution values actually in use (GET /admin/users/filters)
+// — backs the admin list's filters so they offer real values instead of free text.
+export interface AdminUserFilterOptions {
+  countries: string[]
+  cities: string[]
+  institutions: string[]
+}
+
 // === Dashboard ===
 
 export interface UserDashboard {
