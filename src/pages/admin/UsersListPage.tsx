@@ -39,12 +39,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
-import { useAdminUsers, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
+import { useAdminUsers, useAdminUserFilterOptions, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
 import { adminUpdateUserSchema, type AdminUpdateUserFormData } from '@/lib/schemas/user'
+import { ApiClientError } from '@/lib/errors'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX, Pencil } from 'lucide-react'
 
@@ -71,7 +72,7 @@ function getConfirmDialogProps(action: PendingAction | null) {
   if (kind === 'deactivate') {
     return {
       title: 'Desactivar usuario',
-      description: `¿Desactivar al usuario @${user.nickname}? Podrá reactivarse más adelante.`,
+      description: `¿Desactivar al usuario @${user.nickname}? Esta acción es permanente y no se puede deshacer: su correo y nickname quedan anonimizados.`,
     }
   }
 
@@ -89,12 +90,9 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
-  const [countryInput, setCountryInput] = useState('')
-  const debouncedCountry = useDebounce(countryInput, 300)
-  const [cityInput, setCityInput] = useState('')
-  const debouncedCity = useDebounce(cityInput, 300)
-  const [institutionInput, setInstitutionInput] = useState('')
-  const debouncedInstitution = useDebounce(institutionInput, 300)
+  const [countryFilter, setCountryFilter] = useState<string | undefined>(undefined)
+  const [cityFilter, setCityFilter] = useState<string | undefined>(undefined)
+  const [institutionFilter, setInstitutionFilter] = useState<string | undefined>(undefined)
   const [sortValue, setSortValue] = useState<string>('createdAt-desc')
   const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -108,13 +106,14 @@ export function UsersListPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
-    ...(debouncedCountry && { country: debouncedCountry }),
-    ...(debouncedCity && { city: debouncedCity }),
-    ...(debouncedInstitution && { institution: debouncedInstitution }),
+    ...(countryFilter && { country: countryFilter }),
+    ...(cityFilter && { city: cityFilter }),
+    ...(institutionFilter && { institution: institutionFilter }),
     ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
   }
 
   const { data, isLoading, error } = useAdminUsers(params)
+  const { data: filterOptions } = useAdminUserFilterOptions()
   const deactivateMutation = useAdminDeactivateUser()
   const updateUserMutation = useAdminUpdateUser()
   const editUserMutation = useAdminUpdateUser()
@@ -164,17 +163,17 @@ export function UsersListPage() {
   }
 
   const handleCountryFilter = (country: string) => {
-    setCountryInput(country)
+    setCountryFilter(country === 'ALL' ? undefined : country)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
   const handleCityFilter = (city: string) => {
-    setCityInput(city)
+    setCityFilter(city === 'ALL' ? undefined : city)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
   const handleInstitutionFilter = (institution: string) => {
-    setInstitutionInput(institution)
+    setInstitutionFilter(institution === 'ALL' ? undefined : institution)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
@@ -196,11 +195,17 @@ export function UsersListPage() {
         await updateUserMutation.mutateAsync({ id: user.id, data: { role: newRole } })
         toast({ variant: 'success', title: 'Rol actualizado' })
       }
-    } catch {
-      toast({
-        variant: 'error',
-        title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
-      })
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'CANNOT_SELF_DEACTIVATE') {
+        toast({ variant: 'error', title: 'No puedes desactivar tu propia cuenta', description: 'Pídele a otro Administrador que lo haga por ti.' })
+      } else if (err instanceof ApiClientError && err.code === 'CANNOT_DEACTIVATE_ADMIN') {
+        toast({ variant: 'error', title: 'No se puede desactivar a otro Administrador' })
+      } else {
+        toast({
+          variant: 'error',
+          title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
+        })
+      }
     }
     setPendingAction(null)
   }
@@ -262,24 +267,33 @@ export function UsersListPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <Input
-            placeholder="País"
-            className="flex-1"
-            value={countryInput}
-            onChange={(e) => handleCountryFilter(e.target.value)}
-          />
-          <Input
-            placeholder="Ciudad"
-            className="flex-1"
-            value={cityInput}
-            onChange={(e) => handleCityFilter(e.target.value)}
-          />
-          <Input
-            placeholder="Institución"
-            className="flex-1"
-            value={institutionInput}
-            onChange={(e) => handleInstitutionFilter(e.target.value)}
-          />
+          <Select value={countryFilter ?? 'ALL'} onValueChange={handleCountryFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los países</SelectItem>
+              {filterOptions?.countries.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={cityFilter ?? 'ALL'} onValueChange={handleCityFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Ciudad" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las ciudades</SelectItem>
+              {filterOptions?.cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={institutionFilter ?? 'ALL'} onValueChange={handleInstitutionFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Institución" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las instituciones</SelectItem>
+              {filterOptions?.institutions.map((i) => (
+                <SelectItem key={i} value={i}>{i}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {error && (
@@ -378,14 +392,18 @@ export function UsersListPage() {
                                       Bajar a Contestant
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setPendingAction({ user, kind: 'deactivate' })}
-                                    className="text-status-error"
-                                  >
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Desactivar usuario
-                                  </DropdownMenuItem>
+                                  {user.role !== 'ADMIN' && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setPendingAction({ user, kind: 'deactivate' })}
+                                        className="text-status-error"
+                                      >
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Desactivar usuario
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}

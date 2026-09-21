@@ -33,7 +33,6 @@ export const SUBMISSION_STATUS_CONFIG = {
   RUNTIME_EXCEPTION: { label: 'Runtime Error', color: 'error' },
   RUNTIME_ERROR: { label: 'Runtime Error', color: 'error' },
   COMPILATION_ERROR: { label: 'Compilation Error', color: 'error' },
-  PRESENTATION_ERROR: { label: 'Presentation Error', color: 'warning' },
   PENDING: { label: 'Pending', color: 'default' },
   RUNNING: { label: 'Running', color: 'default' },
   SYSTEM_ERROR: { label: 'System Error', color: 'error' },

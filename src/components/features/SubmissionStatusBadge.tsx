@@ -14,7 +14,6 @@ const statusConfig: Record<SubmissionStatus, { color: 'success' | 'error' | 'war
   MEMORY_LIMIT_EXCEEDED: { color: 'warning', label: 'Memory Limit' },
   RUNTIME_EXCEPTION: { color: 'error', label: 'Runtime Error' },
   COMPILATION_ERROR: { color: 'error', label: 'Compilation Error' },
-  PRESENTATION_ERROR: { color: 'warning', label: 'Presentation Error' },
   PENDING: { color: 'default', label: 'Pending' },
   RUNNING: { color: 'default', label: 'Running' },
   SYSTEM_ERROR: { color: 'error', label: 'System Error' },
