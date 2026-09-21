@@ -11,7 +11,6 @@ export type SubmissionStatus =
   | 'MEMORY_LIMIT_EXCEEDED'
   | 'RUNTIME_EXCEPTION'
   | 'COMPILATION_ERROR'
-  | 'PRESENTATION_ERROR'
   | 'SYSTEM_ERROR'
 
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
