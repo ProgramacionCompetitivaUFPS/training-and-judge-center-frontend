@@ -253,6 +253,35 @@ export function ProblemDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
+              `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
+          {problem.samples.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Ejemplos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {problem.samples.map((sample, index) => (
+                  <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
+                    <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+                      <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+                      <div className="p-4">
+                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
+                      </div>
+                      <div className="p-4">
+                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Files (only for modifiers, and only while the problem is still a draft — the
               backend rejects uploads to a published problem) */}
           {canEdit && problem.files && problem.status !== 'PUBLISHED' && (

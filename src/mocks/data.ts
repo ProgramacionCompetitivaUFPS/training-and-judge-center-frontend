@@ -747,7 +747,12 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'two-sum',
     title: 'Two Sum',
-    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\n4 9\n2 7 11 15\n```\n\nSalida:\n```\n0 1\n```\n\n> $nums[0] + nums[1] = 2 + 7 = 9$\n\n**Ejemplo 2**\n\nEntrada:\n```\n3 6\n3 2 4\n```\n\nSalida:\n```\n1 2\n```\n\n**Ejemplo 3**\n\nEntrada:\n```\n2 6\n3 3\n```\n\nSalida:\n```\n0 1\n```',
+    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
+    samples: [
+      { name: '1', input: '4 9\n2 7 11 15', output: '0 1' },
+      { name: '2', input: '3 6\n3 2 4', output: '1 2' },
+      { name: '3', input: '2 6\n3 3', output: '0 1' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [{ language: 'python310', timeLimit: 4000 }],
@@ -767,7 +772,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'binary-search',
     title: 'Binary Search',
-    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.\n\n## Salida\n\nImprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\n6 9\n-1 0 3 5 9 12\n```\n\nSalida:\n```\n4\n```\n\n**Ejemplo 2**\n\nEntrada:\n```\n6 2\n-1 0 3 5 9 12\n```\n\nSalida:\n```\n-1\n```',
+    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.\n\n## Salida\n\nImprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
+    samples: [
+      { name: '1', input: '6 9\n-1 0 3 5 9 12', output: '4' },
+      { name: '2', input: '6 2\n-1 0 3 5 9 12', output: '-1' },
+    ],
     timeLimit: 1000,
     memoryLimit: 128,
     languageOverrides: [],
@@ -782,7 +791,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'merge-sort',
     title: 'Merge Sort',
-    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$\n\n## Entrada\n\nLa primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: el arreglo ordenado.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\n5\n5 2 3 1 4\n```\n\nSalida:\n```\n1 2 3 4 5\n```\n\n**Ejemplo 2**\n\nEntrada:\n```\n3\n-1 -5 3\n```\n\nSalida:\n```\n-5 -1 3\n```',
+    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$\n\n## Entrada\n\nLa primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: el arreglo ordenado.',
+    samples: [
+      { name: '1', input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
+      { name: '2', input: '3\n-1 -5 3', output: '-5 -1 3' },
+    ],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [{ language: 'java17', memoryLimit: 1024 }],
@@ -799,7 +812,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'graph-bfs',
     title: 'Graph BFS',
-    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n## Entrada\n\nLa primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\n4 4 1\n1 2\n1 3\n2 4\n3 4\n```\n\nSalida:\n```\n0 1 1 2\n```\n\n> Desde el vértice 1: distancia a 2 es 1, a 3 es 1, a 4 es 2.\n\n**Ejemplo 2**\n\nEntrada:\n```\n3 1 1\n1 2\n```\n\nSalida:\n```\n0 1 -1\n```',
+    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n## Entrada\n\nLa primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
+    samples: [
+      { name: '1', input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2' },
+      { name: '2', input: '3 1 1\n1 2', output: '0 1 -1' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [],
@@ -814,7 +831,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.\n\n## Salida\n\nImprime un entero: el valor máximo que se puede obtener.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\n3 50\n10 60\n20 100\n30 120\n```\n\nSalida:\n```\n220\n```\n\n> Se toman los objetos 2 y 3 (peso total 50, valor 100+120=220).\n\n**Ejemplo 2**\n\nEntrada:\n```\n2 10\n5 10\n5 10\n```\n\nSalida:\n```\n20\n```',
+    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.\n\n## Salida\n\nImprime un entero: el valor máximo que se puede obtener.',
+    samples: [
+      { name: '1', input: '3 50\n10 60\n20 100\n30 120', output: '220' },
+      { name: '2', input: '2 10\n5 10\n5 10', output: '20' },
+    ],
     timeLimit: 2000,
     memoryLimit: 256,
     languageOverrides: [],
@@ -829,7 +850,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'string-matching',
     title: 'String Matching (KMP)',
-    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.\n\n## Entrada\n\n```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.\n\n## Salida\n\n```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.\n\n## Ejemplos\n\n**Ejemplo 1**\n\nEntrada:\n```\nabcabcabc\nabc\n```\n\nSalida:\n```\n3\n0 3 6\n```\n\n**Ejemplo 2**\n\nEntrada:\n```\naaaaaa\naa\n```\n\nSalida:\n```\n5\n0 1 2 3 4\n```',
+    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.\n\n## Entrada\n\n```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.\n\n## Salida\n\n```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
+    samples: [
+      { name: '1', input: 'abcabcabc\nabc', output: '3\n0 3 6' },
+      { name: '2', input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
+    ],
     timeLimit: 1500,
     memoryLimit: 256,
     languageOverrides: [],
@@ -847,6 +872,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'segment-tree-range',
     title: 'Segment Tree Range Query',
     statement: null,
+    samples: [],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [],
@@ -864,6 +890,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'minimum-spanning-tree',
     title: 'Minimum Spanning Tree',
     statement: null,
+    samples: [],
     timeLimit: null,
     memoryLimit: null,
     languageOverrides: [],

@@ -83,6 +83,7 @@ export const problemsHandlers = [
       slug: body.slug as string,
       title: body.title as string,
       statement: (body.statement as string) || null,
+      samples: [],
       timeLimit: (body.timeLimit as number) || null,
       memoryLimit: (body.memoryLimit as number) || null,
       languageOverrides: (body.languageOverrides as []) || [],
@@ -378,8 +379,28 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Multiple validator files found: only one is allowed' }, { status: 400 })
     }
 
-    const hasSample = paths.some((p) => p.startsWith(`${prefix}data/sample/`) && !zip.files[p].dir)
+    const samplePrefix = `${prefix}data/sample/`
+    const hasSample = paths.some((p) => p.startsWith(samplePrefix) && !zip.files[p].dir)
     const hasSecret = paths.some((p) => p.startsWith(`${prefix}data/secret/`) && !zip.files[p].dir)
+
+    // Mirrors the backend's loadSamples: pair .in/.ans files by name, drop unpaired ones,
+    // sort by name — so the mock behaves the same way the real GetProblem response would.
+    const sampleEntries = new Map<string, { input?: string; output?: string }>()
+    for (const p of paths.filter((path) => path.startsWith(samplePrefix) && !zip.files[path].dir)) {
+      const filename = p.slice(samplePrefix.length)
+      const dot = filename.lastIndexOf('.')
+      const sampleName = filename.slice(0, dot)
+      const ext = filename.slice(dot)
+      const content = await zip.files[p].async('string')
+      const entry = sampleEntries.get(sampleName) ?? {}
+      if (ext === '.in') entry.input = content
+      else if (ext === '.ans') entry.output = content
+      sampleEntries.set(sampleName, entry)
+    }
+    const samples = Array.from(sampleEntries.entries())
+      .filter((entry): entry is [string, { input: string; output: string }] => entry[1].input !== undefined && entry[1].output !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, { input, output }]) => ({ name, input, output }))
     const solutionsPrefix = `${prefix}solutions/`
     const solutionFiles = paths
       .filter((p) => p.startsWith(solutionsPrefix) && !zip.files[p].dir)
@@ -396,6 +417,7 @@ export const problemsHandlers = [
       slug,
       title: name,
       statement,
+      samples,
       timeLimit: timeLimitSec ? Math.round(parseFloat(timeLimitSec) * 1000) : null,
       memoryLimit: memoryLimitMb ? parseInt(memoryLimitMb, 10) : null,
       languageOverrides: [],

@@ -33,15 +33,25 @@ export interface LanguageOverride {
   memoryLimit?: number
 }
 
+// A sample test case pair (data/sample/*.in + *.ans), paired and read from storage by the
+// backend (internal/application/problem/samples.go). Empty until test cases are uploaded.
+export interface ProblemSample {
+  name: string
+  input: string
+  output: string
+}
+
 // === Detalle completo (GET /problems/:slug) ===
 // The backend models a problem statement as a single Markdown blob (see problemToDTO /
 // getProblemResponse in the backend) — there's no separate inputFormat/outputFormat/examples
-// on the wire; those sections belong inside `statement` itself.
+// on the wire; that content belongs inside `statement` itself. `samples` is the one exception:
+// it's derived automatically from the sample test-case files, not authored by hand.
 
 export interface ProblemDetail {
   slug: string
   title: string
   statement: string | null
+  samples: ProblemSample[]
   timeLimit: number | null
   memoryLimit: number | null
   languageOverrides: LanguageOverride[]
