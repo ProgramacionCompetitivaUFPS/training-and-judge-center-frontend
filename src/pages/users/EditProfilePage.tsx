@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -38,6 +39,7 @@ import {
 } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
+import { getCountryOptions, type Country } from '@/lib/countries'
 
 function scrollToPasswordSection() {
   const section = document.getElementById('password-section')
@@ -73,6 +75,7 @@ function ProfileSection({ user }: ProfileSectionProps) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<UpdateProfileFormData>({
@@ -85,6 +88,20 @@ function ProfileSection({ user }: ProfileSectionProps) {
       institution: user.institution,
     },
   })
+
+  const countryOptions = getCountryOptions(user.country)
+  // The visible query only updates on an actual selection (typing alone never touches the
+  // RHF field), so the input never shows text that doesn't match what would be submitted.
+  const [countryQuery, setCountryQuery] = useState(user.country)
+  const countryMatches = countryQuery.trim()
+    ? countryOptions.filter((c) => c.name.toLowerCase().includes(countryQuery.trim().toLowerCase()))
+    : countryOptions
+
+  function selectCountry(country: Country) {
+    setValue('country', country.name, { shouldValidate: true })
+    setCountryQuery(country.name)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
 
   const onSubmit = async (data: UpdateProfileFormData) => {
     try {
@@ -129,7 +146,17 @@ function ProfileSection({ user }: ProfileSectionProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label htmlFor="country" className="text-sm font-medium text-neutral-text-primary">País</label>
-            <Input id="country" {...register('country')} />
+            <SearchSelect
+              query={countryQuery}
+              onQueryChange={setCountryQuery}
+              results={countryMatches}
+              minChars={0}
+              placeholder="Busca tu país..."
+              emptyLabel="Sin coincidencias"
+              getKey={(c) => c.code}
+              renderItem={(c) => c.name}
+              onSelect={selectCountry}
+            />
             {errors.country && <p className="text-sm text-status-error">{errors.country.message}</p>}
           </div>
           <div className="space-y-2">

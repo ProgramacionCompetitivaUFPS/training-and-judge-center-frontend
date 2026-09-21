@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
@@ -5,11 +6,13 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { useRegister } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { registerSchema, type RegisterFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { COUNTRIES, type Country } from '@/lib/countries'
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -20,6 +23,7 @@ export function RegisterPage() {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<RegisterFormData>({
@@ -37,6 +41,18 @@ export function RegisterPage() {
   })
 
   const passwordValue = useWatch({ control, name: 'password' })
+  // The visible query only updates on an actual selection (typing alone never touches the
+  // RHF field), so the input never shows text that doesn't match what would be submitted.
+  const [countryQuery, setCountryQuery] = useState('')
+  const countryMatches = countryQuery.trim()
+    ? COUNTRIES.filter((c) => c.name.toLowerCase().includes(countryQuery.trim().toLowerCase()))
+    : COUNTRIES
+
+  function selectCountry(country: Country) {
+    setValue('country', country.name, { shouldValidate: true })
+    setCountryQuery(country.name)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
@@ -81,7 +97,17 @@ export function RegisterPage() {
           </div>
           <div className="space-y-2">
             <label htmlFor="country" className="text-sm font-medium text-neutral-text-primary">País</label>
-            <Input id="country" placeholder="Tu país" {...register('country')} />
+            <SearchSelect
+              query={countryQuery}
+              onQueryChange={setCountryQuery}
+              results={countryMatches}
+              minChars={0}
+              placeholder="Busca tu país..."
+              emptyLabel="Sin coincidencias"
+              getKey={(c) => c.code}
+              renderItem={(c) => c.name}
+              onSelect={selectCountry}
+            />
             {errors.country && <p className="text-xs text-status-error">{errors.country.message}</p>}
           </div>
           <div className="space-y-2">
