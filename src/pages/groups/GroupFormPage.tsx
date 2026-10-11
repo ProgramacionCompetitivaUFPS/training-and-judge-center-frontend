@@ -15,7 +15,7 @@ import {
 import { useGroupDetail, useCreateGroup, useUpdateGroup } from '@/hooks/api/useGroups'
 import { useToastContext } from '@/hooks/useToastContext'
 import { createGroupSchema, type CreateGroupFormData } from '@/lib/schemas/group'
-import { ROUTES } from '@/lib/constants'
+import { ROUTES, PATHS } from '@/lib/constants'
 import type { GroupVisibility, GroupJoinPolicy } from '@/types/group'
 
 export function GroupFormPage() {
@@ -61,13 +61,13 @@ export function GroupFormPage() {
       } else {
         const leadNicknames = initialLeads.split(',').map((s) => s.trim()).filter(Boolean)
         const memberNicknames = initialMembers.split(',').map((s) => s.trim()).filter(Boolean)
-        await createMutation.mutateAsync({
+        const created = await createMutation.mutateAsync({
           ...data,
           ...(leadNicknames.length > 0 && { initialLeadNicknames: leadNicknames }),
           ...(memberNicknames.length > 0 && { initialMemberNicknames: memberNicknames }),
         })
         toast({ variant: 'success', title: 'Grupo creado' })
-        navigate(ROUTES.GROUPS)
+        navigate(PATHS.group(created.id))
       }
     } catch {
       toast({ variant: 'error', title: isEdit ? 'Error al actualizar grupo' : 'Error al crear grupo' })

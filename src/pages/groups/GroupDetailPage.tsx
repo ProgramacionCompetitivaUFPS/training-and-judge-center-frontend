@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   Table,
   TableHeader,
@@ -147,6 +148,8 @@ export function GroupDetailPage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [leaveOpen, setLeaveOpen] = useState(false)
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [addNickname, setAddNickname] = useState('')
   const [addRole, setAddRole] = useState<GroupRole>('MEMBER')
@@ -212,7 +215,6 @@ export function GroupDetailPage() {
   }
 
   const handleLeave = async () => {
-    if (!confirm('¿Seguro que deseas salir del grupo?')) return
     try {
       await leaveMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Has salido del grupo' })
@@ -223,6 +225,8 @@ export function GroupDetailPage() {
       } else {
         toast({ variant: 'error', title: 'Error al salir del grupo' })
       }
+    } finally {
+      setLeaveOpen(false)
     }
   }
 
@@ -248,13 +252,15 @@ export function GroupDetailPage() {
     }
   }
 
-  const handleRemoveMember = async (nickname: string) => {
-    if (!confirm(`¿Eliminar a @${nickname} del grupo?`)) return
+  const handleRemoveMember = async () => {
+    if (!removeMemberTarget) return
     try {
-      await removeMemberMutation.mutateAsync({ groupId: id, nickname })
+      await removeMemberMutation.mutateAsync({ groupId: id, nickname: removeMemberTarget })
       toast({ variant: 'success', title: 'Miembro eliminado' })
     } catch {
       toast({ variant: 'error', title: 'Error al eliminar miembro' })
+    } finally {
+      setRemoveMemberTarget(null)
     }
   }
 
@@ -331,7 +337,7 @@ export function GroupDetailPage() {
   const buildAdditionalActions = () => {
     const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
     if (isMember && !group?.isGlobal) {
-      actions.push({ label: 'Salir del grupo', onClick: handleLeave, icon: LogOut, variant: 'danger' })
+      actions.push({ label: 'Salir del grupo', onClick: () => setLeaveOpen(true), icon: LogOut, variant: 'danger' })
     }
     if (canManage) {
       actions.push({ label: 'Agregar miembro', onClick: () => setAddMemberOpen(true), icon: UserPlus })
@@ -384,7 +390,7 @@ export function GroupDetailPage() {
                       <Button variant="ghost" size="sm" onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')} title={m.role === 'LEAD' ? 'Hacer miembro' : 'Hacer líder'}>
                         <Shield className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleRemoveMember(m.nickname)} title="Eliminar">
+                      <Button variant="ghost" size="sm" onClick={() => setRemoveMemberTarget(m.nickname)} title="Eliminar">
                         <UserMinus className="h-4 w-4 text-status-error" />
                       </Button>
                     </div>
@@ -813,6 +819,28 @@ export function GroupDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Salir del grupo"
+        description="¿Seguro que deseas salir del grupo?"
+        confirmLabel="Salir"
+        variant="warning"
+        onConfirm={handleLeave}
+        isLoading={leaveMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!removeMemberTarget}
+        onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
+        title="Eliminar miembro"
+        description={`¿Eliminar a @${removeMemberTarget} del grupo?`}
+        confirmLabel="Eliminar"
+        variant="warning"
+        onConfirm={handleRemoveMember}
+        isLoading={removeMemberMutation.isPending}
+      />
 
       {/* Add member dialog */}
       <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
