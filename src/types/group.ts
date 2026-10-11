@@ -27,10 +27,6 @@ export interface GroupListItem {
   joinPolicy: GroupJoinPolicy
   isGlobal: boolean
   memberCount: number
-  leadCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
   userRole: GroupRole | null
   createdAt: string
 }
@@ -39,7 +35,6 @@ export interface GroupListParams extends PaginationParams {
   search?: string
   visibility?: GroupVisibility
   joinPolicy?: GroupJoinPolicy
-  hasActiveContests?: boolean
   sortBy?: 'name' | 'createdAt' | 'memberCount'
   order?: 'asc' | 'desc'
 }
@@ -72,14 +67,12 @@ export interface GroupDetail {
   updatedAt?: string
 }
 
+// El backend (GetGroupOutput.Statistics) solo calcula estos dos campos en el
+// detalle de un grupo — competencias/materiales se derivan en el frontend a
+// partir de sus propios listados (ver GroupDetailPage.tsx).
 export interface GroupStatistics {
   memberCount: number
   leadCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
-  scheduledContestCount: number
-  finishedContestCount: number
 }
 
 export interface GroupLead {
@@ -108,10 +101,6 @@ export interface MyGroupItem {
   myRole: GroupRole
   joinedAt: string
   memberCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
-  unreadNotifications: number
 }
 
 export interface MyGroupsParams extends PaginationParams {

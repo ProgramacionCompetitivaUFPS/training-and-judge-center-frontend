@@ -24,7 +24,7 @@ export const contestsHandlers = [
     const paged = filtered.slice(start, start + limit)
 
     return HttpResponse.json({
-      data: paged,
+      items: paged,
       pagination: {
         page,
         limit,

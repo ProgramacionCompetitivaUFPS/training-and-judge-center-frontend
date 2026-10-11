@@ -264,10 +264,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'REQUEST',
     isGlobal: false,
     memberCount: 45,
-    leadCount: 3,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
     userRole: 'LEAD',
     createdAt: '2024-06-01T10:00:00Z',
   },
@@ -279,10 +275,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 22,
-    leadCount: 2,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
     userRole: 'MEMBER',
     createdAt: '2024-08-15T08:00:00Z',
   },
@@ -294,10 +286,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 78,
-    leadCount: 4,
-    contestCount: 20,
-    materialCount: 25,
-    activeContestCount: 2,
     userRole: null,
     createdAt: '2024-09-01T12:00:00Z',
   },
@@ -309,10 +297,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'INVITE',
     isGlobal: false,
     memberCount: 8,
-    leadCount: 1,
-    contestCount: 3,
-    materialCount: 2,
-    activeContestCount: 0,
     userRole: 'LEAD',
     createdAt: '2025-01-10T14:00:00Z',
   },
@@ -324,10 +308,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: true,
     memberCount: 150,
-    leadCount: 5,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
     userRole: 'MEMBER',
     createdAt: '2024-01-01T00:00:00Z',
   },
@@ -339,10 +319,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'REQUEST',
     isGlobal: false,
     memberCount: 12,
-    leadCount: 1,
-    contestCount: 2,
-    materialCount: 3,
-    activeContestCount: 0,
     userRole: null,
     createdAt: '2025-03-01T10:00:00Z',
   },
@@ -359,11 +335,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 45,
       leadCount: 3,
-      contestCount: 12,
-      materialCount: 8,
-      activeContestCount: 1,
-      scheduledContestCount: 2,
-      finishedContestCount: 9,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
@@ -383,11 +354,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 22,
       leadCount: 2,
-      contestCount: 6,
-      materialCount: 15,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 5,
     },
     leads: [
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
@@ -406,11 +372,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 78,
       leadCount: 4,
-      contestCount: 20,
-      materialCount: 25,
-      activeContestCount: 2,
-      scheduledContestCount: 3,
-      finishedContestCount: 15,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
@@ -428,11 +389,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 8,
       leadCount: 1,
-      contestCount: 3,
-      materialCount: 2,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 2,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
@@ -450,11 +406,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 150,
       leadCount: 5,
-      contestCount: 30,
-      materialCount: 40,
-      activeContestCount: 3,
-      scheduledContestCount: 4,
-      finishedContestCount: 23,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
@@ -473,11 +424,6 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 12,
       leadCount: 1,
-      contestCount: 2,
-      materialCount: 3,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 1,
     },
     leads: [
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
@@ -581,10 +527,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'LEAD',
     joinedAt: '2024-06-01T10:00:00Z',
     memberCount: 45,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
-    unreadNotifications: 3,
   },
   {
     id: 'group-2',
@@ -596,10 +538,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-09-01T12:00:00Z',
     memberCount: 22,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
-    unreadNotifications: 0,
   },
   {
     id: 'group-global',
@@ -611,10 +549,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-01-01T00:00:00Z',
     memberCount: 150,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
-    unreadNotifications: 0,
   },
   {
     id: 'group-4',
@@ -626,10 +560,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'LEAD',
     joinedAt: '2025-01-10T14:00:00Z',
     memberCount: 8,
-    contestCount: 3,
-    materialCount: 2,
-    activeContestCount: 0,
-    unreadNotifications: 0,
   },
 ]
 
@@ -641,7 +571,6 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
-  hasActiveContests?: boolean
   sortBy?: string
   order?: string
 }) {
@@ -657,10 +586,6 @@ export function buildGroupList(params: {
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
   }
-  if (params.hasActiveContests) {
-    filtered = filtered.filter((g) => g.activeContestCount > 0)
-  }
-
   if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {
     const sortKey = params.sortBy
     const direction = params.order === 'desc' ? -1 : 1
@@ -1513,7 +1438,7 @@ export function buildContestList(params: {
   const paged = filtered.slice(start, start + limit)
 
   return {
-    data: paged.map(toContestListItem),
+    items: paged.map(toContestListItem),
     pagination: {
       page,
       limit,

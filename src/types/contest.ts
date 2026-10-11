@@ -71,7 +71,7 @@ export interface ContestListParams extends PaginationParams {
 }
 
 export interface ContestListResponse {
-  data: ContestListItem[]
+  items: ContestListItem[]
   pagination: {
     page: number
     limit: number

@@ -642,7 +642,7 @@ function DeactivateSection() {
           <h2 className="text-lg font-bold text-status-error">Desactivar Cuenta</h2>
         </div>
       <p className="text-sm text-neutral-text-muted">
-        Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
+        Esta acción desactivará tu cuenta de forma permanente e irreversible: no podrás volver a iniciar sesión y tu correo y nickname quedarán anonimizados. No existe reactivación.
       </p>
       {isAdmin && (
         <p className="text-sm text-status-error">

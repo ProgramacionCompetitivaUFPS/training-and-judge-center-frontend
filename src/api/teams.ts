@@ -84,9 +84,38 @@ export function unregisterTeamFromContest(
   return apiClient.delete(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`)
 }
 
-export function getContestTeamRegistrations(
+// El backend devuelve una forma plana ({items: [{teamId, teamName, ...}], total, page, ...})
+// distinta a la que usa el resto del frontend (equipo anidado); se traduce aquí para no
+// tener que tocar cada consumidor.
+interface RawTeamRegistrationItem {
+  id: string
+  teamId: string
+  teamName: string
+  selectedMembers: Array<{ id: string; nickname: string }>
+  registeredAt: string
+}
+
+interface RawTeamRegistrationsResponse {
+  items: RawTeamRegistrationItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getContestTeamRegistrations(
   groupId: string,
   contestId: string,
 ): Promise<ContestTeamRegistrationsResponse> {
-  return apiClient.get(`/groups/${groupId}/contests/${contestId}/team-registrations`)
+  const raw = await apiClient.get<RawTeamRegistrationsResponse>(
+    `/groups/${groupId}/contests/${contestId}/team-registrations`,
+  )
+  return {
+    teams: raw.items.map((item) => ({
+      team: { id: item.teamId, name: item.teamName },
+      selectedMembers: item.selectedMembers,
+      registeredAt: item.registeredAt,
+    })),
+    total: raw.total,
+  }
 }

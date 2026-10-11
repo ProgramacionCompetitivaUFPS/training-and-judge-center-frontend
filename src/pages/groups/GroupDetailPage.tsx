@@ -75,7 +75,6 @@ import {
   Trophy,
   Clock,
   Users,
-  FileText,
   Copy,
   Calendar,
 } from 'lucide-react'
@@ -103,7 +102,7 @@ export function GroupDetailPage() {
   const { user } = useAuth()
 
   const { data: group, isLoading } = useGroupDetail(id!)
-  const { data: membersData } = useGroupMembers(id!)
+  const { data: membersData, error: membersError } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
   const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
@@ -122,6 +121,11 @@ export function GroupDetailPage() {
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
   const [contestsPageQuery, setContestsPageQuery] = useState({ page: 1, limit: 10 })
+  // Consultas independientes del filtro interactivo de la pestaña, solo para las
+  // tarjetas de resumen — el backend no calcula contestCount/activeContestCount en
+  // el detalle del grupo (a diferencia de memberCount), así que se derivan aquí.
+  const { data: contestsOverviewData } = useContests(id!, { limit: 1 })
+  const { data: activeContestsOverviewData } = useContests(id!, { limit: 1, status: 'ACTIVE' })
   const { data: contestsData } = useContests(id!, {
     status: contestsStatus === 'all' ? undefined : contestsStatus,
     page: contestsPageQuery.page,
@@ -389,7 +393,13 @@ export function GroupDetailPage() {
               </TableRow>
             ))}
             {(!membersData || membersData.members.length === 0) && (
-              <TableRow><TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">
+                  {membersError instanceof ApiClientError && membersError.code === 'INSUFFICIENT_PERMISSIONS'
+                    ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
+                    : 'No hay miembros'}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
@@ -560,12 +570,12 @@ export function GroupDetailPage() {
         <StatCard align="center" value={group.statistics.memberCount} label="Miembros" />
         <StatCard
           align="center"
-          value={group.statistics.activeContestCount}
+          value={activeContestsOverviewData?.pagination.total ?? 0}
           label="Competencias activas"
           valueColor="text-status-success"
         />
-        <StatCard align="center" value={group.statistics.contestCount} label="Competencias totales" />
-        <StatCard align="center" value={group.statistics.materialCount} label="Materiales" />
+        <StatCard align="center" value={contestsOverviewData?.pagination.total ?? 0} label="Competencias totales" />
+        <StatCard align="center" value={materialsData?.pagination.total ?? 0} label="Materiales" />
       </div>
 
       {/* Metadata */}
@@ -576,18 +586,12 @@ export function GroupDetailPage() {
               <Calendar className="h-4 w-4" />
               <span>Creado: <span className="font-medium text-neutral-text-primary">{new Date(group.createdAt).toLocaleDateString('es')}</span></span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <Clock className="h-4 w-4" />
-              <span>Programados: <span className="font-medium text-neutral-text-primary">{group.statistics.scheduledContestCount}</span></span>
-            </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <Trophy className="h-4 w-4" />
-              <span>Finalizados: <span className="font-medium text-neutral-text-primary">{group.statistics.finishedContestCount}</span></span>
-            </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <FileText className="h-4 w-4" />
-              <span>Materiales: <span className="font-medium text-neutral-text-primary">{group.statistics.materialCount}</span></span>
-            </div>
+            {group.updatedAt && (
+              <div className="flex items-center gap-2 text-neutral-text-muted">
+                <Clock className="h-4 w-4" />
+                <span>Actualizado: <span className="font-medium text-neutral-text-primary">{new Date(group.updatedAt).toLocaleDateString('es')}</span></span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -714,9 +718,9 @@ export function GroupDetailPage() {
           onLimitChange={handleContestsLimitChange}
         />
       )}
-      {contestsData?.data && contestsData.data.length > 0 ? (
+      {contestsData?.items && contestsData.items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contestsData.data.map((c) => (
+          {contestsData.items.map((c) => (
             <Card
               key={c.id}
               className="cursor-pointer hover:border-brand-primary/40 transition-colors"
@@ -771,7 +775,7 @@ export function GroupDetailPage() {
     { id: 'info', label: 'Información', content: infoTab },
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
-    { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
+    { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
     ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
     ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.totalItems }] : []),
   ]

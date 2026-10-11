@@ -148,7 +148,14 @@ export const teamsHandlers = [
     await delay(200)
     const { contestId } = params as { groupId: string; contestId: string }
     const teams = mockTeamRegistrations[contestId] || []
-    return HttpResponse.json({ teams, total: teams.length })
+    const items = teams.map((t, i) => ({
+      id: `reg-${contestId}-${i}`,
+      teamId: t.team.id,
+      teamName: t.team.name,
+      selectedMembers: t.selectedMembers,
+      registeredAt: t.registeredAt,
+    }))
+    return HttpResponse.json({ items, total: items.length, page: 1, limit: items.length || 1, totalPages: 1 })
   }),
 
   // Register team to contest

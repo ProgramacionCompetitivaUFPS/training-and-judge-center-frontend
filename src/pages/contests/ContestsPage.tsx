@@ -152,7 +152,7 @@ export function ContestsPage() {
     search: debouncedSearch || undefined,
   })
 
-  const filteredItems = data?.data || []
+  const filteredItems = data?.items || []
 
   return (
     <AppLayout

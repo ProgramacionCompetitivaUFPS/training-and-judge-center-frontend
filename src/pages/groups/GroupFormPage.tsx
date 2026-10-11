@@ -229,14 +229,6 @@ export function GroupFormPage() {
                       <span className="text-neutral-text-muted">Líderes</span>
                       <span className="font-mono font-bold">{group.statistics.leadCount}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-neutral-text-muted">Competencias</span>
-                      <span className="font-mono font-bold">{group.statistics.contestCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-neutral-text-muted">Materiales</span>
-                      <span className="font-mono font-bold">{group.statistics.materialCount}</span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
