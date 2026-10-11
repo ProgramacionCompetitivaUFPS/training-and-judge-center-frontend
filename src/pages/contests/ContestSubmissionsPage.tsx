@@ -70,7 +70,7 @@ export function ContestSubmissionsPage() {
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
-        { label: 'Submissions' },
+        { label: 'Envíos' },
       ]}
     >
       <div className="space-y-4">

@@ -20,12 +20,12 @@ import type { ProblemSubmissionsParams, SubmissionStatus, SubmissionLanguage } f
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
-  { value: 'ACCEPTED', label: 'Accepted' },
-  { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
-  { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Runtime Error' },
-  { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
-  { value: 'PENDING', label: 'Pending' },
+  { value: 'ACCEPTED', label: 'Aceptado' },
+  { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
+  { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
+  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
+  { value: 'PENDING', label: 'Pendiente' },
 ]
 
 const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
@@ -56,7 +56,7 @@ export function ProblemSubmissionsPage() {
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
     { label: problem?.title ?? slug ?? '...', href: `/problems/${slug}` },
-    { label: 'Submissions' },
+    { label: 'Envíos' },
   ]
 
   return (

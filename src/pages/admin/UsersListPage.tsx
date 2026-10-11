@@ -79,7 +79,7 @@ function getConfirmDialogProps(action: PendingAction | null) {
   const targetRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
   return {
     title: 'Cambiar rol de usuario',
-    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${user.role} a ${targetRole}?`,
+    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${ROLE_CONFIG[user.role].label} a ${ROLE_CONFIG[targetRole].label}?`,
   }
 }
 
@@ -236,9 +236,9 @@ export function UsersListPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los roles</SelectItem>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-              <SelectItem value="COACH">Coach</SelectItem>
-              <SelectItem value="CONTESTANT">Contestant</SelectItem>
+              <SelectItem value="ADMIN">{ROLE_CONFIG.ADMIN.label}</SelectItem>
+              <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
+              <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter ?? 'ALL'} onValueChange={handleStatusFilter}>
@@ -389,7 +389,7 @@ export function UsersListPage() {
                                   {user.role === 'COACH' && (
                                     <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
                                       <ArrowDown className="mr-2 h-4 w-4" />
-                                      Bajar a Contestant
+                                      Bajar a Competidor
                                     </DropdownMenuItem>
                                   )}
                                   {user.role !== 'ADMIN' && (
@@ -472,8 +472,8 @@ export function UsersListPage() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONTESTANT">Contestant</SelectItem>
-                  <SelectItem value="COACH">Coach</SelectItem>
+                  <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
+                  <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

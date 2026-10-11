@@ -123,8 +123,8 @@ export function SubmitSolutionPage() {
 
     toast({
       variant: 'success',
-      title: 'Submission cargada',
-      description: `Contenido cargado desde submission #${detail.id.slice(0, 8)}`,
+      title: 'Envío cargado',
+      description: `Contenido cargado desde el envío #${detail.id.slice(0, 8)}`,
     })
     setLoadedSubmissionId(detail.id)
     setBannerDismissed(true)
@@ -228,7 +228,7 @@ export function SubmitSolutionPage() {
       const svgBlob = editor.getSvg()
 
       const onSuccess = (res: { id: string }) => {
-        toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id.slice(0, 12)} creada` })
+        toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       }
       const onError = () => {
         toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
@@ -255,7 +255,7 @@ export function SubmitSolutionPage() {
     const compiler = LANGUAGE_COMPILER_MAP[language] || language
 
     const onSuccess = (res: { id: string }) => {
-      toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id.slice(0, 12)} creada` })
+      toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       setCode('')
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''

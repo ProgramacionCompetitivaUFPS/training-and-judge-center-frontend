@@ -16,14 +16,14 @@ import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, Submiss
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
-  { value: 'ACCEPTED', label: 'Accepted' },
-  { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
-  { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
-  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memory Limit Exceeded' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Runtime Error' },
-  { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'RUNNING', label: 'Running' },
+  { value: 'ACCEPTED', label: 'Aceptado' },
+  { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
+  { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
+  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memoria Límite Excedida' },
+  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'RUNNING', label: 'Ejecutando' },
 ]
 
 const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
@@ -110,7 +110,7 @@ export function SubmissionsPage() {
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
 
   return (
-    <AppLayout breadcrumbs={[{ label: 'Mis Submissions' }]}>
+    <AppLayout breadcrumbs={[{ label: 'Mis Envíos' }]}>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-extrabold text-neutral-text-primary">Mis Submissions</h1>

@@ -2,9 +2,9 @@ import type { UserRole } from '@/types/user'
 import type { BadgeProps } from '@/components/ui/Badge'
 
 export const ROLE_CONFIG = {
-  ADMIN: { label: 'Admin', badgeVariant: 'default' },
+  ADMIN: { label: 'Administrador', badgeVariant: 'default' },
   COACH: { label: 'Coach', badgeVariant: 'primary' },
-  CONTESTANT: { label: 'Contestant', badgeVariant: 'outline' },
+  CONTESTANT: { label: 'Competidor', badgeVariant: 'outline' },
 } as const satisfies Record<UserRole, { label: string; badgeVariant: BadgeProps['variant'] }>
 
 export const DIFFICULTY_COLORS = {
@@ -26,16 +26,16 @@ export const DIFFICULTY_COLORS = {
 } as const
 
 export const SUBMISSION_STATUS_CONFIG = {
-  ACCEPTED: { label: 'Accepted', color: 'success' },
-  WRONG_ANSWER: { label: 'Wrong Answer', color: 'error' },
-  TIME_LIMIT_EXCEEDED: { label: 'Time Limit Exceeded', color: 'warning' },
-  MEMORY_LIMIT_EXCEEDED: { label: 'Memory Limit Exceeded', color: 'warning' },
-  RUNTIME_EXCEPTION: { label: 'Runtime Error', color: 'error' },
-  RUNTIME_ERROR: { label: 'Runtime Error', color: 'error' },
-  COMPILATION_ERROR: { label: 'Compilation Error', color: 'error' },
-  PENDING: { label: 'Pending', color: 'default' },
-  RUNNING: { label: 'Running', color: 'default' },
-  SYSTEM_ERROR: { label: 'System Error', color: 'error' },
+  ACCEPTED: { label: 'Aceptado', color: 'success' },
+  WRONG_ANSWER: { label: 'Respuesta Incorrecta', color: 'error' },
+  TIME_LIMIT_EXCEEDED: { label: 'Tiempo Límite Excedido', color: 'warning' },
+  MEMORY_LIMIT_EXCEEDED: { label: 'Memoria Límite Excedida', color: 'warning' },
+  RUNTIME_EXCEPTION: { label: 'Error en Tiempo de Ejecución', color: 'error' },
+  RUNTIME_ERROR: { label: 'Error en Tiempo de Ejecución', color: 'error' },
+  COMPILATION_ERROR: { label: 'Error de Compilación', color: 'error' },
+  PENDING: { label: 'Pendiente', color: 'default' },
+  RUNNING: { label: 'Ejecutando', color: 'default' },
+  SYSTEM_ERROR: { label: 'Error del Sistema', color: 'error' },
 } as const
 
 export const PROGRAMMING_LANGUAGES = [

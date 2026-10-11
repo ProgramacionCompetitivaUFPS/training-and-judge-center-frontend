@@ -57,7 +57,7 @@ function DataTableHeader<T>({
             <Checkbox
               checked={allSelected}
               onCheckedChange={onSelectAll}
-              aria-label="Select all"
+              aria-label="Seleccionar todos"
               className={someSelected ? 'opacity-50' : ''}
             />
           </TableHead>
@@ -115,7 +115,7 @@ function DataTableRowItem<T>({
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => onSelectItem(itemId)}
-            aria-label={`Select item ${itemId}`}
+            aria-label={`Seleccionar elemento ${itemId}`}
             onClick={(e) => e.stopPropagation()}
           />
         </TableCell>

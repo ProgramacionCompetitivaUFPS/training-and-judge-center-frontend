@@ -90,7 +90,7 @@ const navItems: NavItem[] = [
   { icon: Code2, label: 'Problemas', to: ROUTES.PROBLEMS },
   { icon: Users, label: 'Grupos', to: ROUTES.GROUPS },
   { icon: Trophy, label: 'Competencias', to: ROUTES.CONTESTS },
-  { icon: Send, label: 'Submissions', to: ROUTES.SUBMISSIONS },
+  { icon: Send, label: 'Envíos', to: ROUTES.SUBMISSIONS },
   { icon: UsersRound, label: 'Equipos', to: ROUTES.TEAMS },
 ]
 
