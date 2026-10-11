@@ -198,7 +198,7 @@ export function TeamContestRegistration({
             </CardHeader>
             <CardContent>
               <p className="text-sm text-neutral-text-muted mb-3">
-                Este contest permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
+                Esta competencia permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
                 Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
               </p>
               {registerTrigger}
@@ -210,7 +210,7 @@ export function TeamContestRegistration({
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Registrar equipo al contest</DialogTitle>
+            <DialogTitle>Registrar equipo a la competencia</DialogTitle>
             <DialogDescription>
               Selecciona tu equipo y los miembros que participarán ({teamSizeMin}–{teamSizeMax} miembros).
             </DialogDescription>
@@ -297,7 +297,7 @@ export function TeamContestRegistration({
         open={leaveOpen}
         onOpenChange={setLeaveOpen}
         title="Salir de esta competencia"
-        description={`Dejarás de participar con "${myRegistration?.team.name}" en este contest. El resto del equipo sigue registrado. ¿Continuar?`}
+        description={`Dejarás de participar con "${myRegistration?.team.name}" en esta competencia. El resto del equipo sigue registrado. ¿Continuar?`}
         confirmLabel="Salir"
         variant="warning"
         onConfirm={handleLeaveRoster}
@@ -308,7 +308,7 @@ export function TeamContestRegistration({
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Cancelar registro del equipo"
-        description={`¿Seguro que deseas cancelar el registro de "${myRegistration?.team.name}" a este contest? Esto afecta a todo el equipo, no solo a ti. Deberán registrarse de nuevo si cambian de opinión.`}
+        description={`¿Seguro que deseas cancelar el registro de "${myRegistration?.team.name}" a esta competencia? Esto afecta a todo el equipo, no solo a ti. Deberán registrarse de nuevo si cambian de opinión.`}
         confirmLabel="Cancelar registro"
         variant="warning"
         onConfirm={handleCancelRegistration}

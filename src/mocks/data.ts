@@ -109,7 +109,7 @@ export const mockDashboard: UserDashboard = {
   upcomingContests: [
     {
       id: 'contest-1',
-      name: 'Contest Semanal #12',
+      name: 'Competencia Semanal #12',
       startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
       durationMinutes: 300,
       groupId: 'group-1',
@@ -129,7 +129,7 @@ export const mockDashboard: UserDashboard = {
   materialsCount: 4,
   streak: { current: 3, maximum: 7 },
   recentContestResults: [
-    { contestId: 'contest-3', contestName: 'Weekly Contest #44', position: 23, problemsSolved: 3, penalty: 145 },
+    { contestId: 'contest-3', contestName: 'Competencia Semanal #44', position: 23, problemsSolved: 3, penalty: 145 },
   ],
 }
 
@@ -259,7 +259,7 @@ export const mockGroups: GroupListItem[] = [
   {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
@@ -352,7 +352,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
   'group-1': {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
@@ -1296,8 +1296,8 @@ const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
-    name: 'Contest Semanal #12',
-    description: 'Contest de práctica semanal enfocado en programación dinámica y grafos.',
+    name: 'Competencia Semanal #12',
+    description: 'Competencia de práctica semanal enfocada en programación dinámica y grafos.',
     startTime: inTwoDays.toISOString(),
     endTime: inTwoDaysEnd.toISOString(),
     duration: 18000,
@@ -1348,7 +1348,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-3',
-    name: 'Challenge Algoritmos Clásicos',
+    name: 'Reto Algoritmos Clásicos',
     description: 'Competencia de algoritmos clásicos: sorting, búsqueda, DP.',
     startTime: yesterday.toISOString(),
     endTime: yesterdayEnd.toISOString(),
@@ -1376,7 +1376,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-4',
-    name: 'Mini Contest DP',
+    name: 'Mini Competencia DP',
     description: null,
     startTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
@@ -1403,8 +1403,8 @@ export const mockContests: ContestDetail[] = [
     // Belongs to group-3, where mariacoach (COACH, not Admin) is NOT a leader — used to test
     // that contest management actions are hidden for a Coach who doesn't actually lead this group.
     id: 'contest-5',
-    name: 'Contest de Bienvenida',
-    description: 'Contest introductorio para nuevos miembros.',
+    name: 'Competencia de Bienvenida',
+    description: 'Competencia introductoria para nuevos miembros.',
     startTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
     duration: 10800,
@@ -1428,7 +1428,7 @@ export const mockContests: ContestDetail[] = [
     // ACTIVE, currently inside its own freeze window (ends soon, freezeMinutes covers "now") —
     // used to test that Leads/Admins see real verdicts during freeze while others see '?'.
     id: 'contest-6',
-    name: 'Contest en Freeze',
+    name: 'Competencia en Freeze',
     description: 'Competencia activa actualmente en periodo de freeze.',
     startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 20 * 60 * 1000).toISOString(),
@@ -1780,7 +1780,7 @@ export const mockMaterials: Material[] = [
   {
     id: 'mat-001',
     title: 'Bienvenidos al grupo de entrenamiento',
-    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en los contests semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
+    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en las competencias semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
     tags: ['announcement', 'welcome'],
     status: 'PUBLISHED',
     pinned: true,
@@ -1810,7 +1810,7 @@ export const mockMaterials: Material[] = [
     title: 'Guía Completa: Programación Dinámica',
     content: `# Programación Dinámica
 
-La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de un contest típico de ICPC.
+La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de una competencia típica de ICPC.
 
 > "Those who cannot remember the past are condemned to repeat it." — Esta frase resume perfectamente la idea detrás de DP: **recordar resultados previos** para no recalcularlos.
 
@@ -2004,8 +2004,8 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
   },
   {
     id: 'mat-005',
-    title: 'Anuncio: Contest Regional',
-    content: '# Contest Regional 2026\n\nSe acerca el contest regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Contest**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
+    title: 'Anuncio: Competencia Regional',
+    content: '# Competencia Regional 2026\n\nSe acerca la competencia regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Competencia**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
     tags: ['announcement'],
     status: 'PUBLISHED',
     pinned: true,

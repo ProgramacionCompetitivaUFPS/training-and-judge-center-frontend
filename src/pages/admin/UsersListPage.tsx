@@ -46,6 +46,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
 import { adminUpdateUserSchema, type AdminUpdateUserFormData } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX, Pencil } from 'lucide-react'
 
@@ -204,6 +205,7 @@ export function UsersListPage() {
         toast({
           variant: 'error',
           title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
+          description: getErrorMessage(err),
         })
       }
     }
@@ -298,7 +300,7 @@ export function UsersListPage() {
 
         {error && (
           <Alert variant="error">
-            {error instanceof Error ? error.message : 'Error al cargar usuarios.'}
+            {getErrorMessage(error, 'Error al cargar usuarios.')}
           </Alert>
         )}
 
@@ -327,7 +329,7 @@ export function UsersListPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuario</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Correo</TableHead>
                       <TableHead>Rol</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>

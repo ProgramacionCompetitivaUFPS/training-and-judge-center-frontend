@@ -113,7 +113,7 @@ export function SubmitSolutionPage() {
         toast({
           variant: 'warning',
           title: 'XML no disponible',
-          description: 'Esta submission de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
+          description: 'Este envío de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
         })
         return
       }
@@ -284,7 +284,7 @@ export function SubmitSolutionPage() {
   const breadcrumbs = isContestContext
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: PATHS.contest(groupId || '', contestId || '') },
+        { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: 'Enviar solución' },
       ]
     : [
@@ -618,7 +618,7 @@ export function SubmitSolutionPage() {
           open={showConfirmLoad}
           onOpenChange={setShowConfirmLoad}
           title="Reemplazar contenido del editor"
-          description="El editor tiene contenido. ¿Deseas reemplazarlo con el contenido de la submission seleccionada?"
+          description="El editor tiene contenido. ¿Deseas reemplazarlo con el contenido del envío seleccionado?"
           confirmLabel="Reemplazar"
           cancelLabel="Cancelar"
           variant="warning"

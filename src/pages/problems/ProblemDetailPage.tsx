@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 
@@ -134,7 +135,7 @@ export function ProblemDetailPage() {
           toast({ variant: 'error', title: 'No se pudo publicar', description: 'Revisa el detalle de la validación.' })
           setPublishResult({ kind: 'failure', data: err.raw as PublishFailureResponse })
         } else {
-          toast({ variant: 'error', title: 'Error al publicar', description: err instanceof ApiClientError ? err.message : undefined })
+          toast({ variant: 'error', title: 'Error al publicar', description: getErrorMessage(err) })
         }
       },
     })
@@ -206,7 +207,7 @@ export function ProblemDetailPage() {
   const breadcrumbs = contestId
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: PATHS.contest(groupId || '', contestId || '') },
+        { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
     : [
@@ -631,7 +632,11 @@ export function ProblemDetailPage() {
                     {publishResult.data.failedTestCases.map((tc) => (
                       <li key={tc.case}>
                         <span className="font-mono">{tc.case}</span>
-                        {(tc.status || tc.verdict) && <span className="text-neutral-text-muted"> — {tc.status || tc.verdict}</span>}
+                        {(tc.status || tc.verdict) && (
+                          <span className="text-neutral-text-muted">
+                            {' '}— {SUBMISSION_STATUS_CONFIG[(tc.status || tc.verdict) as keyof typeof SUBMISSION_STATUS_CONFIG]?.label ?? (tc.status || tc.verdict)}
+                          </span>
+                        )}
                         {tc.details && <span className="block text-xs text-neutral-text-muted">{tc.details}</span>}
                       </li>
                     ))}
@@ -791,7 +796,7 @@ function FilesManager({ problem }: FilesManagerProps) {
           if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
             toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
           } else if (err instanceof ApiClientError) {
-            toast({ variant: 'error', title: 'Error al subir el archivo', description: err.message })
+            toast({ variant: 'error', title: 'Error al subir el archivo', description: getErrorMessage(err) })
           } else {
             toast({ variant: 'error', title: 'Error al subir el archivo' })
           }

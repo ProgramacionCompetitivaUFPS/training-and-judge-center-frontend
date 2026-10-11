@@ -509,7 +509,7 @@ export function GroupDetailPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invitado</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Correo</TableHead>
                 <TableHead>Expira</TableHead>
               </TableRow>
             </TableHeader>
@@ -561,10 +561,10 @@ export function GroupDetailPage() {
         <StatCard
           align="center"
           value={group.statistics.activeContestCount}
-          label="Contests activos"
+          label="Competencias activas"
           valueColor="text-status-success"
         />
-        <StatCard align="center" value={group.statistics.contestCount} label="Contests totales" />
+        <StatCard align="center" value={group.statistics.contestCount} label="Competencias totales" />
         <StatCard align="center" value={group.statistics.materialCount} label="Materiales" />
       </div>
 

@@ -201,7 +201,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   >
                     <BarChart3 className="h-4 w-4 flex-shrink-0" />
-                    <span>Standings</span>
+                    <span>Tabla de Posiciones</span>
                   </Link>
                   <Link
                     to={PATHS.contestSubmissions(activeContest.group.id, activeContest.id)}

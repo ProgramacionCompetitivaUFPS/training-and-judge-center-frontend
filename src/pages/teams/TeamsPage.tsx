@@ -20,6 +20,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { createTeamSchema, type CreateTeamFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 export function TeamsPage() {
@@ -50,7 +51,7 @@ export function TeamsPage() {
       navigate(`/teams/${result.id}`)
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -61,7 +62,7 @@ export function TeamsPage() {
       toast({ variant: 'success', title: 'Invitación aceptada', description: 'Te has unido al equipo' })
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -72,7 +73,7 @@ export function TeamsPage() {
       toast({ variant: 'success', title: 'Invitación rechazada' })
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }

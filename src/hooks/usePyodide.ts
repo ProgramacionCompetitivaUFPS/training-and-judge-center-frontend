@@ -34,7 +34,7 @@ async function getPyodide(): Promise<PyodideInterface> {
         const script = document.createElement('script')
         script.src = 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js'
         script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Failed to load Pyodide'))
+        script.onerror = () => reject(new Error('No se pudo cargar Pyodide'))
         document.head.appendChild(script)
       })
     }

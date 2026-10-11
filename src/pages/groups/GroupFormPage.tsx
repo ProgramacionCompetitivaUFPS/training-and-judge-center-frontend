@@ -230,7 +230,7 @@ export function GroupFormPage() {
                       <span className="font-mono font-bold">{group.statistics.leadCount}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-neutral-text-muted">Contests</span>
+                      <span className="text-neutral-text-muted">Competencias</span>
                       <span className="font-mono font-bold">{group.statistics.contestCount}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">

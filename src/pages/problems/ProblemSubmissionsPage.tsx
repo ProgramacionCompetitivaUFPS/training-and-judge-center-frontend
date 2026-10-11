@@ -139,7 +139,7 @@ export function ProblemSubmissionsPage() {
         {pagination && !isLoading && (
           <PaginationSummary
             total={pagination.total}
-            totalLabel="submissions"
+            totalLabel="envíos"
             currentPage={pagination.page}
             totalPages={pagination.totalPages}
             limit={filters.limit ?? 5}
@@ -157,7 +157,7 @@ export function ProblemSubmissionsPage() {
         ) : submissions.length === 0 ? (
           <EmptyState
             icon={FileCode2}
-            title="No hay submissions"
+            title="No hay envíos"
             description="Aún no se han enviado soluciones para este problema con los filtros seleccionados."
           />
         ) : (

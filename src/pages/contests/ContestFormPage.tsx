@@ -89,7 +89,7 @@ export function ContestFormPage() {
         { groupId, contestId: id, data: updatePayload },
         {
           onSuccess: () => {
-            toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })
+            toast({ variant: 'success', title: 'Actualizado', description: 'Competencia actualizada' })
             navigate(PATHS.contest(groupId, id))
           },
           onError: (err) => {
@@ -106,7 +106,7 @@ export function ContestFormPage() {
         { groupId, data: payload },
         {
           onSuccess: (created) => {
-            toast({ variant: 'success', title: 'Creado', description: 'Contest creado exitosamente' })
+            toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
             navigate(PATHS.contest(groupId, created.id))
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
@@ -160,7 +160,7 @@ export function ContestFormPage() {
               {isEditing ? 'Editar competencia' : 'Nueva competencia'}
             </h1>
             <p className="text-sm text-neutral-text-muted mt-1">
-              {isEditing ? 'Modifica la configuración del contest' : 'Configura una nueva competencia para el grupo'}
+              {isEditing ? 'Modifica la configuración de la competencia' : 'Configura una nueva competencia para el grupo'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -178,13 +178,13 @@ export function ContestFormPage() {
                 label="Nombre"
                 {...register('name')}
                 error={errors.name?.message}
-                placeholder="Ej: Contest Semanal #15"
+                placeholder="Ej: Competencia Semanal #15"
               />
               <Textarea
                 label="Descripción"
                 {...register('description')}
                 error={errors.description?.message}
-                placeholder="Descripción del contest (opcional)"
+                placeholder="Descripción de la competencia (opcional)"
                 rows={3}
               />
             </div>

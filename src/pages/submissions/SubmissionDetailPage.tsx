@@ -102,7 +102,7 @@ export function SubmissionDetailPage() {
             <div className="flex items-center gap-3 mb-2">
               <SubmissionStatusBadge status={submission.status} />
               <h1 className="text-2xl font-semibold text-neutral-text-primary">
-                Submission #{submission.id.slice(0, 8)}
+                Envío #{submission.id.slice(0, 8)}
               </h1>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
@@ -116,7 +116,7 @@ export function SubmissionDetailPage() {
               {submission.contest && (
                 <>
                   <span>·</span>
-                  <span>Contest: {submission.contest.name}</span>
+                  <span>Competencia: {submission.contest.name}</span>
                 </>
               )}
             </div>

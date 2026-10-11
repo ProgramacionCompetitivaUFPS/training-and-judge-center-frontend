@@ -154,7 +154,7 @@ export function ProfilePage() {
                     align="center"
                     value={String(stats.problemsSolved)}
                     label="Problemas resueltos"
-                    sub={`${stats.contestsParticipated} contests`}
+                    sub={`${stats.contestsParticipated} competencias`}
                   />
                   <StatCard
                     align="center"
@@ -163,7 +163,7 @@ export function ProfilePage() {
                     sub={
                       stats.totalSubmissions > 0
                         ? `${stats.acceptedSubmissions}/${stats.totalSubmissions}`
-                        : 'sin submissions'
+                        : 'sin envíos'
                     }
                   />
                 </div>

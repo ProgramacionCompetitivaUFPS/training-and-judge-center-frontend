@@ -86,10 +86,10 @@ export const groupsHandlers = [
     await delay(300)
     const body = (await request.json()) as { confirmationName?: string }
     if (!body.confirmationName) {
-      return HttpResponse.json({ error: 'CONFIRMATION_REQUIRED', message: 'Confirmation name is required' }, { status: 400 })
+      return HttpResponse.json({ error: 'CONFIRMATION_REQUIRED', message: 'El nombre de confirmación es requerido' }, { status: 400 })
     }
     return HttpResponse.json({
-      message: 'Group deleted successfully',
+      message: 'Grupo eliminado exitosamente',
       deletedGroup: { id: 'deleted', name: body.confirmationName },
       deletionSummary: { contestsDeleted: 0, materialsDeleted: 0, standingCollectionsDeleted: 0, submissionsOrphaned: 0, membersRemoved: 0 },
     })
