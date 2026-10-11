@@ -185,25 +185,29 @@ export function GroupsPage() {
                   </button>
                 ))}
               </div>
-              <div className="w-px h-[22px] bg-neutral-border" />
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
-                    className={cn(
-                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
-                      (allParams.visibility ?? 'ALL') === opt.value
-                        ? 'bg-brand-primary text-neutral-surface'
-                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              {user?.role === 'ADMIN' && (
+                <>
+                  <div className="w-px h-[22px] bg-neutral-border" />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
+                        className={cn(
+                          'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                          (allParams.visibility ?? 'ALL') === opt.value
+                            ? 'bg-brand-primary text-neutral-surface'
+                            : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Results count + sort */}
