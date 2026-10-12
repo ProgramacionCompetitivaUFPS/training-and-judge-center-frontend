@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
@@ -61,7 +62,7 @@ export function ProblemDetailPage() {
   const isContestActive = isContestContext && activeContest?.status === 'ACTIVE'
   const resolvedSlug = isContestContext
     ? activeContest?.problems.find(
-        (p) => ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)) === letter?.toUpperCase()
+        (p) => problemLabel(p.position) === letter?.toUpperCase()
       )?.slug
     : slug
 
@@ -274,7 +275,7 @@ export function ProblemDetailPage() {
 
           {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
               `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
-          {problem.samples.length > 0 && (
+          {!!problem.samples?.length && (
             <Card>
               <CardHeader>
                 <CardTitle>Ejemplos</CardTitle>
@@ -336,7 +337,13 @@ export function ProblemDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full gap-2 mt-2"
-                  onClick={() => navigate(PATHS.problemSubmissions(problem.slug))}
+                  onClick={() => {
+                    if (isContestContext && groupId && contestId) {
+                      navigate(`${PATHS.contestSubmissions(groupId, contestId)}?problem=${encodeURIComponent(problem.slug)}`)
+                    } else {
+                      navigate(PATHS.problemSubmissions(problem.slug))
+                    }
+                  }}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Ver submissions

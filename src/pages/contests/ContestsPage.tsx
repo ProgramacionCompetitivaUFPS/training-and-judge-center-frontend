@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout'
 import { EmptyState } from '@/components/patterns'
 import { Card, CardContent, Input } from '@/components/ui'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { ParticipationModeTag } from '@/components/features/ParticipationModeTag'
 import { useMyContests } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -47,7 +48,6 @@ function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: (
       className="w-full flex items-center justify-between gap-4 px-4 py-3 bg-neutral-surface border border-neutral-border rounded-lg hover:border-brand-primary/40 hover:shadow-elevation-1 transition-all text-left"
     >
       <div className="flex items-center gap-3 min-w-0">
-        <ContestStatusBadge status={contest.status} />
         <div className="min-w-0">
           <p className="font-semibold text-neutral-text-primary truncate">{contest.name}</p>
           <p className="text-xs text-neutral-text-muted truncate">{contest.group.name}</p>
@@ -60,6 +60,7 @@ function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: (
             {isFinished ? 'Participado' : 'Inscrito'}
           </span>
         )}
+        <ParticipationModeTag mode={contest.participationMode} className="hidden sm:inline-flex" />
         <span className="hidden sm:flex items-center gap-1"><Users className="h-3.5 w-3.5" />{contest.participantCount}</span>
         {contest.status !== 'SCHEDULED' && (
           <span className="hidden md:flex items-center gap-1"><Code2 className="h-3.5 w-3.5" />{contest.problemCount} problemas</span>
@@ -121,9 +122,15 @@ function ContestSection({ title, items, isLoading, onContestClick, variant = 'ca
   )
 }
 
-interface ContestCardProps { contest: ContestListItem; onClick: () => void }
+interface ContestCardProps {
+  contest: ContestListItem
+  onClick: () => void
+  // Solo cuando la lista mezcla estados (Todas + búsqueda); en las secciones y con
+  // filtro de estado el estado ya está implícito.
+  showStatus?: boolean
+}
 
-function ContestCard({ contest, onClick }: ContestCardProps) {
+function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps) {
   const isActive = contest.status === 'ACTIVE'
   const isFinished = contest.status === 'FINISHED'
 
@@ -140,7 +147,10 @@ function ContestCard({ contest, onClick }: ContestCardProps) {
       <CardContent className="p-5 flex flex-col flex-1">
         {/* Top: badges + date */}
         <div className="flex justify-between items-start mb-3">
-          <ContestStatusBadge status={contest.status} />
+          <div className="flex items-center gap-2">
+            {showStatus && <ContestStatusBadge status={contest.status} />}
+            <ParticipationModeTag mode={contest.participationMode} />
+          </div>
           <div className="flex items-center gap-2">
             {contest.isRegistered && (
               <span className="flex items-center gap-1 text-brand-primary">
@@ -361,6 +371,7 @@ export function ContestsPage() {
               <ContestCard
                 key={contest.id}
                 contest={contest}
+                showStatus={statusFilter === 'ALL'}
                 onClick={() => goToContest(contest)}
               />
             ))}
