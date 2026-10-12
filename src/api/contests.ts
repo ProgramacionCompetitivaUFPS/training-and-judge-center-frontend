@@ -15,18 +15,24 @@ import type {
 
 // === CRUD ===
 
+// El backend espera `order`, no `sortOrder` — mismo patrón ya usado en adminListUsers.
+function toContestQueryParams(params?: ContestListParams) {
+  const { sortOrder, ...rest } = params ?? {}
+  return { ...rest, order: sortOrder } as Record<string, string | number | boolean | undefined>
+}
+
 export function getContests(
   groupId: string,
   params?: ContestListParams,
 ): Promise<ContestListResponse> {
   return apiClient.get(`/groups/${groupId}/contests`, {
-    params: params as Record<string, string | number | boolean | undefined>,
+    params: toContestQueryParams(params),
   })
 }
 
 export function getMyContests(params?: ContestListParams): Promise<ContestListResponse> {
   return apiClient.get('/contests', {
-    params: params as Record<string, string | number | boolean | undefined>,
+    params: toContestQueryParams(params),
   })
 }
 

@@ -30,10 +30,11 @@ export const contestKeys = {
 
 // === Queries ===
 
-export function useMyContests(params?: ContestListParams) {
+export function useMyContests(params?: ContestListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: contestKeys.myList(params),
     queryFn: () => contestsApi.getMyContests(params),
+    enabled: options?.enabled ?? true,
   })
 }
 
