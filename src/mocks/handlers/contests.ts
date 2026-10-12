@@ -18,6 +18,14 @@ export const contestsHandlers = [
       filtered = filtered.filter((c) => c.name.toLowerCase().includes(s))
     }
 
+    const sortBy = sp.get('sortBy') || 'startTime'
+    const order = sp.get('order') === 'asc' ? 'asc' : 'desc'
+    const sortKey = sortBy === 'name' ? 'name' : sortBy === 'createdAt' ? 'createdAt' : 'startTime'
+    filtered = [...filtered].sort((a, b) => {
+      const cmp = String(a[sortKey as keyof typeof a]).localeCompare(String(b[sortKey as keyof typeof b]))
+      return order === 'asc' ? cmp : -cmp
+    })
+
     const page = Number(sp.get('page')) || 1
     const limit = Number(sp.get('limit')) || 20
     const start = (page - 1) * limit
@@ -48,7 +56,7 @@ export const contestsHandlers = [
       status: sp.get('status') || undefined,
       search: sp.get('search') || undefined,
       sortBy: sp.get('sortBy') || undefined,
-      sortOrder: sp.get('sortOrder') || undefined,
+      sortOrder: sp.get('order') || undefined,
     })
     return HttpResponse.json(result)
   }),

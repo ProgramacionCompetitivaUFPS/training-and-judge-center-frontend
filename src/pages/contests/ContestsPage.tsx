@@ -39,6 +39,88 @@ const STATUS_FILTERS = [
   { value: 'FINISHED' as const, label: 'Finalizados' },
 ]
 
+function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: () => void }) {
+  const isFinished = contest.status === 'FINISHED'
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-4 px-4 py-3 bg-neutral-surface border border-neutral-border rounded-lg hover:border-brand-primary/40 hover:shadow-elevation-1 transition-all text-left"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <ContestStatusBadge status={contest.status} />
+        <div className="min-w-0">
+          <p className="font-semibold text-neutral-text-primary truncate">{contest.name}</p>
+          <p className="text-xs text-neutral-text-muted truncate">{contest.group.name}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-4 shrink-0 text-xs text-neutral-text-muted">
+        {contest.isRegistered && (
+          <span className="hidden sm:flex items-center gap-1 text-brand-primary font-bold uppercase tracking-wider">
+            <CheckCircle className="h-3.5 w-3.5" />
+            {isFinished ? 'Participado' : 'Inscrito'}
+          </span>
+        )}
+        <span className="hidden sm:flex items-center gap-1"><Users className="h-3.5 w-3.5" />{contest.participantCount}</span>
+        {contest.status !== 'SCHEDULED' && (
+          <span className="hidden md:flex items-center gap-1"><Code2 className="h-3.5 w-3.5" />{contest.problemCount} problemas</span>
+        )}
+        <span className="font-mono whitespace-nowrap">{isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}</span>
+      </div>
+    </button>
+  )
+}
+
+interface ContestSectionProps {
+  title: string
+  items: ContestListItem[]
+  isLoading: boolean
+  onContestClick: (contest: ContestListItem) => void
+  variant?: 'cards' | 'rows'
+  accent?: boolean
+}
+
+function ContestSection({ title, items, isLoading, onContestClick, variant = 'cards', accent = false }: ContestSectionProps) {
+  if (!isLoading && items.length === 0) return null
+  return (
+    <div>
+      <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider mb-3">
+        {accent && <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-status-success" />
+        </span>}
+        <span className={accent ? 'text-status-success' : 'text-neutral-text-muted'}>{title}</span>
+      </h2>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-5">
+                <div className="animate-pulse space-y-3">
+                  <div className="h-5 bg-neutral-border rounded w-20" />
+                  <div className="h-5 bg-neutral-border rounded w-3/4" />
+                  <div className="h-4 bg-neutral-border rounded w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : variant === 'rows' ? (
+        <div className="space-y-2">
+          {items.map((contest) => (
+            <ContestRow key={contest.id} contest={contest} onClick={() => onContestClick(contest)} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {items.map((contest) => (
+            <ContestCard key={contest.id} contest={contest} onClick={() => onContestClick(contest)} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface ContestCardProps { contest: ContestListItem; onClick: () => void }
 
 function ContestCard({ contest, onClick }: ContestCardProps) {
@@ -145,14 +227,36 @@ export function ContestsPage() {
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
 
-  const { data, isLoading } = useMyContests({
-    page,
-    limit: 20,
-    status: statusFilter !== 'ALL' ? statusFilter : undefined,
-    search: debouncedSearch || undefined,
-  })
+  // Sin filtro de estado ni búsqueda, agrupamos por estado (como Codeforces) en vez
+  // de una sola lista ordenada por start_time DESC, donde una competencia Programada
+  // para dentro de un año tapa a una que está En curso ahora mismo.
+  const isGroupedView = statusFilter === 'ALL' && !debouncedSearch
+
+  const { data, isLoading } = useMyContests(
+    {
+      page,
+      limit: 20,
+      status: statusFilter !== 'ALL' ? statusFilter : undefined,
+      search: debouncedSearch || undefined,
+    },
+    { enabled: !isGroupedView },
+  )
+
+  const { data: activeData, isLoading: isLoadingActive } = useMyContests(
+    { limit: 20, status: 'ACTIVE', sortBy: 'startTime', sortOrder: 'asc' },
+    { enabled: isGroupedView },
+  )
+  const { data: scheduledData, isLoading: isLoadingScheduled } = useMyContests(
+    { limit: 20, status: 'SCHEDULED', sortBy: 'startTime', sortOrder: 'asc' },
+    { enabled: isGroupedView },
+  )
+  const { data: finishedData, isLoading: isLoadingFinished } = useMyContests(
+    { limit: 20, status: 'FINISHED', sortBy: 'startTime', sortOrder: 'desc' },
+    { enabled: isGroupedView },
+  )
 
   const filteredItems = data?.items || []
+  const goToContest = (contest: ContestListItem) => navigate(PATHS.contest(contest.group.id, contest.id))
 
   return (
     <AppLayout
@@ -203,7 +307,30 @@ export function ContestsPage() {
         </div>
 
         {/* Grid */}
-        {isLoading ? (
+        {isGroupedView ? (
+          (() => {
+            const allEmpty = !isLoadingActive && !isLoadingScheduled && !isLoadingFinished
+              && (activeData?.items.length ?? 0) === 0
+              && (scheduledData?.items.length ?? 0) === 0
+              && (finishedData?.items.length ?? 0) === 0
+            if (allEmpty) {
+              return (
+                <EmptyState
+                  icon={Trophy}
+                  title="No hay competencias"
+                  description="No tienes competencias en ninguno de tus grupos"
+                />
+              )
+            }
+            return (
+              <div className="space-y-8">
+                <ContestSection title="En curso" items={activeData?.items ?? []} isLoading={isLoadingActive} onContestClick={goToContest} accent />
+                <ContestSection title="Próximas" items={scheduledData?.items ?? []} isLoading={isLoadingScheduled} onContestClick={goToContest} variant="rows" />
+                <ContestSection title="Finalizadas" items={finishedData?.items ?? []} isLoading={isLoadingFinished} onContestClick={goToContest} variant="rows" />
+              </div>
+            )
+          })()
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
@@ -226,7 +353,7 @@ export function ContestsPage() {
           <EmptyState
             icon={Trophy}
             title="No hay competencias"
-            description={statusFilter !== 'ALL' || debouncedSearch ? 'No hay competencias con esos filtros' : 'No tienes competencias en ninguno de tus grupos'}
+            description="No hay competencias con esos filtros"
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -234,7 +361,7 @@ export function ContestsPage() {
               <ContestCard
                 key={contest.id}
                 contest={contest}
-                onClick={() => navigate(PATHS.contest(contest.group.id, contest.id))}
+                onClick={() => goToContest(contest)}
               />
             ))}
           </div>
