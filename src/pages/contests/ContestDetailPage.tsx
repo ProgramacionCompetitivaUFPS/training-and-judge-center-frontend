@@ -21,23 +21,33 @@ import { useToast } from '@/hooks/useToast'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 
-function LockedProblemsPlaceholder() {
+function LockedProblemsPlaceholder({
+  title = 'Los problemas se revelarán al iniciar la competencia',
+  description = 'Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.',
+  showSkeleton = true,
+}: {
+  title?: string
+  description?: string
+  showSkeleton?: boolean
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div className="w-16 h-16 bg-neutral-background rounded-full flex items-center justify-center mb-4">
         <EyeOff className="h-7 w-7 text-neutral-text-muted" />
       </div>
       <h4 className="text-base font-bold text-neutral-text-primary mb-1">
-        Los problemas se revelarán al iniciar la competencia
+        {title}
       </h4>
       <p className="text-sm text-neutral-text-muted max-w-sm">
-        Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.
+        {description}
       </p>
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-lg">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 bg-neutral-background rounded-lg animate-pulse" />
-        ))}
-      </div>
+      {showSkeleton && (
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-lg">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 bg-neutral-background rounded-lg animate-pulse" />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -298,17 +308,31 @@ export function ContestDetailPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <section className="lg:col-span-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Problemas del concurso</CardTitle>
+              <Card className={contest.problems.length === 0 && !contest.isRegistered ? 'border-dashed border-neutral-border' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    Problemas del concurso
+                    {contest.problems.length === 0 && !contest.isRegistered && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                  </CardTitle>
+                  {contest.problems.length === 0 && !contest.isRegistered && (
+                    <Badge variant="default">Acceso restringido</Badge>
+                  )}
                 </CardHeader>
-                <CardContent className="p-0">
-                  <ContestProblemsTable
-                    problems={contest.problems}
-                    groupId={groupId}
-                    contestId={contest.id}
-                    showSubmit={contest.isRegistered}
-                  />
+                <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
+                  {contest.problems.length === 0 && !contest.isRegistered ? (
+                    <LockedProblemsPlaceholder
+                      title="No estás inscrito en esta competencia"
+                      description="Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo."
+                      showSkeleton={false}
+                    />
+                  ) : (
+                    <ContestProblemsTable
+                      problems={contest.problems}
+                      groupId={groupId}
+                      contestId={contest.id}
+                      showSubmit={contest.isRegistered}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </section>
