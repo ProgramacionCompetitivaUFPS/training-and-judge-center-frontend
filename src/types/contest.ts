@@ -132,7 +132,10 @@ export interface RegistrationStatus {
 }
 
 export interface RegistrationListItem {
-  nickname: string
+  type?: 'INDIVIDUAL' | 'TEAM'
+  nickname?: string
+  teamName?: string
+  members?: string[]
   registeredAt: string
 }
 
