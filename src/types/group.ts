@@ -81,12 +81,14 @@ export interface GroupLead {
   name: string
 }
 
+// El backend (userMembershipResp) no calcula si hay una solicitud o invitación
+// pendiente aquí — para eso existe GET .../requests/me (ver useMyJoinRequest).
+// Las invitaciones se aceptan solo por el enlace del correo (HU-GRP-09), no hay
+// endpoint para "¿tengo una invitación pendiente a este grupo?".
 export interface UserMembership {
   isMember: boolean
   role: GroupRole | null
   joinedAt: string | null
-  hasPendingRequest: boolean
-  hasPendingInvitation: boolean
 }
 
 // === My Groups (GET /users/me/groups) ===

@@ -341,7 +341,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
     createdAt: '2024-06-01T10:00:00Z',
   },
   'group-2': {
@@ -359,7 +359,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
     createdAt: '2024-08-15T08:00:00Z',
   },
   'group-3': {
@@ -376,7 +376,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: false, role: null, joinedAt: null },
     createdAt: '2024-09-01T12:00:00Z',
   },
   'group-4': {
@@ -393,7 +393,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
     createdAt: '2025-01-10T14:00:00Z',
   },
   'group-global': {
@@ -411,7 +411,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
     ],
-    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
     createdAt: '2024-01-01T00:00:00Z',
   },
   'group-5': {
@@ -429,7 +429,7 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
     ],
     // Rejected once before — used to test distinguishing "rejected" from "never requested".
-    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: false, role: null, joinedAt: null },
     createdAt: '2025-03-01T10:00:00Z',
   },
 }

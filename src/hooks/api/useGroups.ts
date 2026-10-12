@@ -134,7 +134,10 @@ export function useCreateJoinRequest() {
     mutationFn: ({ groupId, data }: { groupId: string; data?: CreateJoinRequestBody }) =>
       groupsApi.createJoinRequest(groupId, data),
     onSuccess: (_, { groupId }) => {
+      // El detalle del grupo no refleja la solicitud (el backend no expone
+      // userMembership.hasPendingRequest); lo que sí cambia es GET .../requests/me.
       queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) })
+      queryClient.invalidateQueries({ queryKey: [...groupKeys.joinRequests(groupId), 'me'] })
     },
   })
 }

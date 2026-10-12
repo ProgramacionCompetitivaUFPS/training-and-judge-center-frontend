@@ -115,7 +115,7 @@ export function GroupDetailPage() {
     limit: requestsPageQuery.limit,
   })
   const { data: myJoinRequest } = useMyJoinRequest(id!, {
-    enabled: !isMember && group?.joinPolicy === 'REQUEST' && !group?.userMembership.hasPendingRequest,
+    enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
   const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, size: 10 })
   const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
@@ -319,10 +319,7 @@ export function GroupDetailPage() {
   const buildPrimaryAction = () => {
     if (!group) return undefined
     if (isMember) return undefined
-    if (group.userMembership.hasPendingInvitation) {
-      return { label: 'Invitación Pendiente', onClick: () => {}, variant: 'outline' as const }
-    }
-    if (group.userMembership.hasPendingRequest) {
+    if (myJoinRequest?.status === 'PENDING') {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }
     if (group.joinPolicy === 'OPEN') {
