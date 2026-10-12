@@ -436,29 +436,29 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
 
 export const mockGroupMembers: Record<string, GroupMember[]> = {
   'group-1': [
-    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
-    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-06-05T08:00:00Z' },
-    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-07-10T12:00:00Z' },
-    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', joinedAt: '2024-08-20T09:00:00Z' },
-    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', joinedAt: '2024-11-20T14:00:00Z' },
-    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-12-05T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-06-01T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-06-05T08:00:00Z' },
+    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-07-10T12:00:00Z' },
+    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-08-20T09:00:00Z' },
+    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-11-20T14:00:00Z' },
+    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-12-05T10:00:00Z' },
   ],
   'group-2': [
-    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-08-15T08:00:00Z' },
-    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
-    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-09-10T10:00:00Z' },
+    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-08-15T08:00:00Z' },
+    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-09-01T12:00:00Z' },
+    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-09-10T10:00:00Z' },
   ],
   'group-4': [
-    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
-    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2025-01-12T09:00:00Z' },
+    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2025-01-10T14:00:00Z' },
+    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2025-01-12T09:00:00Z' },
   ],
   'group-global': [
-    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
-    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
-    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-01-01T00:00:00Z' },
   ],
   'group-5': [
-    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2025-03-01T10:00:00Z' },
+    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2025-03-01T10:00:00Z' },
   ],
 }
 

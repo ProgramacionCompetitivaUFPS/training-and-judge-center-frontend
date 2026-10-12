@@ -384,9 +384,20 @@ export function GroupDetailPage() {
                 {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')} title={m.role === 'LEAD' ? 'Hacer miembro' : 'Hacer líder'}>
-                        <Shield className="h-4 w-4" />
-                      </Button>
+                      {(() => {
+                        const canBecomeLead = m.role === 'LEAD' || m.systemRole === 'COACH' || m.systemRole === 'ADMIN'
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')}
+                            title={m.role === 'LEAD' ? 'Hacer miembro' : canBecomeLead ? 'Hacer líder' : 'Solo Coaches y Administradores pueden ser líderes'}
+                            disabled={!canBecomeLead}
+                          >
+                            <Shield className="h-4 w-4" />
+                          </Button>
+                        )
+                      })()}
                       <Button variant="ghost" size="sm" onClick={() => setRemoveMemberTarget(m.nickname)} title="Eliminar">
                         <UserMinus className="h-4 w-4 text-status-error" />
                       </Button>

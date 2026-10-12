@@ -156,6 +156,7 @@ export interface GroupMember {
   nickname: string
   name: string
   role: GroupRole
+  systemRole?: 'ADMIN' | 'COACH' | 'CONTESTANT'
   joinedAt: string
 }
 
