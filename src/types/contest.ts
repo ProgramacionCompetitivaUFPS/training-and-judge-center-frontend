@@ -55,6 +55,7 @@ export interface ContestListItem {
   penalty: number
   freezeMinutes: number | null
   enablePostContest: boolean
+  participationMode: ParticipationMode
   participantCount: number
   isRegistered: boolean
   problemCount: number

@@ -1391,6 +1391,7 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     penalty: c.penalty,
     freezeMinutes: c.freezeMinutes,
     enablePostContest: c.enablePostContest,
+    participationMode: c.participationMode,
     participantCount: c.participantCount,
     isRegistered: c.isRegistered,
     problemCount: c.problems.length,
