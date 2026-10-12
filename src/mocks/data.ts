@@ -109,7 +109,7 @@ export const mockDashboard: UserDashboard = {
   upcomingContests: [
     {
       id: 'contest-1',
-      name: 'Contest Semanal #12',
+      name: 'Competencia Semanal #12',
       startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
       durationMinutes: 300,
       groupId: 'group-1',
@@ -129,7 +129,7 @@ export const mockDashboard: UserDashboard = {
   materialsCount: 4,
   streak: { current: 3, maximum: 7 },
   recentContestResults: [
-    { contestId: 'contest-3', contestName: 'Weekly Contest #44', position: 23, problemsSolved: 3, penalty: 145 },
+    { contestId: 'contest-3', contestName: 'Competencia Semanal #44', position: 23, problemsSolved: 3, penalty: 145 },
   ],
 }
 
@@ -259,15 +259,11 @@ export const mockGroups: GroupListItem[] = [
   {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
     memberCount: 45,
-    leadCount: 3,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
     userRole: 'LEAD',
     createdAt: '2024-06-01T10:00:00Z',
   },
@@ -279,10 +275,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 22,
-    leadCount: 2,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
     userRole: 'MEMBER',
     createdAt: '2024-08-15T08:00:00Z',
   },
@@ -294,10 +286,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 78,
-    leadCount: 4,
-    contestCount: 20,
-    materialCount: 25,
-    activeContestCount: 2,
     userRole: null,
     createdAt: '2024-09-01T12:00:00Z',
   },
@@ -309,10 +297,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'INVITE',
     isGlobal: false,
     memberCount: 8,
-    leadCount: 1,
-    contestCount: 3,
-    materialCount: 2,
-    activeContestCount: 0,
     userRole: 'LEAD',
     createdAt: '2025-01-10T14:00:00Z',
   },
@@ -324,10 +308,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: true,
     memberCount: 150,
-    leadCount: 5,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
     userRole: 'MEMBER',
     createdAt: '2024-01-01T00:00:00Z',
   },
@@ -339,10 +319,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'REQUEST',
     isGlobal: false,
     memberCount: 12,
-    leadCount: 1,
-    contestCount: 2,
-    materialCount: 3,
-    activeContestCount: 0,
     userRole: null,
     createdAt: '2025-03-01T10:00:00Z',
   },
@@ -352,25 +328,20 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
   'group-1': {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
     statistics: {
       memberCount: 45,
       leadCount: 3,
-      contestCount: 12,
-      materialCount: 8,
-      activeContestCount: 1,
-      scheduledContestCount: 2,
-      finishedContestCount: 9,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
     createdAt: '2024-06-01T10:00:00Z',
   },
   'group-2': {
@@ -383,17 +354,12 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 22,
       leadCount: 2,
-      contestCount: 6,
-      materialCount: 15,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 5,
     },
     leads: [
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
     createdAt: '2024-08-15T08:00:00Z',
   },
   'group-3': {
@@ -406,16 +372,11 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 78,
       leadCount: 4,
-      contestCount: 20,
-      materialCount: 25,
-      activeContestCount: 2,
-      scheduledContestCount: 3,
-      finishedContestCount: 15,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: false, role: null, joinedAt: null },
     createdAt: '2024-09-01T12:00:00Z',
   },
   'group-4': {
@@ -428,16 +389,11 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 8,
       leadCount: 1,
-      contestCount: 3,
-      materialCount: 2,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 2,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
     createdAt: '2025-01-10T14:00:00Z',
   },
   'group-global': {
@@ -450,17 +406,12 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 150,
       leadCount: 5,
-      contestCount: 30,
-      materialCount: 40,
-      activeContestCount: 3,
-      scheduledContestCount: 4,
-      finishedContestCount: 23,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
     ],
-    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
     createdAt: '2024-01-01T00:00:00Z',
   },
   'group-5': {
@@ -473,46 +424,41 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 12,
       leadCount: 1,
-      contestCount: 2,
-      materialCount: 3,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 1,
     },
     leads: [
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
     ],
     // Rejected once before — used to test distinguishing "rejected" from "never requested".
-    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: false, role: null, joinedAt: null },
     createdAt: '2025-03-01T10:00:00Z',
   },
 }
 
 export const mockGroupMembers: Record<string, GroupMember[]> = {
   'group-1': [
-    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
-    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-06-05T08:00:00Z' },
-    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-07-10T12:00:00Z' },
-    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', joinedAt: '2024-08-20T09:00:00Z' },
-    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', joinedAt: '2024-11-20T14:00:00Z' },
-    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-12-05T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-06-01T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-06-05T08:00:00Z' },
+    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-07-10T12:00:00Z' },
+    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-08-20T09:00:00Z' },
+    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-11-20T14:00:00Z' },
+    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-12-05T10:00:00Z' },
   ],
   'group-2': [
-    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-08-15T08:00:00Z' },
-    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
-    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-09-10T10:00:00Z' },
+    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-08-15T08:00:00Z' },
+    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-09-01T12:00:00Z' },
+    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-09-10T10:00:00Z' },
   ],
   'group-4': [
-    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
-    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2025-01-12T09:00:00Z' },
+    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2025-01-10T14:00:00Z' },
+    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2025-01-12T09:00:00Z' },
   ],
   'group-global': [
-    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
-    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-01-01T00:00:00Z' },
-    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-01-01T00:00:00Z' },
   ],
   'group-5': [
-    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2025-03-01T10:00:00Z' },
+    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2025-03-01T10:00:00Z' },
   ],
 }
 
@@ -581,10 +527,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'LEAD',
     joinedAt: '2024-06-01T10:00:00Z',
     memberCount: 45,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
-    unreadNotifications: 3,
   },
   {
     id: 'group-2',
@@ -596,10 +538,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-09-01T12:00:00Z',
     memberCount: 22,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
-    unreadNotifications: 0,
   },
   {
     id: 'group-global',
@@ -611,10 +549,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-01-01T00:00:00Z',
     memberCount: 150,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
-    unreadNotifications: 0,
   },
   {
     id: 'group-4',
@@ -626,10 +560,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'LEAD',
     joinedAt: '2025-01-10T14:00:00Z',
     memberCount: 8,
-    contestCount: 3,
-    materialCount: 2,
-    activeContestCount: 0,
-    unreadNotifications: 0,
   },
 ]
 
@@ -641,7 +571,6 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
-  hasActiveContests?: boolean
   sortBy?: string
   order?: string
 }) {
@@ -657,10 +586,6 @@ export function buildGroupList(params: {
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
   }
-  if (params.hasActiveContests) {
-    filtered = filtered.filter((g) => g.activeContestCount > 0)
-  }
-
   if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {
     const sortKey = params.sortBy
     const direction = params.order === 'desc' ? -1 : 1
@@ -1296,8 +1221,8 @@ const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
-    name: 'Contest Semanal #12',
-    description: 'Contest de práctica semanal enfocado en programación dinámica y grafos.',
+    name: 'Competencia Semanal #12',
+    description: 'Competencia de práctica semanal enfocada en programación dinámica y grafos.',
     startTime: inTwoDays.toISOString(),
     endTime: inTwoDaysEnd.toISOString(),
     duration: 18000,
@@ -1348,7 +1273,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-3',
-    name: 'Challenge Algoritmos Clásicos',
+    name: 'Reto Algoritmos Clásicos',
     description: 'Competencia de algoritmos clásicos: sorting, búsqueda, DP.',
     startTime: yesterday.toISOString(),
     endTime: yesterdayEnd.toISOString(),
@@ -1376,7 +1301,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-4',
-    name: 'Mini Contest DP',
+    name: 'Mini Competencia DP',
     description: null,
     startTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
@@ -1403,8 +1328,8 @@ export const mockContests: ContestDetail[] = [
     // Belongs to group-3, where mariacoach (COACH, not Admin) is NOT a leader — used to test
     // that contest management actions are hidden for a Coach who doesn't actually lead this group.
     id: 'contest-5',
-    name: 'Contest de Bienvenida',
-    description: 'Contest introductorio para nuevos miembros.',
+    name: 'Competencia de Bienvenida',
+    description: 'Competencia introductoria para nuevos miembros.',
     startTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
     duration: 10800,
@@ -1428,7 +1353,7 @@ export const mockContests: ContestDetail[] = [
     // ACTIVE, currently inside its own freeze window (ends soon, freezeMinutes covers "now") —
     // used to test that Leads/Admins see real verdicts during freeze while others see '?'.
     id: 'contest-6',
-    name: 'Contest en Freeze',
+    name: 'Competencia en Freeze',
     description: 'Competencia activa actualmente en periodo de freeze.',
     startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 20 * 60 * 1000).toISOString(),
@@ -1513,7 +1438,7 @@ export function buildContestList(params: {
   const paged = filtered.slice(start, start + limit)
 
   return {
-    data: paged.map(toContestListItem),
+    items: paged.map(toContestListItem),
     pagination: {
       page,
       limit,
@@ -1780,7 +1705,7 @@ export const mockMaterials: Material[] = [
   {
     id: 'mat-001',
     title: 'Bienvenidos al grupo de entrenamiento',
-    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en los contests semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
+    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en las competencias semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
     tags: ['announcement', 'welcome'],
     status: 'PUBLISHED',
     pinned: true,
@@ -1810,7 +1735,7 @@ export const mockMaterials: Material[] = [
     title: 'Guía Completa: Programación Dinámica',
     content: `# Programación Dinámica
 
-La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de un contest típico de ICPC.
+La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de una competencia típica de ICPC.
 
 > "Those who cannot remember the past are condemned to repeat it." — Esta frase resume perfectamente la idea detrás de DP: **recordar resultados previos** para no recalcularlos.
 
@@ -2004,8 +1929,8 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
   },
   {
     id: 'mat-005',
-    title: 'Anuncio: Contest Regional',
-    content: '# Contest Regional 2026\n\nSe acerca el contest regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Contest**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
+    title: 'Anuncio: Competencia Regional',
+    content: '# Competencia Regional 2026\n\nSe acerca la competencia regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Competencia**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
     tags: ['announcement'],
     status: 'PUBLISHED',
     pinned: true,

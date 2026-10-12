@@ -35,14 +35,13 @@ export function getMyGroups(params?: MyGroupsParams): Promise<MyGroupsResponse> 
 }
 
 export function createGroup(data: CreateGroupRequest): Promise<Group> {
-  // Transform camelCase fields to snake_case for backend compatibility
   const payload: Record<string, unknown> = {
     name: data.name,
     visibility: data.visibility,
-    join_policy: data.joinPolicy,
+    joinPolicy: data.joinPolicy,
     ...(data.description !== undefined && { description: data.description }),
-    ...(data.initialLeadNicknames !== undefined && { initial_lead_nicknames: data.initialLeadNicknames }),
-    ...(data.initialMemberNicknames !== undefined && { initial_member_nicknames: data.initialMemberNicknames }),
+    ...(data.initialLeadNicknames !== undefined && { leadNicknames: data.initialLeadNicknames }),
+    ...(data.initialMemberNicknames !== undefined && { memberNicknames: data.initialMemberNicknames }),
   }
   return apiClient.post('/groups', payload)
 }

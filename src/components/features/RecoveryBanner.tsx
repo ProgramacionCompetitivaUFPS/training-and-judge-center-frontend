@@ -26,7 +26,7 @@ export function RecoveryBanner({ submission, isLoaded, contestContext, onLoadCli
             <SubmissionStatusBadge status={submission.status} />
             <span className="text-sm">
               {isLoaded
-                ? <>Contenido cargado desde submission <Link to={`/submissions/${submission.id}`} className="font-mono text-brand-primary hover:underline">#{submission.id.slice(0, 8)}</Link></>
+                ? <>Contenido cargado desde el envío <Link to={`/submissions/${submission.id}`} className="font-mono text-brand-primary hover:underline">#{submission.id.slice(0, 8)}</Link></>
                 : <>{contextText} — <Link to={`/submissions/${submission.id}`} className="font-mono text-brand-primary hover:underline">#{submission.id.slice(0, 8)}</Link></>}
             </span>
           </div>

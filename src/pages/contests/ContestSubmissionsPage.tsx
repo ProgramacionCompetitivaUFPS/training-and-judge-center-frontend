@@ -70,14 +70,14 @@ export function ContestSubmissionsPage() {
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
-        { label: 'Submissions' },
+        { label: 'Envíos' },
       ]}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Submissions</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Envíos</h1>
             {contest && <ContestStatusBadge status={contest.status} />}
           </div>
           {contest?.status === 'ACTIVE' && contest.endTime && (

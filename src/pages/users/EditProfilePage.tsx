@@ -38,6 +38,7 @@ import {
   type ConfirmDeactivationFormData,
 } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { ROUTES } from '@/lib/constants'
 import { getCountryOptions, type Country } from '@/lib/countries'
 
@@ -215,7 +216,7 @@ function ChangePasswordForm() {
         toast({
           variant: 'error',
           title: 'Error al cambiar la contraseña',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -295,7 +296,7 @@ function SetPasswordForm() {
         toast({
           variant: 'error',
           title: 'Error al crear la contraseña',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -354,7 +355,7 @@ function EmailSection({ hasPassword }: EmailSectionProps) {
             <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
               <Mail className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Correo</h2>
           </div>
           <p className="text-sm text-neutral-text-muted">
             Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
@@ -415,7 +416,7 @@ function EmailChangeForm() {
         toast({
           variant: 'error',
           title: 'Error al solicitar cambio de email',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -431,7 +432,7 @@ function EmailChangeForm() {
       toast({
         variant: 'error',
         title: 'Código inválido o expirado',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -443,7 +444,7 @@ function EmailChangeForm() {
           <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
             <Mail className="h-4 w-4" />
           </div>
-          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Correo</h2>
         </div>
       {step === 'request' ? (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -612,7 +613,7 @@ function DeactivateSection() {
       toast({
         variant: 'error',
         title: 'Error al solicitar desactivación',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -626,7 +627,7 @@ function DeactivateSection() {
       toast({
         variant: 'error',
         title: 'Código inválido o expirado',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -641,7 +642,7 @@ function DeactivateSection() {
           <h2 className="text-lg font-bold text-status-error">Desactivar Cuenta</h2>
         </div>
       <p className="text-sm text-neutral-text-muted">
-        Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
+        Esta acción desactivará tu cuenta de forma permanente e irreversible: no podrás volver a iniciar sesión y tu correo y nickname quedarán anonimizados. No existe reactivación.
       </p>
       {isAdmin && (
         <p className="text-sm text-status-error">

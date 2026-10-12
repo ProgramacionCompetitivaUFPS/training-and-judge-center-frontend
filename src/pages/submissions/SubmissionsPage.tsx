@@ -16,14 +16,14 @@ import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, Submiss
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
-  { value: 'ACCEPTED', label: 'Accepted' },
-  { value: 'WRONG_ANSWER', label: 'Wrong Answer' },
-  { value: 'TIME_LIMIT_EXCEEDED', label: 'Time Limit Exceeded' },
-  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memory Limit Exceeded' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Runtime Error' },
-  { value: 'COMPILATION_ERROR', label: 'Compilation Error' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'RUNNING', label: 'Running' },
+  { value: 'ACCEPTED', label: 'Aceptado' },
+  { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
+  { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
+  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memoria Límite Excedida' },
+  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'RUNNING', label: 'Ejecutando' },
 ]
 
 const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
@@ -110,10 +110,10 @@ export function SubmissionsPage() {
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
 
   return (
-    <AppLayout breadcrumbs={[{ label: 'Mis Submissions' }]}>
+    <AppLayout breadcrumbs={[{ label: 'Mis Envíos' }]}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-neutral-text-primary">Mis Submissions</h1>
+          <h1 className="text-2xl font-extrabold text-neutral-text-primary">Mis Envíos</h1>
           <p className="text-sm text-neutral-text-muted mt-1">
             Historial de todas tus soluciones enviadas
           </p>
@@ -229,7 +229,7 @@ export function SubmissionsPage() {
         {pagination && !isLoading && (
           <PaginationSummary
             total={pagination.total}
-            totalLabel="submissions"
+            totalLabel="envíos"
             currentPage={pagination.page}
             totalPages={pagination.totalPages}
             limit={filters.limit ?? 5}
@@ -241,7 +241,7 @@ export function SubmissionsPage() {
         {!isLoading && submissions.length === 0 ? (
           <EmptyState
             icon={FileCode2}
-            title="No hay submissions"
+            title="No hay envíos"
             description="Aún no has enviado ninguna solución. Ve a un problema y envía tu código."
           />
         ) : (
@@ -250,7 +250,7 @@ export function SubmissionsPage() {
             data={submissions}
             isLoading={isLoading}
             onRowClick={(sub) => navigate(`/submissions/${sub.id}`)}
-            emptyMessage="No hay submissions con los filtros seleccionados"
+            emptyMessage="No hay envíos con los filtros seleccionados"
           />
         )}
 

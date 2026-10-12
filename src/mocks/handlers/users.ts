@@ -76,7 +76,7 @@ export const usersHandlers = [
       return HttpResponse.json(
         {
           error: 'CANNOT_UNLINK_LAST_CREDENTIAL',
-          message: 'cannot unlink Google account without a password set; set a password first',
+          message: 'no puedes desvincular tu cuenta de Google sin tener una contraseña configurada; configura una contraseña primero',
         },
         { status: 409 }
       )
@@ -279,10 +279,10 @@ export const usersHandlers = [
       return HttpResponse.json({ error: 'USER_NOT_FOUND', message: 'Usuario no encontrado' }, { status: 404 })
     }
     if (requester?.id === target.id) {
-      return HttpResponse.json({ error: 'CANNOT_SELF_DEACTIVATE', message: 'Administrators cannot deactivate their own account' }, { status: 403 })
+      return HttpResponse.json({ error: 'CANNOT_SELF_DEACTIVATE', message: 'Los administradores no pueden desactivar su propia cuenta' }, { status: 403 })
     }
     if (target.role === 'ADMIN') {
-      return HttpResponse.json({ error: 'CANNOT_DEACTIVATE_ADMIN', message: 'Cannot deactivate another administrator' }, { status: 403 })
+      return HttpResponse.json({ error: 'CANNOT_DEACTIVATE_ADMIN', message: 'No se puede desactivar a otro administrador' }, { status: 403 })
     }
     return new HttpResponse(null, { status: 204 })
   }),

@@ -16,6 +16,7 @@ import {
 } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function RecoverPasswordPage() {
   const [step, setStep] = useState<'request' | 'reset'>('request')
@@ -56,7 +57,7 @@ function RequestStep({ onSuccess }: RequestStepProps) {
       onSuccess(data.email)
     } catch (error) {
       if (error instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error al enviar el código', description: error.message })
+        toast({ variant: 'error', title: 'Error al enviar el código', description: getErrorMessage(error) })
       } else {
         toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }
@@ -122,7 +123,7 @@ function ResetStep({ email }: ResetStepProps) {
       navigate(ROUTES.LOGIN)
     } catch (error) {
       if (error instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error al restablecer la contraseña', description: error.message })
+        toast({ variant: 'error', title: 'Error al restablecer la contraseña', description: getErrorMessage(error) })
       } else {
         toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
       }

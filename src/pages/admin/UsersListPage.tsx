@@ -46,6 +46,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
 import { adminUpdateUserSchema, type AdminUpdateUserFormData } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX, Pencil } from 'lucide-react'
 
@@ -79,7 +80,7 @@ function getConfirmDialogProps(action: PendingAction | null) {
   const targetRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
   return {
     title: 'Cambiar rol de usuario',
-    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${user.role} a ${targetRole}?`,
+    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${ROLE_CONFIG[user.role].label} a ${ROLE_CONFIG[targetRole].label}?`,
   }
 }
 
@@ -204,6 +205,7 @@ export function UsersListPage() {
         toast({
           variant: 'error',
           title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
+          description: getErrorMessage(err),
         })
       }
     }
@@ -236,9 +238,9 @@ export function UsersListPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los roles</SelectItem>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-              <SelectItem value="COACH">Coach</SelectItem>
-              <SelectItem value="CONTESTANT">Contestant</SelectItem>
+              <SelectItem value="ADMIN">{ROLE_CONFIG.ADMIN.label}</SelectItem>
+              <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
+              <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter ?? 'ALL'} onValueChange={handleStatusFilter}>
@@ -298,7 +300,7 @@ export function UsersListPage() {
 
         {error && (
           <Alert variant="error">
-            {error instanceof Error ? error.message : 'Error al cargar usuarios.'}
+            {getErrorMessage(error, 'Error al cargar usuarios.')}
           </Alert>
         )}
 
@@ -327,7 +329,7 @@ export function UsersListPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuario</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Correo</TableHead>
                       <TableHead>Rol</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -389,7 +391,7 @@ export function UsersListPage() {
                                   {user.role === 'COACH' && (
                                     <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
                                       <ArrowDown className="mr-2 h-4 w-4" />
-                                      Bajar a Contestant
+                                      Bajar a Competidor
                                     </DropdownMenuItem>
                                   )}
                                   {user.role !== 'ADMIN' && (
@@ -472,8 +474,8 @@ export function UsersListPage() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONTESTANT">Contestant</SelectItem>
-                  <SelectItem value="COACH">Coach</SelectItem>
+                  <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
+                  <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -12,6 +12,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { loginSchema, type LoginFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -42,7 +43,7 @@ export function LoginPage() {
         toast({
           variant: 'error',
           title: error.status === 401 ? 'Credenciales incorrectas' : 'Error al iniciar sesión',
-          description: error.status === 401 ? undefined : error.message,
+          description: error.status === 401 ? undefined : getErrorMessage(error),
         })
       } else {
         toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })
@@ -66,7 +67,7 @@ export function LoginPage() {
           toast({
             variant: 'error',
             title: 'Error al iniciar sesión con Google',
-            description: error.message,
+            description: getErrorMessage(error),
           })
         }
       } else {

@@ -13,7 +13,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
-import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
 import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
@@ -100,7 +100,7 @@ export function ProblemFormPage() {
                   navigate(`/problems/${slug}`)
                 },
                 onError: (err) => {
-                  const msg = err instanceof ApiClientError ? err.message : 'Error al actualizar'
+                  const msg = getErrorMessage(err, 'Error al actualizar')
                   toast({ variant: 'error', title: msg })
                 },
               },
@@ -122,7 +122,7 @@ export function ProblemFormPage() {
                   navigate(`/problems/${created.slug}`)
                 },
                 onError: (err) => {
-                  const msg = err instanceof ApiClientError ? err.message : 'Error al crear'
+                  const msg = getErrorMessage(err, 'Error al crear')
                   toast({ variant: 'error', title: msg })
                 },
               },
@@ -135,7 +135,7 @@ export function ProblemFormPage() {
                 navigate(`/problems/${created.slug}`)
               },
               onError: (err) => {
-                const msg = err instanceof ApiClientError ? err.message : 'Error al importar'
+                const msg = getErrorMessage(err, 'Error al importar')
                 toast({ variant: 'error', title: msg })
               },
             })
@@ -619,8 +619,8 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PRIVATE">Privado — Solo modificadores pueden agregar a contests</SelectItem>
-                    <SelectItem value="PUBLIC">Público — Cualquier creador de contest puede usarlo</SelectItem>
+                    <SelectItem value="PRIVATE">Privado — Solo modificadores pueden agregar a competencias</SelectItem>
+                    <SelectItem value="PUBLIC">Público — Cualquier creador de competencias puede usarlo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

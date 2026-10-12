@@ -18,7 +18,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 
 function LockedProblemsPlaceholder() {
@@ -28,7 +28,7 @@ function LockedProblemsPlaceholder() {
         <EyeOff className="h-7 w-7 text-neutral-text-muted" />
       </div>
       <h4 className="text-base font-bold text-neutral-text-primary mb-1">
-        Los problemas se revelarán al iniciar el contest
+        Los problemas se revelarán al iniciar la competencia
       </h4>
       <p className="text-sm text-neutral-text-muted max-w-sm">
         Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.
@@ -118,7 +118,7 @@ export function ContestDetailPage() {
     registerMutation.mutate(
       { groupId, contestId: contest.id },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado al contest' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado a la competencia' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo registrar' }),
       },
     )
@@ -139,7 +139,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => {
-          toast({ variant: 'success', title: 'Eliminado', description: 'Contest eliminado' })
+          toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
           navigate('/contests')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
@@ -160,7 +160,7 @@ export function ContestDetailPage() {
         onSuccess: () => toast({
           variant: 'success',
           title: newLocked ? 'Bloqueado' : 'Desbloqueado',
-          description: newLocked ? 'El contest fue bloqueado' : 'El contest fue desbloqueado',
+          description: newLocked ? 'La competencia fue bloqueada' : 'La competencia fue desbloqueada',
         }),
         onError: () => toast({
           variant: 'error',
@@ -175,8 +175,8 @@ export function ContestDetailPage() {
     registerTeamMutation.mutate(
       { groupId, contestId: contest.id, teamId, selectedMembers },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
-        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado a la competencia' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err, 'No se pudo registrar el equipo') }),
       },
     )
   }
@@ -186,7 +186,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, teamId, data: { selectedMembers } },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Alineación actualizada', description: 'Los miembros del equipo fueron actualizados' }),
-        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo actualizar la alineación' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err, 'No se pudo actualizar la alineación') }),
       },
     )
   }
@@ -195,7 +195,7 @@ export function ContestDetailPage() {
     unregisterTeamMutation.mutate(
       { groupId, contestId: contest.id, teamId },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido de la competencia' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
       },
     )
@@ -211,7 +211,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, data: { problems: newProblems } },
       {
         onSuccess: () => {
-          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
+          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" a la competencia` })
           setProblemSearchQuery('')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
@@ -226,7 +226,7 @@ export function ContestDetailPage() {
     updateMutation.mutate(
       { groupId, contestId: contest.id, data: { problems: remaining } },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" del contest` }),
+        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" de la competencia` }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
       },
     )
@@ -581,7 +581,7 @@ export function ContestDetailPage() {
                   {contest.enablePostContest && (
                     <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
                       <Globe className="h-4 w-4 text-brand-primary" />
-                      <span className="text-sm font-semibold">Post-contest habilitado</span>
+                      <span className="text-sm font-semibold">Post-competencia habilitada</span>
                     </div>
                   )}
                 </CardContent>
@@ -600,7 +600,7 @@ export function ContestDetailPage() {
                       isLoading={updateMutation.isPending}
                     >
                       {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                      {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                      {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -694,7 +694,7 @@ export function ContestDetailPage() {
                     isLoading={updateMutation.isPending}
                   >
                     {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                    {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                    {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}
                   </Button>
                 </CardContent>
               </Card>

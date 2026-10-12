@@ -136,10 +136,10 @@ export function ContestAdminActions({ contestId, groupId, onDelete, isDeleting }
     <Card>
       <CardContent className="pt-5 space-y-2">
         <Button variant="outline" className="w-full" onClick={() => navigate(PATHS.contestEdit(groupId, contestId))}>
-          Editar contest
+          Editar competencia
         </Button>
         <Button variant="danger" className="w-full" onClick={onDelete} isLoading={isDeleting}>
-          Eliminar contest
+          Eliminar competencia
         </Button>
       </CardContent>
     </Card>

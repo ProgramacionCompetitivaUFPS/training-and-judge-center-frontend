@@ -21,10 +21,10 @@ function getGreeting(): string {
 }
 
 function getMotivationalLine(upcomingCount: number, activeCount: number): string {
-  if (activeCount > 0) return `Tienes ${activeCount} contest${activeCount > 1 ? 's' : ''} en vivo ahora.`
+  if (activeCount > 0) return `Tienes ${activeCount} competencia${activeCount > 1 ? 's' : ''} en vivo ahora.`
   if (upcomingCount > 0)
-    return `Tienes ${upcomingCount} contest${upcomingCount > 1 ? 's' : ''} próximo${upcomingCount > 1 ? 's' : ''}.`
-  return 'Sigue resolviendo — cada submission cuenta.'
+    return `Tienes ${upcomingCount} competencia${upcomingCount > 1 ? 's' : ''} próxima${upcomingCount > 1 ? 's' : ''}.`
+  return 'Sigue resolviendo — cada envío cuenta.'
 }
 
 function getContestUrgency(startDate: string): { label: string; urgent: boolean } {
@@ -152,7 +152,7 @@ export function UserDashboardPage() {
                 >
                   <StatCard
                     icon={<Clock className="h-5 w-5 text-status-warning" />}
-                    label="Próximo Contest"
+                    label="Próxima Competencia"
                     value={getCountdown(nextContest.startDate)}
                     sub={nextContest.name}
                     accentBorder="border-t-status-warning"
@@ -163,9 +163,9 @@ export function UserDashboardPage() {
                 <div className="animate-fade-in-up" style={{ animationDelay: '75ms' }}>
                   <StatCard
                     icon={<Clock className="h-5 w-5 text-status-warning" />}
-                    label="Próximo Contest"
+                    label="Próxima Competencia"
                     value="—"
-                    sub="sin contests próximos"
+                    sub="sin competencias próximas"
                     accentBorder="border-t-status-warning"
                     valueSize="text-3xl"
                   />
@@ -176,7 +176,7 @@ export function UserDashboardPage() {
                   icon={<Trophy className="h-5 w-5 text-brand-accent" />}
                   label="Último Resultado"
                   value={lastResult ? `#${lastResult.position}` : '—'}
-                  sub={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin contests finalizados'}
+                  sub={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin competencias finalizadas'}
                   accentBorder="border-t-brand-accent"
                   valueSize="text-3xl"
                 />
@@ -199,12 +199,12 @@ export function UserDashboardPage() {
               {/* Submissions recientes — 2/3 */}
               <Card className="p-6 lg:col-span-2">
                 <h2 className="text-base font-semibold text-neutral-text-primary mb-4">
-                  Submissions Recientes
+                  Envíos Recientes
                 </h2>
                 {dashboard.recentSubmissions.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <Send className="h-8 w-8 text-neutral-border" />
-                    <p className="text-sm text-neutral-text-muted">Aún no tienes submissions.</p>
+                    <p className="text-sm text-neutral-text-muted">Aún no tienes envíos.</p>
                     <Link
                       to={ROUTES.PROBLEMS}
                       className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline"
@@ -260,7 +260,7 @@ export function UserDashboardPage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-neutral-text-primary">
-                    Mis Contests
+                    Mis Competencias
                   </h2>
                   {myContests.length > previewLimit && (
                     <Link

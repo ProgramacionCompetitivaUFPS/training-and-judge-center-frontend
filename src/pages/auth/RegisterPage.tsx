@@ -12,6 +12,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { registerSchema, type RegisterFormData } from '@/lib/schemas/user'
 import { ROUTES } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { COUNTRIES, type Country } from '@/lib/countries'
 
 export function RegisterPage() {
@@ -67,7 +68,7 @@ export function RegisterPage() {
             setError(detail.field as keyof RegisterFormData, { message: detail.message })
           })
         } else {
-          toast({ variant: 'error', title: 'Error al crear la cuenta', description: error.message })
+          toast({ variant: 'error', title: 'Error al crear la cuenta', description: getErrorMessage(error) })
         }
       } else {
         toast({ variant: 'error', title: 'Error de conexión', description: 'Intenta de nuevo.' })

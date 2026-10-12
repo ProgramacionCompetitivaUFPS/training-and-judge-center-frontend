@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/Dialog'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   Table,
   TableHeader,
@@ -75,7 +76,6 @@ import {
   Trophy,
   Clock,
   Users,
-  FileText,
   Copy,
   Calendar,
 } from 'lucide-react'
@@ -103,7 +103,7 @@ export function GroupDetailPage() {
   const { user } = useAuth()
 
   const { data: group, isLoading } = useGroupDetail(id!)
-  const { data: membersData } = useGroupMembers(id!)
+  const { data: membersData, error: membersError } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
   const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
@@ -115,13 +115,18 @@ export function GroupDetailPage() {
     limit: requestsPageQuery.limit,
   })
   const { data: myJoinRequest } = useMyJoinRequest(id!, {
-    enabled: !isMember && group?.joinPolicy === 'REQUEST' && !group?.userMembership.hasPendingRequest,
+    enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
   const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, size: 10 })
   const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
   const [contestsPageQuery, setContestsPageQuery] = useState({ page: 1, limit: 10 })
+  // Consultas independientes del filtro interactivo de la pestaña, solo para las
+  // tarjetas de resumen — el backend no calcula contestCount/activeContestCount en
+  // el detalle del grupo (a diferencia de memberCount), así que se derivan aquí.
+  const { data: contestsOverviewData } = useContests(id!, { limit: 1 })
+  const { data: activeContestsOverviewData } = useContests(id!, { limit: 1, status: 'ACTIVE' })
   const { data: contestsData } = useContests(id!, {
     status: contestsStatus === 'all' ? undefined : contestsStatus,
     page: contestsPageQuery.page,
@@ -143,6 +148,8 @@ export function GroupDetailPage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [leaveOpen, setLeaveOpen] = useState(false)
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [addNickname, setAddNickname] = useState('')
   const [addRole, setAddRole] = useState<GroupRole>('MEMBER')
@@ -208,7 +215,6 @@ export function GroupDetailPage() {
   }
 
   const handleLeave = async () => {
-    if (!confirm('¿Seguro que deseas salir del grupo?')) return
     try {
       await leaveMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Has salido del grupo' })
@@ -219,6 +225,8 @@ export function GroupDetailPage() {
       } else {
         toast({ variant: 'error', title: 'Error al salir del grupo' })
       }
+    } finally {
+      setLeaveOpen(false)
     }
   }
 
@@ -244,13 +252,15 @@ export function GroupDetailPage() {
     }
   }
 
-  const handleRemoveMember = async (nickname: string) => {
-    if (!confirm(`¿Eliminar a @${nickname} del grupo?`)) return
+  const handleRemoveMember = async () => {
+    if (!removeMemberTarget) return
     try {
-      await removeMemberMutation.mutateAsync({ groupId: id, nickname })
+      await removeMemberMutation.mutateAsync({ groupId: id, nickname: removeMemberTarget })
       toast({ variant: 'success', title: 'Miembro eliminado' })
     } catch {
       toast({ variant: 'error', title: 'Error al eliminar miembro' })
+    } finally {
+      setRemoveMemberTarget(null)
     }
   }
 
@@ -309,10 +319,7 @@ export function GroupDetailPage() {
   const buildPrimaryAction = () => {
     if (!group) return undefined
     if (isMember) return undefined
-    if (group.userMembership.hasPendingInvitation) {
-      return { label: 'Invitación Pendiente', onClick: () => {}, variant: 'outline' as const }
-    }
-    if (group.userMembership.hasPendingRequest) {
+    if (myJoinRequest?.status === 'PENDING') {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }
     if (group.joinPolicy === 'OPEN') {
@@ -327,7 +334,7 @@ export function GroupDetailPage() {
   const buildAdditionalActions = () => {
     const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
     if (isMember && !group?.isGlobal) {
-      actions.push({ label: 'Salir del grupo', onClick: handleLeave, icon: LogOut, variant: 'danger' })
+      actions.push({ label: 'Salir del grupo', onClick: () => setLeaveOpen(true), icon: LogOut, variant: 'danger' })
     }
     if (canManage) {
       actions.push({ label: 'Agregar miembro', onClick: () => setAddMemberOpen(true), icon: UserPlus })
@@ -377,10 +384,21 @@ export function GroupDetailPage() {
                 {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')} title={m.role === 'LEAD' ? 'Hacer miembro' : 'Hacer líder'}>
-                        <Shield className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleRemoveMember(m.nickname)} title="Eliminar">
+                      {(() => {
+                        const canBecomeLead = m.role === 'LEAD' || m.systemRole === 'COACH' || m.systemRole === 'ADMIN'
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')}
+                            title={m.role === 'LEAD' ? 'Hacer miembro' : canBecomeLead ? 'Hacer líder' : 'Solo Coaches y Administradores pueden ser líderes'}
+                            disabled={!canBecomeLead}
+                          >
+                            <Shield className="h-4 w-4" />
+                          </Button>
+                        )
+                      })()}
+                      <Button variant="ghost" size="sm" onClick={() => setRemoveMemberTarget(m.nickname)} title="Eliminar">
                         <UserMinus className="h-4 w-4 text-status-error" />
                       </Button>
                     </div>
@@ -389,7 +407,13 @@ export function GroupDetailPage() {
               </TableRow>
             ))}
             {(!membersData || membersData.members.length === 0) && (
-              <TableRow><TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">No hay miembros</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">
+                  {membersError instanceof ApiClientError && membersError.code === 'INSUFFICIENT_PERMISSIONS'
+                    ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
+                    : 'No hay miembros'}
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
@@ -509,7 +533,7 @@ export function GroupDetailPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invitado</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Correo</TableHead>
                 <TableHead>Expira</TableHead>
               </TableRow>
             </TableHeader>
@@ -560,12 +584,12 @@ export function GroupDetailPage() {
         <StatCard align="center" value={group.statistics.memberCount} label="Miembros" />
         <StatCard
           align="center"
-          value={group.statistics.activeContestCount}
-          label="Contests activos"
+          value={activeContestsOverviewData?.pagination.total ?? 0}
+          label="Competencias activas"
           valueColor="text-status-success"
         />
-        <StatCard align="center" value={group.statistics.contestCount} label="Contests totales" />
-        <StatCard align="center" value={group.statistics.materialCount} label="Materiales" />
+        <StatCard align="center" value={contestsOverviewData?.pagination.total ?? 0} label="Competencias totales" />
+        <StatCard align="center" value={materialsData?.pagination.total ?? 0} label="Materiales" />
       </div>
 
       {/* Metadata */}
@@ -576,18 +600,12 @@ export function GroupDetailPage() {
               <Calendar className="h-4 w-4" />
               <span>Creado: <span className="font-medium text-neutral-text-primary">{new Date(group.createdAt).toLocaleDateString('es')}</span></span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <Clock className="h-4 w-4" />
-              <span>Programados: <span className="font-medium text-neutral-text-primary">{group.statistics.scheduledContestCount}</span></span>
-            </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <Trophy className="h-4 w-4" />
-              <span>Finalizados: <span className="font-medium text-neutral-text-primary">{group.statistics.finishedContestCount}</span></span>
-            </div>
-            <div className="flex items-center gap-2 text-neutral-text-muted">
-              <FileText className="h-4 w-4" />
-              <span>Materiales: <span className="font-medium text-neutral-text-primary">{group.statistics.materialCount}</span></span>
-            </div>
+            {group.updatedAt && (
+              <div className="flex items-center gap-2 text-neutral-text-muted">
+                <Clock className="h-4 w-4" />
+                <span>Actualizado: <span className="font-medium text-neutral-text-primary">{new Date(group.updatedAt).toLocaleDateString('es')}</span></span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -714,9 +732,9 @@ export function GroupDetailPage() {
           onLimitChange={handleContestsLimitChange}
         />
       )}
-      {contestsData?.data && contestsData.data.length > 0 ? (
+      {contestsData?.items && contestsData.items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contestsData.data.map((c) => (
+          {contestsData.items.map((c) => (
             <Card
               key={c.id}
               className="cursor-pointer hover:border-brand-primary/40 transition-colors"
@@ -771,7 +789,7 @@ export function GroupDetailPage() {
     { id: 'info', label: 'Información', content: infoTab },
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
-    { id: 'materials', label: 'Materiales', content: materialsTab, badge: group?.statistics.materialCount },
+    { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
     ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
     ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.totalItems }] : []),
   ]
@@ -809,6 +827,28 @@ export function GroupDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Salir del grupo"
+        description="¿Seguro que deseas salir del grupo?"
+        confirmLabel="Salir"
+        variant="warning"
+        onConfirm={handleLeave}
+        isLoading={leaveMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!removeMemberTarget}
+        onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
+        title="Eliminar miembro"
+        description={`¿Eliminar a @${removeMemberTarget} del grupo?`}
+        confirmLabel="Eliminar"
+        variant="warning"
+        onConfirm={handleRemoveMember}
+        isLoading={removeMemberMutation.isPending}
+      />
 
       {/* Add member dialog */}
       <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>

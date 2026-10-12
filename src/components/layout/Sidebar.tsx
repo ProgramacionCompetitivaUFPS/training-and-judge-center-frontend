@@ -90,7 +90,7 @@ const navItems: NavItem[] = [
   { icon: Code2, label: 'Problemas', to: ROUTES.PROBLEMS },
   { icon: Users, label: 'Grupos', to: ROUTES.GROUPS },
   { icon: Trophy, label: 'Competencias', to: ROUTES.CONTESTS },
-  { icon: Send, label: 'Submissions', to: ROUTES.SUBMISSIONS },
+  { icon: Send, label: 'Envíos', to: ROUTES.SUBMISSIONS },
   { icon: UsersRound, label: 'Equipos', to: ROUTES.TEAMS },
 ]
 
@@ -201,7 +201,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   >
                     <BarChart3 className="h-4 w-4 flex-shrink-0" />
-                    <span>Standings</span>
+                    <span>Tabla de Posiciones</span>
                   </Link>
                   <Link
                     to={PATHS.contestSubmissions(activeContest.group.id, activeContest.id)}

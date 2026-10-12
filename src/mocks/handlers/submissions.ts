@@ -31,7 +31,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     if (submission.status === 'PENDING') {
       submission.status = 'RUNNING'
@@ -50,7 +50,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     const body = (await request.json()) as { visibility: 'PUBLIC' | 'PRIVATE' }
     submission.visibility = body.visibility
@@ -63,7 +63,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     submission.status = 'PENDING'
     return new HttpResponse(null, { status: 204 })
@@ -75,7 +75,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     submission.status = 'PENDING'
     return new HttpResponse(null, { status: 204 })
@@ -110,7 +110,7 @@ export const submissionsHandlers = [
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
     }
     if (problem.status !== 'PUBLISHED') {
-      return HttpResponse.json({ error: 'PROBLEM_NOT_PUBLISHED', message: 'Solo problemas publicados aceptan submissions' }, { status: 400 })
+      return HttpResponse.json({ error: 'PROBLEM_NOT_PUBLISHED', message: 'Solo problemas publicados aceptan envíos' }, { status: 400 })
     }
 
     const auth = request.headers.get('Authorization')

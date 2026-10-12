@@ -66,14 +66,14 @@ export function ContestStandingsPage() {
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
         { label: data?.contest.name || '...', href: PATHS.contest(groupId || '', id || '') },
-        { label: 'Standings' },
+        { label: 'Tabla de Posiciones' },
       ]}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Standings</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Tabla de Posiciones</h1>
             {data && <ContestStatusBadge status={data.contest.status} />}
           </div>
           {data?.contest.status === 'ACTIVE' && (
@@ -89,7 +89,7 @@ export function ContestStandingsPage() {
 
         {data?.contest.isFrozen && (
           <div className="border rounded-md p-3 text-sm bg-status-warning/10 border-status-warning/30 text-status-warning">
-            Los standings están congelados. Los resultados finales se revelarán al terminar el contest.
+            La tabla de posiciones está congelada. Los resultados finales se revelarán al terminar la competencia.
           </div>
         )}
 

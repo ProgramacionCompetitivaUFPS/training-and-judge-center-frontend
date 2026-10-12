@@ -28,7 +28,7 @@ export function SubmissionDetailPage() {
 
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Submissions', href: '/submissions' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: '...' }]}>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-6 w-1/4" />
@@ -40,9 +40,9 @@ export function SubmissionDetailPage() {
 
   if (error || !submission) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Submissions', href: '/submissions' }, { label: 'Error' }]}>
+      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: 'Error' }]}>
         <div className="text-center py-12 text-neutral-text-muted">
-          Submission no encontrada
+          Envío no encontrado
         </div>
       </AppLayout>
     )
@@ -58,7 +58,7 @@ export function SubmissionDetailPage() {
     visibilityMutation.mutate(
       { id: submission.id, data: { visibility: newVisibility } },
       {
-        onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility}` }),
+        onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility === 'PUBLIC' ? 'Pública' : 'Privada'}` }),
         onError: () => toast({ variant: 'error', title: 'Error al cambiar visibilidad' }),
       },
     )
@@ -75,21 +75,21 @@ export function SubmissionDetailPage() {
     if (!submission) return
     const mutation = isAdmin ? adminRejudgeMutation : ownRejudgeMutation
     mutation.mutate(submission.id, {
-      onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
+      onSuccess: () => toast({ variant: 'success', title: 'Envío enviado a rejuzgar' }),
       onError: (err) => {
         if (err instanceof ApiClientError && err.code === 'CANNOT_REJUDGE_IN_ACTIVE_CONTEST') {
           toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'No puedes rejuzgar tus propios envíos de una competencia que todavía está activa.' })
         } else if (err instanceof ApiClientError && err.code === 'NO_REJUDGE_NEEDED') {
           toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'Este envío no necesita rejuzgarse: los componentes de juzgamiento del problema no han cambiado desde que se envió.' })
         } else {
-          toast({ variant: 'error', title: 'Error al rejuzgar submission' })
+          toast({ variant: 'error', title: 'Error al rejuzgar envío' })
         }
       },
     })
   }
 
   const breadcrumbs = [
-    { label: 'Submissions', href: '/submissions' },
+    { label: 'Envíos', href: '/submissions' },
     { label: `#${submission.id.slice(0, 8)}` },
   ]
 
@@ -102,7 +102,7 @@ export function SubmissionDetailPage() {
             <div className="flex items-center gap-3 mb-2">
               <SubmissionStatusBadge status={submission.status} />
               <h1 className="text-2xl font-semibold text-neutral-text-primary">
-                Submission #{submission.id.slice(0, 8)}
+                Envío #{submission.id.slice(0, 8)}
               </h1>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
@@ -116,7 +116,7 @@ export function SubmissionDetailPage() {
               {submission.contest && (
                 <>
                   <span>·</span>
-                  <span>Contest: {submission.contest.name}</span>
+                  <span>Competencia: {submission.contest.name}</span>
                 </>
               )}
             </div>

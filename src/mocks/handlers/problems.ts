@@ -160,7 +160,7 @@ export const problemsHandlers = [
     if (!problem.files?.solutions.length) missingFields.push('solution')
     if (missingFields.length > 0) {
       return HttpResponse.json(
-        { error: 'VALIDATION_FAILED', message: 'Problem validation failed', validationLogs: [], missingFields },
+        { error: 'VALIDATION_FAILED', message: 'La validación del problema falló', validationLogs: [], missingFields },
         { status: 400 },
       )
     }
@@ -172,7 +172,7 @@ export const problemsHandlers = [
       return HttpResponse.json(
         {
           error: 'VALIDATION_FAILED',
-          message: 'Compilation failed',
+          message: 'La compilación falló',
           validationLogs: [],
           compilationErrors: { file: 'solution.cpp', errors: ["error: 'cout' was not declared in this scope", "note: 'std::cout' is defined in header '<iostream>'"] },
         },
@@ -183,7 +183,7 @@ export const problemsHandlers = [
       return HttpResponse.json(
         {
           error: 'VALIDATION_FAILED',
-          message: 'Solution failed test cases',
+          message: 'La solución falló en casos de prueba',
           validationLogs: [],
           failedTestCases: [{ case: 'secret/3', status: 'WRONG_ANSWER', details: 'Expected "42", got "41"' }],
         },
@@ -194,7 +194,7 @@ export const problemsHandlers = [
       return HttpResponse.json(
         {
           error: 'VALIDATION_FAILED',
-          message: 'Validator rejected test inputs',
+          message: 'El validator rechazó las entradas de prueba',
           validationLogs: [],
           failedInputs: [{ file: 'secret/2.in', reason: 'expected exactly 2 integers on line 1, got 3' }],
         },
@@ -252,7 +252,7 @@ export const problemsHandlers = [
 
     const stats = mockProblemStatistics[slug]
     if (!stats) {
-      return HttpResponse.json({ message: 'No hay submissions aún para este problema', totalSubmissions: 0 })
+      return HttpResponse.json({ message: 'No hay envíos aún para este problema', totalSubmissions: 0 })
     }
     return HttpResponse.json(stats)
   }),
@@ -273,12 +273,12 @@ export const problemsHandlers = [
 
     const info = PROBLEM_FILE_TYPE_INFO[fileType as keyof typeof PROBLEM_FILE_TYPE_INFO]
     if (!info) {
-      return HttpResponse.json({ error: 'PROBLEM_INVALID_FILE_TYPE', message: 'Invalid file type. Allowed: testCases, solution, checker, validator' }, { status: 400 })
+      return HttpResponse.json({ error: 'PROBLEM_INVALID_FILE_TYPE', message: 'Tipo de archivo inválido. Permitidos: testCases, solution, checker, validator' }, { status: 400 })
     }
     const extension = fileName.slice(fileName.lastIndexOf('.')).toLowerCase()
     if (!(info.extensions as readonly string[]).includes(extension)) {
       return HttpResponse.json(
-        { error: 'VALIDATION_ERROR', message: `Unsupported ${fileType} file type`, details: [{ field: 'file', message: `Expected ${info.extensions.join(' or ')}` }] },
+        { error: 'VALIDATION_ERROR', message: `Tipo de archivo no soportado para ${fileType}`, details: [{ field: 'file', message: `Se esperaba ${info.extensions.join(' o ')}` }] },
         { status: 400 },
       )
     }
@@ -386,10 +386,10 @@ export const problemsHandlers = [
     const file = formData.get('file') as File | null
 
     if (!slug) {
-      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Missing required form field 'slug'" }, { status: 400 })
+      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Falta el campo requerido 'slug'" }, { status: 400 })
     }
     if (!file) {
-      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Missing required form field 'file'" }, { status: 400 })
+      return HttpResponse.json({ error: 'VALIDATION_ERROR', message: "Falta el campo requerido 'file'" }, { status: 400 })
     }
     if (mockProblems.some((p) => p.slug === slug)) {
       return HttpResponse.json({ error: 'SLUG_ALREADY_EXISTS', message: `Ya existe un problema con slug '${slug}'` }, { status: 409 })
@@ -424,10 +424,10 @@ export const problemsHandlers = [
     const checkerMatches = rootEntries.filter((p) => extPattern.test(p) && p.startsWith('checker'))
     const validatorMatches = rootEntries.filter((p) => extPattern.test(p) && p.startsWith('validator'))
     if (checkerMatches.length > 1) {
-      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Multiple checker files found: only one is allowed' }, { status: 400 })
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Se encontraron varios archivos de checker: solo se permite uno' }, { status: 400 })
     }
     if (validatorMatches.length > 1) {
-      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Multiple validator files found: only one is allowed' }, { status: 400 })
+      return HttpResponse.json({ error: 'INVALID_PACKAGE', message: 'Se encontraron varios archivos de validator: solo se permite uno' }, { status: 400 })
     }
 
     const samplePrefix = `${prefix}data/sample/`

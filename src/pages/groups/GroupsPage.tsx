@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Checkbox } from '@/components/ui/Checkbox'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
@@ -165,16 +164,6 @@ export function GroupsPage() {
                   onChange={(e) => { setAllSearchInput(e.target.value); setAllParams((p) => ({ ...p, page: 1 })) }}
                 />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Checkbox
-                  id="hasActiveContests"
-                  checked={allParams.hasActiveContests ?? false}
-                  onCheckedChange={(checked) => setAllParams((p) => ({ ...p, hasActiveContests: checked === true ? true : undefined, page: 1 }))}
-                />
-                <label htmlFor="hasActiveContests" className="text-sm text-neutral-text-primary whitespace-nowrap cursor-pointer">
-                  Con competencias activas
-                </label>
-              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -196,25 +185,29 @@ export function GroupsPage() {
                   </button>
                 ))}
               </div>
-              <div className="w-px h-[22px] bg-neutral-border" />
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
-                    className={cn(
-                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
-                      (allParams.visibility ?? 'ALL') === opt.value
-                        ? 'bg-brand-primary text-neutral-surface'
-                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              {user?.role === 'ADMIN' && (
+                <>
+                  <div className="w-px h-[22px] bg-neutral-border" />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
+                        className={cn(
+                          'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                          (allParams.visibility ?? 'ALL') === opt.value
+                            ? 'bg-brand-primary text-neutral-surface'
+                            : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Results count + sort */}
@@ -376,7 +369,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
               <TableHead>Visibilidad</TableHead>
               <TableHead>Política</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
               <TableHead>Tu rol</TableHead>
             </TableRow>
           </TableHeader>
@@ -420,13 +412,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
                 </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
                 <TableCell>
                   {group.userRole ? (
                     <Badge variant={group.userRole === 'LEAD' ? 'warning' : 'default'} className="text-[10px]">
@@ -460,8 +445,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
               <TableHead>Grupo</TableHead>
               <TableHead>Tu rol</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
-              <TableHead className="text-center">Materiales</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -494,16 +477,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
                 </TableCell>
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
-                </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="text-sm font-mono font-medium">{group.materialCount}</span>
                 </TableCell>
               </TableRow>
             ))}

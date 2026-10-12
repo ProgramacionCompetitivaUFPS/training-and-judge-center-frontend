@@ -24,7 +24,7 @@ export const contestsHandlers = [
     const paged = filtered.slice(start, start + limit)
 
     return HttpResponse.json({
-      data: paged,
+      items: paged,
       pagination: {
         page,
         limit,
@@ -59,7 +59,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
-      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
     return HttpResponse.json(contest)
   }),
@@ -105,7 +105,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string }
     const idx = mockContests.findIndex((c) => c.id === contestId)
     if (idx === -1) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
     const contest = mockContests[idx]
     const body = (await request.json()) as Record<string, unknown> & {
@@ -155,7 +155,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string }
     const idx = mockContests.findIndex((c) => c.id === contestId)
     if (idx === -1) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
     return new HttpResponse(null, { status: 204 })
   }),
@@ -201,7 +201,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
-      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
 
     const sp = new URL(request.url).searchParams
@@ -255,7 +255,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
 
     const auth = request.headers.get('Authorization')
@@ -278,7 +278,7 @@ export const contestsHandlers = [
       isPrivileged,
     })
     if (!result) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
     return HttpResponse.json(result)
   }),
@@ -289,7 +289,7 @@ export const contestsHandlers = [
     const { contestId } = params as { groupId: string; contestId: string; problemSlug: string }
     const contest = mockContests.find((c) => c.id === contestId)
     if (!contest) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Contest no encontrado' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
     return new HttpResponse(null, { status: 204 })
   }),
