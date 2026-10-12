@@ -274,7 +274,7 @@ export function ProblemDetailPage() {
 
           {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
               `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
-          {problem.samples.length > 0 && (
+          {!!problem.samples?.length && (
             <Card>
               <CardHeader>
                 <CardTitle>Ejemplos</CardTitle>
