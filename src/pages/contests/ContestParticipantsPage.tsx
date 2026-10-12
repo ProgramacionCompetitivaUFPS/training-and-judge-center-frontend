@@ -45,7 +45,7 @@ export function ContestParticipantsPage() {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
           <Input
-            placeholder="Buscar por nickname..."
+            placeholder="Buscar por nickname o equipo..."
             className="pl-9"
             value={searchInput}
             onChange={(e) => { setSearchInput(e.target.value); setParams((p) => ({ ...p, page: 1 })) }}
@@ -92,9 +92,12 @@ export function ContestParticipantsPage() {
                             )}
                           </div>
                         ) : (
-                          <Link to={`/users/${r.nickname}`} className="text-brand-primary hover:underline">
-                            @{r.nickname}
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">Individual</Badge>
+                            <Link to={`/users/${r.nickname}`} className="text-brand-primary hover:underline">
+                              @{r.nickname}
+                            </Link>
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-neutral-text-muted">
