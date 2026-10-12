@@ -336,7 +336,13 @@ export function ProblemDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full gap-2 mt-2"
-                  onClick={() => navigate(PATHS.problemSubmissions(problem.slug))}
+                  onClick={() => {
+                    if (isContestContext && groupId && contestId) {
+                      navigate(`${PATHS.contestSubmissions(groupId, contestId)}?problem=${encodeURIComponent(problem.slug)}`)
+                    } else {
+                      navigate(PATHS.problemSubmissions(problem.slug))
+                    }
+                  }}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Ver submissions

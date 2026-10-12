@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { Clock, UsersRound, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Card, CardContent, Input } from '@/components/ui'
@@ -38,7 +38,19 @@ export function ContestSubmissionsPage() {
   const { data: ownerGroup } = useGroupDetail(groupId || '')
 
   const [phase, setPhase] = useState<string>('all')
-  const [problemSlug, setProblemSlug] = useState<string>('all')
+  // Kept in the URL (?problem=<slug>) so a problem page inside the contest can link here
+  // already filtered, and a reload or shared link keeps the filter.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const problemSlug = searchParams.get('problem') ?? 'all'
+  const setProblemSlug = (value: string) =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value === 'all') next.delete('problem')
+      else next.set('problem', value)
+      return next
+    }, { replace: true })
+  const filteredProblem = contest?.problems.find((p) => p.slug === problemSlug)
+  const filteredProblemLetter = filteredProblem ? problemLabel(filteredProblem.position) : null
   const [nicknameInput, setNicknameInput] = useState('')
   const debouncedNickname = useDebounce(nicknameInput)
   const [pagination, setPagination] = useState({ page: 1, limit: 50 })
@@ -70,6 +82,11 @@ export function ContestSubmissionsPage() {
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
+        // Filtered by one problem: show it like the problem page does (Problema A), so the
+        // trail matches the general Problemas › problema › Envíos view.
+        ...(filteredProblemLetter
+          ? [{ label: `Problema ${filteredProblemLetter}`, href: PATHS.contestProblem(groupId || '', id || '', filteredProblemLetter) }]
+          : []),
         { label: 'Envíos' },
       ]}
     >
