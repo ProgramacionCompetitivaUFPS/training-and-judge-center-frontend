@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
+import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
@@ -61,7 +62,7 @@ export function ProblemDetailPage() {
   const isContestActive = isContestContext && activeContest?.status === 'ACTIVE'
   const resolvedSlug = isContestContext
     ? activeContest?.problems.find(
-        (p) => ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)) === letter?.toUpperCase()
+        (p) => problemLabel(p.position) === letter?.toUpperCase()
       )?.slug
     : slug
 

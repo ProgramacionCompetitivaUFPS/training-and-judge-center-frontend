@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { cn, problemLabel } from '@/lib/utils'
 import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES, PATHS } from '@/lib/constants'
@@ -164,7 +164,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <p className="text-[10px] font-semibold text-white uppercase tracking-widest mb-1.5">Problemas</p>
                     <div className="flex flex-wrap gap-1.5">
                       {activeContest.problems.map((p) => {
-                        const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)
+                        const letter = problemLabel(p.position)
                         const problemPath = PATHS.contestProblem(activeContest.group.id, activeContest.id, letter)
                         const isCurrent = location.pathname === problemPath
                         return (
