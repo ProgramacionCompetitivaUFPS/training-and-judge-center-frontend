@@ -18,9 +18,20 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/Select'
-import type { MyTeamItem, TeamDetail, ContestTeamRegistrationsResponse } from '@/types/team'
+import type {
+  MyTeamItem,
+  ContestTeamRegistrationsResponse,
+  TeamRegistrationEligibility,
+  MemberIneligibilityReason,
+} from '@/types/team'
 
 type TeamRegistration = ContestTeamRegistrationsResponse['teams'][number]
+
+const INELIGIBILITY_LABELS: Record<MemberIneligibilityReason, string> = {
+  MEMBER_NOT_IN_GROUP: 'No pertenece al grupo',
+  MEMBER_ALREADY_REGISTERED: 'Ya inscrito individualmente',
+  MEMBER_IN_ANOTHER_TEAM: 'Ya inscrito con otro equipo',
+}
 
 interface TeamContestRegistrationProps {
   contestId: string
@@ -33,8 +44,9 @@ interface TeamContestRegistrationProps {
   variant?: 'card' | 'inline'
   teams: MyTeamItem[]
   isLoadingTeams: boolean
-  selectedTeamDetail: TeamDetail | undefined
-  isLoadingTeamDetail: boolean
+  /** Roster of the selected team, each member flagged with whether they can be selected for this contest. */
+  eligibility: TeamRegistrationEligibility | undefined
+  isLoadingEligibility: boolean
   /** The registration whose roster includes the current user — scoped by roster membership, not team membership. */
   myRegistration: TeamRegistration | undefined
   currentUserNickname: string | undefined
@@ -57,7 +69,8 @@ export function TeamContestRegistration({
   isRegistered,
   variant = 'card',
   teams,
-  selectedTeamDetail,
+  eligibility,
+  isLoadingEligibility,
   myRegistration,
   currentUserNickname,
   onRegisterTeam,
@@ -130,6 +143,7 @@ export function TeamContestRegistration({
   }
 
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax
+  const eligibleCount = eligibility?.members.filter((m) => m.eligible).length ?? 0
 
   const registerTrigger = (
     <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={openRegisterDialog}>
@@ -238,7 +252,18 @@ export function TeamContestRegistration({
             </div>
 
             {/* Member selection */}
-            {selectedTeamId && selectedTeamDetail && (
+            {selectedTeamId && isLoadingEligibility && (
+              <p className="text-sm text-neutral-text-muted">Cargando miembros…</p>
+            )}
+
+            {selectedTeamId && eligibility?.teamAlreadyRegistered && (
+              <p className="text-sm text-status-warning">
+                Este equipo ya está inscrito en esta competencia sin ti. Para sumarte, alguien de la alineación
+                debe cancelar la inscripción y volver a registrar al equipo contigo.
+              </p>
+            )}
+
+            {selectedTeamId && eligibility && !eligibility.teamAlreadyRegistered && (
               <div>
                 <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">
                   Miembros participantes
@@ -247,9 +272,9 @@ export function TeamContestRegistration({
                   </Badge>
                 </label>
                 <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-neutral-border p-2">
-                  {selectedTeamDetail.members.map((member) => {
+                  {eligibility.members.map((member) => {
                     const isSelected = selectedMembers.includes(member.id)
-                    const isDisabled = !isSelected && selectedMembers.length >= teamSizeMax
+                    const isDisabled = !member.eligible || (!isSelected && selectedMembers.length >= teamSizeMax)
                     return (
                       <label
                         key={member.id}
@@ -263,12 +288,19 @@ export function TeamContestRegistration({
                           disabled={isDisabled}
                         />
                         <span className="text-sm font-medium text-neutral-text-primary">{member.nickname}</span>
+                        {!member.eligible && member.reason && (
+                          <span className="text-xs text-neutral-text-muted ml-auto">{INELIGIBILITY_LABELS[member.reason]}</span>
+                        )}
                         {isSelected && <Check className="h-3.5 w-3.5 text-status-success ml-auto" />}
                       </label>
                     )
                   })}
                 </div>
-                {!isValidSelection && selectedMembers.length > 0 && (
+                {eligibleCount < teamSizeMin ? (
+                  <p className="text-xs text-status-warning mt-1">
+                    Solo {eligibleCount} {eligibleCount === 1 ? 'miembro puede' : 'miembros pueden'} participar y la competencia exige al menos {teamSizeMin}.
+                  </p>
+                ) : !isValidSelection && selectedMembers.length > 0 && (
                   <p className="text-xs text-status-warning mt-1">
                     Necesitas al menos {teamSizeMin} miembros
                   </p>
@@ -285,7 +317,7 @@ export function TeamContestRegistration({
               variant="primary"
               onClick={handleRegister}
               isLoading={isRegistering}
-              disabled={!isValidSelection || !selectedTeamId}
+              disabled={!isValidSelection || !selectedTeamId || !!eligibility?.teamAlreadyRegistered}
             >
               Registrar equipo
             </Button>

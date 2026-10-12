@@ -15,7 +15,7 @@ import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDe
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
+import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { getErrorMessage } from '@/lib/errorMessages'
@@ -74,7 +74,7 @@ export function ContestDetailPage() {
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
-  const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const { data: eligibility, isLoading: isLoadingEligibility } = useTeamRegistrationEligibility(groupId || '', id || '', selectedTeamId)
   const { data: teamRegistrationsData } = useContestTeamRegistrations(groupId || '', id || '')
   const registerTeamMutation = useRegisterTeamToContest()
   const updateTeamRegistrationMutation = useUpdateTeamRegistration()
@@ -416,8 +416,8 @@ export function ContestDetailPage() {
                     variant="inline"
                     teams={teamsData?.teams ?? []}
                     isLoadingTeams={isLoadingTeams}
-                    selectedTeamDetail={teamDetail}
-                    isLoadingTeamDetail={isLoadingTeamDetail}
+                    eligibility={eligibility}
+                    isLoadingEligibility={isLoadingEligibility}
                     myRegistration={myRegistration}
                     currentUserNickname={user?.nickname}
                     onRegisterTeam={handleRegisterTeam}
