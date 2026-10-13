@@ -15,7 +15,7 @@ export interface Material {
   pinned: boolean
   pinnedAt: string | null
   author: { nickname: string; name: string }
-  group: { id: string; name: string }
+  groupId: string
   createdAt: string
   updatedAt: string
   publishedAt: string | null
