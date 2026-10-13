@@ -1723,7 +1723,7 @@ export const mockMaterials: Material[] = [
     pinned: true,
     pinnedAt: '2026-02-10T10:00:00Z',
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-01T10:00:00Z',
     updatedAt: '2026-02-10T10:00:00Z',
     publishedAt: '2026-02-01T12:00:00Z',
@@ -1737,7 +1737,7 @@ export const mockMaterials: Material[] = [
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-05T14:00:00Z',
     updatedAt: '2026-02-05T14:00:00Z',
     publishedAt: '2026-02-05T14:30:00Z',
@@ -1920,7 +1920,7 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'luisadmin', name: 'Luis Admin' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-12T09:00:00Z',
     updatedAt: '2026-02-12T09:00:00Z',
     publishedAt: '2026-02-12T10:00:00Z',
@@ -1934,7 +1934,7 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-18T16:00:00Z',
     updatedAt: '2026-02-18T16:00:00Z',
     publishedAt: null,
@@ -1948,7 +1948,7 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: true,
     pinnedAt: '2026-02-20T08:00:00Z',
     author: { nickname: 'luisadmin', name: 'Luis Admin' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-19T11:00:00Z',
     updatedAt: '2026-02-20T08:00:00Z',
     publishedAt: '2026-02-19T12:00:00Z',
@@ -1964,7 +1964,7 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'luisadmin', name: 'Luis Admin' },
-    group: { id: 'group-3', name: 'Principiantes CP' },
+    groupId: 'group-3',
     createdAt: '2026-03-20T10:00:00Z',
     updatedAt: '2026-03-20T10:00:00Z',
     publishedAt: '2026-03-20T10:00:00Z',
@@ -1984,7 +1984,7 @@ export function buildMaterialList(params: {
   sort?: string
   status?: string
 }): MaterialListResponse {
-  let filtered = mockMaterials.filter((m) => m.group.id === params.groupId)
+  let filtered = mockMaterials.filter((m) => m.groupId === params.groupId)
 
   if (params.pinned === 'true') filtered = filtered.filter((m) => m.pinned)
   if (params.pinned === 'false') filtered = filtered.filter((m) => !m.pinned)

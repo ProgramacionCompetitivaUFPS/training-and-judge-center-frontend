@@ -94,7 +94,7 @@ export function MaterialDetailPage() {
 
   const breadcrumbs = [
     { label: 'Grupos', href: '/groups' },
-    { label: material?.group.name ?? 'Grupo', href: `/groups/${groupId}` },
+    { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
     { label: 'Materiales', href: `/groups/${groupId}/materials` },
     { label: material?.title ?? 'Cargando...' },
   ]
@@ -239,7 +239,7 @@ export function MaterialDetailPage() {
                         onClick={() => navigate(`/groups/${groupId}`)}
                         className="text-sm font-medium text-brand-primary hover:underline"
                       >
-                        {material.group.name}
+                        {groupDetail?.name ?? 'Grupo'}
                       </button>
                     </div>
                   </div>
