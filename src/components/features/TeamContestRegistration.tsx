@@ -142,8 +142,11 @@ export function TeamContestRegistration({
     setLeaveOpen(false)
   }
 
-  const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax
-  const eligibleCount = eligibility?.members.filter((m) => m.eligible).length ?? 0
+  const eligibleIds = new Set(eligibility?.members.filter((m) => m.eligible).map((m) => m.id) ?? [])
+  const hasIneligibleSelected = selectedMembers.some((id) => !eligibleIds.has(id))
+  const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax &&
+    !hasIneligibleSelected
+  const eligibleCount = eligibleIds.size
 
   const registerTrigger = (
     <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={openRegisterDialog}>
@@ -274,7 +277,8 @@ export function TeamContestRegistration({
                 <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-neutral-border p-2">
                   {eligibility.members.map((member) => {
                     const isSelected = selectedMembers.includes(member.id)
-                    const isDisabled = !member.eligible || (!isSelected && selectedMembers.length >= teamSizeMax)
+                    // A selected member always stays toggleable so they can be removed if they turn ineligible.
+                    const isDisabled = !isSelected && (!member.eligible || selectedMembers.length >= teamSizeMax)
                     return (
                       <label
                         key={member.id}
@@ -299,6 +303,10 @@ export function TeamContestRegistration({
                 {eligibleCount < teamSizeMin ? (
                   <p className="text-xs text-status-warning mt-1">
                     Solo {eligibleCount} {eligibleCount === 1 ? 'miembro puede' : 'miembros pueden'} participar y la competencia exige al menos {teamSizeMin}.
+                  </p>
+                ) : hasIneligibleSelected ? (
+                  <p className="text-xs text-status-warning mt-1">
+                    Quita a los miembros que ya no pueden participar para continuar.
                   </p>
                 ) : !isValidSelection && selectedMembers.length > 0 && (
                   <p className="text-xs text-status-warning mt-1">
