@@ -47,6 +47,11 @@ interface TeamContestRegistrationProps {
   /** Roster of the selected team, each member flagged with whether they can be selected for this contest. */
   eligibility: TeamRegistrationEligibility | undefined
   isLoadingEligibility: boolean
+  /** True during any eligibility request, including background re-checks over cached data. */
+  isFetchingEligibility: boolean
+  /** The eligibility check finished with an error and there's no roster to show. */
+  eligibilityFailed: boolean
+  onRetryEligibility: () => void
   /** The registration whose roster includes the current user — scoped by roster membership, not team membership. */
   myRegistration: TeamRegistration | undefined
   currentUserNickname: string | undefined
@@ -71,6 +76,9 @@ export function TeamContestRegistration({
   teams,
   eligibility,
   isLoadingEligibility,
+  isFetchingEligibility,
+  eligibilityFailed,
+  onRetryEligibility,
   myRegistration,
   currentUserNickname,
   onRegisterTeam,
@@ -112,6 +120,8 @@ export function TeamContestRegistration({
   const openRegisterDialog = () => {
     setSelectedTeamId('')
     setSelectedMembers([])
+    // Clear the parent's team too, so re-picking the same team re-runs the eligibility check.
+    onTeamSelect('')
     setShowDialog(true)
   }
 
@@ -259,6 +269,15 @@ export function TeamContestRegistration({
               <p className="text-sm text-neutral-text-muted">Cargando miembros…</p>
             )}
 
+            {selectedTeamId && eligibilityFailed && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-status-error">No se pudo verificar qué miembros pueden participar.</p>
+                <Button variant="outline" size="sm" onClick={onRetryEligibility}>
+                  Reintentar
+                </Button>
+              </div>
+            )}
+
             {selectedTeamId && eligibility?.teamAlreadyRegistered && (
               <p className="text-sm text-status-warning">
                 Este equipo ya está inscrito en esta competencia sin ti. Para sumarte, alguien de la alineación
@@ -292,8 +311,10 @@ export function TeamContestRegistration({
                           disabled={isDisabled}
                         />
                         <span className="text-sm font-medium text-neutral-text-primary">{member.nickname}</span>
-                        {!member.eligible && member.reason && (
-                          <span className="text-xs text-neutral-text-muted ml-auto">{INELIGIBILITY_LABELS[member.reason]}</span>
+                        {!member.eligible && (
+                          <span className="text-xs text-neutral-text-muted ml-auto">
+                            {(member.reason && INELIGIBILITY_LABELS[member.reason]) || 'No puede participar'}
+                          </span>
                         )}
                         {isSelected && <Check className="h-3.5 w-3.5 text-status-success ml-auto" />}
                       </label>
@@ -325,7 +346,8 @@ export function TeamContestRegistration({
               variant="primary"
               onClick={handleRegister}
               isLoading={isRegistering}
-              disabled={!isValidSelection || !selectedTeamId || !!eligibility?.teamAlreadyRegistered}
+              // Wait for any re-check to land so a selection made against cached eligibility can't be submitted.
+              disabled={!isValidSelection || !selectedTeamId || !!eligibility?.teamAlreadyRegistered || isFetchingEligibility}
             >
               Registrar equipo
             </Button>

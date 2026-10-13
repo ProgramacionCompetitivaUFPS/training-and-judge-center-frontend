@@ -74,7 +74,15 @@ export function ContestDetailPage() {
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
-  const { data: eligibility, isLoading: isLoadingEligibility } = useTeamRegistrationEligibility(groupId || '', id || '', selectedTeamId)
+  const {
+    data: eligibility,
+    isFetching: isFetchingEligibility,
+    isError: isEligibilityError,
+    refetch: refetchEligibility,
+  } = useTeamRegistrationEligibility(groupId || '', id || '', selectedTeamId)
+  // Covers retries after an error too, where isLoading stays false.
+  const isLoadingEligibility = isFetchingEligibility && !eligibility
+  const eligibilityFailed = isEligibilityError && !isFetchingEligibility && !eligibility
   const { data: teamRegistrationsData } = useContestTeamRegistrations(groupId || '', id || '')
   const registerTeamMutation = useRegisterTeamToContest()
   const updateTeamRegistrationMutation = useUpdateTeamRegistration()
@@ -418,6 +426,9 @@ export function ContestDetailPage() {
                     isLoadingTeams={isLoadingTeams}
                     eligibility={eligibility}
                     isLoadingEligibility={isLoadingEligibility}
+                    isFetchingEligibility={isFetchingEligibility}
+                    eligibilityFailed={eligibilityFailed}
+                    onRetryEligibility={() => refetchEligibility()}
                     myRegistration={myRegistration}
                     currentUserNickname={user?.nickname}
                     onRegisterTeam={handleRegisterTeam}
