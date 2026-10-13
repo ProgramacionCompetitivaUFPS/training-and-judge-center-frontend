@@ -12,6 +12,7 @@ import type {
   ContestTeamRegistration,
   UpdateTeamRegistrationRequest,
   ContestTeamRegistrationsResponse,
+  TeamRegistrationEligibility,
 } from '@/types/team'
 
 // === Teams CRUD ===
@@ -74,6 +75,14 @@ export function updateTeamRegistration(
   data: UpdateTeamRegistrationRequest,
 ): Promise<ContestTeamRegistration> {
   return apiClient.put(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`, data)
+}
+
+export function getTeamRegistrationEligibility(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+): Promise<TeamRegistrationEligibility> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}/eligibility`)
 }
 
 export function unregisterTeamFromContest(

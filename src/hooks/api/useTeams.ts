@@ -17,6 +17,8 @@ export const teamKeys = {
   myInvitations: ['teams', 'invitations'] as const,
   contestRegistrations: (groupId: string, contestId: string) =>
     ['teams', 'contest-registrations', groupId, contestId] as const,
+  registrationEligibility: (groupId: string, contestId: string, teamId: string) =>
+    ['teams', 'registration-eligibility', groupId, contestId, teamId] as const,
 }
 
 // === Queries ===
@@ -48,6 +50,16 @@ export function useContestTeamRegistrations(groupId: string, contestId: string) 
     queryKey: teamKeys.contestRegistrations(groupId, contestId),
     queryFn: () => teamsApi.getContestTeamRegistrations(groupId, contestId),
     enabled: !!groupId && !!contestId,
+  })
+}
+
+export function useTeamRegistrationEligibility(groupId: string, contestId: string, teamId: string) {
+  return useQuery({
+    queryKey: teamKeys.registrationEligibility(groupId, contestId, teamId),
+    queryFn: () => teamsApi.getTeamRegistrationEligibility(groupId, contestId, teamId),
+    enabled: !!groupId && !!contestId && !!teamId,
+    // Eligibility depends on other people's registrations; always re-check when the dialog asks.
+    staleTime: 0,
   })
 }
 

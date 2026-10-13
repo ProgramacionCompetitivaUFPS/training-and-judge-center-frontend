@@ -158,6 +158,28 @@ export const teamsHandlers = [
     return HttpResponse.json({ items, total: items.length, page: 1, limit: items.length || 1, totalPages: 1 })
   }),
 
+  // Team registration eligibility
+  http.get(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId/eligibility'), async ({ params }) => {
+    await delay(200)
+    const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+    const registrations = mockTeamRegistrations[contestId] || []
+    const selectedElsewhere = new Set(
+      registrations.filter((r) => r.team.id !== teamId).flatMap((r) => r.selectedMembers.map((m) => m.id)),
+    )
+    return HttpResponse.json({
+      teamAlreadyRegistered: registrations.some((r) => r.team.id === teamId),
+      members: team.members.map((m) =>
+        selectedElsewhere.has(m.id)
+          ? { id: m.id, nickname: m.nickname, eligible: false, reason: 'MEMBER_IN_ANOTHER_TEAM' }
+          : { id: m.id, nickname: m.nickname, eligible: true },
+      ),
+    })
+  }),
+
   // Register team to contest
   http.post(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async ({ params, request }) => {
     await delay(300)
