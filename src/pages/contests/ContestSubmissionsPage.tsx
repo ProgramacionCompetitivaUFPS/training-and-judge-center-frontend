@@ -11,12 +11,10 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
-import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { cn, problemLabel } from '@/lib/utils'
-import { useAuth } from '@/hooks/useAuth'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
 
@@ -32,10 +30,8 @@ function formatTime(iso: string): string {
 
 export function ContestSubmissionsPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
-  const { user } = useAuth()
 
   const { data: contest } = useContestDetail(groupId || '', id || '')
-  const { data: ownerGroup } = useGroupDetail(groupId || '')
 
   const [phase, setPhase] = useState<string>('all')
   // Kept in the URL (?problem=<slug>) so a problem page inside the contest can link here
@@ -64,18 +60,6 @@ export function ContestSubmissionsPage() {
   }
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
-
-  const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
-  // Real leadership of the group that owns this contest, or platform Admin — mirrors the
-  // freeze exemption already applied server-side in list_contest_submissions.go.
-  const isPrivilegedViewer = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
-
-  // During ACTIVE contest, only own submissions are clickable — except for the organizer/Admin,
-  // who (like the freeze exemption) can already see everyone's real verdict.
-  const canViewSubmission = (nickname: string) => {
-    if (!isActive) return true // FINISHED: all submissions viewable
-    return nickname === user?.nickname || isPrivilegedViewer
-  }
 
   return (
     <AppLayout
@@ -215,12 +199,11 @@ export function ContestSubmissionsPage() {
                   const displayName = sub.submittedBy.type === 'INDIVIDUAL'
                     ? sub.submittedBy.nickname
                     : sub.submittedBy.teamName
-                  const clickable = nickname && canViewSubmission(nickname)
 
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className="font-mono text-sm">
-                        {clickable ? (
+                        {sub.canViewDetail ? (
                           <Link to={`/submissions/${sub.id}`} className="text-brand-primary hover:underline">
                             {formatTime(sub.submittedAt)}
                           </Link>

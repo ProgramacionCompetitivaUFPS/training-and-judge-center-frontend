@@ -1582,7 +1582,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'carloscp', name: 'Carlos Pérez' },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 30 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: true,
   },
   {
     id: 'csub-002',
@@ -1590,7 +1590,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: true,
   },
   {
     id: 'csub-003',
@@ -1598,7 +1598,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
-    status: 'WRONG_ANSWER',
+    status: 'WRONG_ANSWER', canViewDetail: true,
   },
   {
     id: 'csub-004',
@@ -1606,7 +1606,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 45 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: true,
   },
   {
     id: 'csub-005',
@@ -1614,7 +1614,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: true,
   },
   {
     id: 'csub-006',
@@ -1622,7 +1622,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: true,
   },
 ]
 
