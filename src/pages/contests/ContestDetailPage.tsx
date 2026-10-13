@@ -20,6 +20,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
+import { isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 function LockedProblemsPlaceholder({
   title = 'Los problemas se revelarán al iniciar la competencia',
@@ -58,7 +60,7 @@ export function ContestDetailPage() {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const { data: contest, isLoading } = useContestDetail(groupId || '', id || '')
+  const { data: contest, isLoading, error } = useContestDetail(groupId || '', id || '')
   const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
@@ -118,6 +120,7 @@ export function ContestDetailPage() {
     )
   }
 
+  if (isNotFoundError(error)) return <NotFoundPage />
   if (!contest) return null
 
   // Real leadership of the group that owns this contest — not just having the Coach role

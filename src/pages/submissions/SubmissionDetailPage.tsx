@@ -11,7 +11,8 @@ import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
-import { ApiClientError } from '@/lib/errors'
+import { ApiClientError, isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
@@ -39,6 +40,8 @@ export function SubmissionDetailPage() {
       </AppLayout>
     )
   }
+
+  if (isNotFoundError(error)) return <NotFoundPage />
 
   if (error || !submission) {
     return (

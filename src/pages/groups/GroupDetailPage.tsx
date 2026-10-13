@@ -62,7 +62,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
-import { ApiClientError } from '@/lib/errors'
+import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import type { GroupRole, JoinRequestStatus } from '@/types/group'
 import type { ContestStatus } from '@/types/contest'
 import {
@@ -79,6 +79,7 @@ import {
   Copy,
   Calendar,
 } from 'lucide-react'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 // Deterministic color from name initial
 const INITIAL_COLORS = [
@@ -102,7 +103,7 @@ export function GroupDetailPage() {
   const { toast } = useToastContext()
   const { user } = useAuth()
 
-  const { data: group, isLoading } = useGroupDetail(id!)
+  const { data: group, isLoading, error } = useGroupDetail(id!)
   const { data: membersData, error: membersError } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
   const canManage = isLead || user?.role === 'ADMIN'
@@ -184,6 +185,7 @@ export function GroupDetailPage() {
   }
 
   if (!id) return null
+  if (isNotFoundError(error)) return <NotFoundPage />
 
   const handleJoinOpen = async () => {
     try {

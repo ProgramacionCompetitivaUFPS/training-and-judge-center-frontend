@@ -28,11 +28,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
 import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
-import { ApiClientError } from '@/lib/errors'
+import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 interface PublishRequirement { key: string; label: string; met: (problem: ProblemDetail) => boolean }
 
@@ -84,6 +85,10 @@ export function ProblemDetailPage() {
     | { kind: 'failure'; data: PublishFailureResponse }
     | null
   >(null)
+
+  // A contest problem letter that doesn't exist (or a contest that can't be seen) resolves to no slug.
+  if (isContestContext && !isContestLoading && !resolvedSlug) return <NotFoundPage />
+  if (isNotFoundError(error)) return <NotFoundPage />
 
   if (isLoading || (isContestContext && (isContestLoading || !resolvedSlug))) {
     return (
