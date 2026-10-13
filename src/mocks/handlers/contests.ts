@@ -284,6 +284,7 @@ export const contestsHandlers = [
       problemSlug: sp.get('problemSlug') || undefined,
       nickname: sp.get('nickname') || undefined,
       isPrivileged,
+      viewerNickname,
     })
     if (!result) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })

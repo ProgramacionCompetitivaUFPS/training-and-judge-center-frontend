@@ -1582,7 +1582,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'carloscp', name: 'Carlos Pérez' },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 30 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: true,
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-002',
@@ -1590,7 +1590,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: true,
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-003',
@@ -1598,7 +1598,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
-    status: 'WRONG_ANSWER', canViewDetail: true,
+    status: 'WRONG_ANSWER', canViewDetail: false,
   },
   {
     id: 'csub-004',
@@ -1606,7 +1606,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 45 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: true,
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-005',
@@ -1614,7 +1614,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: true,
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-006',
@@ -1622,9 +1622,12 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: true,
+    status: 'ACCEPTED', canViewDetail: false,
   },
 ]
+
+// Submissions whose author made them PUBLIC (canViewDetail is computed per viewer below).
+const publicContestSubmissionIds = new Set(['csub-004'])
 
 export function buildContestSubmissionsList(params: {
   contestId: string
@@ -1634,6 +1637,7 @@ export function buildContestSubmissionsList(params: {
   problemSlug?: string
   nickname?: string
   isPrivileged: boolean
+  viewerNickname?: string
 }) {
   const contest = mockContests.find((c) => c.id === params.contestId)
   if (!contest) return null
@@ -1664,8 +1668,15 @@ export function buildContestSubmissionsList(params: {
   const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
 
   filtered = filtered.map((s) => {
+    // Mirrors list_contest_submissions.go: Lead/Admin, own or team submission, or PUBLIC.
+    const isOwn = !!params.viewerNickname && (s.submittedBy.type === 'INDIVIDUAL'
+      ? s.submittedBy.nickname === params.viewerNickname
+      : !!s.submittedBy.members?.includes(params.viewerNickname))
+    const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
     const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
-    return isFrozenSubmission ? { ...s, status: '?', executionTime: undefined, memoryUsed: undefined } : s
+    return isFrozenSubmission
+      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryUsed: undefined }
+      : { ...s, canViewDetail }
   })
 
   filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
