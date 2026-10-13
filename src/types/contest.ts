@@ -239,6 +239,8 @@ export interface ContestSubmissionItem {
   executionTime?: number
   memoryUsed?: number
   phase?: 'competition' | 'postcompetition'
+  /** Own or team submission, Lead/Admin, or one its author made public. */
+  canViewDetail: boolean
 }
 
 export interface ContestSubmissionsResponse {
