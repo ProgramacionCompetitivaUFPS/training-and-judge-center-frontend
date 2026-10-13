@@ -13,6 +13,8 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { ApiClientError } from '@/lib/errors'
 
+const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
+
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -65,7 +67,7 @@ export function SubmissionDetailPage() {
   }
 
   function handleDownload() {
-    if (!submission) return
+    if (!submission || submission.sourceCode === null) return
     const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
     const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
     downloadSubmissionBlob(submission.sourceCode, filename)
@@ -146,7 +148,7 @@ export function SubmissionDetailPage() {
                 Rejuzgar
               </Button>
             )}
-            <Button variant="outline" onClick={handleDownload}>
+            <Button variant="outline" onClick={handleDownload} disabled={submission.sourceCode === null}>
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
@@ -217,7 +219,7 @@ export function SubmissionDetailPage() {
                 <CardContent>
                   {showBlocklyCode ? (
                     <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                      <code>{submission.sourceCode}</code>
+                      <code>{submission.sourceCode ?? SOURCE_CODE_UNAVAILABLE}</code>
                     </pre>
                   ) : (
                     <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
@@ -236,9 +238,13 @@ export function SubmissionDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                  <code>{submission.sourceCode}</code>
-                </pre>
+                {submission.sourceCode === null ? (
+                  <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                ) : (
+                  <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
+                    <code>{submission.sourceCode}</code>
+                  </pre>
+                )}
               </CardContent>
             </Card>
           )

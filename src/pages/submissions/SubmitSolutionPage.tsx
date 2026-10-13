@@ -117,6 +117,13 @@ export function SubmitSolutionPage() {
         })
         return
       }
+    } else if (detail.sourceCode === null) {
+      toast({
+        variant: 'warning',
+        title: 'Código fuente no disponible',
+        description: 'El archivo del código fuente de este envío ya no existe.',
+      })
+      return
     } else {
       setCode(detail.sourceCode)
     }
