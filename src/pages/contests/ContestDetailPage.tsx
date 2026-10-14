@@ -2,39 +2,54 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect } from '@/components/ui'
+import {
+  Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect, Input,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
-import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest } from '@/hooks/api/useContests'
+import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest, useStandings } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useMyTeams, useTeamDetail, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
+import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { ApiClientError } from '@/lib/errors'
-import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/errorMessages'
+import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
+import { isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
-function LockedProblemsPlaceholder() {
+function LockedProblemsPlaceholder({
+  title = 'Los problemas se revelarán al iniciar la competencia',
+  description = 'Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.',
+  showSkeleton = true,
+}: {
+  title?: string
+  description?: string
+  showSkeleton?: boolean
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div className="w-16 h-16 bg-neutral-background rounded-full flex items-center justify-center mb-4">
         <EyeOff className="h-7 w-7 text-neutral-text-muted" />
       </div>
       <h4 className="text-base font-bold text-neutral-text-primary mb-1">
-        Los problemas se revelarán al iniciar el contest
+        {title}
       </h4>
       <p className="text-sm text-neutral-text-muted max-w-sm">
-        Solo los participantes registrados podrán ver los enunciados una vez comience la competencia.
+        {description}
       </p>
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-lg">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 bg-neutral-background rounded-lg animate-pulse" />
-        ))}
-      </div>
+      {showSkeleton && (
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-lg">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 bg-neutral-background rounded-lg animate-pulse" />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -45,7 +60,7 @@ export function ContestDetailPage() {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const { data: contest, isLoading } = useContestDetail(groupId || '', id || '')
+  const { data: contest, isLoading, error } = useContestDetail(groupId || '', id || '')
   const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
@@ -56,9 +71,20 @@ export function ContestDetailPage() {
   const debouncedProblemSearch = useDebounce(problemSearchQuery)
   const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
-  const { data: teamDetail, isLoading: isLoadingTeamDetail } = useTeamDetail(selectedTeamId)
+  const {
+    data: eligibility,
+    isFetching: isFetchingEligibility,
+    isError: isEligibilityError,
+    refetch: refetchEligibility,
+  } = useTeamRegistrationEligibility(groupId || '', id || '', selectedTeamId)
+  // Covers retries after an error too, where isLoading stays false.
+  const isLoadingEligibility = isFetchingEligibility && !eligibility
+  const eligibilityFailed = isEligibilityError && !isFetchingEligibility && !eligibility
   const { data: teamRegistrationsData } = useContestTeamRegistrations(groupId || '', id || '')
   const registerTeamMutation = useRegisterTeamToContest()
   const updateTeamRegistrationMutation = useUpdateTeamRegistration()
@@ -69,6 +95,17 @@ export function ContestDetailPage() {
   // if the same person competes via a different team for this contest, that's a separate registration.
   const myRegistration = teamRegistrationsData?.teams.find((r) =>
     r.selectedMembers.some((m) => m.nickname === user?.nickname)
+  )
+
+  // Large limit so the current user's row is included regardless of their rank —
+  // there's no "find me" endpoint, so we fetch the full table and search client-side.
+  const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000 }, {
+    enabled: contest?.status === 'ACTIVE' && !!contest?.isRegistered,
+  })
+  const myStanding = standingsData?.standings.find((entry) =>
+    entry.participant.type === 'TEAM'
+      ? entry.participant.id === myRegistration?.team.id
+      : entry.participant.nickname === user?.nickname,
   )
 
   if (!id || !groupId) return null
@@ -83,12 +120,16 @@ export function ContestDetailPage() {
     )
   }
 
+  if (isNotFoundError(error)) return <NotFoundPage />
   if (!contest) return null
 
   // Real leadership of the group that owns this contest — not just having the Coach role
   // platform-wide, which the backend already rejects for management actions on contests
   // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
   const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
+  // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
+  // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
+  const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
   const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
@@ -98,7 +139,7 @@ export function ContestDetailPage() {
     registerMutation.mutate(
       { groupId, contestId: contest.id },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado al contest' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado a la competencia' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo registrar' }),
       },
     )
@@ -119,12 +160,17 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => {
-          toast({ variant: 'success', title: 'Eliminado', description: 'Contest eliminado' })
+          toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
           navigate('/contests')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
       },
     )
+  }
+
+  const handleDeleteClick = () => {
+    setConfirmName('')
+    setDeleteDialogOpen(true)
   }
 
   const handleLockToggle = () => {
@@ -135,7 +181,7 @@ export function ContestDetailPage() {
         onSuccess: () => toast({
           variant: 'success',
           title: newLocked ? 'Bloqueado' : 'Desbloqueado',
-          description: newLocked ? 'El contest fue bloqueado' : 'El contest fue desbloqueado',
+          description: newLocked ? 'La competencia fue bloqueada' : 'La competencia fue desbloqueada',
         }),
         onError: () => toast({
           variant: 'error',
@@ -150,8 +196,8 @@ export function ContestDetailPage() {
     registerTeamMutation.mutate(
       { groupId, contestId: contest.id, teamId, selectedMembers },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado al contest' }),
-        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo registrar el equipo' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo registrado', description: 'Tu equipo fue registrado a la competencia' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err, 'No se pudo registrar el equipo') }),
       },
     )
   }
@@ -161,7 +207,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, teamId, data: { selectedMembers } },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Alineación actualizada', description: 'Los miembros del equipo fueron actualizados' }),
-        onError: (err) => toast({ variant: 'error', title: 'Error', description: err instanceof ApiClientError ? err.message : 'No se pudo actualizar la alineación' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err, 'No se pudo actualizar la alineación') }),
       },
     )
   }
@@ -170,7 +216,7 @@ export function ContestDetailPage() {
     unregisterTeamMutation.mutate(
       { groupId, contestId: contest.id, teamId },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido del contest' }),
+        onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido de la competencia' }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
       },
     )
@@ -186,7 +232,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, data: { problems: newProblems } },
       {
         onSuccess: () => {
-          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" al contest` })
+          toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" a la competencia` })
           setProblemSearchQuery('')
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
@@ -201,7 +247,7 @@ export function ContestDetailPage() {
     updateMutation.mutate(
       { groupId, contestId: contest.id, data: { problems: remaining } },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" del contest` }),
+        onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" de la competencia` }),
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
       },
     )
@@ -211,6 +257,31 @@ export function ContestDetailPage() {
     { label: 'Competencias', href: '/contests' },
     { label: contest.name },
   ]
+
+  const deleteDialog = (
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar competencia</DialogTitle>
+          <DialogDescription>
+            Escribe <span className="font-bold">{contest.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nombre de la competencia" />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={deleteMutation.isPending}
+            disabled={confirmName !== contest.name}
+          >
+            Eliminar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 
   // ═══════════════════════════════════════════════
   // ACTIVE: Competition mode layout
@@ -248,37 +319,51 @@ export function ContestDetailPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <section className="lg:col-span-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Problemas del concurso</CardTitle>
+              <Card className={contest.problems.length === 0 && !contest.isRegistered ? 'border-dashed border-neutral-border' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    Problemas del concurso
+                    {contest.problems.length === 0 && !contest.isRegistered && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                  </CardTitle>
+                  {contest.problems.length === 0 && !contest.isRegistered && (
+                    <Badge variant="default">Acceso restringido</Badge>
+                  )}
                 </CardHeader>
-                <CardContent className="p-0">
-                  <ContestProblemsTable
-                    problems={contest.problems}
-                    groupId={groupId}
-                    contestId={contest.id}
-                    showSubmit={contest.isRegistered}
-                  />
+                <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
+                  {contest.problems.length === 0 && !contest.isRegistered ? (
+                    <LockedProblemsPlaceholder
+                      title="No estás inscrito en esta competencia"
+                      description="Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo."
+                      showSkeleton={false}
+                    />
+                  ) : (
+                    <ContestProblemsTable
+                      problems={contest.problems}
+                      groupId={groupId}
+                      contestId={contest.id}
+                      showSubmit={contest.isRegistered}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </section>
 
             <aside className="lg:col-span-4 space-y-4">
               {/* User position — first in sidebar for visibility */}
-              {contest.isRegistered && (
+              {contest.isRegistered && myStanding && (
                 <Card>
                   <CardContent className="pt-5">
                     <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-3">Tu posición actual</p>
                     <div className="flex items-baseline gap-1.5 mb-3">
-                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#3</span>
+                      <span className="text-3xl font-extrabold text-brand-primary tracking-tight">#{myStanding.rank}</span>
                       <span className="text-sm text-neutral-text-muted font-medium">/ {contest.participantCount}</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="px-2.5 py-1 bg-status-success/10 text-status-success text-xs font-bold rounded-md">
-                        2 Resueltos
+                        {myStanding.problemsSolved} Resueltos
                       </span>
                       <span className="px-2.5 py-1 bg-neutral-background text-neutral-text-muted text-xs font-bold rounded-md">
-                        85 min
+                        {myStanding.totalPenalty} min
                       </span>
                     </div>
                   </CardContent>
@@ -342,8 +427,11 @@ export function ContestDetailPage() {
                     variant="inline"
                     teams={teamsData?.teams ?? []}
                     isLoadingTeams={isLoadingTeams}
-                    selectedTeamDetail={teamDetail}
-                    isLoadingTeamDetail={isLoadingTeamDetail}
+                    eligibility={eligibility}
+                    isLoadingEligibility={isLoadingEligibility}
+                    isFetchingEligibility={isFetchingEligibility}
+                    eligibilityFailed={eligibilityFailed}
+                    onRetryEligibility={() => refetchEligibility()}
                     myRegistration={myRegistration}
                     currentUserNickname={user?.nickname}
                     onRegisterTeam={handleRegisterTeam}
@@ -484,7 +572,8 @@ export function ContestDetailPage() {
                         {contest.problems.map((p) => (
                           <li key={p.slug} className="flex items-center justify-between py-2">
                             <span className="text-sm font-medium text-neutral-text-primary">
-                              {p.position}. {p.title} <span className="text-neutral-text-muted">({p.slug})</span>
+                              {problemLabel(p.position)}. {p.title}{' '}
+                              <span className="text-neutral-text-muted">({p.slug})</span>
                             </span>
                             <button
                               type="button"
@@ -530,7 +619,7 @@ export function ContestDetailPage() {
                   {contest.enablePostContest && (
                     <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
                       <Globe className="h-4 w-4 text-brand-primary" />
-                      <span className="text-sm font-semibold">Post-contest habilitado</span>
+                      <span className="text-sm font-semibold">Post-competencia habilitada</span>
                     </div>
                   )}
                 </CardContent>
@@ -539,7 +628,7 @@ export function ContestDetailPage() {
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
               <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-              {isLead && (
+              {isContestOwner && (
                 <Card>
                   <CardContent className="pt-5 space-y-2">
                     <Button
@@ -549,7 +638,7 @@ export function ContestDetailPage() {
                       isLoading={updateMutation.isPending}
                     >
                       {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                      {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                      {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -559,13 +648,14 @@ export function ContestDetailPage() {
                 <ContestAdminActions
                   contestId={contest.id}
                   groupId={groupId}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteClick}
                   isDeleting={deleteMutation.isPending}
                 />
               )}
             </div>
           </div>
         </div>
+        {deleteDialog}
       </AppLayout>
     )
   }
@@ -632,7 +722,7 @@ export function ContestDetailPage() {
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
             <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
-            {isLead && (
+            {isContestOwner && (
               <Card>
                 <CardContent className="pt-5 space-y-2">
                   <Button
@@ -642,7 +732,7 @@ export function ContestDetailPage() {
                     isLoading={updateMutation.isPending}
                   >
                     {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                    {contest.locked ? 'Desbloquear contest' : 'Bloquear contest'}
+                    {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}
                   </Button>
                 </CardContent>
               </Card>
@@ -652,13 +742,14 @@ export function ContestDetailPage() {
               <ContestAdminActions
                 contestId={contest.id}
                 groupId={groupId}
-                onDelete={handleDelete}
+                onDelete={handleDeleteClick}
                 isDeleting={deleteMutation.isPending}
               />
             )}
           </aside>
         </div>
       </div>
+      {deleteDialog}
     </AppLayout>
   )
 }

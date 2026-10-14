@@ -39,12 +39,14 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
-import { useAdminUsers, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
+import { useAdminUsers, useAdminUserFilterOptions, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { ROLE_CONFIG } from '@/lib/constants'
 import { adminUpdateUserSchema, type AdminUpdateUserFormData } from '@/lib/schemas/user'
+import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import type { AdminUserListParams, User, UserRole, UserStatus } from '@/types/user'
 import { Search, MoreVertical, ArrowUp, ArrowDown, UserX, Pencil } from 'lucide-react'
 
@@ -71,14 +73,14 @@ function getConfirmDialogProps(action: PendingAction | null) {
   if (kind === 'deactivate') {
     return {
       title: 'Desactivar usuario',
-      description: `¿Desactivar al usuario @${user.nickname}? Podrá reactivarse más adelante.`,
+      description: `¿Desactivar al usuario @${user.nickname}? Esta acción es permanente y no se puede deshacer: su correo y nickname quedan anonimizados.`,
     }
   }
 
   const targetRole = kind === 'promote' ? 'COACH' : 'CONTESTANT'
   return {
     title: 'Cambiar rol de usuario',
-    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${user.role} a ${targetRole}?`,
+    description: `¿Seguro que quieres cambiar a @${user.nickname} de ${ROLE_CONFIG[user.role].label} a ${ROLE_CONFIG[targetRole].label}?`,
   }
 }
 
@@ -89,6 +91,9 @@ export function UsersListPage() {
   const debouncedSearch = useDebounce(searchInput, 300)
   const [roleFilter, setRoleFilter] = useState<UserRole | undefined>(undefined)
   const [statusFilter, setStatusFilter] = useState<UserStatus | undefined>('ACTIVE')
+  const [countryFilter, setCountryFilter] = useState<string | undefined>(undefined)
+  const [cityFilter, setCityFilter] = useState<string | undefined>(undefined)
+  const [institutionFilter, setInstitutionFilter] = useState<string | undefined>(undefined)
   const [sortValue, setSortValue] = useState<string>('createdAt-desc')
   const [pagination, setPagination] = useState({ page: 1, limit: 5 })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -102,10 +107,14 @@ export function UsersListPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(roleFilter && { role: roleFilter }),
     ...(statusFilter && { status: statusFilter }),
+    ...(countryFilter && { country: countryFilter }),
+    ...(cityFilter && { city: cityFilter }),
+    ...(institutionFilter && { institution: institutionFilter }),
     ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
   }
 
   const { data, isLoading, error } = useAdminUsers(params)
+  const { data: filterOptions } = useAdminUserFilterOptions()
   const deactivateMutation = useAdminDeactivateUser()
   const updateUserMutation = useAdminUpdateUser()
   const editUserMutation = useAdminUpdateUser()
@@ -120,7 +129,9 @@ export function UsersListPage() {
     if (editingUser) {
       editForm.reset({
         name: editingUser.name,
-        role: editingUser.role,
+        email: editingUser.email,
+        nickname: editingUser.nickname,
+        role: editingUser.role === 'ADMIN' ? undefined : editingUser.role,
         institution: editingUser.institution,
       })
     }
@@ -152,6 +163,21 @@ export function UsersListPage() {
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
+  const handleCountryFilter = (country: string) => {
+    setCountryFilter(country === 'ALL' ? undefined : country)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleCityFilter = (city: string) => {
+    setCityFilter(city === 'ALL' ? undefined : city)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleInstitutionFilter = (institution: string) => {
+    setInstitutionFilter(institution === 'ALL' ? undefined : institution)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
   const isRowActionPending = (userId: string) =>
@@ -170,11 +196,18 @@ export function UsersListPage() {
         await updateUserMutation.mutateAsync({ id: user.id, data: { role: newRole } })
         toast({ variant: 'success', title: 'Rol actualizado' })
       }
-    } catch {
-      toast({
-        variant: 'error',
-        title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
-      })
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'CANNOT_SELF_DEACTIVATE') {
+        toast({ variant: 'error', title: 'No puedes desactivar tu propia cuenta', description: 'Pídele a otro Administrador que lo haga por ti.' })
+      } else if (err instanceof ApiClientError && err.code === 'CANNOT_DEACTIVATE_ADMIN') {
+        toast({ variant: 'error', title: 'No se puede desactivar a otro Administrador' })
+      } else {
+        toast({
+          variant: 'error',
+          title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
+          description: getErrorMessage(err),
+        })
+      }
     }
     setPendingAction(null)
   }
@@ -205,9 +238,9 @@ export function UsersListPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los roles</SelectItem>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-              <SelectItem value="COACH">Coach</SelectItem>
-              <SelectItem value="CONTESTANT">Contestant</SelectItem>
+              <SelectItem value="ADMIN">{ROLE_CONFIG.ADMIN.label}</SelectItem>
+              <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
+              <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter ?? 'ALL'} onValueChange={handleStatusFilter}>
@@ -235,9 +268,39 @@ export function UsersListPage() {
           </Select>
         </div>
 
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select value={countryFilter ?? 'ALL'} onValueChange={handleCountryFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los países</SelectItem>
+              {filterOptions?.countries.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={cityFilter ?? 'ALL'} onValueChange={handleCityFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Ciudad" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las ciudades</SelectItem>
+              {filterOptions?.cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={institutionFilter ?? 'ALL'} onValueChange={handleInstitutionFilter}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Institución" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las instituciones</SelectItem>
+              {filterOptions?.institutions.map((i) => (
+                <SelectItem key={i} value={i}>{i}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {error && (
           <Alert variant="error">
-            {error instanceof Error ? error.message : 'Error al cargar usuarios.'}
+            {getErrorMessage(error, 'Error al cargar usuarios.')}
           </Alert>
         )}
 
@@ -266,7 +329,7 @@ export function UsersListPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuario</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Correo</TableHead>
                       <TableHead>Rol</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -328,17 +391,21 @@ export function UsersListPage() {
                                   {user.role === 'COACH' && (
                                     <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
                                       <ArrowDown className="mr-2 h-4 w-4" />
-                                      Bajar a Contestant
+                                      Bajar a Competidor
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setPendingAction({ user, kind: 'deactivate' })}
-                                    className="text-status-error"
-                                  >
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Desactivar usuario
-                                  </DropdownMenuItem>
+                                  {user.role !== 'ADMIN' && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setPendingAction({ user, kind: 'deactivate' })}
+                                        className="text-status-error"
+                                      >
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Desactivar usuario
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -384,6 +451,17 @@ export function UsersListPage() {
               error={editForm.formState.errors.name?.message}
             />
             <Input
+              label="Email"
+              type="email"
+              {...editForm.register('email')}
+              error={editForm.formState.errors.email?.message}
+            />
+            <Input
+              label="Nickname"
+              {...editForm.register('nickname')}
+              error={editForm.formState.errors.nickname?.message}
+            />
+            <Input
               label="Institución"
               {...editForm.register('institution')}
               error={editForm.formState.errors.institution?.message}
@@ -392,13 +470,12 @@ export function UsersListPage() {
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select
                 value={editRole}
-                onValueChange={(v) => editForm.setValue('role', v as UserRole, { shouldValidate: true })}
+                onValueChange={(v) => editForm.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CONTESTANT">Contestant</SelectItem>
-                  <SelectItem value="COACH">Coach</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
+                  <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

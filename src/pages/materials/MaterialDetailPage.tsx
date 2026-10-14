@@ -24,6 +24,8 @@ import {
   BookOpen, Edit, Trash2, MoreVertical, Pin, Loader2,
   User, Calendar,
 } from 'lucide-react'
+import { isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 export function MaterialDetailPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -31,7 +33,7 @@ export function MaterialDetailPage() {
   const { user } = useAuth()
   const { toast } = useToastContext()
 
-  const { data: material, isLoading } = useMaterialDetail(groupId!, materialId!)
+  const { data: material, isLoading, error } = useMaterialDetail(groupId!, materialId!)
   const { data: groupDetail } = useGroupDetail(groupId!)
   const deleteMutation = useDeleteMaterial()
   const publishMutation = usePublishMaterial()
@@ -94,7 +96,7 @@ export function MaterialDetailPage() {
 
   const breadcrumbs = [
     { label: 'Grupos', href: '/groups' },
-    { label: material?.group.name ?? 'Grupo', href: `/groups/${groupId}` },
+    { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
     { label: 'Materiales', href: `/groups/${groupId}/materials` },
     { label: material?.title ?? 'Cargando...' },
   ]
@@ -109,6 +111,7 @@ export function MaterialDetailPage() {
     )
   }
 
+  if (isNotFoundError(error)) return <NotFoundPage />
   if (!material) return null
 
   return (
@@ -239,7 +242,7 @@ export function MaterialDetailPage() {
                         onClick={() => navigate(`/groups/${groupId}`)}
                         className="text-sm font-medium text-brand-primary hover:underline"
                       >
-                        {material.group.name}
+                        {groupDetail?.name ?? 'Grupo'}
                       </button>
                     </div>
                   </div>

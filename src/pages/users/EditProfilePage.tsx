@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { GoogleSignInButton } from '@/components/features/GoogleSignInButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -37,7 +38,9 @@ import {
   type ConfirmDeactivationFormData,
 } from '@/lib/schemas/user'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { ROUTES } from '@/lib/constants'
+import { getCountryOptions, type Country } from '@/lib/countries'
 
 function scrollToPasswordSection() {
   const section = document.getElementById('password-section')
@@ -73,6 +76,7 @@ function ProfileSection({ user }: ProfileSectionProps) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<UpdateProfileFormData>({
@@ -85,6 +89,20 @@ function ProfileSection({ user }: ProfileSectionProps) {
       institution: user.institution,
     },
   })
+
+  const countryOptions = getCountryOptions(user.country)
+  // The visible query only updates on an actual selection (typing alone never touches the
+  // RHF field), so the input never shows text that doesn't match what would be submitted.
+  const [countryQuery, setCountryQuery] = useState(user.country)
+  const countryMatches = countryQuery.trim()
+    ? countryOptions.filter((c) => c.name.toLowerCase().includes(countryQuery.trim().toLowerCase()))
+    : countryOptions
+
+  function selectCountry(country: Country) {
+    setValue('country', country.name, { shouldValidate: true })
+    setCountryQuery(country.name)
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
 
   const onSubmit = async (data: UpdateProfileFormData) => {
     try {
@@ -129,7 +147,17 @@ function ProfileSection({ user }: ProfileSectionProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label htmlFor="country" className="text-sm font-medium text-neutral-text-primary">País</label>
-            <Input id="country" {...register('country')} />
+            <SearchSelect
+              query={countryQuery}
+              onQueryChange={setCountryQuery}
+              results={countryMatches}
+              minChars={0}
+              placeholder="Busca tu país..."
+              emptyLabel="Sin coincidencias"
+              getKey={(c) => c.code}
+              renderItem={(c) => c.name}
+              onSelect={selectCountry}
+            />
             {errors.country && <p className="text-sm text-status-error">{errors.country.message}</p>}
           </div>
           <div className="space-y-2">
@@ -188,7 +216,7 @@ function ChangePasswordForm() {
         toast({
           variant: 'error',
           title: 'Error al cambiar la contraseña',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -268,7 +296,7 @@ function SetPasswordForm() {
         toast({
           variant: 'error',
           title: 'Error al crear la contraseña',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -327,7 +355,7 @@ function EmailSection({ hasPassword }: EmailSectionProps) {
             <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
               <Mail className="h-4 w-4" />
             </div>
-            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+            <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Correo</h2>
           </div>
           <p className="text-sm text-neutral-text-muted">
             Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
@@ -388,7 +416,7 @@ function EmailChangeForm() {
         toast({
           variant: 'error',
           title: 'Error al solicitar cambio de email',
-          description: error instanceof ApiClientError ? error.message : undefined,
+          description: getErrorMessage(error),
         })
       }
     }
@@ -404,7 +432,7 @@ function EmailChangeForm() {
       toast({
         variant: 'error',
         title: 'Código inválido o expirado',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -416,7 +444,7 @@ function EmailChangeForm() {
           <div className="w-9 h-9 rounded-lg bg-brand-primary-muted flex items-center justify-center text-brand-primary">
             <Mail className="h-4 w-4" />
           </div>
-          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Email</h2>
+          <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Correo</h2>
         </div>
       {step === 'request' ? (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -554,11 +582,13 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
 
 function DeactivateSection() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const deactivateMutation = useRequestDeactivation()
   const confirmMutation = useConfirmDeactivation()
   const { toast } = useToastContext()
   const [stage, setStage] = useState<'idle' | 'password' | 'code'>('idle')
   const [password, setPassword] = useState('')
+  const isAdmin = user?.role === 'ADMIN'
 
   const {
     register: registerConfirm,
@@ -583,7 +613,7 @@ function DeactivateSection() {
       toast({
         variant: 'error',
         title: 'Error al solicitar desactivación',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -597,7 +627,7 @@ function DeactivateSection() {
       toast({
         variant: 'error',
         title: 'Código inválido o expirado',
-        description: error instanceof ApiClientError ? error.message : undefined,
+        description: getErrorMessage(error),
       })
     }
   }
@@ -612,9 +642,15 @@ function DeactivateSection() {
           <h2 className="text-lg font-bold text-status-error">Desactivar Cuenta</h2>
         </div>
       <p className="text-sm text-neutral-text-muted">
-        Esta acción desactivará tu cuenta. No podrás iniciar sesión hasta que un administrador la reactive.
+        Esta acción desactivará tu cuenta de forma permanente e irreversible: no podrás volver a iniciar sesión y tu correo y nickname quedarán anonimizados. No existe reactivación.
       </p>
-      {stage === 'idle' && (
+      {isAdmin && (
+        <p className="text-sm text-status-error">
+          Como Administrador no puedes desactivar tu propia cuenta desde aquí, para evitar quedarte sin
+          acceso. Pídele a otro Administrador que la desactive por ti si es necesario.
+        </p>
+      )}
+      {stage === 'idle' && !isAdmin && (
         <Button variant="outline" onClick={() => setStage('password')} className="text-status-error border-status-error/30">
           Desactivar mi cuenta
         </Button>

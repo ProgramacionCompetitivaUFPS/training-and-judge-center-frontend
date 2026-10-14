@@ -55,6 +55,7 @@ export interface ContestListItem {
   penalty: number
   freezeMinutes: number | null
   enablePostContest: boolean
+  participationMode: ParticipationMode
   participantCount: number
   isRegistered: boolean
   problemCount: number
@@ -71,7 +72,7 @@ export interface ContestListParams extends PaginationParams {
 }
 
 export interface ContestListResponse {
-  data: ContestListItem[]
+  items: ContestListItem[]
   pagination: {
     page: number
     limit: number
@@ -132,7 +133,10 @@ export interface RegistrationStatus {
 }
 
 export interface RegistrationListItem {
-  nickname: string
+  type?: 'INDIVIDUAL' | 'TEAM'
+  nickname?: string
+  teamName?: string
+  members?: string[]
   registeredAt: string
 }
 
@@ -235,6 +239,8 @@ export interface ContestSubmissionItem {
   executionTime?: number
   memoryUsed?: number
   phase?: 'competition' | 'postcompetition'
+  /** Own or team submission, Lead/Admin, or one its author made public. */
+  canViewDetail: boolean
 }
 
 export interface ContestSubmissionsResponse {

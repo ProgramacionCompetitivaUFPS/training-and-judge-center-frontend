@@ -11,7 +11,6 @@ export type SubmissionStatus =
   | 'MEMORY_LIMIT_EXCEEDED'
   | 'RUNTIME_EXCEPTION'
   | 'COMPILATION_ERROR'
-  | 'PRESENTATION_ERROR'
   | 'SYSTEM_ERROR'
 
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
@@ -46,7 +45,8 @@ export interface SubmissionDetail {
   compiler: SubmissionCompiler
   executionTime: number | null
   memoryUsed: number | null
-  sourceCode: string
+  /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
+  sourceCode: string | null
   /** URL del SVG de bloques (solo para envíos Blockly) */
   blocksSvgUrl?: string
   /** Indica si es un envío Blockly */

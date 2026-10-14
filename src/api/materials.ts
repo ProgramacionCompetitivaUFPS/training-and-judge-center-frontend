@@ -49,7 +49,7 @@ export async function updateMaterial(
   materialId: string,
   data: UpdateMaterialRequest,
 ): Promise<Material> {
-  return apiClient.put(`/groups/${groupId}/materials/${materialId}`, data)
+  return apiClient.patch(`/groups/${groupId}/materials/${materialId}`, data)
 }
 
 export async function deleteMaterial(

@@ -28,6 +28,7 @@ export const userKeys = {
   stats: ['users', 'stats'] as const,
   profile: (nickname: string) => ['users', 'profile', nickname] as const,
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
+  adminFilterOptions: ['users', 'admin', 'filters'] as const,
   search: (q: string) => ['users', 'search', q] as const,
 }
 
@@ -83,6 +84,13 @@ export function useAdminUsers(params?: AdminUserListParams) {
     queryKey: userKeys.adminList(params),
     queryFn: () => usersApi.adminListUsers(params),
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useAdminUserFilterOptions() {
+  return useQuery({
+    queryKey: userKeys.adminFilterOptions,
+    queryFn: usersApi.adminGetUserFilterOptions,
   })
 }
 

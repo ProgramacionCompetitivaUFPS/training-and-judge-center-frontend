@@ -44,6 +44,22 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Convert a 1-based problem position to its letter label (A, B, ... Z, AA, AB, ...),
+ * spreadsheet-column style so it never runs out past 26 problems.
+ */
+export function problemLabel(position: number): string {
+  if (!Number.isInteger(position) || position < 1) return String(position)
+  let n = position
+  let label = ''
+  while (n > 0) {
+    const rem = (n - 1) % 26
+    label = String.fromCharCode(65 + rem) + label
+    n = Math.floor((n - 1) / 26)
+  }
+  return label
+}
+
+/**
  * Map a participation mode code to its Spanish label.
  */
 export function participationModeLabel(mode: string): string {

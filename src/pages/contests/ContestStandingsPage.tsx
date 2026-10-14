@@ -1,15 +1,19 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge } from '@/components/ui'
+import { Badge, Input } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useStandings } from '@/hooks/api/useContests'
+import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
-import type { StandingProblemResult } from '@/types/contest'
+import { cn, problemLabel } from '@/lib/utils'
+import type { StandingProblemResult, StandingsParams } from '@/types/contest'
 
 interface ProblemCellProps { result: StandingProblemResult }
 
@@ -35,23 +39,41 @@ function ProblemCell({ result }: ProblemCellProps) {
 export function ContestStandingsPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
 
-  const { data, isLoading } = useStandings(groupId || '', id || '')
+  const [countryInput, setCountryInput] = useState('')
+  const debouncedCountry = useDebounce(countryInput, 300)
+  const [cityInput, setCityInput] = useState('')
+  const debouncedCity = useDebounce(cityInput, 300)
+  const [institutionInput, setInstitutionInput] = useState('')
+  const debouncedInstitution = useDebounce(institutionInput, 300)
+  const [pagination, setPagination] = useState({ page: 1, limit: 50 })
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const params: StandingsParams = {
+    ...pagination,
+    country: debouncedCountry || undefined,
+    city: debouncedCity || undefined,
+    institution: debouncedInstitution || undefined,
+  }
+
+  const { data, isLoading } = useStandings(groupId || '', id || '', params)
+
+  const handleCountryFilter = (v: string) => { setCountryInput(v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleCityFilter = (v: string) => { setCityInput(v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleInstitutionFilter = (v: string) => { setInstitutionInput(v); setPagination((p) => ({ ...p, page: 1 })) }
 
   return (
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
         { label: data?.contest.name || '...', href: PATHS.contest(groupId || '', id || '') },
-        { label: 'Standings' },
+        { label: 'Tabla de Posiciones' },
       ]}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Standings</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Tabla de Posiciones</h1>
             {data && <ContestStatusBadge status={data.contest.status} />}
           </div>
           {data?.contest.status === 'ACTIVE' && (
@@ -67,8 +89,48 @@ export function ContestStandingsPage() {
 
         {data?.contest.isFrozen && (
           <div className="border rounded-md p-3 text-sm bg-status-warning/10 border-status-warning/30 text-status-warning">
-            Los standings están congelados. Los resultados finales se revelarán al terminar el contest.
+            La tabla de posiciones está congelada. Los resultados finales se revelarán al terminar la competencia.
           </div>
+        )}
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="w-32 shrink-0">
+            <Input
+              placeholder="País"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={countryInput}
+              onChange={(e) => handleCountryFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-32 shrink-0">
+            <Input
+              placeholder="Ciudad"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={cityInput}
+              onChange={(e) => handleCityFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              placeholder="Institución"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={institutionInput}
+              onChange={(e) => handleInstitutionFilter(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {data && !isLoading && (
+          <PaginationSummary
+            total={data.pagination.total}
+            totalLabel="participantes"
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            limit={pagination.limit}
+            onLimitChange={handleLimitChange}
+            sizeOptions={[25, 50, 100]}
+          />
         )}
 
         {/* Standings Table */}
@@ -89,7 +151,7 @@ export function ContestStandingsPage() {
                   <TableHead className="w-20 text-center">Penalización</TableHead>
                   {data.problems.map((p) => (
                     <TableHead key={p.slug} className="w-20 text-center">
-                      {labels[p.position - 1] || p.position}
+                      {problemLabel(p.position)}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -164,6 +226,14 @@ export function ContestStandingsPage() {
           <div className="text-center py-12 text-neutral-text-muted">
             No hay standings disponibles aún.
           </div>
+        )}
+
+        {data && (
+          <PaginationControls
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

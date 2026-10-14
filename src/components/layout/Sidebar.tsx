@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { cn, problemLabel } from '@/lib/utils'
 import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { ROUTES, PATHS } from '@/lib/constants'
@@ -90,7 +90,7 @@ const navItems: NavItem[] = [
   { icon: Code2, label: 'Problemas', to: ROUTES.PROBLEMS },
   { icon: Users, label: 'Grupos', to: ROUTES.GROUPS },
   { icon: Trophy, label: 'Competencias', to: ROUTES.CONTESTS },
-  { icon: Send, label: 'Submissions', to: ROUTES.SUBMISSIONS },
+  { icon: Send, label: 'Envíos', to: ROUTES.SUBMISSIONS },
   { icon: UsersRound, label: 'Equipos', to: ROUTES.TEAMS },
 ]
 
@@ -139,7 +139,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          <nav className="flex-1 overflow-y-auto p-4 space-y-1 sidebar-nav-scroll">
             {/* Contest Mode */}
             {activeContest && activeContest.status === 'ACTIVE' && (
               <div className="mb-4 pb-4 border-b border-white/15 space-y-3">
@@ -164,7 +164,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <p className="text-[10px] font-semibold text-white uppercase tracking-widest mb-1.5">Problemas</p>
                     <div className="flex flex-wrap gap-1.5">
                       {activeContest.problems.map((p) => {
-                        const letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[p.position - 1] || String(p.position)
+                        const letter = problemLabel(p.position)
                         const problemPath = PATHS.contestProblem(activeContest.group.id, activeContest.id, letter)
                         const isCurrent = location.pathname === problemPath
                         return (
@@ -201,7 +201,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   >
                     <BarChart3 className="h-4 w-4 flex-shrink-0" />
-                    <span>Standings</span>
+                    <span>Tabla de Posiciones</span>
                   </Link>
                   <Link
                     to={PATHS.contestSubmissions(activeContest.group.id, activeContest.id)}

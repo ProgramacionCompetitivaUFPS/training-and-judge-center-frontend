@@ -61,6 +61,7 @@ export interface PublicUserProfile {
 export interface LoginRequest {
   email: string
   password: string
+  rememberSession: boolean
 }
 
 export interface LoginResponse {
@@ -156,6 +157,9 @@ export interface AdminUserListParams extends PaginationParams {
   search?: string
   role?: UserRole
   status?: UserStatus
+  country?: string
+  city?: string
+  institution?: string
   sortBy?: 'name' | 'nickname' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
 }
@@ -170,6 +174,14 @@ export interface AdminUserListResponse {
     hasNextPage: boolean
     hasPrevPage: boolean
   }
+}
+
+// Distinct, non-empty country/city/institution values actually in use (GET /admin/users/filters)
+// — backs the admin list's filters so they offer real values instead of free text.
+export interface AdminUserFilterOptions {
+  countries: string[]
+  cities: string[]
+  institutions: string[]
 }
 
 // === Dashboard ===

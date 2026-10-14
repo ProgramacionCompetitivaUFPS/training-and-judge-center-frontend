@@ -49,7 +49,7 @@ export const materialsHandlers = [
       pinned: false,
       pinnedAt: null,
       author: { nickname: 'luisadmin', name: 'Luis Admin' },
-      group: { id: groupId, name: 'Mock Group' },
+      groupId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       publishedAt: null,

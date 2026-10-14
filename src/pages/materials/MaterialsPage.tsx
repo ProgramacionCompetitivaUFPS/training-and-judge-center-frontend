@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/Select'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
+import { TagFilterChips } from '@/components/features/TagFilterChips'
 import { useMaterials } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
@@ -23,6 +24,18 @@ const MATERIAL_TAGS = [
   'announcement', 'algorithms', 'data-structures', 'resources',
   'dp', 'competitive-programming', 'tutorial',
 ] as const
+
+const PINNED_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'pinned', label: 'Solo fijados' },
+  { value: 'unpinned', label: 'No fijados' },
+]
+
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'PUBLISHED', label: 'Publicados' },
+  { value: 'DRAFT', label: 'Borrador' },
+]
 
 export function MaterialsPage() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -94,59 +107,130 @@ export function MaterialsPage() {
 
         {/* Search + filters inline */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+          <div className="relative max-w-md">
+            <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <Input
+              variant="ghost"
+              placeholder="Buscar materiales..."
+              className="pl-7"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Autor</span>
               <Input
-                placeholder="Buscar materiales..."
-                className="pl-9"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                variant="ghost"
+                containerClassName="w-[140px]"
+                placeholder="Nickname..."
+                value={authorInput}
+                onChange={(e) => { setAuthorInput(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
               />
             </div>
-            <Select value={pinnedFilter} onValueChange={(v) => { setPinnedFilter(v); setPageQuery((p) => ({ ...p, page: 1 })) }}>
-              <SelectTrigger className="w-36 shrink-0"><SelectValue placeholder="Fijados" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los materiales</SelectItem>
-                <SelectItem value="pinned">Solo fijados</SelectItem>
-                <SelectItem value="unpinned">No fijados</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Publicado</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-neutral-text-muted">Desde</span>
+                <Input
+                  type="date"
+                  variant="ghost"
+                  containerClassName="w-[170px]"
+                  className={cn(
+                    'pr-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:hover:opacity-80',
+                    !publishedFrom && 'text-neutral-text-muted'
+                  )}
+                  aria-label="Publicado desde"
+                  value={publishedFrom}
+                  onChange={(e) => { setPublishedFrom(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-neutral-text-muted">Hasta</span>
+                <Input
+                  type="date"
+                  variant="ghost"
+                  containerClassName="w-[170px]"
+                  className={cn(
+                    'pr-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:hover:opacity-80',
+                    !publishedTo && 'text-neutral-text-muted'
+                  )}
+                  aria-label="Publicado hasta"
+                  value={publishedTo}
+                  onChange={(e) => { setPublishedTo(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Fijados</span>
+              {PINNED_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { setPinnedFilter(opt.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    pinnedFilter === opt.value
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             {isLead && (
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPageQuery((p) => ({ ...p, page: 1 })) }}>
-                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Estado" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="PUBLISHED">Publicados</SelectItem>
-                  <SelectItem value="DRAFT">Borrador</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
+                {STATUS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { setStatusFilter(opt.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                    className={cn(
+                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                      statusFilter === opt.value
+                        ? 'bg-brand-primary text-neutral-surface'
+                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <Input
-              placeholder="Filtrar por autor (nickname)..."
-              className="w-56"
-              value={authorInput}
-              onChange={(e) => { setAuthorInput(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
-            />
-            <Input
-              type="date"
-              aria-label="Publicado desde"
-              className="w-40"
-              value={publishedFrom}
-              onChange={(e) => { setPublishedFrom(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
-            />
-            <Input
-              type="date"
-              aria-label="Publicado hasta"
-              className="w-40"
-              value={publishedTo}
-              onChange={(e) => { setPublishedTo(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
-            />
+          <TagFilterChips
+            tags={MATERIAL_TAGS}
+            selectedTag={selectedTag}
+            onTagClick={handleTagClick}
+            onClear={() => { setSelectedTag(null); setPageQuery((p) => ({ ...p, page: 1 })) }}
+          />
+        </div>
+
+        {/* Results count + sort (sort lives here, not squeezed among the filters above) */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex-1">
+            {pagination && !isLoading && (
+              <PaginationSummary
+                total={pagination.total}
+                totalLabel="materiales"
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                limit={pageQuery.limit}
+                onLimitChange={handleLimitChange}
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
             <Select value={sort} onValueChange={(v) => { setSort(v as MaterialListParams['sort']); setPageQuery((p) => ({ ...p, page: 1 })) }}>
-              <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+              <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="relevance">Relevancia (fijados primero)</SelectItem>
                 <SelectItem value="publishedAt">Fecha de publicación</SelectItem>
@@ -154,38 +238,7 @@ export function MaterialsPage() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Tag chips */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-neutral-text-muted">Tags:</span>
-            {MATERIAL_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => handleTagClick(tag)}
-                className={cn(
-                  'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
-                  selectedTag === tag
-                    ? 'bg-brand-primary text-neutral-surface'
-                    : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-                )}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
         </div>
-
-        {/* Results count */}
-        {pagination && !isLoading && (
-          <PaginationSummary
-            total={pagination.total}
-            totalLabel="materiales"
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            limit={pageQuery.limit}
-            onLimitChange={handleLimitChange}
-          />
-        )}
 
         {/* Content */}
         {isLoading ? (

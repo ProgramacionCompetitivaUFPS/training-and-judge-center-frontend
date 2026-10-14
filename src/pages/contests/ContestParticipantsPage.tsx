@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Input } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
+import { Badge } from '@/components/ui'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { useContestDetail, useRegistrations } from '@/hooks/api/useContests'
@@ -44,7 +45,7 @@ export function ContestParticipantsPage() {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
           <Input
-            placeholder="Buscar por nickname..."
+            placeholder="Buscar por nickname o equipo..."
             className="pl-9"
             value={searchInput}
             onChange={(e) => { setSearchInput(e.target.value); setParams((p) => ({ ...p, page: 1 })) }}
@@ -72,17 +73,32 @@ export function ContestParticipantsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Usuario</TableHead>
+                    <TableHead>Participante</TableHead>
                     <TableHead>Registrado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.registrations.map((r) => (
-                    <TableRow key={r.nickname}>
+                  {data.registrations.map((r, i) => (
+                    <TableRow key={r.type === 'TEAM' ? `team-${r.teamName}-${i}` : r.nickname}>
                       <TableCell>
-                        <Link to={`/users/${r.nickname}`} className="text-brand-primary hover:underline">
-                          @{r.nickname}
-                        </Link>
+                        {r.type === 'TEAM' ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">Equipo</Badge>
+                            <span className="font-medium">{r.teamName}</span>
+                            {r.members && r.members.length > 0 && (
+                              <span className="text-sm text-neutral-text-muted">
+                                ({r.members.map((m) => `@${m}`).join(', ')})
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">Individual</Badge>
+                            <Link to={`/users/${r.nickname}`} className="text-brand-primary hover:underline">
+                              @{r.nickname}
+                            </Link>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-neutral-text-muted">
                         {new Date(r.registeredAt).toLocaleString('es')}

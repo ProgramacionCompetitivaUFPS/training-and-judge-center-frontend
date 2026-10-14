@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>()
@@ -54,7 +55,7 @@ export function TeamDetailPage() {
       form.reset()
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -73,7 +74,7 @@ export function TeamDetailPage() {
           description: 'Estás seleccionado en una competencia que ya está en curso. Podrás salir cuando termine.',
         })
       } else if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -242,7 +243,7 @@ export function TeamDetailPage() {
           <DialogHeader>
             <DialogTitle>Salir del equipo</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para un contest programado, serás removido automáticamente.
+              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para una competencia programada, serás removido automáticamente.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

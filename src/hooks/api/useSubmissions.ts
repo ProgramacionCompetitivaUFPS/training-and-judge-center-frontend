@@ -37,11 +37,15 @@ export function useProblemSubmissions(slug: string, params?: ProblemSubmissionsP
   })
 }
 
+const IN_PROGRESS_STATUSES = ['PENDING', 'RUNNING']
+
 export function useSubmissionDetail(id: string) {
   return useQuery({
     queryKey: submissionKeys.detail(id),
     queryFn: () => submissionsApi.getSubmission(id),
     enabled: !!id,
+    refetchInterval: (query) =>
+      IN_PROGRESS_STATUSES.includes(query.state.data?.status ?? '') ? 3000 : false,
   })
 }
 

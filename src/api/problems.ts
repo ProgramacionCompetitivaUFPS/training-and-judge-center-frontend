@@ -11,6 +11,7 @@ import type {
   ProblemStatistics,
   ProblemModifier,
   ProblemAccessibility,
+  ProblemFiles,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -47,7 +48,7 @@ export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
 
 // === Files ===
 
-export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: { testCases: boolean; solutions: string[]; checker: boolean; validator: boolean } }> {
+export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
   const formData = new FormData()
   formData.append('fileType', fileType)
   formData.append('file', file)
@@ -77,8 +78,9 @@ export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
 
 // === Import ===
 
-export function importProblem(file: File): Promise<ProblemDetail> {
+export function importProblem(file: File, slug: string): Promise<ProblemDetail> {
   const formData = new FormData()
+  formData.append('slug', slug)
   formData.append('file', file)
   return apiClient.postFormData('/problems/import', formData)
 }
@@ -97,6 +99,6 @@ export function getModifiers(slug: string): Promise<ProblemModifier[]> {
 
 // === Admin Rejudge ===
 
-export function adminRejudgeProblem(slug: string): Promise<void> {
-  return apiClient.post(`/admin/problems/${slug}/rejudge`)
+export function adminRejudgeProblem(slug: string, contestId?: string): Promise<void> {
+  return apiClient.post(`/admin/problems/${slug}/rejudge`, undefined, { params: { contestId } })
 }

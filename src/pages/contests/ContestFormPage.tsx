@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
@@ -28,10 +29,11 @@ export function ContestFormPage() {
   const { groupId, id } = useParams<{ groupId: string; id?: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { user } = useAuth()
   const isEditing = !!id
 
   const { data: existing, isLoading: isLoadingExisting } = useContestDetail(groupId || '', id || '')
-  const { data: groupDetail } = useGroupDetail(groupId || '')
+  const { data: groupDetail, isLoading: isLoadingGroup } = useGroupDetail(groupId || '')
   const createMutation = useCreateContest()
   const updateMutation = useUpdateContest()
 
@@ -87,7 +89,7 @@ export function ContestFormPage() {
         { groupId, contestId: id, data: updatePayload },
         {
           onSuccess: () => {
-            toast({ variant: 'success', title: 'Actualizado', description: 'Contest actualizado' })
+            toast({ variant: 'success', title: 'Actualizado', description: 'Competencia actualizada' })
             navigate(PATHS.contest(groupId, id))
           },
           onError: (err) => {
@@ -104,7 +106,7 @@ export function ContestFormPage() {
         { groupId, data: payload },
         {
           onSuccess: (created) => {
-            toast({ variant: 'success', title: 'Creado', description: 'Contest creado exitosamente' })
+            toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
             navigate(PATHS.contest(groupId, created.id))
           },
           onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
@@ -121,12 +123,29 @@ export function ContestFormPage() {
     { label: isEditing ? 'Editar competencia' : 'Nueva competencia' },
   ]
 
-  if (isEditing && isLoadingExisting) {
+  if ((isEditing && isLoadingExisting) || isLoadingGroup) {
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/2" />
           <Skeleton className="h-64 w-full" />
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // Real leadership of the group, not just having the Coach role platform-wide — the backend
+  // already rejects create/update on a group the Coach doesn't lead (create_contest.go,
+  // update_contest.go); this just prevents a non-lead Coach from reaching the form via direct URL.
+  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
+  if (groupDetail && !isLead) {
+    return (
+      <AppLayout breadcrumbs={breadcrumbs}>
+        <div className="text-center py-12">
+          <p className="text-neutral-text-muted">No tienes permiso para {isEditing ? 'editar' : 'crear'} competencias en este grupo.</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate(`/groups/${groupId}`)}>
+            Volver al grupo
+          </Button>
         </div>
       </AppLayout>
     )
@@ -141,7 +160,7 @@ export function ContestFormPage() {
               {isEditing ? 'Editar competencia' : 'Nueva competencia'}
             </h1>
             <p className="text-sm text-neutral-text-muted mt-1">
-              {isEditing ? 'Modifica la configuración del contest' : 'Configura una nueva competencia para el grupo'}
+              {isEditing ? 'Modifica la configuración de la competencia' : 'Configura una nueva competencia para el grupo'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -159,13 +178,13 @@ export function ContestFormPage() {
                 label="Nombre"
                 {...register('name')}
                 error={errors.name?.message}
-                placeholder="Ej: Contest Semanal #15"
+                placeholder="Ej: Competencia Semanal #15"
               />
               <Textarea
                 label="Descripción"
                 {...register('description')}
                 error={errors.description?.message}
-                placeholder="Descripción del contest (opcional)"
+                placeholder="Descripción de la competencia (opcional)"
                 rows={3}
               />
             </div>

@@ -15,9 +15,14 @@ export interface ProblemModifier {
   name: string
 }
 
+export interface ProblemSolution {
+  filename: string
+  language: string
+}
+
 export interface ProblemFiles {
   testCases: boolean
-  solutions: string[]
+  solutions: ProblemSolution[]
   checker: boolean
   validator: boolean
 }
@@ -28,21 +33,25 @@ export interface LanguageOverride {
   memoryLimit?: number
 }
 
-export interface ProblemExample {
+// A sample test case pair (data/sample/*.in + *.ans), paired and read from storage by the
+// backend (internal/application/problem/samples.go). Empty until test cases are uploaded.
+export interface ProblemSample {
+  name: string
   input: string
   output: string
-  explanation?: string
 }
 
 // === Detalle completo (GET /problems/:slug) ===
+// The backend models a problem statement as a single Markdown blob (see problemToDTO /
+// getProblemResponse in the backend) — there's no separate inputFormat/outputFormat/examples
+// on the wire; that content belongs inside `statement` itself. `samples` is the one exception:
+// it's derived automatically from the sample test-case files, not authored by hand.
 
 export interface ProblemDetail {
   slug: string
   title: string
   statement: string | null
-  inputFormat: string | null
-  outputFormat: string | null
-  examples: ProblemExample[]
+  samples: ProblemSample[]
   timeLimit: number | null
   memoryLimit: number | null
   languageOverrides: LanguageOverride[]
@@ -120,11 +129,52 @@ export interface DeleteProblemRequest {
 
 // === Publish / Unpublish ===
 
+export interface ValidationSummary {
+  sampleCases: number
+  secretCases: number
+  solutionsTested: number
+  allPassed: boolean
+}
+
 export interface PublishResponse {
   slug: string
   status: ProblemStatus
   message: string
   validationLogs?: string[]
+  validationSummary?: ValidationSummary
+}
+
+// The 400 shape the real backend returns when publish validation fails — either the cheap
+// required-fields precheck (missingFields) or the deeper judge-backed validation
+// (failedTestCases/compilationErrors/failedInputs), never both at once in practice.
+export interface FailedTestCase {
+  case: string
+  verdict?: string
+  expected?: string
+  actual?: string
+  status?: string
+  details?: string
+  timeLimit?: number
+}
+
+export interface CompilationErrors {
+  file: string
+  errors: string[]
+}
+
+export interface FailedInput {
+  file: string
+  reason: string
+}
+
+export interface PublishFailureResponse {
+  error: string
+  message: string
+  validationLogs?: string[]
+  missingFields?: string[]
+  failedTestCases?: FailedTestCase[]
+  compilationErrors?: CompilationErrors
+  failedInputs?: FailedInput[]
 }
 
 export interface UnpublishResponse {

@@ -30,10 +30,11 @@ export const contestKeys = {
 
 // === Queries ===
 
-export function useMyContests(params?: ContestListParams) {
+export function useMyContests(params?: ContestListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: contestKeys.myList(params),
     queryFn: () => contestsApi.getMyContests(params),
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -73,11 +74,16 @@ export function useRegistrations(
   })
 }
 
-export function useStandings(groupId: string, contestId: string, params?: StandingsParams) {
+export function useStandings(
+  groupId: string,
+  contestId: string,
+  params?: StandingsParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: contestKeys.standings(groupId, contestId, params),
     queryFn: () => contestsApi.getStandings(groupId, contestId, params),
-    enabled: !!groupId && !!contestId,
+    enabled: !!groupId && !!contestId && (options?.enabled ?? true),
     refetchInterval: (query) => {
       const status = query.state.data?.contest?.status
       return status === 'ACTIVE' ? 30_000 : false

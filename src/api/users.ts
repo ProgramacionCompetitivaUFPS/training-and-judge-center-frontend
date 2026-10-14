@@ -19,6 +19,7 @@ import type {
   AdminUpdateUserRequest,
   AdminUserListParams,
   AdminUserListResponse,
+  AdminUserFilterOptions,
   PublicUserProfile,
   UserDashboard,
   UserProfileStats,
@@ -124,6 +125,10 @@ export function adminListUsers(params?: AdminUserListParams): Promise<AdminUserL
       order: sortOrder,
     } as Record<string, string | number | boolean | undefined>,
   })
+}
+
+export function adminGetUserFilterOptions(): Promise<AdminUserFilterOptions> {
+  return apiClient.get('/admin/users/filters')
 }
 
 export function adminUpdateUser(id: string, data: AdminUpdateUserRequest): Promise<User> {

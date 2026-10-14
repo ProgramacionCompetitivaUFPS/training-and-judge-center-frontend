@@ -76,7 +76,7 @@ export const usersHandlers = [
       return HttpResponse.json(
         {
           error: 'CANNOT_UNLINK_LAST_CREDENTIAL',
-          message: 'cannot unlink Google account without a password set; set a password first',
+          message: 'no puedes desvincular tu cuenta de Google sin tener una contraseña configurada; configura una contraseña primero',
         },
         { status: 409 }
       )
@@ -232,11 +232,27 @@ export const usersHandlers = [
       search: searchParams.get('searchTerm') || undefined,
       role: searchParams.get('role') || undefined,
       status: searchParams.get('status') || undefined,
+      country: searchParams.get('country') || undefined,
+      city: searchParams.get('city') || undefined,
+      institution: searchParams.get('institution') || undefined,
       sort: searchParams.get('sort') || undefined,
       order: searchParams.get('order') || undefined,
     })
 
     return HttpResponse.json(result)
+  }),
+
+  // Mirrors the backend: distinct, non-empty values, sorted ascending.
+  http.get(url('/admin/users/filters'), async () => {
+    await delay(150)
+    const distinctSorted = (values: string[]) =>
+      Array.from(new Set(values.filter((v) => v))).sort((a, b) => a.localeCompare(b))
+
+    return HttpResponse.json({
+      countries: distinctSorted(mockUsers.map((u) => u.country)),
+      cities: distinctSorted(mockUsers.map((u) => u.city)),
+      institutions: distinctSorted(mockUsers.map((u) => u.institution)),
+    })
   }),
 
   http.put(url('/admin/users/:id'), async ({ params, request }) => {
@@ -252,8 +268,22 @@ export const usersHandlers = [
     return HttpResponse.json(updated)
   }),
 
-  http.post(url('/admin/users/:id/deactivate'), async () => {
+  http.post(url('/admin/users/:id/deactivate'), async ({ params, request }) => {
     await delay(300)
+    const { id } = params as { id: string }
+    const auth = request.headers.get('Authorization')
+    const requesterNickname = auth?.replace('Bearer ', '').replace('mock-jwt-token-', '') || ''
+    const requester = mockUsers.find((u) => u.nickname === requesterNickname)
+    const target = mockUsers.find((u) => u.id === id)
+    if (!target) {
+      return HttpResponse.json({ error: 'USER_NOT_FOUND', message: 'Usuario no encontrado' }, { status: 404 })
+    }
+    if (requester?.id === target.id) {
+      return HttpResponse.json({ error: 'CANNOT_SELF_DEACTIVATE', message: 'Los administradores no pueden desactivar su propia cuenta' }, { status: 403 })
+    }
+    if (target.role === 'ADMIN') {
+      return HttpResponse.json({ error: 'CANNOT_DEACTIVATE_ADMIN', message: 'No se puede desactivar a otro administrador' }, { status: 403 })
+    }
     return new HttpResponse(null, { status: 204 })
   }),
 ]

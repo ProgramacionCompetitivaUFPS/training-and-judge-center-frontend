@@ -24,13 +24,22 @@ export const submissionsHandlers = [
     return HttpResponse.json(result)
   }),
 
-  // Submission detail
+  // Submission detail — simulates judging progress across polls so the
+  // auto-refresh on SubmissionDetailPage has something to observe.
   http.get(url('/submissions/:id'), async ({ params }) => {
     await delay(200)
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'SUBMISSION_NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
+    }
+    if (submission.status === 'PENDING') {
+      submission.status = 'RUNNING'
+    } else if (submission.status === 'RUNNING') {
+      submission.status = 'ACCEPTED'
+      submission.judgedAt = new Date().toISOString()
+      submission.executionTime = 42
+      submission.memoryUsed = 2048
     }
     return HttpResponse.json(submission)
   }),
@@ -41,7 +50,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     const body = (await request.json()) as { visibility: 'PUBLIC' | 'PRIVATE' }
     submission.visibility = body.visibility
@@ -54,7 +63,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     submission.status = 'PENDING'
     return new HttpResponse(null, { status: 204 })
@@ -66,7 +75,7 @@ export const submissionsHandlers = [
     const { id } = params as { id: string }
     const submission = mockSubmissions.find((s) => s.id === id)
     if (!submission) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Submission no encontrada' }, { status: 404 })
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Envío no encontrado' }, { status: 404 })
     }
     submission.status = 'PENDING'
     return new HttpResponse(null, { status: 204 })
@@ -101,7 +110,7 @@ export const submissionsHandlers = [
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
     }
     if (problem.status !== 'PUBLISHED') {
-      return HttpResponse.json({ error: 'PROBLEM_NOT_PUBLISHED', message: 'Solo problemas publicados aceptan submissions' }, { status: 400 })
+      return HttpResponse.json({ error: 'PROBLEM_NOT_PUBLISHED', message: 'Solo problemas publicados aceptan envíos' }, { status: 400 })
     }
 
     const auth = request.headers.get('Authorization')

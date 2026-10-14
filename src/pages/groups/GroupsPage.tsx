@@ -30,6 +30,25 @@ const JOIN_POLICY_LABELS: Record<string, string> = {
   INVITE: 'Invitación',
 }
 
+const JOIN_POLICY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'OPEN', label: 'Abierto' },
+  { value: 'REQUEST', label: 'Solicitud' },
+  { value: 'INVITE', label: 'Invitación' },
+]
+
+const VISIBILITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'VISIBLE', label: 'Visible' },
+  { value: 'NOT_VISIBLE', label: 'No visible' },
+]
+
+const GROUP_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'LEAD', label: 'Líder' },
+  { value: 'MEMBER', label: 'Miembro' },
+]
+
 const ALL_SORT_OPTIONS: { value: string; label: string; sortBy: NonNullable<GroupListParams['sortBy']>; order: 'asc' | 'desc' }[] = [
   { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', order: 'asc' },
   { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', order: 'desc' },
@@ -134,64 +153,92 @@ export function GroupsPage() {
 
           {/* === All Groups Tab === */}
           <TabsContent value="all" className="mt-4 space-y-4">
-            {/* Search + filter inline */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="relative max-w-md flex-1 min-w-[200px]">
+                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
                 <Input
+                  variant="ghost"
                   placeholder="Buscar grupos..."
-                  className="pl-9"
+                  className="pl-7"
                   value={allSearchInput}
                   onChange={(e) => { setAllSearchInput(e.target.value); setAllParams((p) => ({ ...p, page: 1 })) }}
                 />
               </div>
-              <Select
-                onValueChange={(v) => setAllParams((p) => ({ ...p, joinPolicy: v === 'ALL' ? undefined : v as GroupListParams['joinPolicy'], page: 1 }))}
-                defaultValue="ALL"
-              >
-                <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Política" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Toda política</SelectItem>
-                  <SelectItem value="OPEN">Abierto</SelectItem>
-                  <SelectItem value="REQUEST">Solicitud</SelectItem>
-                  <SelectItem value="INVITE">Invitación</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                onValueChange={(v) => setAllParams((p) => ({ ...p, visibility: v === 'ALL' ? undefined : v as GroupListParams['visibility'], page: 1 }))}
-                defaultValue="ALL"
-              >
-                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Visibilidad" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Toda visibilidad</SelectItem>
-                  <SelectItem value="VISIBLE">Visible</SelectItem>
-                  <SelectItem value="NOT_VISIBLE">No visible</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={allSortValue}
-                onValueChange={(v) => { setAllSortValue(v); setAllParams((p) => ({ ...p, page: 1 })) }}
-              >
-                <SelectTrigger className="w-48 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
-                <SelectContent>
-                  {ALL_SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
-            {/* Results count */}
-            {allPagination && !allGroups.isLoading && (
-              <PaginationSummary
-                total={allPagination.total}
-                totalLabel="grupos"
-                currentPage={allPagination.page}
-                totalPages={allPagination.totalPages}
-                limit={allPagination.limit}
-                onLimitChange={handleAllLimitChange}
-              />
-            )}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-neutral-text-muted mr-1">Política</span>
+                {JOIN_POLICY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAllParams((p) => ({ ...p, joinPolicy: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['joinPolicy'], page: 1 }))}
+                    className={cn(
+                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                      (allParams.joinPolicy ?? 'ALL') === opt.value
+                        ? 'bg-brand-primary text-neutral-surface'
+                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {user?.role === 'ADMIN' && (
+                <>
+                  <div className="w-px h-[22px] bg-neutral-border" />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
+                        className={cn(
+                          'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                          (allParams.visibility ?? 'ALL') === opt.value
+                            ? 'bg-brand-primary text-neutral-surface'
+                            : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Results count + sort */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1">
+                {allPagination && !allGroups.isLoading && (
+                  <PaginationSummary
+                    total={allPagination.total}
+                    totalLabel="grupos"
+                    currentPage={allPagination.page}
+                    totalPages={allPagination.totalPages}
+                    limit={allPagination.limit}
+                    onLimitChange={handleAllLimitChange}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
+                <Select
+                  value={allSortValue}
+                  onValueChange={(v) => { setAllSortValue(v); setAllParams((p) => ({ ...p, page: 1 })) }}
+                >
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALL_SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {allGroups.error && <Alert variant="error">Error al cargar grupos.</Alert>}
 
@@ -217,53 +264,67 @@ export function GroupsPage() {
 
           {/* === My Groups Tab === */}
           <TabsContent value="mine" className="mt-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
-                <Input
-                  placeholder="Buscar en mis grupos..."
-                  className="pl-9"
-                  value={mySearchInput}
-                  onChange={(e) => { setMySearchInput(e.target.value); setMyParams((p) => ({ ...p, page: 1 })) }}
-                />
-              </div>
-              <Select
-                onValueChange={(v) => setMyParams((p) => ({ ...p, role: v === 'ALL' ? undefined : v as MyGroupsParams['role'], page: 1 }))}
-                defaultValue="ALL"
-              >
-                <SelectTrigger className="w-40 shrink-0"><SelectValue placeholder="Rol" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todo rol</SelectItem>
-                  <SelectItem value="LEAD">Líder</SelectItem>
-                  <SelectItem value="MEMBER">Miembro</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={mySortValue}
-                onValueChange={(v) => { setMySortValue(v); setMyParams((p) => ({ ...p, page: 1 })) }}
-              >
-                <SelectTrigger className="w-48 shrink-0"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
-                <SelectContent>
-                  {MY_SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="relative max-w-md">
+              <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+              <Input
+                variant="ghost"
+                placeholder="Buscar en mis grupos..."
+                className="pl-7"
+                value={mySearchInput}
+                onChange={(e) => { setMySearchInput(e.target.value); setMyParams((p) => ({ ...p, page: 1 })) }}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Rol</span>
+              {GROUP_ROLE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMyParams((p) => ({ ...p, role: opt.value === 'ALL' ? undefined : opt.value as MyGroupsParams['role'], page: 1 }))}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    (myParams.role ?? 'ALL') === opt.value
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
 
             {myGroups.error && <Alert variant="error">Error al cargar tus grupos.</Alert>}
 
-            {/* Results count */}
-            {myPagination && !myGroups.isLoading && (
-              <PaginationSummary
-                total={myPagination.total}
-                totalLabel="grupos"
-                currentPage={myPagination.page}
-                totalPages={myPagination.totalPages}
-                limit={myPagination.limit}
-                onLimitChange={handleMyLimitChange}
-              />
-            )}
+            {/* Results count + sort */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1">
+                {myPagination && !myGroups.isLoading && (
+                  <PaginationSummary
+                    total={myPagination.total}
+                    totalLabel="grupos"
+                    currentPage={myPagination.page}
+                    totalPages={myPagination.totalPages}
+                    limit={myPagination.limit}
+                    onLimitChange={handleMyLimitChange}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
+                <Select
+                  value={mySortValue}
+                  onValueChange={(v) => { setMySortValue(v); setMyParams((p) => ({ ...p, page: 1 })) }}
+                >
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MY_SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {myGroups.isLoading ? (
               <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
@@ -308,7 +369,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
               <TableHead>Visibilidad</TableHead>
               <TableHead>Política</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
               <TableHead>Tu rol</TableHead>
             </TableRow>
           </TableHeader>
@@ -352,13 +412,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
                 </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
                 <TableCell>
                   {group.userRole ? (
                     <Badge variant={group.userRole === 'LEAD' ? 'warning' : 'default'} className="text-[10px]">
@@ -392,8 +445,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
               <TableHead>Grupo</TableHead>
               <TableHead>Tu rol</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
-              <TableHead className="text-center">Materiales</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -426,16 +477,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
                 </TableCell>
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
-                </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="text-sm font-mono font-medium">{group.materialCount}</span>
                 </TableCell>
               </TableRow>
             ))}

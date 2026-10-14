@@ -8,16 +8,15 @@ interface SubmissionStatusBadgeProps {
 }
 
 const statusConfig: Record<SubmissionStatus, { color: 'success' | 'error' | 'warning' | 'default'; label: string }> = {
-  ACCEPTED: { color: 'success', label: 'Accepted' },
-  WRONG_ANSWER: { color: 'error', label: 'Wrong Answer' },
-  TIME_LIMIT_EXCEEDED: { color: 'warning', label: 'Time Limit' },
-  MEMORY_LIMIT_EXCEEDED: { color: 'warning', label: 'Memory Limit' },
-  RUNTIME_EXCEPTION: { color: 'error', label: 'Runtime Error' },
-  COMPILATION_ERROR: { color: 'error', label: 'Compilation Error' },
-  PRESENTATION_ERROR: { color: 'warning', label: 'Presentation Error' },
-  PENDING: { color: 'default', label: 'Pending' },
-  RUNNING: { color: 'default', label: 'Running' },
-  SYSTEM_ERROR: { color: 'error', label: 'System Error' },
+  ACCEPTED: { color: 'success', label: 'Aceptado' },
+  WRONG_ANSWER: { color: 'error', label: 'Respuesta Incorrecta' },
+  TIME_LIMIT_EXCEEDED: { color: 'warning', label: 'Tiempo Límite' },
+  MEMORY_LIMIT_EXCEEDED: { color: 'warning', label: 'Memoria Límite' },
+  RUNTIME_EXCEPTION: { color: 'error', label: 'Error en Tiempo de Ejecución' },
+  COMPILATION_ERROR: { color: 'error', label: 'Error de Compilación' },
+  PENDING: { color: 'default', label: 'Pendiente' },
+  RUNNING: { color: 'default', label: 'Ejecutando' },
+  SYSTEM_ERROR: { color: 'error', label: 'Error del Sistema' },
 }
 
 const dotColors: Record<string, string> = {

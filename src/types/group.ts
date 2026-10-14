@@ -27,10 +27,6 @@ export interface GroupListItem {
   joinPolicy: GroupJoinPolicy
   isGlobal: boolean
   memberCount: number
-  leadCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
   userRole: GroupRole | null
   createdAt: string
 }
@@ -39,7 +35,6 @@ export interface GroupListParams extends PaginationParams {
   search?: string
   visibility?: GroupVisibility
   joinPolicy?: GroupJoinPolicy
-  hasActiveContests?: boolean
   sortBy?: 'name' | 'createdAt' | 'memberCount'
   order?: 'asc' | 'desc'
 }
@@ -72,14 +67,12 @@ export interface GroupDetail {
   updatedAt?: string
 }
 
+// El backend (GetGroupOutput.Statistics) solo calcula estos dos campos en el
+// detalle de un grupo — competencias/materiales se derivan en el frontend a
+// partir de sus propios listados (ver GroupDetailPage.tsx).
 export interface GroupStatistics {
   memberCount: number
   leadCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
-  scheduledContestCount: number
-  finishedContestCount: number
 }
 
 export interface GroupLead {
@@ -88,12 +81,14 @@ export interface GroupLead {
   name: string
 }
 
+// El backend (userMembershipResp) no calcula si hay una solicitud o invitación
+// pendiente aquí — para eso existe GET .../requests/me (ver useMyJoinRequest).
+// Las invitaciones se aceptan solo por el enlace del correo (HU-GRP-09), no hay
+// endpoint para "¿tengo una invitación pendiente a este grupo?".
 export interface UserMembership {
   isMember: boolean
   role: GroupRole | null
   joinedAt: string | null
-  hasPendingRequest: boolean
-  hasPendingInvitation: boolean
 }
 
 // === My Groups (GET /users/me/groups) ===
@@ -108,10 +103,6 @@ export interface MyGroupItem {
   myRole: GroupRole
   joinedAt: string
   memberCount: number
-  contestCount: number
-  materialCount: number
-  activeContestCount: number
-  unreadNotifications: number
 }
 
 export interface MyGroupsParams extends PaginationParams {
@@ -165,6 +156,7 @@ export interface GroupMember {
   nickname: string
   name: string
   role: GroupRole
+  systemRole?: 'ADMIN' | 'COACH' | 'CONTESTANT'
   joinedAt: string
 }
 
@@ -205,27 +197,31 @@ export interface ProcessJoinRequestBody {
 // === Invitations ===
 
 export interface CreateInvitationRequest {
-  inviteeUserId?: string
-  inviteeNickname?: string
-  inviteeEmail?: string
+  userId?: string
+  userNickname?: string
+  userEmail?: string
+}
+
+export interface InvitationInvitee {
+  userId: string
+  nickname: string
+  name: string
+  email: string
 }
 
 export interface InvitationResponse {
   id: string
   groupId: string
-  inviteeUserId: string
+  invitee?: InvitationInvitee
+  status: string
   expiresAt: string
+  createdAt: string
 }
 
 export interface InvitationListItem {
   id: string
   groupId: string
-  invitee: {
-    userId: string
-    nickname: string
-    email: string
-    fullName: string
-  }
+  invitee?: InvitationInvitee
   expiresAt: string
 }
 
