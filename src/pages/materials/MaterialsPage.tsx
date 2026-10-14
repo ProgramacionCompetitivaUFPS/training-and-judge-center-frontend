@@ -193,7 +193,7 @@ export function MaterialsPage() {
                 </div>
               )}
               {authorInput.trim() !== confirmedAuthor && (!showAuthorSuggestions || authorSuggestions.length === 0) && (
-                <p className="absolute left-0 top-full mt-1 text-xs text-neutral-text-muted whitespace-nowrap">
+                <p className="absolute left-0 top-full mt-1 z-10 whitespace-nowrap rounded-md bg-neutral-surface px-2 py-1 text-xs text-neutral-text-muted shadow-elevation-2">
                   Enter o elige una sugerencia para filtrar
                 </p>
               )}
