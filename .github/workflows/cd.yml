@@ -39,21 +39,39 @@ jobs:
             ${{ steps.image.outputs.name }}:${{ github.sha }}
 
   deploy-staging:
-    name: Deploy to Vercel (Staging)
+    name: Deploy to Vercel (Preview)
     needs: docker
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Deploy to Vercel
-        run: npx vercel@latest --prod --token=${{ secrets.VERCEL_TOKEN }}
+        with:
+          persist-credentials: false
+      - name: Deploy to Vercel (preview)
+        run: npx vercel@latest --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-  # deploy-prod:
-  #   name: Deploy to Kubernetes (Production)
-  #   needs: docker
-  #   TO DO
+  deploy-prod:
+    name: Deploy to Vercel (Production)
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Deploy to Vercel (production)
+        run: npx vercel@latest --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
