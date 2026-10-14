@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import {
-  useMaterialDetail, useCreateMaterial, useUpdateMaterial,
+  useMaterialDetail, useCreateMaterial, useUpdateMaterial, useMaterialTags,
 } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
@@ -36,6 +36,11 @@ export function MaterialFormPage() {
   )
   const createMutation = useCreateMaterial()
   const updateMutation = useUpdateMaterial()
+  // Sugerencias para reusar tags ya existentes en el grupo (evita variantes como "data-structures"
+  // vs "data_structures" para lo mismo) — es una muestra de los materiales más recientes, no un
+  // registro exhaustivo, así que el usuario sigue pudiendo escribir cualquier tag a mano.
+  const { data: tagsData } = useMaterialTags(groupId!)
+  const suggestedTags = tagsData?.tags ?? []
 
   const schema = isEditing ? updateMaterialSchema : createMaterialSchema
   const form = useForm<CreateMaterialFormData>({
@@ -53,10 +58,13 @@ export function MaterialFormPage() {
     }
   }, [existing, isEditing, form])
 
-  const addTag = () => {
-    const tag = tagInput.trim().toLowerCase()
-    if (!tag || tags.includes(tag)) { setTagInput(''); return }
+  const addTagValue = (tag: string) => {
+    if (!tag || tags.includes(tag)) return
     form.setValue('tags', [...tags, tag])
+  }
+
+  const addTag = () => {
+    addTagValue(tagInput.trim().toLowerCase())
     setTagInput('')
   }
 
@@ -135,6 +143,21 @@ export function MaterialFormPage() {
                 Agregar
               </Button>
             </div>
+            {suggestedTags.filter((t) => !tags.includes(t)).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-xs text-neutral-text-muted mr-1">Ya usados en el grupo:</span>
+                {suggestedTags.filter((t) => !tags.includes(t)).map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => addTagValue(tag)}
+                    className="px-2.5 py-0.5 rounded-pill text-xs font-medium bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border transition-colors"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            )}
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {tags.map((tag) => (

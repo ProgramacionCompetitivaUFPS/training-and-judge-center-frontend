@@ -1711,7 +1711,7 @@ export function buildContestSubmissionsList(params: {
 
 // === Mock Materials ===
 
-import type { Material, MaterialListResponse } from '@/types/material'
+import type { Material, MaterialListResponse, MaterialStatus } from '@/types/material'
 
 export const mockMaterials: Material[] = [
   {
@@ -1971,6 +1971,30 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
   },
 ]
 
+// Tokeniza igual que to_tsvector/to_tsquery con el diccionario 'simple': runs de letras/números.
+function tokenizeForSearch(text: string): string[] {
+  return text.toLowerCase().match(/[a-z0-9áéíóúñ]+/gi) || []
+}
+
+// Espeja el prefix tsquery del backend real (toPrefixTsQuery en repository.go): cada palabra
+// de la búsqueda debe ser prefijo de alguna palabra del título o contenido — no basta un
+// substring cualquiera, por eso una palabra a medio escribir sí matchea pero un fragmento
+// interior de una palabra no.
+function materialMatchesSearch(m: Material, q: string): boolean {
+  const queryWords = tokenizeForSearch(q)
+  if (queryWords.length === 0) return true
+  const textWords = [...tokenizeForSearch(m.title), ...tokenizeForSearch(m.content)]
+  return queryWords.every((qw) => textWords.some((tw) => tw.startsWith(qw)))
+}
+
+export function distinctMaterialTags(groupId: string, statuses?: MaterialStatus[]): string[] {
+  const inGroup = mockMaterials.filter((m) => m.groupId === groupId)
+  const visible = statuses ? inGroup.filter((m) => statuses.includes(m.status)) : inGroup
+  const tags = new Set<string>()
+  visible.forEach((m) => m.tags.forEach((t) => tags.add(t)))
+  return [...tags].sort()
+}
+
 export function buildMaterialList(params: {
   groupId: string
   page?: number
@@ -1994,11 +2018,9 @@ export function buildMaterialList(params: {
     filtered = filtered.filter((m) => requiredTags.every((t) => m.tags.includes(t)))
   }
 
-  if (params.q) {
-    const q = params.q.toLowerCase()
-    filtered = filtered.filter(
-      (m) => m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q),
-    )
+  const hasQuery = !!params.q?.trim()
+  if (hasQuery) {
+    filtered = filtered.filter((m) => materialMatchesSearch(m, params.q!))
   }
 
   if (params.status) {
@@ -2019,17 +2041,19 @@ export function buildMaterialList(params: {
     filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() <= toTime)
   }
 
+  // Espeja al backend real (repository.go listOrderBy): "título" nunca fija primero;
+  // "relevancia" y "fecha de publicación" sí lo hacen, pero solo cuando NO hay búsqueda
+  // activa — con búsqueda, el boost de fijados se suprime (FR-032) en ambas.
   if (params.sort === 'title') {
     filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
-  } else if (params.sort === 'publishedAt') {
+  } else if (hasQuery) {
     filtered = [...filtered].sort((a, b) => {
       const aDate = a.publishedAt ?? a.createdAt
       const bDate = b.publishedAt ?? b.createdAt
       return new Date(bDate).getTime() - new Date(aDate).getTime()
     })
   } else {
-    // Default ("relevance"): pinned first by pinnedAt DESC, then by publishedAt DESC
-    filtered.sort((a, b) => {
+    filtered = [...filtered].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1
       if (!a.pinned && b.pinned) return 1
       if (a.pinned && b.pinned) {
