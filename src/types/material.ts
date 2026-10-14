@@ -38,6 +38,15 @@ export interface MaterialTagsResponse {
   tags: string[]
 }
 
+export interface MaterialAuthorSuggestion {
+  nickname: string
+  name: string
+}
+
+export interface MaterialAuthorsResponse {
+  authors: MaterialAuthorSuggestion[]
+}
+
 export interface MaterialListResponse {
   materials: Material[]
   pagination: {
