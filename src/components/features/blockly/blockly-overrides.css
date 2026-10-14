@@ -1,0 +1,8 @@
+/* Fix: Blockly flyout scrollbar persists after closing the category */
+.blocklyFlyoutScrollbar {
+  display: none;
+}
+
+.blocklyToolboxDiv {
+  overflow: visible !important;
+}

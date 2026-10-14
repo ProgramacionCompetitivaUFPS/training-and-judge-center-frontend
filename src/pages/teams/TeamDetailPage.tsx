@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>()
@@ -54,7 +55,7 @@ export function TeamDetailPage() {
       form.reset()
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -66,8 +67,14 @@ export function TeamDetailPage() {
       toast({ variant: 'success', title: 'Has salido del equipo' })
       navigate('/teams')
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+      if (err instanceof ApiClientError && err.code === 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST') {
+        toast({
+          variant: 'error',
+          title: 'No puedes salir del equipo todavía',
+          description: 'Estás seleccionado en una competencia que ya está en curso. Podrás salir cuando termine.',
+        })
+      } else if (err instanceof ApiClientError) {
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -96,6 +103,8 @@ export function TeamDetailPage() {
     )
   }
 
+  const isMember = team.members.some((m) => m.nickname === user?.nickname)
+
   return (
     <AppLayout breadcrumbs={[{ label: 'Equipos', href: '/teams' }, { label: team.name }]}>
       <div className="space-y-6">
@@ -111,16 +120,18 @@ export function TeamDetailPage() {
               {new Date(team.createdAt).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={() => setShowInviteDialog(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Invitar
-            </Button>
-            <Button variant="danger" onClick={() => setShowLeaveDialog(true)}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
-          </div>
+          {isMember && (
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={() => setShowInviteDialog(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invitar
+              </Button>
+              <Button variant="danger" onClick={() => setShowLeaveDialog(true)}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Salir
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Members */}
@@ -232,7 +243,7 @@ export function TeamDetailPage() {
           <DialogHeader>
             <DialogTitle>Salir del equipo</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para un contest programado, serás removido automáticamente.
+              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para una competencia programada, serás removido automáticamente.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

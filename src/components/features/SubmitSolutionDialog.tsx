@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react'
+import React, { Suspense, useState, useRef } from 'react'
 import { Upload } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
+
+const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {
   cpp20: 'g++',
@@ -23,19 +26,26 @@ interface SubmitSolutionDialogProps {
   problemSlug: string
   problemTitle: string
   onSubmit: (file: File, language: string, compiler: string) => void
+  onBlocklySubmit?: (pythonCode: string, workspaceXml: string, svgBlob: Blob) => void
   isSubmitting: boolean
 }
 
 export function SubmitSolutionDialog({
   open,
   onOpenChange,
+  problemSlug,
   problemTitle,
   onSubmit,
+  onBlocklySubmit,
   isSubmitting,
 }: SubmitSolutionDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const blocklyRef = useRef<BlocklyEditorHandle>(null)
   const [language, setLanguage] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
+
+  const isBlockly = language === 'blockly'
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
@@ -55,6 +65,24 @@ export function SubmitSolutionDialog({
   }
 
   const handleSubmit = () => {
+    if (isBlockly) {
+      const editor = blocklyRef.current
+      if (!editor) return
+
+      const pythonCode = editor.getCode()
+      const workspaceXml = editor.getXml()
+      const svgBlob = editor.getSvg()
+
+      if (onBlocklySubmit) {
+        onBlocklySubmit(pythonCode, workspaceXml, svgBlob)
+      } else {
+        // Fallback: create a File from the Python code
+        const pyFile = new File([pythonCode], 'solution.py', { type: 'text/x-python' })
+        onSubmit(pyFile, 'Blockly', 'python3')
+      }
+      return
+    }
+
     if (!file || !language) return
     const compiler = LANGUAGE_COMPILER_MAP[language] || language
     onSubmit(file, language, compiler)
@@ -93,37 +121,54 @@ export function SubmitSolutionDialog({
             </Select>
           </div>
 
-          {/* File upload */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-text-primary mb-2">Archivo de código</label>
-            <div
-              className="border-2 border-dashed border-neutral-border rounded-lg p-6 text-center cursor-pointer hover:border-brand-primary/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept=".cpp,.cc,.cxx,.java,.py"
-                onChange={handleFileChange}
-              />
-              {file ? (
-                <div>
-                  <p className="font-medium text-neutral-text">{file.name}</p>
-                  <p className="text-xs text-neutral-text-muted mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+          {/* File upload / Blockly editor */}
+          {isBlockly ? (
+            <div>
+              <label className="block text-sm font-medium text-neutral-text-primary mb-2">Editor de bloques</label>
+              <Suspense fallback={
+                <div className="border border-neutral-border rounded-lg p-6 text-center" style={{ minHeight: 320 }}>
+                  <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
                 </div>
-              ) : (
-                <div>
-                  <Upload className="h-8 w-8 text-neutral-text-muted mx-auto mb-2" />
-                  <p className="text-sm text-neutral-text-muted">Click para seleccionar archivo</p>
-                  <p className="text-xs text-neutral-text-muted mt-1">.cpp, .java, .py</p>
-                </div>
-              )}
+              }>
+                <BlocklyEditor
+                  ref={blocklyRef}
+                  problemSlug={problemSlug}
+                  onEmptyChange={setIsBlocklyEmpty}
+                />
+              </Suspense>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-neutral-text-primary mb-2">Archivo de código</label>
+              <div
+                className="border-2 border-dashed border-neutral-border rounded-lg p-6 text-center cursor-pointer hover:border-brand-primary/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click() }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".cpp,.cc,.cxx,.java,.py"
+                  onChange={handleFileChange}
+                />
+                {file ? (
+                  <div>
+                    <p className="font-medium text-neutral-text">{file.name}</p>
+                    <p className="text-xs text-neutral-text-muted mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="h-8 w-8 text-neutral-text-muted mx-auto mb-2" />
+                    <p className="text-sm text-neutral-text-muted">Click para seleccionar archivo</p>
+                    <p className="text-xs text-neutral-text-muted mt-1">.cpp, .java, .py</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -132,7 +177,7 @@ export function SubmitSolutionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!file || !language || isSubmitting}
+            disabled={isBlockly ? (!language || isBlocklyEmpty || isSubmitting) : (!file || !language || isSubmitting)}
             isLoading={isSubmitting}
           >
             Enviar solución

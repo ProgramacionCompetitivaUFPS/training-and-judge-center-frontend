@@ -16,7 +16,7 @@ export default {
           'accent-muted': '#fef3c7',
         },
         neutral: {
-          background: '#f8fafc',
+          background: '#fafafa',
           surface: '#ffffff',
           border: '#e2e8f0',
           'text-primary': '#0f172a',
@@ -27,6 +27,10 @@ export default {
           success: '#059669',
           error: '#b91c1c',
           warning: '#d97706',
+        },
+        chrome: {
+          sidebar: '#C13E3E',
+          navbar: '#FFF5F5',
         },
       },
       fontFamily: {
@@ -52,6 +56,20 @@ export default {
         'elevation-1': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'elevation-2': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
         'elevation-3': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.4s ease-out both',
+        'caret-blink': 'caretBlink 1.1s steps(1) infinite',
+      },
+      keyframes: {
+        fadeInUp: {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        caretBlink: {
+          '0%, 50%': { opacity: '1' },
+          '50.01%, 100%': { opacity: '0' },
+        },
       },
     },
   },

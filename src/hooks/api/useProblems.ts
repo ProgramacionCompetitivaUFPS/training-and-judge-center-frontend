@@ -27,6 +27,16 @@ export function useProblems(params?: ProblemListParams) {
   })
 }
 
+// Caller is expected to debounce `search`; only published problems, only fetches at 2+ chars.
+export function useProblemSearch(search: string) {
+  const params: ProblemListParams = { search, status: 'PUBLISHED', limit: 10 }
+  return useQuery({
+    queryKey: problemKeys.list(params),
+    queryFn: () => problemsApi.getProblems(params),
+    enabled: search.trim().length >= 2,
+  })
+}
+
 export function useProblemDetail(slug: string) {
   return useQuery({
     queryKey: problemKeys.detail(slug),
@@ -149,7 +159,7 @@ export function useRemoveModifier() {
 export function useImportProblem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (file: File) => problemsApi.importProblem(file),
+    mutationFn: ({ file, slug }: { file: File; slug: string }) => problemsApi.importProblem(file, slug),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },
@@ -184,6 +194,7 @@ export function useGetModifiers(slug: string) {
 
 export function useAdminRejudgeProblem() {
   return useMutation({
-    mutationFn: (slug: string) => problemsApi.adminRejudgeProblem(slug),
+    mutationFn: ({ slug, contestId }: { slug: string; contestId?: string }) =>
+      problemsApi.adminRejudgeProblem(slug, contestId),
   })
 }

@@ -42,7 +42,7 @@ export interface ContestDetail {
   updatedAt: string
 }
 
-// === Contest List Item (GET /groups/:groupId/contests) ===
+// === Contest List Item (GET /groups/:groupId/contests and GET /contests) ===
 
 export interface ContestListItem {
   id: string
@@ -55,21 +55,24 @@ export interface ContestListItem {
   penalty: number
   freezeMinutes: number | null
   enablePostContest: boolean
+  participationMode: ParticipationMode
   participantCount: number
   isRegistered: boolean
   problemCount: number
+  group: { id: string; name: string }
 }
 
 // === Contest List Params ===
 
 export interface ContestListParams extends PaginationParams {
   status?: ContestStatus
+  search?: string
   sortBy?: 'startTime' | 'createdAt' | 'name'
   sortOrder?: 'asc' | 'desc'
 }
 
 export interface ContestListResponse {
-  data: ContestListItem[]
+  items: ContestListItem[]
   pagination: {
     page: number
     limit: number
@@ -91,6 +94,10 @@ export interface CreateContestRequest {
   freezeMinutes?: number | null
   enablePostContest?: boolean
   problems?: string[] // slugs
+  participationMode?: ParticipationMode
+  teamSizeMin?: number
+  teamSizeMax?: number
+  showTeamMembers?: boolean
 }
 
 // === Update Contest ===
@@ -105,6 +112,10 @@ export interface UpdateContestRequest {
   enablePostContest?: boolean
   problems?: Array<{ slug: string; order: number }>
   locked?: boolean
+  participationMode?: ParticipationMode
+  teamSizeMin?: number
+  teamSizeMax?: number
+  showTeamMembers?: boolean
 }
 
 // === Contest Problem Management ===
@@ -122,7 +133,10 @@ export interface RegistrationStatus {
 }
 
 export interface RegistrationListItem {
-  nickname: string
+  type?: 'INDIVIDUAL' | 'TEAM'
+  nickname?: string
+  teamName?: string
+  members?: string[]
   registeredAt: string
 }
 
@@ -225,6 +239,8 @@ export interface ContestSubmissionItem {
   executionTime?: number
   memoryUsed?: number
   phase?: 'competition' | 'postcompetition'
+  /** Own or team submission, Lead/Admin, or one its author made public. */
+  canViewDetail: boolean
 }
 
 export interface ContestSubmissionsResponse {

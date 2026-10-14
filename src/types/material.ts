@@ -15,7 +15,7 @@ export interface Material {
   pinned: boolean
   pinnedAt: string | null
   author: { nickname: string; name: string }
-  group: { id: string; name: string }
+  groupId: string
   createdAt: string
   updatedAt: string
   publishedAt: string | null
@@ -37,10 +37,12 @@ export interface MaterialListParams extends PaginationParams {
 export interface MaterialListResponse {
   materials: Material[]
   pagination: {
-    totalCount: number
-    currentPage: number
+    page: number
+    limit: number
+    total: number
     totalPages: number
-    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
   }
 }
 

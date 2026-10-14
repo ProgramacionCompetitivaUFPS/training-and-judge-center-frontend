@@ -16,16 +16,21 @@ import {
 import { EmptyState } from '@/components/patterns'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useMyTeams, useMyTeamInvitations, useCreateTeam, useAcceptTeamInvitation, useRejectTeamInvitation } from '@/hooks/api/useTeams'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { createTeamSchema, type CreateTeamFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 export function TeamsPage() {
   const navigate = useNavigate()
   const { toast } = useToastContext()
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [pagination, setPagination] = useState({ page: 1, limit: 6 })
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
-  const { data: teamsData, isLoading: teamsLoading } = useMyTeams()
+  const { data: teamsData, isLoading: teamsLoading } = useMyTeams(pagination)
   const { data: invitationsData, isLoading: invitationsLoading } = useMyTeamInvitations()
 
   const createTeam = useCreateTeam()
@@ -46,7 +51,7 @@ export function TeamsPage() {
       navigate(`/teams/${result.id}`)
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -57,7 +62,7 @@ export function TeamsPage() {
       toast({ variant: 'success', title: 'Invitación aceptada', description: 'Te has unido al equipo' })
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -68,7 +73,7 @@ export function TeamsPage() {
       toast({ variant: 'success', title: 'Invitación rechazada' })
     } catch (err) {
       if (err instanceof ApiClientError) {
-        toast({ variant: 'error', title: 'Error', description: err.message })
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
   }
@@ -142,6 +147,17 @@ export function TeamsPage() {
         ) : null}
 
         {/* Teams List */}
+        {teamsData && !teamsLoading && teamsData.teams.length > 0 && (
+          <PaginationSummary
+            total={teamsData.pagination.total}
+            totalLabel="equipos"
+            currentPage={teamsData.pagination.page}
+            totalPages={teamsData.pagination.totalPages}
+            limit={teamsData.pagination.limit}
+            onLimitChange={handleLimitChange}
+            sizeOptions={[6, 12, 24]}
+          />
+        )}
         {teamsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -180,6 +196,14 @@ export function TeamsPage() {
               </Card>
             ))}
           </div>
+        )}
+
+        {teamsData && teamsData.teams.length > 0 && (
+          <PaginationControls
+            currentPage={teamsData.pagination.page}
+            totalPages={teamsData.pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
 

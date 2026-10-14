@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { ROUTES } from '@/lib/constants'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { UserRole } from '@/types/user'
 import type { ReactNode } from 'react'
 
@@ -30,8 +31,9 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
+  // Same page as a missing route: a role-restricted page shouldn't confirm it exists.
   if (roles && !hasRole(roles)) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
+    return <NotFoundPage />
   }
 
   return <>{children}</>

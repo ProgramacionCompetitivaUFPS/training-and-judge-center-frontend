@@ -11,22 +11,33 @@ import type {
   StandingsParams,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
-  AddContestProblemRequest,
 } from '@/types/contest'
 
 // === CRUD ===
+
+// El backend espera `order`, no `sortOrder` — mismo patrón ya usado en adminListUsers.
+function toContestQueryParams(params?: ContestListParams) {
+  const { sortOrder, ...rest } = params ?? {}
+  return { ...rest, order: sortOrder } as Record<string, string | number | boolean | undefined>
+}
 
 export function getContests(
   groupId: string,
   params?: ContestListParams,
 ): Promise<ContestListResponse> {
   return apiClient.get(`/groups/${groupId}/contests`, {
-    params: params as Record<string, string | number | boolean | undefined>,
+    params: toContestQueryParams(params),
   })
 }
 
-export function getContest(contestId: string): Promise<ContestDetail> {
-  return apiClient.get(`/contests/${contestId}`)
+export function getMyContests(params?: ContestListParams): Promise<ContestListResponse> {
+  return apiClient.get('/contests', {
+    params: toContestQueryParams(params),
+  })
+}
+
+export function getContest(groupId: string, contestId: string): Promise<ContestDetail> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}`)
 }
 
 export function createContest(
@@ -74,7 +85,7 @@ export function getRegistrationStatus(
 export function getRegistrations(
   groupId: string,
   contestId: string,
-  params?: { page?: number; limit?: number },
+  params?: { page?: number; limit?: number; search?: string },
 ): Promise<RegistrationListResponse> {
   return apiClient.get(`/groups/${groupId}/contests/${contestId}/registrations`, {
     params: params as Record<string, string | number | boolean | undefined>,
@@ -84,10 +95,11 @@ export function getRegistrations(
 // === Standings ===
 
 export function getStandings(
+  groupId: string,
   contestId: string,
   params?: StandingsParams,
 ): Promise<StandingsResponse> {
-  return apiClient.get(`/contests/${contestId}/standings`, {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings`, {
     params: params as Record<string, string | number | boolean | undefined>,
   })
 }
@@ -114,43 +126,3 @@ export function rejudgeContestProblem(
   return apiClient.post(`/groups/${groupId}/contests/${contestId}/problems/${problemSlug}/rejudge`)
 }
 
-// === Lock / Unlock ===
-
-export function lockContest(groupId: string, contestId: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/lock`)
-}
-
-export function unlockContest(groupId: string, contestId: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/unlock`)
-}
-
-// === Contest Problem Management ===
-
-export function addContestProblem(
-  groupId: string,
-  contestId: string,
-  data: AddContestProblemRequest,
-): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/contests/${contestId}/problems`, data)
-}
-
-export function removeContestProblem(
-  groupId: string,
-  contestId: string,
-  problemSlug: string,
-): Promise<void> {
-  return apiClient.delete(`/groups/${groupId}/contests/${contestId}/problems/${problemSlug}`)
-}
-
-// === Standings Stream (SSE) ===
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
-
-export function getStandingsStream(contestId: string): EventSource {
-  const token = localStorage.getItem('auth_token')
-  const url = new URL(`${API_BASE_URL}/contests/${contestId}/standings/stream`)
-  if (token) {
-    url.searchParams.set('token', token)
-  }
-  return new EventSource(url.toString())
-}

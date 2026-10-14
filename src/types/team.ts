@@ -125,6 +125,20 @@ export interface UpdateTeamRegistrationRequest {
   selectedMembers: string[]
 }
 
+/** Why a roster member can't be selected: the error code registration would fail with. */
+export type MemberIneligibilityReason = 'MEMBER_NOT_IN_GROUP' | 'MEMBER_ALREADY_REGISTERED' | 'MEMBER_IN_ANOTHER_TEAM'
+
+export interface TeamRegistrationEligibility {
+  /** The team already has a registration for this contest; it can't be registered again. */
+  teamAlreadyRegistered: boolean
+  members: Array<{
+    id: string
+    nickname: string
+    eligible: boolean
+    reason?: MemberIneligibilityReason
+  }>
+}
+
 export interface ContestTeamRegistrationsResponse {
   teams: Array<{
     team: { id: string; name: string }

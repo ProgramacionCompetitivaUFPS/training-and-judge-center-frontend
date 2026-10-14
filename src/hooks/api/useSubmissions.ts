@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as submissionsApi from '@/api/submissions'
+import {
+  submitBlocklySolution,
+  submitBlocklyContestSolution,
+} from '@/api/submissions'
 import type {
   MySubmissionsParams,
   ProblemSubmissionsParams,
@@ -33,11 +37,15 @@ export function useProblemSubmissions(slug: string, params?: ProblemSubmissionsP
   })
 }
 
+const IN_PROGRESS_STATUSES = ['PENDING', 'RUNNING']
+
 export function useSubmissionDetail(id: string) {
   return useQuery({
     queryKey: submissionKeys.detail(id),
     queryFn: () => submissionsApi.getSubmission(id),
     enabled: !!id,
+    refetchInterval: (query) =>
+      IN_PROGRESS_STATUSES.includes(query.state.data?.status ?? '') ? 3000 : false,
   })
 }
 
@@ -100,12 +108,6 @@ export function useUpdateSubmissionVisibility() {
   })
 }
 
-export function useDownloadSubmission() {
-  return useMutation({
-    mutationFn: (id: string) => submissionsApi.downloadSubmission(id),
-  })
-}
-
 // === Rejudge ===
 
 export function useRejudgeSubmission() {
@@ -126,6 +128,56 @@ export function useAdminRejudgeSubmission() {
     onSuccess: (_, submissionId) => {
       queryClient.invalidateQueries({ queryKey: submissionKeys.detail(submissionId) })
       queryClient.invalidateQueries({ queryKey: submissionKeys.all })
+    },
+  })
+}
+
+// === Blockly Mutations ===
+
+export function useSubmitBlocklySolution() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: {
+      problemSlug: string
+      pythonCode: string
+      workspaceXml: string
+      svgBlob: Blob
+    }) =>
+      submitBlocklySolution(
+        params.problemSlug,
+        params.pythonCode,
+        params.workspaceXml,
+        params.svgBlob,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['submissions'] })
+      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
+    },
+  })
+}
+
+export function useSubmitBlocklyContestSolution() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: {
+      groupId: string
+      contestId: string
+      problemSlug: string
+      pythonCode: string
+      workspaceXml: string
+      svgBlob: Blob
+    }) =>
+      submitBlocklyContestSolution(
+        params.groupId,
+        params.contestId,
+        params.problemSlug,
+        params.pythonCode,
+        params.workspaceXml,
+        params.svgBlob,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['submissions'] })
+      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
     },
   })
 }

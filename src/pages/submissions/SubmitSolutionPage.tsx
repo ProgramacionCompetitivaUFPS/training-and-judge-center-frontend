@@ -1,16 +1,26 @@
-import { useState, useRef, useMemo } from 'react'
+import React, { Suspense, useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { Send, Upload, FileText, Clock, HardDrive, Lightbulb } from 'lucide-react'
+import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
+import { RecoveryBanner } from '@/components/features/RecoveryBanner'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
-import { useProblemDetail } from '@/hooks/api/useProblems'
-import { useMySubmissions, useSubmitSolution, useSubmitContestSolution } from '@/hooks/api/useSubmissions'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { useProblemDetail, useProblemSearch } from '@/hooks/api/useProblems'
+import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
+import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
+import { useDebounce } from '@/hooks/useDebounce'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
+import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
+import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
+
+const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {
   cpp20: 'g++',
@@ -24,10 +34,8 @@ const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
   python310: { ext: 'py', accept: ['.py'] },
 }
 
-const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
 export function SubmitSolutionPage() {
-  const { contestId } = useParams<{ contestId?: string }>()
+  const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
   const [searchParams] = useSearchParams()
   const { toast } = useToastContext()
   const { contest: activeContest } = useContestSession()
@@ -37,17 +45,22 @@ export function SubmitSolutionPage() {
 
   // State
   const [selectedProblem, setSelectedProblem] = useState(problemParam)
+  const [problemSearchQuery, setProblemSearchQuery] = useState('')
+  const debouncedProblemSearch = useDebounce(problemSearchQuery)
+  const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
   const [language, setLanguage] = useState('')
   const [code, setCode] = useState('')
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const blocklyRef = useRef<BlocklyEditorHandle>(null)
+  const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
 
   // Resolve problem slug in contest context (letter → slug)
   const resolvedSlug = useMemo(() => {
     if (!isContestContext) return selectedProblem
     if (!activeContest?.problems) return ''
     const p = activeContest.problems.find(
-      (prob) => (LABELS[prob.position - 1] || String(prob.position)) === selectedProblem.toUpperCase()
+      (prob) => problemLabel(prob.position) === selectedProblem.toUpperCase()
     )
     return p?.slug || ''
   }, [isContestContext, selectedProblem, activeContest])
@@ -60,10 +73,128 @@ export function SubmitSolutionPage() {
     resolvedSlug ? { problemSlug: resolvedSlug, limit: 5 } : undefined
   )
 
+  // Submission recovery
+  const isBlockly = language === 'blockly'
+
+  const {
+    recoverableSubmission,
+    loadSubmission,
+    submissionDetail,
+    isLoadingDetail,
+  } = useSubmissionRecovery({ problemSlug: resolvedSlug, language, contestId })
+
+  const [showConfirmLoad, setShowConfirmLoad] = useState(false)
+  const [loadedSubmissionId, setLoadedSubmissionId] = useState<string | null>(null)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [pendingLoadSubmissionId, setPendingLoadSubmissionId] = useState<string | null>(null)
+  const [pendingLoadLanguage, setPendingLoadLanguage] = useState<string | null>(null)
+
+  // Reset banner when problem or language changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBannerDismissed(false)
+    setLoadedSubmissionId(null)
+  }, [resolvedSlug, language])
+
+  const hasEditorChanges = useCallback((): boolean => {
+    if (isBlockly) return true // Blockly always has content (default or user blocks)
+    return code.trim().length > 0
+  }, [isBlockly, code])
+
+  const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
+    if (!detail) return
+
+    const subIsBlockly = detail.language === 'blockly'
+
+    if (subIsBlockly) {
+      if (detail.workspaceXml) {
+        blocklyRef.current?.loadXml(detail.workspaceXml)
+      } else {
+        toast({
+          variant: 'warning',
+          title: 'XML no disponible',
+          description: 'Este envío de Blockly no tiene workspaceXml. Solo está disponible el código Python como referencia.',
+        })
+        return
+      }
+    } else if (detail.sourceCode === null) {
+      toast({
+        variant: 'warning',
+        title: 'Código fuente no disponible',
+        description: 'El archivo del código fuente de este envío ya no existe.',
+      })
+      return
+    } else {
+      setCode(detail.sourceCode)
+    }
+
+    toast({
+      variant: 'success',
+      title: 'Envío cargado',
+      description: `Contenido cargado desde el envío #${detail.id.slice(0, 8)}`,
+    })
+    setLoadedSubmissionId(detail.id)
+    setBannerDismissed(true)
+  }, [toast])
+
+  const handleRecoveryLoadClick = useCallback(() => {
+    if (!recoverableSubmission) return
+    if (hasEditorChanges()) {
+      setPendingLoadSubmissionId(recoverableSubmission.id)
+      setPendingLoadLanguage(null)
+      setShowConfirmLoad(true)
+    } else {
+      loadSubmission(recoverableSubmission.id)
+      setPendingLoadSubmissionId(recoverableSubmission.id)
+    }
+  }, [recoverableSubmission, hasEditorChanges, loadSubmission])
+
+  const handleListLoadClick = useCallback((submissionId: string, submissionLanguage: string) => {
+    const needsLanguageChange = submissionLanguage !== language
+    if (hasEditorChanges()) {
+      setPendingLoadSubmissionId(submissionId)
+      setPendingLoadLanguage(needsLanguageChange ? submissionLanguage : null)
+      setShowConfirmLoad(true)
+    } else {
+      if (needsLanguageChange) setLanguage(submissionLanguage)
+      loadSubmission(submissionId)
+      setPendingLoadSubmissionId(submissionId)
+    }
+  }, [language, hasEditorChanges, loadSubmission])
+
+  const handleConfirmLoad = useCallback(() => {
+    if (!pendingLoadSubmissionId) return
+    if (pendingLoadLanguage) {
+      setLanguage(pendingLoadLanguage)
+    }
+    // If detail is already cached, apply directly
+    if (submissionDetail && submissionDetail.id === pendingLoadSubmissionId) {
+      applySubmissionToEditor(submissionDetail)
+      setPendingLoadSubmissionId(null)
+      setShowConfirmLoad(false)
+      return
+    }
+    loadSubmission(pendingLoadSubmissionId)
+    setShowConfirmLoad(false)
+  }, [pendingLoadSubmissionId, pendingLoadLanguage, loadSubmission, submissionDetail, applySubmissionToEditor])
+
+  // Effect: apply loaded submission detail to editor when it arrives
+  useEffect(() => {
+    if (showConfirmLoad) return // Don't apply while confirmation dialog is open
+    if (!submissionDetail || !pendingLoadSubmissionId) return
+    if (submissionDetail.id !== pendingLoadSubmissionId) return
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    applySubmissionToEditor(submissionDetail)
+    setPendingLoadSubmissionId(null)
+  }, [submissionDetail, pendingLoadSubmissionId, showConfirmLoad, applySubmissionToEditor])
+
   // Mutations
   const submitMutation = useSubmitSolution()
   const contestSubmitMutation = useSubmitContestSolution()
-  const isSubmitting = submitMutation.isPending || contestSubmitMutation.isPending
+  const blocklySubmitMutation = useSubmitBlocklySolution()
+  const blocklyContestSubmitMutation = useSubmitBlocklyContestSolution()
+  const isSubmitting = submitMutation.isPending || contestSubmitMutation.isPending || blocklySubmitMutation.isPending || blocklyContestSubmitMutation.isPending
 
   // Contest problems for selector
   const contestProblems = activeContest?.problems || []
@@ -95,6 +226,35 @@ export function SubmitSolutionPage() {
   }
 
   const handleSubmit = () => {
+    if (isBlockly) {
+      const editor = blocklyRef.current
+      if (!editor || !resolvedSlug) return
+
+      const pythonCode = editor.getCode()
+      const workspaceXml = editor.getXml()
+      const svgBlob = editor.getSvg()
+
+      const onSuccess = (res: { id: string }) => {
+        toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
+      }
+      const onError = () => {
+        toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+      }
+
+      if (isContestContext && activeContest) {
+        blocklyContestSubmitMutation.mutate(
+          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { onSuccess, onError },
+        )
+      } else {
+        blocklySubmitMutation.mutate(
+          { problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { onSuccess, onError },
+        )
+      }
+      return
+    }
+
     if (!resolvedSlug || !language || !code.trim()) return
 
     const ext = LANGUAGE_EXTENSIONS[language]?.ext || 'txt'
@@ -102,7 +262,7 @@ export function SubmitSolutionPage() {
     const compiler = LANGUAGE_COMPILER_MAP[language] || language
 
     const onSuccess = (res: { id: string }) => {
-      toast({ variant: 'success', title: 'Solución enviada', description: `Submission ${res.id.slice(0, 12)} creada` })
+      toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       setCode('')
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -124,17 +284,19 @@ export function SubmitSolutionPage() {
     }
   }
 
-  const canSubmit = !!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting
+  const canSubmit = isBlockly
+    ? (!!resolvedSlug && !isBlocklyEmpty && !isSubmitting)
+    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting)
 
   const breadcrumbs = isContestContext
     ? [
         { label: 'Competencias', href: '/contests' },
-        { label: activeContest?.name || 'Contest', href: `/contests/${contestId}` },
+        { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: 'Enviar solución' },
       ]
     : [
         { label: 'Problemas', href: '/problems' },
-        ...(problemDetail ? [{ label: problemDetail.title, href: `/problems/${problemDetail.slug}` }] : []),
+        ...(problemDetail ? [{ label: problemDetail.title, href: PATHS.problem(problemDetail.slug) }] : []),
         { label: 'Enviar solución' },
       ]
 
@@ -163,7 +325,7 @@ export function SubmitSolutionPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {contestProblems.map((p) => {
-                          const letter = LABELS[p.position - 1] || String(p.position)
+                          const letter = problemLabel(p.position)
                           return (
                             <SelectItem key={p.slug} value={letter}>
                               {letter} — {p.title}
@@ -172,18 +334,44 @@ export function SubmitSolutionPage() {
                         })}
                       </SelectContent>
                     </Select>
+                  ) : selectedProblem ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-border bg-neutral-background px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-neutral-text-primary truncate">
+                          {problemDetail?.title ?? selectedProblem}
+                        </p>
+                        <p className="text-xs text-neutral-text-muted font-mono truncate">{selectedProblem}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProblem('')}
+                        className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                        aria-label="Cambiar problema"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
                   ) : (
-                    <Select value={selectedProblem} onValueChange={setSelectedProblem}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Slug del problema" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* In practice mode, if we came from a problem, show it */}
-                        {selectedProblem && problemDetail && (
-                          <SelectItem value={selectedProblem}>{problemDetail.title}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <SearchSelect
+                      query={problemSearchQuery}
+                      onQueryChange={setProblemSearchQuery}
+                      results={problemSearchData?.problems ?? []}
+                      isSearching={isSearchingProblems}
+                      placeholder="Buscar problema publicado por título..."
+                      emptyLabel="Sin resultados"
+                      hintLabel="Escribe al menos 2 caracteres"
+                      getKey={(p) => p.slug}
+                      renderItem={(p) => (
+                        <div>
+                          <p className="font-medium text-neutral-text-primary">{p.title}</p>
+                          <p className="text-xs text-neutral-text-muted font-mono">{p.slug}</p>
+                        </div>
+                      )}
+                      onSelect={(p) => {
+                        setSelectedProblem(p.slug)
+                        setProblemSearchQuery('')
+                      }}
+                    />
                   )}
                 </div>
 
@@ -268,6 +456,7 @@ export function SubmitSolutionPage() {
                   <li>Tamaño máximo: 1 MB</li>
                   <li>Asegúrate de seleccionar el lenguaje correcto</li>
                   <li>Revisa que tu código compile antes de enviar</li>
+                  <li>Puedes cargar un envío anterior desde la tabla de envíos recientes</li>
                 </ul>
               </CardContent>
             </Card>
@@ -275,48 +464,99 @@ export function SubmitSolutionPage() {
 
           {/* Right panel — code area */}
           <div className="space-y-4">
-            <Card className="flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-sm">Código fuente</CardTitle>
-                <div className="flex items-center gap-3">
-                  {uploadedFile && (
-                    <span className="text-xs text-neutral-text-muted flex items-center gap-1">
-                      <FileText className="h-3.5 w-3.5" />
-                      {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(1)} KB)
+            {/* Recovery banner */}
+            {recoverableSubmission && !loadedSubmissionId && !bannerDismissed && (
+              <RecoveryBanner
+                submission={recoverableSubmission}
+                isLoaded={loadedSubmissionId === recoverableSubmission.id}
+                contestContext={isContestContext ? (activeContest?.name ?? 'esta competencia') : undefined}
+                onLoadClick={handleRecoveryLoadClick}
+              />
+            )}
+
+            {isBlockly ? (
+              <>
+                {resolvedSlug ? (
+                  <>
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          blocklyRef.current?.reset()
+                          setLoadedSubmissionId(null)
+                        }}
+                      >
+                        Reiniciar bloques
+                      </Button>
+                    </div>
+                    <Suspense fallback={
+                      <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                        <CardContent>
+                          <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                        </CardContent>
+                      </Card>
+                    }>
+                      <BlocklyEditor
+                        ref={blocklyRef}
+                        problemSlug={resolvedSlug}
+                        onEmptyChange={setIsBlocklyEmpty}
+                      />
+                    </Suspense>
+                  </>
+                ) : (
+                  <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                    <CardContent>
+                      <p className="text-neutral-text-muted">Selecciona un problema para usar el editor de bloques</p>
+                    </CardContent>
+                  </Card>
+                )}
+                {resolvedSlug && <PyodideRunner getCode={() => blocklyRef.current?.getCode() ?? ''} />}
+              </>
+            ) : (
+              <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <CardTitle className="text-sm">Código fuente</CardTitle>
+                  <div className="flex items-center gap-3">
+                    {uploadedFile && (
+                      <span className="text-xs text-neutral-text-muted flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    )}
+                    <span className={`text-xs ${isOverLimit ? 'text-status-error font-semibold' : 'text-neutral-text-muted'}`}>
+                      {codeSizeKB} KB / 1 MB
                     </span>
-                  )}
-                  <span className={`text-xs ${isOverLimit ? 'text-status-error font-semibold' : 'text-neutral-text-muted'}`}>
-                    {codeSizeKB} KB / 1 MB
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-3.5 w-3.5 mr-1" />
-                    Cargar archivo
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    accept=".cpp,.cc,.cxx,.java,.py"
-                    onChange={handleFileUpload}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1" />
+                      Cargar archivo
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".cpp,.cc,.cxx,.java,.py"
+                      onChange={handleFileUpload}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 pt-0">
+                  <Textarea
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value)
+                      setUploadedFile(null)
+                    }}
+                    placeholder="Pega tu código aquí..."
+                    className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
                   />
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 pt-0">
-                <Textarea
-                  value={code}
-                  onChange={(e) => {
-                    setCode(e.target.value)
-                    setUploadedFile(null)
-                  }}
-                  placeholder="Pega tu código aquí..."
-                  className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
-                />
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -335,6 +575,7 @@ export function SubmitSolutionPage() {
                     <th className="text-left py-2 px-4 font-medium">Lenguaje</th>
                     <th className="text-left py-2 px-4 font-medium">Veredicto</th>
                     <th className="text-right py-2 px-4 font-medium">Memoria</th>
+                    <th className="text-right py-2 px-4 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -360,6 +601,17 @@ export function SubmitSolutionPage() {
                       <td className="py-2 px-4 text-right text-neutral-text-muted">
                         {sub.memoryUsed != null ? `${sub.memoryUsed} KB` : '—'}
                       </td>
+                      <td className="py-2 px-4 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleListLoadClick(sub.id, sub.language)}
+                          disabled={loadedSubmissionId === sub.id || isLoadingDetail}
+                        >
+                          <UploadIcon className="h-3.5 w-3.5 mr-1" />
+                          Cargar
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -367,6 +619,19 @@ export function SubmitSolutionPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Confirm load dialog */}
+        <ConfirmDialog
+          open={showConfirmLoad}
+          onOpenChange={setShowConfirmLoad}
+          title="Reemplazar contenido del editor"
+          description="El editor tiene contenido. ¿Deseas reemplazarlo con el contenido del envío seleccionado?"
+          confirmLabel="Reemplazar"
+          cancelLabel="Cancelar"
+          variant="warning"
+          onConfirm={handleConfirmLoad}
+          isLoading={isLoadingDetail}
+        />
       </div>
     </AppLayout>
   )

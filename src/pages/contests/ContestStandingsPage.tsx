@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Badge } from '@/components/ui'
+import { Badge, Input } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
-import { useStandings, useStandingsStream } from '@/hooks/api/useContests'
-import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
-import type { StandingProblemResult } from '@/types/contest'
+import { useStandings } from '@/hooks/api/useContests'
+import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
+import { PATHS } from '@/lib/constants'
+import { cn, problemLabel } from '@/lib/utils'
+import type { StandingProblemResult, StandingsParams } from '@/types/contest'
 
 interface ProblemCellProps { result: StandingProblemResult }
 
@@ -34,38 +37,50 @@ function ProblemCell({ result }: ProblemCellProps) {
 }
 
 export function ContestStandingsPage() {
-  const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
-  const isLead = user?.role === 'ADMIN' || user?.role === 'COACH'
-  const [realtimeMode, setRealtimeMode] = useState(false)
+  const { groupId, id } = useParams<{ groupId: string; id: string }>()
 
-  const { data, isLoading } = useStandings(id || '')
-  const streamData = useStandingsStream(id || '', realtimeMode && isLead)
+  const [countryInput, setCountryInput] = useState('')
+  const debouncedCountry = useDebounce(countryInput, 300)
+  const [cityInput, setCityInput] = useState('')
+  const debouncedCity = useDebounce(cityInput, 300)
+  const [institutionInput, setInstitutionInput] = useState('')
+  const debouncedInstitution = useDebounce(institutionInput, 300)
+  const [pagination, setPagination] = useState({ page: 1, limit: 50 })
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
-  const displayData = realtimeMode && streamData.standings ? streamData.standings : data
+  const params: StandingsParams = {
+    ...pagination,
+    country: debouncedCountry || undefined,
+    city: debouncedCity || undefined,
+    institution: debouncedInstitution || undefined,
+  }
 
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const { data, isLoading } = useStandings(groupId || '', id || '', params)
+
+  const handleCountryFilter = (v: string) => { setCountryInput(v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleCityFilter = (v: string) => { setCityInput(v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleInstitutionFilter = (v: string) => { setInstitutionInput(v); setPagination((p) => ({ ...p, page: 1 })) }
 
   return (
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: displayData?.contest.name || '...', href: `/contests/${id}` },
-        { label: 'Standings' },
+        { label: data?.contest.name || '...', href: PATHS.contest(groupId || '', id || '') },
+        { label: 'Tabla de Posiciones' },
       ]}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Standings</h1>
-            {displayData && <ContestStatusBadge status={displayData.contest.status} />}
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Tabla de Posiciones</h1>
+            {data && <ContestStatusBadge status={data.contest.status} />}
           </div>
-          {displayData?.contest.status === 'ACTIVE' && (
+          {data?.contest.status === 'ACTIVE' && (
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-neutral-text-muted" />
               <ContestCountdown
-                targetTime={displayData.contest.endTime}
+                targetTime={data.contest.endTime}
                 className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
               />
             </div>
@@ -73,33 +88,49 @@ export function ContestStandingsPage() {
         </div>
 
         {data?.contest.isFrozen && (
-          <div className={cn(
-            'border rounded-md p-3 text-sm',
-            realtimeMode
-              ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
-              : 'bg-status-warning/10 border-status-warning/30 text-status-warning',
-          )}>
-            <div className="flex items-center justify-between">
-              <span>
-                {realtimeMode
-                  ? 'Mostrando standings en tiempo real (solo visible para ti).'
-                  : 'Los standings están congelados. Los resultados finales se revelarán al terminar el contest.'}
-              </span>
-              {isLead && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRealtimeMode(!realtimeMode)}
-                  className="ml-3 shrink-0"
-                >
-                  {realtimeMode ? 'Ver standings congelados' : 'Ver standings en tiempo real'}
-                </Button>
-              )}
-            </div>
-            {realtimeMode && streamData.error && (
-              <p className="mt-1 text-xs text-status-warning">{streamData.error}</p>
-            )}
+          <div className="border rounded-md p-3 text-sm bg-status-warning/10 border-status-warning/30 text-status-warning">
+            La tabla de posiciones está congelada. Los resultados finales se revelarán al terminar la competencia.
           </div>
+        )}
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="w-32 shrink-0">
+            <Input
+              placeholder="País"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={countryInput}
+              onChange={(e) => handleCountryFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-32 shrink-0">
+            <Input
+              placeholder="Ciudad"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={cityInput}
+              onChange={(e) => handleCityFilter(e.target.value)}
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              placeholder="Institución"
+              className="h-8 px-2.5 py-1 text-sm"
+              value={institutionInput}
+              onChange={(e) => handleInstitutionFilter(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {data && !isLoading && (
+          <PaginationSummary
+            total={data.pagination.total}
+            totalLabel="participantes"
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            limit={pagination.limit}
+            onLimitChange={handleLimitChange}
+            sizeOptions={[25, 50, 100]}
+          />
         )}
 
         {/* Standings Table */}
@@ -109,7 +140,7 @@ export function ContestStandingsPage() {
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : displayData && displayData.standings.length > 0 ? (
+        ) : data && data.standings.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -118,15 +149,15 @@ export function ContestStandingsPage() {
                   <TableHead>Participante</TableHead>
                   <TableHead className="w-20 text-center">Resueltos</TableHead>
                   <TableHead className="w-20 text-center">Penalización</TableHead>
-                  {displayData.problems.map((p) => (
+                  {data.problems.map((p) => (
                     <TableHead key={p.slug} className="w-20 text-center">
-                      {labels[p.position - 1] || p.position}
+                      {problemLabel(p.position)}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayData.standings.map((entry) => (
+                {data.standings.map((entry) => (
                   <TableRow key={entry.participant.id}>
                     <TableCell className="text-center font-bold">
                       {entry.rank <= 3 ? (
@@ -195,6 +226,14 @@ export function ContestStandingsPage() {
           <div className="text-center py-12 text-neutral-text-muted">
             No hay standings disponibles aún.
           </div>
+        )}
+
+        {data && (
+          <PaginationControls
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

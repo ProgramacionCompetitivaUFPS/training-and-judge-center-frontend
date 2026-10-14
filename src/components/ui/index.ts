@@ -1,5 +1,6 @@
 export { Button } from './Button'
 export { Input } from './Input'
+export { PasswordInput } from './PasswordInput'
 export { Textarea } from './Textarea'
 export { Checkbox } from './Checkbox'
 export { Badge } from './Badge'
@@ -57,12 +58,18 @@ export {
 export {
   Pagination,
   PaginationContent,
+  PaginationControls,
   PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
+  PaginationNumbers,
   PaginationPrevious,
+  PaginationSizeSelect,
+  PaginationSummary,
 } from './Pagination'
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs'
 export { Toast, ToastTitle, ToastDescription, ToastContainer } from './Toast'
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonButton } from './Skeleton'
+export { SearchSelect } from './SearchSelect'
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './Tooltip'

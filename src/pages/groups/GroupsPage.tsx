@@ -15,13 +15,11 @@ import { Alert } from '@/components/ui/Alert'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/Table'
-import {
-  Pagination, PaginationContent, PaginationItem, PaginationLink,
-  PaginationPrevious, PaginationNext,
-} from '@/components/ui/Pagination'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { useGroups, useMyGroups } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import { ROUTES } from '@/lib/constants'
 import type { GroupListParams, GroupListItem, MyGroupItem, MyGroupsParams } from '@/types/group'
@@ -31,6 +29,43 @@ const JOIN_POLICY_LABELS: Record<string, string> = {
   REQUEST: 'Solicitud',
   INVITE: 'Invitación',
 }
+
+const JOIN_POLICY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'OPEN', label: 'Abierto' },
+  { value: 'REQUEST', label: 'Solicitud' },
+  { value: 'INVITE', label: 'Invitación' },
+]
+
+const VISIBILITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todas' },
+  { value: 'VISIBLE', label: 'Visible' },
+  { value: 'NOT_VISIBLE', label: 'No visible' },
+]
+
+const GROUP_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'LEAD', label: 'Líder' },
+  { value: 'MEMBER', label: 'Miembro' },
+]
+
+const ALL_SORT_OPTIONS: { value: string; label: string; sortBy: NonNullable<GroupListParams['sortBy']>; order: 'asc' | 'desc' }[] = [
+  { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', order: 'asc' },
+  { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', order: 'desc' },
+  { value: 'createdAt-desc', label: 'Más recientes primero', sortBy: 'createdAt', order: 'desc' },
+  { value: 'createdAt-asc', label: 'Más antiguos primero', sortBy: 'createdAt', order: 'asc' },
+  { value: 'memberCount-desc', label: 'Más miembros primero', sortBy: 'memberCount', order: 'desc' },
+  { value: 'memberCount-asc', label: 'Menos miembros primero', sortBy: 'memberCount', order: 'asc' },
+]
+
+const MY_SORT_OPTIONS: { value: string; label: string; sortBy: NonNullable<MyGroupsParams['sortBy']>; order: 'asc' | 'desc' }[] = [
+  { value: 'name-asc', label: 'Nombre (A-Z)', sortBy: 'name', order: 'asc' },
+  { value: 'name-desc', label: 'Nombre (Z-A)', sortBy: 'name', order: 'desc' },
+  { value: 'joinedAt-desc', label: 'Ingreso más reciente', sortBy: 'joinedAt', order: 'desc' },
+  { value: 'joinedAt-asc', label: 'Ingreso más antiguo', sortBy: 'joinedAt', order: 'asc' },
+  { value: 'memberCount-desc', label: 'Más miembros primero', sortBy: 'memberCount', order: 'desc' },
+  { value: 'memberCount-asc', label: 'Menos miembros primero', sortBy: 'memberCount', order: 'asc' },
+]
 
 const JOIN_POLICY_VARIANTS: Record<string, 'success' | 'warning' | 'default'> = {
   OPEN: 'success',
@@ -60,21 +95,28 @@ export function GroupsPage() {
   const isCoachOrAdmin = user?.role === 'ADMIN' || user?.role === 'COACH'
 
   const [tab, setTab] = useState('all')
-  const [allParams, setAllParams] = useState<GroupListParams>({ page: 1, limit: 10 })
-  const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 10 })
+  const [allParams, setAllParams] = useState<GroupListParams>({ page: 1, limit: 5 })
+  const [myParams, setMyParams] = useState<MyGroupsParams>({ page: 1, limit: 5 })
   const [allSearchInput, setAllSearchInput] = useState('')
   const [mySearchInput, setMySearchInput] = useState('')
+  const [allSortValue, setAllSortValue] = useState('createdAt-desc')
+  const [mySortValue, setMySortValue] = useState('name-asc')
 
   const debouncedAllSearch = useDebounce(allSearchInput)
   const debouncedMySearch = useDebounce(mySearchInput)
 
+  const selectedAllSort = ALL_SORT_OPTIONS.find((s) => s.value === allSortValue)
+  const selectedMySort = MY_SORT_OPTIONS.find((s) => s.value === mySortValue)
+
   const allQueryParams: GroupListParams = {
     ...allParams,
     search: debouncedAllSearch || undefined,
+    ...(selectedAllSort && { sortBy: selectedAllSort.sortBy, order: selectedAllSort.order }),
   }
   const myQueryParams: MyGroupsParams = {
     ...myParams,
     search: debouncedMySearch || undefined,
+    ...(selectedMySort && { sortBy: selectedMySort.sortBy, order: selectedMySort.order }),
   }
 
   const allGroups = useGroups(allQueryParams)
@@ -82,6 +124,11 @@ export function GroupsPage() {
 
   const allPagination = allGroups.data?.pagination
   const myPagination = myGroups.data?.pagination
+
+  const { handlePageChange: handleAllPageChange, handleLimitChange: handleAllLimitChange } =
+    usePaginationHandlers(setAllParams)
+  const { handlePageChange: handleMyPageChange, handleLimitChange: handleMyLimitChange } =
+    usePaginationHandlers(setMyParams)
 
   return (
     <AppLayout breadcrumbs={[{ label: 'Grupos' }]}>
@@ -106,38 +153,92 @@ export function GroupsPage() {
 
           {/* === All Groups Tab === */}
           <TabsContent value="all" className="mt-4 space-y-4">
-            {/* Search + filter inline */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="relative max-w-md flex-1 min-w-[200px]">
+                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
                 <Input
+                  variant="ghost"
                   placeholder="Buscar grupos..."
-                  className="pl-9"
+                  className="pl-7"
                   value={allSearchInput}
                   onChange={(e) => { setAllSearchInput(e.target.value); setAllParams((p) => ({ ...p, page: 1 })) }}
                 />
               </div>
-              <Select
-                onValueChange={(v) => setAllParams((p) => ({ ...p, joinPolicy: v === 'ALL' ? undefined : v as GroupListParams['joinPolicy'], page: 1 }))}
-                defaultValue="ALL"
-              >
-                <SelectTrigger className="w-44 shrink-0"><SelectValue placeholder="Política" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Toda política</SelectItem>
-                  <SelectItem value="OPEN">Abierto</SelectItem>
-                  <SelectItem value="REQUEST">Solicitud</SelectItem>
-                  <SelectItem value="INVITE">Invitación</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
-            {/* Results count */}
-            {allPagination && !allGroups.isLoading && (allGroups.data?.groups.length ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-                <span>{allPagination.total} grupos</span>
-                <span>Página {allPagination.page} de {allPagination.totalPages}</span>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-neutral-text-muted mr-1">Política</span>
+                {JOIN_POLICY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAllParams((p) => ({ ...p, joinPolicy: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['joinPolicy'], page: 1 }))}
+                    className={cn(
+                      'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                      (allParams.joinPolicy ?? 'ALL') === opt.value
+                        ? 'bg-brand-primary text-neutral-surface'
+                        : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-            )}
+              {user?.role === 'ADMIN' && (
+                <>
+                  <div className="w-px h-[22px] bg-neutral-border" />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-neutral-text-muted mr-1">Visibilidad</span>
+                    {VISIBILITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setAllParams((p) => ({ ...p, visibility: opt.value === 'ALL' ? undefined : opt.value as GroupListParams['visibility'], page: 1 }))}
+                        className={cn(
+                          'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                          (allParams.visibility ?? 'ALL') === opt.value
+                            ? 'bg-brand-primary text-neutral-surface'
+                            : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Results count + sort */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1">
+                {allPagination && !allGroups.isLoading && (
+                  <PaginationSummary
+                    total={allPagination.total}
+                    totalLabel="grupos"
+                    currentPage={allPagination.page}
+                    totalPages={allPagination.totalPages}
+                    limit={allPagination.limit}
+                    onLimitChange={handleAllLimitChange}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
+                <Select
+                  value={allSortValue}
+                  onValueChange={(v) => { setAllSortValue(v); setAllParams((p) => ({ ...p, page: 1 })) }}
+                >
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALL_SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {allGroups.error && <Alert variant="error">Error al cargar grupos.</Alert>}
 
@@ -152,44 +253,78 @@ export function GroupsPage() {
               />
             )}
 
-            {allPagination && allPagination.totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  {allPagination.page > 1 && (
-                    <PaginationItem><PaginationPrevious onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page - 1 }))} /></PaginationItem>
-                  )}
-                  {Array.from({ length: Math.min(allPagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <PaginationItem key={page}><PaginationLink isActive={page === allPagination.page} onClick={() => setAllParams((p) => ({ ...p, page }))}>{page}</PaginationLink></PaginationItem>
-                  ))}
-                  {allPagination.page < allPagination.totalPages && (
-                    <PaginationItem><PaginationNext onClick={() => setAllParams((p) => ({ ...p, page: allPagination.page + 1 }))} /></PaginationItem>
-                  )}
-                </PaginationContent>
-              </Pagination>
+            {allPagination && (
+              <PaginationControls
+                currentPage={allPagination.page}
+                totalPages={allPagination.totalPages}
+                onPageChange={handleAllPageChange}
+              />
             )}
           </TabsContent>
 
           {/* === My Groups Tab === */}
           <TabsContent value="mine" className="mt-4 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+            <div className="relative max-w-md">
+              <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
               <Input
+                variant="ghost"
                 placeholder="Buscar en mis grupos..."
-                className="pl-9"
+                className="pl-7"
                 value={mySearchInput}
                 onChange={(e) => { setMySearchInput(e.target.value); setMyParams((p) => ({ ...p, page: 1 })) }}
               />
             </div>
 
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Rol</span>
+              {GROUP_ROLE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMyParams((p) => ({ ...p, role: opt.value === 'ALL' ? undefined : opt.value as MyGroupsParams['role'], page: 1 }))}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    (myParams.role ?? 'ALL') === opt.value
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             {myGroups.error && <Alert variant="error">Error al cargar tus grupos.</Alert>}
 
-            {/* Results count */}
-            {myPagination && !myGroups.isLoading && (myGroups.data?.groups.length ?? 0) > 0 && (
-              <div className="flex items-center justify-between text-xs text-neutral-text-muted">
-                <span>{myPagination.total} grupos</span>
-                <span>Página {myPagination.page} de {myPagination.totalPages}</span>
+            {/* Results count + sort */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex-1">
+                {myPagination && !myGroups.isLoading && (
+                  <PaginationSummary
+                    total={myPagination.total}
+                    totalLabel="grupos"
+                    currentPage={myPagination.page}
+                    totalPages={myPagination.totalPages}
+                    limit={myPagination.limit}
+                    onLimitChange={handleMyLimitChange}
+                  />
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
+                <Select
+                  value={mySortValue}
+                  onValueChange={(v) => { setMySortValue(v); setMyParams((p) => ({ ...p, page: 1 })) }}
+                >
+                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MY_SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {myGroups.isLoading ? (
               <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
@@ -202,20 +337,12 @@ export function GroupsPage() {
               />
             )}
 
-            {myPagination && myPagination.totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  {myPagination.page > 1 && (
-                    <PaginationItem><PaginationPrevious onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page - 1 }))} /></PaginationItem>
-                  )}
-                  {Array.from({ length: Math.min(myPagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <PaginationItem key={page}><PaginationLink isActive={page === myPagination.page} onClick={() => setMyParams((p) => ({ ...p, page }))}>{page}</PaginationLink></PaginationItem>
-                  ))}
-                  {myPagination.page < myPagination.totalPages && (
-                    <PaginationItem><PaginationNext onClick={() => setMyParams((p) => ({ ...p, page: myPagination.page + 1 }))} /></PaginationItem>
-                  )}
-                </PaginationContent>
-              </Pagination>
+            {myPagination && (
+              <PaginationControls
+                currentPage={myPagination.page}
+                totalPages={myPagination.totalPages}
+                onPageChange={handleMyPageChange}
+              />
             )}
           </TabsContent>
         </Tabs>
@@ -242,7 +369,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
               <TableHead>Visibilidad</TableHead>
               <TableHead>Política</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
               <TableHead>Tu rol</TableHead>
             </TableRow>
           </TableHeader>
@@ -286,13 +412,6 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
                 </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
                 <TableCell>
                   {group.userRole ? (
                     <Badge variant={group.userRole === 'LEAD' ? 'warning' : 'default'} className="text-[10px]">
@@ -326,8 +445,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
               <TableHead>Grupo</TableHead>
               <TableHead>Tu rol</TableHead>
               <TableHead className="text-center">Miembros</TableHead>
-              <TableHead className="text-center">Contests activos</TableHead>
-              <TableHead className="text-center">Materiales</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -360,16 +477,6 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
                 </TableCell>
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
-                </TableCell>
-                <TableCell className="text-center">
-                  {group.activeContestCount > 0 ? (
-                    <Badge variant="success" className="text-[10px]">{group.activeContestCount}</Badge>
-                  ) : (
-                    <span className="text-xs text-neutral-text-muted">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="text-sm font-mono font-medium">{group.materialCount}</span>
                 </TableCell>
               </TableRow>
             ))}

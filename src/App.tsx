@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/components/layout/ToastProvider'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { ContestSessionProvider } from '@/components/layout/ContestSessionProvider'
-import { AppLayout, ProtectedRoute } from '@/components/layout'
+import { ProtectedRoute } from '@/components/layout'
 import { ROUTES } from '@/lib/constants'
 
 // Auth pages
@@ -23,6 +23,7 @@ import { UsersListPage } from '@/pages/admin/UsersListPage'
 import { GroupsPage } from '@/pages/groups/GroupsPage'
 import { GroupDetailPage } from '@/pages/groups/GroupDetailPage'
 import { GroupFormPage } from '@/pages/groups/GroupFormPage'
+import { AcceptInvitationPage } from '@/pages/groups/AcceptInvitationPage'
 
 // Existing pages (legacy, will be replaced)
 import { ProblemsPage } from '@/pages/problems/ProblemsPage'
@@ -41,6 +42,7 @@ import { ContestDetailPage } from '@/pages/contests/ContestDetailPage'
 import { ContestFormPage } from '@/pages/contests/ContestFormPage'
 import { ContestStandingsPage } from '@/pages/contests/ContestStandingsPage'
 import { ContestSubmissionsPage } from '@/pages/contests/ContestSubmissionsPage'
+import { ContestParticipantsPage } from '@/pages/contests/ContestParticipantsPage'
 
 // Material pages
 import { MaterialsPage } from '@/pages/materials/MaterialsPage'
@@ -51,22 +53,16 @@ import { MaterialFormPage } from '@/pages/materials/MaterialFormPage'
 import { TeamsPage } from '@/pages/teams/TeamsPage'
 import { TeamDetailPage } from '@/pages/teams/TeamDetailPage'
 
-// Placeholder pages — will be replaced in each phase
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <AppLayout>
-      <div className="flex items-center justify-center h-64">
-        <p className="text-neutral-text-muted text-lg">{title} — Próximamente</p>
-      </div>
-    </AppLayout>
-  )
-}
+// Error pages
+import { isClientError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
-      retry: 1,
+      // A 4xx (not found, forbidden, invalid) won't change on a second try.
+      retry: (failureCount, error) => !isClientError(error) && failureCount < 1,
       refetchOnWindowFocus: false,
     },
   },
@@ -131,12 +127,14 @@ export default function App() {
               <Route path={ROUTES.GROUP_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_DETAIL} element={<ProtectedRoute><GroupDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.GROUP_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><GroupFormPage /></ProtectedRoute>} />
+              <Route path={ROUTES.GROUP_ACCEPT_INVITATION} element={<ProtectedRoute><AcceptInvitationPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTESTS} element={<ProtectedRoute><ContestsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_NEW} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_DETAIL} element={<ProtectedRoute><ContestDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_EDIT} element={<ProtectedRoute roles={['ADMIN', 'COACH']}><ContestFormPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_STANDINGS} element={<ProtectedRoute><ContestStandingsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMISSIONS} element={<ProtectedRoute><ContestSubmissionsPage /></ProtectedRoute>} />
+              <Route path={ROUTES.CONTEST_PARTICIPANTS} element={<ProtectedRoute><ContestParticipantsPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_PROBLEM} element={<ProtectedRoute><ProblemDetailPage /></ProtectedRoute>} />
               <Route path={ROUTES.SUBMIT_SOLUTION} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
               <Route path={ROUTES.CONTEST_SUBMIT} element={<ProtectedRoute><SubmitSolutionPage /></ProtectedRoute>} />
@@ -150,7 +148,7 @@ export default function App() {
               <Route path={ROUTES.TEAM_DETAIL} element={<ProtectedRoute><TeamDetailPage /></ProtectedRoute>} />
 
               {/* 404 */}
-              <Route path="*" element={<PlaceholderPage title="Página no encontrada (404)" />} />
+              <Route path="*" element={<ProtectedRoute><NotFoundPage /></ProtectedRoute>} />
             </Routes>
             </ContestSessionProvider>
           </AuthProvider>

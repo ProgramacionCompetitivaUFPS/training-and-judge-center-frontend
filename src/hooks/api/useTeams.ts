@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import * as teamsApi from '@/api/teams'
+import { contestKeys } from '@/hooks/api/useContests'
 import type {
   MyTeamsParams,
   CreateTeamRequest,
   InviteTeamMemberRequest,
-  RegisterTeamToContestRequest,
   UpdateTeamRegistrationRequest,
 } from '@/types/team'
 
@@ -15,7 +15,10 @@ export const teamKeys = {
   myTeams: (params?: MyTeamsParams) => ['teams', 'mine', params] as const,
   detail: (teamId: string) => ['teams', 'detail', teamId] as const,
   myInvitations: ['teams', 'invitations'] as const,
-  contestRegistrations: (contestId: string) => ['teams', 'contest-registrations', contestId] as const,
+  contestRegistrations: (groupId: string, contestId: string) =>
+    ['teams', 'contest-registrations', groupId, contestId] as const,
+  registrationEligibility: (groupId: string, contestId: string, teamId: string) =>
+    ['teams', 'registration-eligibility', groupId, contestId, teamId] as const,
 }
 
 // === Queries ===
@@ -42,11 +45,21 @@ export function useMyTeamInvitations() {
   })
 }
 
-export function useContestTeamRegistrations(contestId: string) {
+export function useContestTeamRegistrations(groupId: string, contestId: string) {
   return useQuery({
-    queryKey: teamKeys.contestRegistrations(contestId),
-    queryFn: () => teamsApi.getContestTeamRegistrations(contestId),
-    enabled: !!contestId,
+    queryKey: teamKeys.contestRegistrations(groupId, contestId),
+    queryFn: () => teamsApi.getContestTeamRegistrations(groupId, contestId),
+    enabled: !!groupId && !!contestId,
+  })
+}
+
+export function useTeamRegistrationEligibility(groupId: string, contestId: string, teamId: string) {
+  return useQuery({
+    queryKey: teamKeys.registrationEligibility(groupId, contestId, teamId),
+    queryFn: () => teamsApi.getTeamRegistrationEligibility(groupId, contestId, teamId),
+    enabled: !!groupId && !!contestId && !!teamId,
+    // Eligibility depends on other people's registrations; always re-check when the dialog asks.
+    staleTime: 0,
   })
 }
 
@@ -107,10 +120,20 @@ export function useRejectTeamInvitation() {
 export function useRegisterTeamToContest() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ contestId, data }: { contestId: string; data: RegisterTeamToContestRequest }) =>
-      teamsApi.registerTeamToContest(contestId, data),
-    onSuccess: (_, { contestId }) => {
-      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(contestId) })
+    mutationFn: ({
+      groupId,
+      contestId,
+      teamId,
+      selectedMembers,
+    }: {
+      groupId: string
+      contestId: string
+      teamId: string
+      selectedMembers: string[]
+    }) => teamsApi.registerTeamToContest(groupId, contestId, teamId, { selectedMembers }),
+    onSuccess: (_, { groupId, contestId }) => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
     },
   })
 }
@@ -118,10 +141,19 @@ export function useRegisterTeamToContest() {
 export function useUpdateTeamRegistration() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ contestId, teamId, data }: { contestId: string; teamId: string; data: UpdateTeamRegistrationRequest }) =>
-      teamsApi.updateTeamRegistration(contestId, teamId, data),
-    onSuccess: (_, { contestId }) => {
-      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(contestId) })
+    mutationFn: ({
+      groupId,
+      contestId,
+      teamId,
+      data,
+    }: {
+      groupId: string
+      contestId: string
+      teamId: string
+      data: UpdateTeamRegistrationRequest
+    }) => teamsApi.updateTeamRegistration(groupId, contestId, teamId, data),
+    onSuccess: (_, { groupId, contestId }) => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
     },
   })
 }
@@ -129,10 +161,18 @@ export function useUpdateTeamRegistration() {
 export function useUnregisterTeamFromContest() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ contestId, teamId }: { contestId: string; teamId: string }) =>
-      teamsApi.unregisterTeamFromContest(contestId, teamId),
-    onSuccess: (_, { contestId }) => {
-      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(contestId) })
+    mutationFn: ({
+      groupId,
+      contestId,
+      teamId,
+    }: {
+      groupId: string
+      contestId: string
+      teamId: string
+    }) => teamsApi.unregisterTeamFromContest(groupId, contestId, teamId),
+    onSuccess: (_, { groupId, contestId }) => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
     },
   })
 }

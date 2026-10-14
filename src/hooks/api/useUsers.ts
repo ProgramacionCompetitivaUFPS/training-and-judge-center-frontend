@@ -1,10 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
+import { setAccessToken, clearAccessToken, notifyLogout, setLoggingOut } from '@/lib/tokenStore'
 import type {
   LoginRequest,
+  GoogleLoginRequest,
+  LinkGoogleRequest,
   RegisterRequest,
   UpdateProfileRequest,
   ChangePasswordRequest,
+  SetPasswordRequest,
   RequestEmailChangeRequest,
   ConfirmEmailChangeRequest,
   RecoverPasswordRequest,
@@ -13,7 +17,6 @@ import type {
   ConfirmDeactivationRequest,
   AdminUpdateUserRequest,
   AdminUserListParams,
-  ChangeUserRoleRequest,
 } from '@/types/user'
 
 // === Query Keys ===
@@ -22,8 +25,11 @@ export const userKeys = {
   all: ['users'] as const,
   me: ['users', 'me'] as const,
   dashboard: ['users', 'dashboard'] as const,
+  stats: ['users', 'stats'] as const,
   profile: (nickname: string) => ['users', 'profile', nickname] as const,
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
+  adminFilterOptions: ['users', 'admin', 'filters'] as const,
+  search: (q: string) => ['users', 'search', q] as const,
 }
 
 // === Queries ===
@@ -45,10 +51,31 @@ export function useUserProfile(nickname: string) {
   })
 }
 
-export function useUserDashboard() {
+// Caller is expected to debounce `q`. `GET /users/search` is Coach/Admin-only — pass
+// `canSearch: false` when the viewer's platform role isn't one of those, even if some
+// domain-level check (group lead, problem modifier) would otherwise let the UI show through,
+// so a Contestant never fires a request that the backend would 403 anyway.
+export function useSearchUsers(q: string, limit?: number, canSearch = true) {
+  return useQuery({
+    queryKey: userKeys.search(q),
+    queryFn: () => usersApi.searchUsers(q, limit),
+    enabled: canSearch && q.trim().length >= 2,
+  })
+}
+
+export function useUserDashboard(enabled = true) {
   return useQuery({
     queryKey: userKeys.dashboard,
     queryFn: usersApi.getDashboard,
+    enabled,
+  })
+}
+
+export function useUserStats(enabled = true) {
+  return useQuery({
+    queryKey: userKeys.stats,
+    queryFn: usersApi.getProfileStats,
+    enabled,
   })
 }
 
@@ -56,6 +83,14 @@ export function useAdminUsers(params?: AdminUserListParams) {
   return useQuery({
     queryKey: userKeys.adminList(params),
     queryFn: () => usersApi.adminListUsers(params),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useAdminUserFilterOptions() {
+  return useQuery({
+    queryKey: userKeys.adminFilterOptions,
+    queryFn: usersApi.adminGetUserFilterOptions,
   })
 }
 
@@ -66,8 +101,42 @@ export function useLogin() {
   return useMutation({
     mutationFn: (data: LoginRequest) => usersApi.login(data),
     onSuccess: (response) => {
-      localStorage.setItem('auth_token', response.token)
+      setAccessToken(response.token)
       queryClient.setQueryData(userKeys.me, response.user)
+      // login response doesn't include googleLinked — refetch to pick it up
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useGoogleLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: GoogleLoginRequest) => usersApi.googleLogin(data),
+    onSuccess: (response) => {
+      setAccessToken(response.token)
+      queryClient.setQueryData(userKeys.me, response.user)
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useLinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: LinkGoogleRequest) => usersApi.linkGoogleAccount(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
+  })
+}
+
+export function useUnlinkGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => usersApi.unlinkGoogleAccount(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
     },
   })
 }
@@ -83,7 +152,11 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: UpdateProfileRequest) => usersApi.updateProfile(data),
     onSuccess: (updatedUser) => {
-      queryClient.setQueryData(userKeys.me, updatedUser)
+      // PUT /users doesn't echo back hasPassword/googleLinked (only GET /users/me does) —
+      // merge onto the existing cache instead of replacing it, or those fields revert to undefined.
+      queryClient.setQueryData(userKeys.me, (old: typeof updatedUser | undefined) =>
+        old ? { ...old, ...updatedUser } : updatedUser
+      )
     },
   })
 }
@@ -91,6 +164,16 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) => usersApi.changePassword(data),
+  })
+}
+
+export function useSetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: SetPasswordRequest) => usersApi.setPassword(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.me })
+    },
   })
 }
 
@@ -132,7 +215,23 @@ export function useConfirmDeactivation() {
   return useMutation({
     mutationFn: (data: ConfirmDeactivationRequest) => usersApi.confirmDeactivation(data),
     onSuccess: () => {
-      localStorage.removeItem('auth_token')
+      clearAccessToken()
+    },
+  })
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => usersApi.logout(),
+    onMutate: () => {
+      setLoggingOut(true)
+    },
+    onSettled: () => {
+      clearAccessToken()
+      notifyLogout()
+      queryClient.clear()
+      setLoggingOut(false)
     },
   })
 }
@@ -158,13 +257,3 @@ export function useAdminDeactivateUser() {
   })
 }
 
-export function useAdminChangeUserRole() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ChangeUserRoleRequest }) =>
-      usersApi.adminChangeUserRole(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all })
-    },
-  })
-}

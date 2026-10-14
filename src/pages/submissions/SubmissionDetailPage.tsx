@@ -1,13 +1,20 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { useSubmissionDetail, useUpdateSubmissionVisibility, useDownloadSubmission, useRejudgeSubmission } from '@/hooks/api/useSubmissions'
+import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
+import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
+import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { ApiClientError, isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+
+const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -15,14 +22,16 @@ export function SubmissionDetailPage() {
   const { user } = useAuth()
   const { toast } = useToastContext()
 
+  const [showBlocklyCode, setShowBlocklyCode] = useState(false)
+
   const { data: submission, isLoading, error } = useSubmissionDetail(id || '')
   const visibilityMutation = useUpdateSubmissionVisibility()
-  const downloadMutation = useDownloadSubmission()
-  const rejudgeMutation = useRejudgeSubmission()
+  const ownRejudgeMutation = useRejudgeSubmission()
+  const adminRejudgeMutation = useAdminRejudgeSubmission()
 
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Submissions', href: '/submissions' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: '...' }]}>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-6 w-1/4" />
@@ -32,11 +41,13 @@ export function SubmissionDetailPage() {
     )
   }
 
+  if (isNotFoundError(error)) return <NotFoundPage />
+
   if (error || !submission) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Submissions', href: '/submissions' }, { label: 'Error' }]}>
+      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: 'Error' }]}>
         <div className="text-center py-12 text-neutral-text-muted">
-          Submission no encontrada
+          Envío no encontrado
         </div>
       </AppLayout>
     )
@@ -52,38 +63,38 @@ export function SubmissionDetailPage() {
     visibilityMutation.mutate(
       { id: submission.id, data: { visibility: newVisibility } },
       {
-        onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility}` }),
+        onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility === 'PUBLIC' ? 'Pública' : 'Privada'}` }),
         onError: () => toast({ variant: 'error', title: 'Error al cambiar visibilidad' }),
       },
     )
   }
 
-  async function handleDownload() {
-    if (!submission) return
-    try {
-      const blob = await downloadMutation.mutateAsync(submission.id)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
-      a.download = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      toast({ variant: 'error', title: 'Error al descargar' })
-    }
+  function handleDownload() {
+    if (!submission || submission.sourceCode === null) return
+    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
+    downloadSubmissionBlob(submission.sourceCode, filename)
   }
 
   function handleRejudge() {
     if (!submission) return
-    rejudgeMutation.mutate(submission.id, {
-      onSuccess: () => toast({ variant: 'success', title: 'Submission enviada a rejuzgar' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar submission' }),
+    const mutation = isAdmin ? adminRejudgeMutation : ownRejudgeMutation
+    mutation.mutate(submission.id, {
+      onSuccess: () => toast({ variant: 'success', title: 'Envío enviado a rejuzgar' }),
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'CANNOT_REJUDGE_IN_ACTIVE_CONTEST') {
+          toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'No puedes rejuzgar tus propios envíos de una competencia que todavía está activa.' })
+        } else if (err instanceof ApiClientError && err.code === 'NO_REJUDGE_NEEDED') {
+          toast({ variant: 'error', title: 'No se puede rejuzgar', description: 'Este envío no necesita rejuzgarse: los componentes de juzgamiento del problema no han cambiado desde que se envió.' })
+        } else {
+          toast({ variant: 'error', title: 'Error al rejuzgar envío' })
+        }
+      },
     })
   }
 
   const breadcrumbs = [
-    { label: 'Submissions', href: '/submissions' },
+    { label: 'Envíos', href: '/submissions' },
     { label: `#${submission.id.slice(0, 8)}` },
   ]
 
@@ -96,13 +107,13 @@ export function SubmissionDetailPage() {
             <div className="flex items-center gap-3 mb-2">
               <SubmissionStatusBadge status={submission.status} />
               <h1 className="text-2xl font-semibold text-neutral-text-primary">
-                Submission #{submission.id.slice(0, 8)}
+                Envío #{submission.id.slice(0, 8)}
               </h1>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
               <span>Problema:</span>
               <Link
-                to={`/problems/${submission.problem.slug}`}
+                to={PATHS.problem(submission.problem.slug)}
                 className="text-brand-primary hover:underline"
               >
                 {submission.problem.title}
@@ -110,7 +121,7 @@ export function SubmissionDetailPage() {
               {submission.contest && (
                 <>
                   <span>·</span>
-                  <span>Contest: {submission.contest.name}</span>
+                  <span>Competencia: {submission.contest.name}</span>
                 </>
               )}
             </div>
@@ -130,17 +141,17 @@ export function SubmissionDetailPage() {
                 )}
               </Button>
             )}
-            {isAdmin && (
+            {(isAdmin || isOwner) && (
               <Button
                 variant="outline"
                 onClick={handleRejudge}
-                isLoading={rejudgeMutation.isPending}
+                isLoading={isAdmin ? adminRejudgeMutation.isPending : ownRejudgeMutation.isPending}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Rejuzgar
               </Button>
             )}
-            <Button variant="outline" onClick={handleDownload} isLoading={downloadMutation.isPending}>
+            <Button variant="outline" onClick={handleDownload} disabled={submission.sourceCode === null}>
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
@@ -178,20 +189,69 @@ export function SubmissionDetailPage() {
           </div>
         </div>
 
-        {/* Source Code */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Code2 className="h-5 w-5" />
-              Código fuente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-              <code>{submission.sourceCode}</code>
-            </pre>
-          </CardContent>
-        </Card>
+        {/* Source Code / Blockly SVG */}
+        {(() => {
+          const isBlocklySubmission = submission.language === 'blockly' && submission.blocksSvgUrl
+
+          if (isBlocklySubmission) {
+            return (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      {showBlocklyCode ? (
+                        <Code2 className="h-5 w-5" />
+                      ) : (
+                        <Puzzle className="h-5 w-5" />
+                      )}
+                      {showBlocklyCode ? 'Código Python' : 'Bloques'}
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowBlocklyCode((prev) => !prev)}
+                    >
+                      {showBlocklyCode ? (
+                        <><Puzzle className="h-4 w-4 mr-2" />Bloques</>
+                      ) : (
+                        <><Code2 className="h-4 w-4 mr-2" />Código Python</>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {showBlocklyCode ? (
+                    <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
+                      <code>{submission.sourceCode ?? SOURCE_CODE_UNAVAILABLE}</code>
+                    </pre>
+                  ) : (
+                    <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
+                  )}
+                </CardContent>
+              </Card>
+            )
+          }
+
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Code2 className="h-5 w-5" />
+                  Código fuente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {submission.sourceCode === null ? (
+                  <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                ) : (
+                  <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
+                    <code>{submission.sourceCode}</code>
+                  </pre>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })()}
       </div>
     </AppLayout>
   )

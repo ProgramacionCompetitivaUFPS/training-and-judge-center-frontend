@@ -1,4 +1,4 @@
-import type { PaginatedResponse, PaginationParams } from './api'
+import type { PaginationParams } from './api'
 
 // === Entidad principal ===
 
@@ -16,6 +16,10 @@ export interface User {
   createdAt: string
   updatedAt?: string
   deactivatedAt?: string
+  /** Solo viene poblado por GET /users/me — ausente en login/link/unlink y en otros endpoints de usuario */
+  googleLinked?: boolean
+  /** Solo viene poblado por GET /users/me — mismo caveat que googleLinked */
+  hasPassword?: boolean
 }
 
 export type UserRole = 'ADMIN' | 'COACH' | 'CONTESTANT'
@@ -28,12 +32,28 @@ export interface UserPreferences {
 // === Perfiles ===
 
 /** Perfil público visible por otros usuarios */
+export interface UserSearchResult {
+  id: string
+  nickname: string
+  name: string
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[]
+}
+
 export interface PublicUserProfile {
   name: string
   nickname: string
   institution: string
   role: UserRole
   createdAt: string
+  // Only present when the viewer is an Admin or is viewing their own profile — the backend
+  // sends the full payload in those cases, the reduced one otherwise.
+  email?: string
+  country?: string
+  city?: string
+  updatedAt?: string
 }
 
 // === Auth ===
@@ -41,11 +61,26 @@ export interface PublicUserProfile {
 export interface LoginRequest {
   email: string
   password: string
+  rememberSession: boolean
 }
 
 export interface LoginResponse {
   token: string
   user: User
+}
+
+export interface RefreshSessionResponse {
+  token: string
+  sessionExpiresAt: string
+}
+
+export interface GoogleLoginRequest {
+  id_token: string
+  rememberSession: boolean
+}
+
+export interface LinkGoogleRequest {
+  id_token: string
 }
 
 export interface RegisterRequest {
@@ -70,6 +105,10 @@ export interface UpdateProfileRequest {
 
 export interface ChangePasswordRequest {
   currentPassword: string
+  newPassword: string
+}
+
+export interface SetPasswordRequest {
   newPassword: string
 }
 
@@ -118,31 +157,42 @@ export interface AdminUserListParams extends PaginationParams {
   search?: string
   role?: UserRole
   status?: UserStatus
+  country?: string
+  city?: string
+  institution?: string
   sortBy?: 'name' | 'nickname' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
 }
 
-export type AdminUserListResponse = PaginatedResponse<User>
+export interface AdminUserListResponse {
+  users: (User & { id: string })[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
 
-// === Role Change ===
-
-export interface ChangeUserRoleRequest {
-  role: UserRole
+// Distinct, non-empty country/city/institution values actually in use (GET /admin/users/filters)
+// — backs the admin list's filters so they offer real values instead of free text.
+export interface AdminUserFilterOptions {
+  countries: string[]
+  cities: string[]
+  institutions: string[]
 }
 
 // === Dashboard ===
 
 export interface UserDashboard {
-  totalSubmissions: number
-  acceptedSubmissions: number
-  problemsSolved: number
-  contestsParticipated: number
   recentSubmissions: DashboardSubmission[]
   upcomingContests: DashboardContest[]
   activeContests: DashboardContest[]
-  recentMaterials: DashboardMaterial[]
+  problemsSolved: number
+  materialsCount: number
   streak: UserStreak
-  ranking: UserRanking
   recentContestResults: DashboardContestResult[]
 }
 
@@ -150,22 +200,18 @@ export interface DashboardSubmission {
   id: string
   problemSlug: string
   problemTitle: string
-  status: string
+  verdict: string
   language: string
   submittedAt: string
+  executionTime: number | null
+  memoryKb: number | null
 }
 
 export interface DashboardContest {
   id: string
   name: string
-  startTime: string
-  endTime: string
-  groupName: string
-}
-
-export interface DashboardMaterial {
-  id: string
-  title: string
+  startDate: string
+  durationMinutes: number
   groupId: string
   groupName: string
 }
@@ -173,16 +219,33 @@ export interface DashboardMaterial {
 export interface DashboardContestResult {
   contestId: string
   contestName: string
-  rank: number
-  totalParticipants: number
+  position: number
+  problemsSolved: number
+  penalty: number
 }
 
 export interface UserStreak {
-  currentStreak: number
-  longestStreak: number
+  current: number
+  maximum: number
+}
+
+// === Profile Statistics ===
+
+export interface UserProfileStats {
+  problemsSolved: number
+  totalSubmissions: number
+  acceptedSubmissions: number
+  contestsParticipated: number
+  ranking: UserRanking
+  topicStats: TopicStat[]
 }
 
 export interface UserRanking {
-  position: number
+  position: number | null
   totalUsers: number
+}
+
+export interface TopicStat {
+  tag: string
+  solved: number
 }

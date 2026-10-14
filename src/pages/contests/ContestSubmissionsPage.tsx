@@ -1,65 +1,84 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Clock, UsersRound } from 'lucide-react'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { Clock, UsersRound, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Card, CardContent } from '@/components/ui'
+import { Badge, Card, CardContent, Input } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { useContestSubmissions, useContestDetail } from '@/hooks/api/useContests'
-import { useAuth } from '@/hooks/useAuth'
+import { useDebounce } from '@/hooks/useDebounce'
+import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
+import { PATHS } from '@/lib/constants'
+import { cn, problemLabel } from '@/lib/utils'
 import type { ContestSubmissionsParams } from '@/types/contest'
 import type { SubmissionStatus } from '@/types/submission'
+
+const PHASE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'competition', label: 'Competencia' },
+  { value: 'postcompetition', label: 'Post-competencia' },
+]
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 export function ContestSubmissionsPage() {
-  const { id } = useParams<{ id: string }>()
-  const { user } = useAuth()
+  const { groupId, id } = useParams<{ groupId: string; id: string }>()
 
-  const { data: contest } = useContestDetail(id || '')
-  const groupId = contest?.group.id || ''
+  const { data: contest } = useContestDetail(groupId || '', id || '')
 
   const [phase, setPhase] = useState<string>('all')
-  const [problemSlug, setProblemSlug] = useState<string>('all')
-  const [page, setPage] = useState(1)
+  // Kept in the URL (?problem=<slug>) so a problem page inside the contest can link here
+  // already filtered, and a reload or shared link keeps the filter.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const problemSlug = searchParams.get('problem') ?? 'all'
+  const setProblemSlug = (value: string) =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value === 'all') next.delete('problem')
+      else next.set('problem', value)
+      return next
+    }, { replace: true })
+  const filteredProblem = contest?.problems.find((p) => p.slug === problemSlug)
+  const filteredProblemLetter = filteredProblem ? problemLabel(filteredProblem.position) : null
+  const [nicknameInput, setNicknameInput] = useState('')
+  const debouncedNickname = useDebounce(nicknameInput)
+  const [pagination, setPagination] = useState({ page: 1, limit: 50 })
+  const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
   const params: ContestSubmissionsParams = {
-    page,
-    limit: 50,
+    ...pagination,
     phase: phase !== 'all' ? (phase as 'competition' | 'postcompetition') : undefined,
     problemSlug: problemSlug !== 'all' ? problemSlug : undefined,
+    nickname: debouncedNickname || undefined,
   }
 
-  const { data, isLoading } = useContestSubmissions(groupId, id || '', params)
-
-  const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const isActive = data?.contest.status === 'ACTIVE' || contest?.status === 'ACTIVE'
-
-  // During ACTIVE contest, only own submissions are clickable
-  const canViewSubmission = (nickname: string) => {
-    if (!isActive) return true // FINISHED: all submissions viewable
-    return nickname === user?.nickname // ACTIVE: only own
-  }
+  const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
   return (
     <AppLayout
       breadcrumbs={[
         { label: 'Competencias', href: '/contests' },
-        { label: contest?.name || '...', href: `/contests/${id}` },
-        { label: 'Submissions' },
+        { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
+        // Filtered by one problem: show it like the problem page does (Problema A), so the
+        // trail matches the general Problemas › problema › Envíos view.
+        ...(filteredProblemLetter
+          ? [{ label: `Problema ${filteredProblemLetter}`, href: PATHS.contestProblem(groupId || '', id || '', filteredProblemLetter) }]
+          : []),
+        { label: 'Envíos' },
       ]}
     >
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Submissions</h1>
+            <h1 className="text-2xl font-extrabold text-neutral-text-primary">Envíos</h1>
             {contest && <ContestStatusBadge status={contest.status} />}
           </div>
           {contest?.status === 'ACTIVE' && contest.endTime && (
@@ -73,34 +92,74 @@ export function ContestSubmissionsPage() {
           )}
         </div>
 
-        {/* Filters inline */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {contest && contest.problems.length > 0 && (
-            <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPage(1) }}>
-              <SelectTrigger className="w-56 shrink-0">
-                <SelectValue placeholder="Todos los problemas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los problemas</SelectItem>
-                {contest.problems.map((p) => (
-                  <SelectItem key={p.slug} value={p.slug}>
-                    {labels[p.position - 1] || p.position} - {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Filters */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-5">
+            <div className="relative w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
+              <Input
+                placeholder="Filtrar por nickname..."
+                className="pl-9"
+                value={nicknameInput}
+                onChange={(e) => { setNicknameInput(e.target.value); setPagination((p) => ({ ...p, page: 1 })) }}
+              />
+            </div>
+            {contest && contest.problems.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-neutral-text-muted">Problema</span>
+                <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPagination((p) => ({ ...p, page: 1 })) }}>
+                  <SelectTrigger className="w-56 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los problemas</SelectItem>
+                    {contest.problems.map((p) => (
+                      <SelectItem key={p.slug} value={p.slug}>
+                        {problemLabel(p.position)} - {p.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* "Post-competencia" only exists once the contest has actually finished — before that,
+              every submission is by definition within the competition, so the filter has nothing
+              real to distinguish (see mocks/data.ts: postcompetition = submittedAt > endTime). */}
+          {data?.contest.status === 'FINISHED' && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-neutral-text-muted mr-1">Fase</span>
+              {PHASE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { setPhase(opt.value); setPagination((p) => ({ ...p, page: 1 })) }}
+                  className={cn(
+                    'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+                    phase === opt.value
+                      ? 'bg-brand-primary text-neutral-surface'
+                      : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           )}
-          <Select value={phase} onValueChange={(v) => { setPhase(v); setPage(1) }}>
-            <SelectTrigger className="w-48 shrink-0">
-              <SelectValue placeholder="Todas las fases" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las fases</SelectItem>
-              <SelectItem value="competition">Competencia</SelectItem>
-              <SelectItem value="postcompetition">Post-competencia</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
+
+        {data && !isLoading && (
+          <PaginationSummary
+            total={data.pagination.total}
+            totalLabel="envíos"
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            limit={pagination.limit}
+            onLimitChange={handleLimitChange}
+            sizeOptions={[25, 50, 100]}
+          />
+        )}
 
         {data?.contest.inFreeze && (
           <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
@@ -140,12 +199,11 @@ export function ContestSubmissionsPage() {
                   const displayName = sub.submittedBy.type === 'INDIVIDUAL'
                     ? sub.submittedBy.nickname
                     : sub.submittedBy.teamName
-                  const clickable = nickname && canViewSubmission(nickname)
 
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className="font-mono text-sm">
-                        {clickable ? (
+                        {sub.canViewDetail ? (
                           <Link to={`/submissions/${sub.id}`} className="text-brand-primary hover:underline">
                             {formatTime(sub.submittedAt)}
                           </Link>
@@ -165,7 +223,7 @@ export function ContestSubmissionsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="font-mono font-bold mr-1">
-                          {labels[sub.problem.order - 1] || sub.problem.order}
+                          {problemLabel(sub.problem.order)}
                         </span>
                         {sub.problem.title}
                       </TableCell>
@@ -197,6 +255,14 @@ export function ContestSubmissionsPage() {
           <div className="text-center py-12 text-neutral-text-muted">
             No hay submissions en este contest.
           </div>
+        )}
+
+        {data && (
+          <PaginationControls
+            currentPage={data.pagination.page}
+            totalPages={data.pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </div>
     </AppLayout>

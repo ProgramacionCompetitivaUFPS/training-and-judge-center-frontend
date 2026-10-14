@@ -17,12 +17,15 @@ import {
   useMaterialDetail, useDeleteMaterial, usePublishMaterial,
   useUnpublishMaterial, usePinMaterial, useUnpinMaterial,
 } from '@/hooks/api/useMaterials'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
   BookOpen, Edit, Trash2, MoreVertical, Pin, Loader2,
   User, Calendar,
 } from 'lucide-react'
+import { isNotFoundError } from '@/lib/errors'
+import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
 export function MaterialDetailPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -30,7 +33,8 @@ export function MaterialDetailPage() {
   const { user } = useAuth()
   const { toast } = useToastContext()
 
-  const { data: material, isLoading } = useMaterialDetail(groupId!, materialId!)
+  const { data: material, isLoading, error } = useMaterialDetail(groupId!, materialId!)
+  const { data: groupDetail } = useGroupDetail(groupId!)
   const deleteMutation = useDeleteMaterial()
   const publishMutation = usePublishMaterial()
   const unpublishMutation = useUnpublishMaterial()
@@ -41,8 +45,10 @@ export function MaterialDetailPage() {
 
   const isAdmin = user?.role === 'ADMIN'
   const isAuthor = material?.author.nickname === user?.nickname
+  const isRealLead = groupDetail?.userMembership.role === 'LEAD'
   const canEdit = isAdmin || isAuthor
-  const canPin = isAdmin || user?.role === 'COACH'
+  // Matches PinMaterialUseCase: allowed for the real leader of this group, or the material's author.
+  const canPin = isAdmin || isRealLead || isAuthor
   const canSeeStatus = isAdmin || user?.role === 'COACH'
 
   const handleDelete = async () => {
@@ -90,7 +96,7 @@ export function MaterialDetailPage() {
 
   const breadcrumbs = [
     { label: 'Grupos', href: '/groups' },
-    { label: material?.group.name ?? 'Grupo', href: `/groups/${groupId}` },
+    { label: groupDetail?.name ?? 'Grupo', href: `/groups/${groupId}` },
     { label: 'Materiales', href: `/groups/${groupId}/materials` },
     { label: material?.title ?? 'Cargando...' },
   ]
@@ -105,6 +111,7 @@ export function MaterialDetailPage() {
     )
   }
 
+  if (isNotFoundError(error)) return <NotFoundPage />
   if (!material) return null
 
   return (
@@ -235,7 +242,7 @@ export function MaterialDetailPage() {
                         onClick={() => navigate(`/groups/${groupId}`)}
                         className="text-sm font-medium text-brand-primary hover:underline"
                       >
-                        {material.group.name}
+                        {groupDetail?.name ?? 'Grupo'}
                       </button>
                     </div>
                   </div>

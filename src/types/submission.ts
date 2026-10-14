@@ -11,12 +11,11 @@ export type SubmissionStatus =
   | 'MEMORY_LIMIT_EXCEEDED'
   | 'RUNTIME_EXCEPTION'
   | 'COMPILATION_ERROR'
-  | 'PRESENTATION_ERROR'
   | 'SYSTEM_ERROR'
 
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
 
-export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310'
+export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310' | 'blockly'
 export type SubmissionCompiler = 'g++' | 'javac' | 'pypy3'
 
 // Display type that includes '?' for frozen contest submissions
@@ -46,7 +45,14 @@ export interface SubmissionDetail {
   compiler: SubmissionCompiler
   executionTime: number | null
   memoryUsed: number | null
-  sourceCode: string
+  /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
+  sourceCode: string | null
+  /** URL del SVG de bloques (solo para envíos Blockly) */
+  blocksSvgUrl?: string
+  /** Indica si es un envío Blockly */
+  isBlocklySubmission?: boolean
+  /** XML del workspace de Blockly (solo para envíos Blockly con soporte) */
+  workspaceXml?: string
 }
 
 // === Submission List Item (no source code) ===

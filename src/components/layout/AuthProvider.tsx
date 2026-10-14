@@ -1,7 +1,11 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCurrentUser, userKeys } from '@/hooks/api/useUsers'
+import { useCurrentUser, useLogout } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
+import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired } from '@/lib/tokenStore'
+import { refreshSession } from '@/api/users'
+import { ROUTES } from '@/lib/constants'
+import { useToastContext } from '@/hooks/useToastContext'
 import type { UserRole } from '@/types/user'
 
 interface AuthProviderProps {
@@ -9,8 +13,45 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const token = localStorage.getItem('auth_token')
+  const token = useSyncExternalStore(subscribe, getAccessToken)
+  const [bootstrapping, setBootstrapping] = useState(true)
+  const logoutMutation = useLogout()
+  const { toast } = useToastContext()
   const queryClient = useQueryClient()
+  const previousTokenRef = useRef(token)
+
+  useEffect(() => {
+    if (previousTokenRef.current && !token) {
+      queryClient.clear()
+    }
+    previousTokenRef.current = token
+  }, [token, queryClient])
+
+  useEffect(() => {
+    let cancelled = false
+    refreshSession()
+      .then((res) => {
+        if (!cancelled) setAccessToken(res.token)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setBootstrapping(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    return subscribeSessionExpired(() => {
+      toast({
+        variant: 'error',
+        title: 'Sesión expirada',
+        description: 'Tu sesión expiró. Inicia sesión de nuevo para continuar.',
+      })
+    })
+  }, [toast])
+
   const { data: user, isLoading } = useCurrentUser(!!token)
 
   const isAuthenticated = !!user && !!token
@@ -25,15 +66,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const logout = useCallback(() => {
-    localStorage.removeItem('auth_token')
-    queryClient.removeQueries({ queryKey: userKeys.me })
-    queryClient.clear()
-    window.location.href = '/login'
-  }, [queryClient])
+    logoutMutation.mutate(undefined, {
+      onSettled: () => {
+        window.location.href = ROUTES.LOGIN
+      },
+    })
+  }, [logoutMutation])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, isAuthenticated, hasRole, logout }),
-    [user, isLoading, isAuthenticated, hasRole, logout],
+    () => ({ user, isLoading: bootstrapping || isLoading, isAuthenticated, hasRole, logout }),
+    [user, isLoading, bootstrapping, isAuthenticated, hasRole, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

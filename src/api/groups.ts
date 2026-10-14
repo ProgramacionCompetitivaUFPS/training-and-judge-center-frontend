@@ -35,14 +35,13 @@ export function getMyGroups(params?: MyGroupsParams): Promise<MyGroupsResponse> 
 }
 
 export function createGroup(data: CreateGroupRequest): Promise<Group> {
-  // Transform camelCase fields to snake_case for backend compatibility
   const payload: Record<string, unknown> = {
     name: data.name,
     visibility: data.visibility,
-    join_policy: data.joinPolicy,
+    joinPolicy: data.joinPolicy,
     ...(data.description !== undefined && { description: data.description }),
-    ...(data.initialLeadNicknames !== undefined && { initial_lead_nicknames: data.initialLeadNicknames }),
-    ...(data.initialMemberNicknames !== undefined && { initial_member_nicknames: data.initialMemberNicknames }),
+    ...(data.initialLeadNicknames !== undefined && { leadNicknames: data.initialLeadNicknames }),
+    ...(data.initialMemberNicknames !== undefined && { memberNicknames: data.initialMemberNicknames }),
   }
   return apiClient.post('/groups', payload)
 }
@@ -116,6 +115,6 @@ export function getInvitations(groupId: string, params?: { page?: number; size?:
   return apiClient.get(`/groups/${groupId}/invitations`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 
-export function acceptInvitation(groupId: string, token: string): Promise<void> {
-  return apiClient.post(`/groups/${groupId}/accept`, null, { params: { token } })
+export function acceptInvitation(groupId: string, invitationId: string): Promise<void> {
+  return apiClient.post(`/groups/${groupId}/invitations/accept`, { invitationId })
 }

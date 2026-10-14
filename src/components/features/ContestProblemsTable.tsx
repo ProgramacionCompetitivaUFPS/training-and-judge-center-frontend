@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
+import { PATHS } from '@/lib/constants'
+import { problemLabel } from '@/lib/utils'
 
 interface ContestProblem {
   position: number
@@ -13,13 +15,12 @@ interface ContestProblem {
 
 interface ContestProblemsTableProps {
   problems: ContestProblem[]
+  groupId: string
   contestId: string
   showSubmit?: boolean
 }
 
-const LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
-export function ContestProblemsTable({ problems, contestId, showSubmit }: ContestProblemsTableProps) {
+export function ContestProblemsTable({ problems, groupId, contestId, showSubmit }: ContestProblemsTableProps) {
   const navigate = useNavigate()
 
   if (problems.length === 0) {
@@ -39,7 +40,7 @@ export function ContestProblemsTable({ problems, contestId, showSubmit }: Contes
       </TableHeader>
       <TableBody>
         {problems.map((p) => {
-          const letter = LABELS[p.position - 1] || String(p.position)
+          const letter = problemLabel(p.position)
           return (
             <TableRow key={p.slug} className="group">
               <TableCell className="pl-6">
@@ -49,7 +50,7 @@ export function ContestProblemsTable({ problems, contestId, showSubmit }: Contes
               </TableCell>
               <TableCell>
                 <Link
-                  to={`/contests/${contestId}/problems/${letter}`}
+                  to={PATHS.contestProblem(groupId, contestId, letter)}
                   className="font-semibold text-neutral-text-primary hover:text-brand-primary transition-colors"
                 >
                   {p.title}
@@ -62,7 +63,7 @@ export function ContestProblemsTable({ problems, contestId, showSubmit }: Contes
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => navigate(`/contests/${contestId}/submit?problem=${letter}`)}
+                    onClick={() => navigate(PATHS.contestSubmit(groupId, contestId, letter))}
                   >
                     <Send className="h-3.5 w-3.5 mr-1" />
                     Enviar

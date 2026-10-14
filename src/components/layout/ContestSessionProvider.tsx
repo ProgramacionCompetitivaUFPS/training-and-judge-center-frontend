@@ -5,26 +5,28 @@ import type { ContestDetail } from '@/types/contest'
 
 interface ContestSessionValue {
   contestId: string | null
+  groupId: string | null
   contest: ContestDetail | undefined
   isLoading: boolean
 }
 
 const ContestSessionContext = createContext<ContestSessionValue>({
   contestId: null,
+  groupId: null,
   contest: undefined,
   isLoading: false,
 })
 export { ContestSessionContext }
 
-/** Extract contest ID from current URL if user is in a contest context */
-function useContestIdFromUrl(): string | null {
+/** Extract groupId and contestId from current URL if user is in a contest context */
+function useContestParamsFromUrl(): { groupId: string | null; contestId: string | null } {
   const location = useLocation()
 
-  // Match /contests/:id, /contests/:id/standings, /contests/:id/submissions, /contests/:id/problems/:slug
-  const contestMatch = location.pathname.match(/^\/contests\/([^/]+)/)
-  if (contestMatch) return contestMatch[1]
+  // Match /groups/:groupId/contests/:contestId and sub-paths
+  const match = location.pathname.match(/^\/groups\/([^/]+)\/contests\/([^/]+)/)
+  if (match) return { groupId: match[1], contestId: match[2] }
 
-  return null
+  return { groupId: null, contestId: null }
 }
 
 interface ContestSessionProviderProps {
@@ -32,12 +34,12 @@ interface ContestSessionProviderProps {
 }
 
 export function ContestSessionProvider({ children }: ContestSessionProviderProps) {
-  const contestId = useContestIdFromUrl()
-  const { data: contest, isLoading } = useContestDetail(contestId || '')
+  const { groupId, contestId } = useContestParamsFromUrl()
+  const { data: contest, isLoading } = useContestDetail(groupId || '', contestId || '')
 
   const value = useMemo<ContestSessionValue>(
-    () => ({ contestId, contest, isLoading }),
-    [contestId, contest, isLoading],
+    () => ({ contestId, groupId, contest, isLoading }),
+    [contestId, groupId, contest, isLoading],
   )
 
   return (

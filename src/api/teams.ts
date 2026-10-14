@@ -9,10 +9,10 @@ import type {
   TeamInvitationResponse,
   TeamInvitationsResponse,
   AcceptInvitationResponse,
-  RegisterTeamToContestRequest,
   ContestTeamRegistration,
   UpdateTeamRegistrationRequest,
   ContestTeamRegistrationsResponse,
+  TeamRegistrationEligibility,
 } from '@/types/team'
 
 // === Teams CRUD ===
@@ -59,18 +59,72 @@ export function rejectTeamInvitation(invitationId: string): Promise<void> {
 
 // === Contest Team Registration ===
 
-export function registerTeamToContest(contestId: string, data: RegisterTeamToContestRequest): Promise<ContestTeamRegistration> {
-  return apiClient.post(`/contests/${contestId}/team-registrations`, data)
+export function registerTeamToContest(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+  data: { selectedMembers: string[] },
+): Promise<ContestTeamRegistration> {
+  return apiClient.post(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`, data)
 }
 
-export function updateTeamRegistration(contestId: string, teamId: string, data: UpdateTeamRegistrationRequest): Promise<ContestTeamRegistration> {
-  return apiClient.put(`/contests/${contestId}/team-registrations/${teamId}`, data)
+export function updateTeamRegistration(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+  data: UpdateTeamRegistrationRequest,
+): Promise<ContestTeamRegistration> {
+  return apiClient.put(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`, data)
 }
 
-export function unregisterTeamFromContest(contestId: string, teamId: string): Promise<void> {
-  return apiClient.delete(`/contests/${contestId}/team-registrations/${teamId}`)
+export function getTeamRegistrationEligibility(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+): Promise<TeamRegistrationEligibility> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}/eligibility`)
 }
 
-export function getContestTeamRegistrations(contestId: string): Promise<ContestTeamRegistrationsResponse> {
-  return apiClient.get(`/contests/${contestId}/team-registrations`)
+export function unregisterTeamFromContest(
+  groupId: string,
+  contestId: string,
+  teamId: string,
+): Promise<void> {
+  return apiClient.delete(`/groups/${groupId}/contests/${contestId}/team-registrations/${teamId}`)
+}
+
+// El backend devuelve una forma plana ({items: [{teamId, teamName, ...}], total, page, ...})
+// distinta a la que usa el resto del frontend (equipo anidado); se traduce aquí para no
+// tener que tocar cada consumidor.
+interface RawTeamRegistrationItem {
+  id: string
+  teamId: string
+  teamName: string
+  selectedMembers: Array<{ id: string; nickname: string }>
+  registeredAt: string
+}
+
+interface RawTeamRegistrationsResponse {
+  items: RawTeamRegistrationItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getContestTeamRegistrations(
+  groupId: string,
+  contestId: string,
+): Promise<ContestTeamRegistrationsResponse> {
+  const raw = await apiClient.get<RawTeamRegistrationsResponse>(
+    `/groups/${groupId}/contests/${contestId}/team-registrations`,
+  )
+  return {
+    teams: raw.items.map((item) => ({
+      team: { id: item.teamId, name: item.teamName },
+      selectedMembers: item.selectedMembers,
+      registeredAt: item.registeredAt,
+    })),
+    total: raw.total,
+  }
 }

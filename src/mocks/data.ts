@@ -1,9 +1,10 @@
-import type { User, UserDashboard, PublicUserProfile, AdminUserListResponse } from '@/types/user'
-import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest } from '@/types/group'
+import type { User, UserDashboard, UserProfileStats, PublicUserProfile, AdminUserListResponse } from '@/types/user'
+import type { GroupListItem, GroupDetail, MyGroupItem, GroupMember, JoinRequest, InvitationListItem } from '@/types/group'
 
 // === Mock Users ===
 
 export const mockCurrentUser: User = {
+  id: 'user-luisadmin',
   email: 'admin@trainingcenter.com',
   name: 'Luis Admin',
   nickname: 'luisadmin',
@@ -14,11 +15,14 @@ export const mockCurrentUser: User = {
   status: 'ACTIVE',
   createdAt: '2024-06-15T10:00:00Z',
   updatedAt: '2025-01-10T14:30:00Z',
+  googleLinked: false,
+  hasPassword: true,
 }
 
 export const mockUsers: User[] = [
   mockCurrentUser,
   {
+    id: 'user-mariacoach',
     email: 'coach@trainingcenter.com',
     name: 'María Coach',
     nickname: 'mariacoach',
@@ -30,6 +34,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-08-20T08:00:00Z',
   },
   {
+    id: 'user-carloscp',
     email: 'contestant1@trainingcenter.com',
     name: 'Carlos Pérez',
     nickname: 'carloscp',
@@ -41,6 +46,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-09-01T12:00:00Z',
   },
   {
+    id: 'user-anagarcia',
     email: 'contestant2@trainingcenter.com',
     name: 'Ana García',
     nickname: 'anagarcia',
@@ -52,8 +58,9 @@ export const mockUsers: User[] = [
     createdAt: '2024-10-05T09:00:00Z',
   },
   {
+    id: 'user-pedroinactive',
     email: 'contestant3@trainingcenter.com',
-    name: 'Pedro Inactive',
+    name: 'Pedro Inactivo',
     nickname: 'pedroinactive',
     country: 'Perú',
     city: 'Lima',
@@ -63,6 +70,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-07-01T11:00:00Z',
   },
   {
+    id: 'user-sofiarodriguez',
     email: 'sofia@trainingcenter.com',
     name: 'Sofía Rodríguez',
     nickname: 'sofiarodriguez',
@@ -74,6 +82,7 @@ export const mockUsers: User[] = [
     createdAt: '2024-11-15T14:00:00Z',
   },
   {
+    id: 'user-diegomartinez',
     email: 'diego@trainingcenter.com',
     name: 'Diego Martínez',
     nickname: 'diegomartinez',
@@ -89,93 +98,108 @@ export const mockUsers: User[] = [
 // === Mock Dashboard ===
 
 export const mockDashboard: UserDashboard = {
-  totalSubmissions: 47,
-  acceptedSubmissions: 32,
-  problemsSolved: 18,
-  contestsParticipated: 5,
   recentSubmissions: [
-    {
-      id: 'sub-1',
-      problemSlug: 'two-sum',
-      problemTitle: 'Two Sum',
-      status: 'ACCEPTED',
-      language: 'cpp20',
-      submittedAt: '2026-03-14T18:30:00Z',
-    },
-    {
-      id: 'sub-2',
-      problemSlug: 'binary-search',
-      problemTitle: 'Binary Search',
-      status: 'WRONG_ANSWER',
-      language: 'python310',
-      submittedAt: '2026-03-13T15:20:00Z',
-    },
-    {
-      id: 'sub-3',
-      problemSlug: 'merge-sort',
-      problemTitle: 'Merge Sort',
-      status: 'TIME_LIMIT_EXCEEDED',
-      language: 'java17',
-      submittedAt: '2026-03-12T10:45:00Z',
-    },
-    {
-      id: 'sub-4',
-      problemSlug: 'graph-bfs',
-      problemTitle: 'Graph BFS',
-      status: 'ACCEPTED',
-      language: 'cpp20',
-      submittedAt: '2026-03-11T20:00:00Z',
-    },
-    {
-      id: 'sub-5',
-      problemSlug: 'dynamic-knapsack',
-      problemTitle: 'Dynamic Knapsack',
-      status: 'COMPILATION_ERROR',
-      language: 'cpp20',
-      submittedAt: '2026-03-10T09:15:00Z',
-    },
+    { id: 'sub-0', problemSlug: 'string-match', problemTitle: 'Pattern Matching', verdict: 'ACCEPTED', language: 'python310', submittedAt: '2026-03-15T09:10:00Z', executionTime: 60, memoryKb: 1536 },
+    { id: 'sub-1', problemSlug: 'two-sum', problemTitle: 'Two Sum', verdict: 'ACCEPTED', language: 'cpp20', submittedAt: '2026-03-14T18:30:00Z', executionTime: 45, memoryKb: 2048 },
+    { id: 'sub-2', problemSlug: 'binary-search', problemTitle: 'Binary Search', verdict: 'WRONG_ANSWER', language: 'python310', submittedAt: '2026-03-13T15:20:00Z', executionTime: 120, memoryKb: 1024 },
+    { id: 'sub-3', problemSlug: 'merge-sort', problemTitle: 'Merge Sort', verdict: 'TIME_LIMIT_EXCEEDED', language: 'java17', submittedAt: '2026-03-12T10:45:00Z', executionTime: null, memoryKb: null },
+    { id: 'sub-4', problemSlug: 'graph-bfs', problemTitle: 'Graph BFS', verdict: 'ACCEPTED', language: 'cpp20', submittedAt: '2026-03-11T20:00:00Z', executionTime: 30, memoryKb: 512 },
+    { id: 'sub-5', problemSlug: 'dynamic-knapsack', problemTitle: 'Dynamic Knapsack', verdict: 'COMPILATION_ERROR', language: 'cpp20', submittedAt: '2026-03-10T09:15:00Z', executionTime: null, memoryKb: null },
   ],
   upcomingContests: [
     {
       id: 'contest-1',
-      name: 'Contest Semanal #12',
-      startTime: '2026-03-20T14:00:00Z',
-      endTime: '2026-03-20T19:00:00Z',
-      groupName: 'Grupo ICPC Colombia',
+      name: 'Competencia Semanal #12',
+      startDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      durationMinutes: 300,
+      groupId: 'group-1',
+      groupName: 'ICPC Colombia',
     },
     {
       id: 'contest-2',
       name: 'Práctica Grafos',
-      startTime: '2026-03-22T16:00:00Z',
-      endTime: '2026-03-22T20:00:00Z',
+      startDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      durationMinutes: 240,
+      groupId: 'group-2',
       groupName: 'Entrenamiento Avanzado',
     },
   ],
   activeContests: [],
-  recentMaterials: [],
-  streak: { currentStreak: 3, longestStreak: 7 },
+  problemsSolved: 18,
+  materialsCount: 4,
+  streak: { current: 3, maximum: 7 },
+  recentContestResults: [
+    { contestId: 'contest-3', contestName: 'Competencia Semanal #44', position: 23, problemsSolved: 3, penalty: 145 },
+  ],
+}
+
+export const mockProfileStats: UserProfileStats = {
+  problemsSolved: 18,
+  totalSubmissions: 47,
+  acceptedSubmissions: 32,
+  contestsParticipated: 5,
   ranking: { position: 12, totalUsers: 150 },
-  recentContestResults: [],
+  topicStats: [
+    { tag: 'graphs', solved: 15 },
+    { tag: 'dp', solved: 12 },
+    { tag: 'arrays', solved: 10 },
+    { tag: 'binary-search', solved: 9 },
+    { tag: 'strings', solved: 8 },
+    { tag: 'sorting', solved: 7 },
+    { tag: 'data-structures', solved: 6 },
+    { tag: 'bfs', solved: 6 },
+    { tag: 'dfs', solved: 5 },
+    { tag: 'greedy', solved: 5 },
+    { tag: 'math', solved: 4 },
+    { tag: 'trees', solved: 4 },
+    { tag: 'geometry', solved: 3 },
+    { tag: 'number-theory', solved: 3 },
+    { tag: 'backtracking', solved: 2 },
+    { tag: 'two-pointers', solved: 2 },
+    { tag: 'segment-tree', solved: 2 },
+    { tag: 'hashing', solved: 1 },
+    { tag: 'bit-manipulation', solved: 1 },
+    { tag: 'disjoint-set', solved: 1 },
+  ],
 }
 
 // === Helper to build public profile from User ===
 
-export function toPublicProfile(user: User): PublicUserProfile {
+// `full` mirrors the backend's own rule: fullUserResponse for Admin viewers or when viewing
+// your own profile, publicUserResponse (no email/country/city/updatedAt) otherwise.
+export function toPublicProfile(user: User, full: boolean): PublicUserProfile {
   return {
     name: user.name,
     nickname: user.nickname,
     institution: user.institution,
     role: user.role,
     createdAt: user.createdAt,
+    ...(full && {
+      email: user.email,
+      country: user.country,
+      city: user.city,
+      updatedAt: user.updatedAt,
+    }),
   }
 }
 
 // === Helper to build paginated admin user list ===
 
 export function buildAdminUserList(
-  params: { page?: number; limit?: number; search?: string; role?: string; status?: string }
+  params: {
+    page?: number
+    limit?: number
+    search?: string
+    role?: string
+    status?: string
+    country?: string
+    city?: string
+    institution?: string
+    sort?: string
+    order?: string
+  }
 ): AdminUserListResponse {
-  let filtered = [...mockUsers]
+  let filtered = [...mockUsers] as (User & { id: string })[]
 
   if (params.search) {
     const s = params.search.toLowerCase()
@@ -189,19 +213,42 @@ export function buildAdminUserList(
   if (params.status) {
     filtered = filtered.filter((u) => u.status === params.status)
   }
+  if (params.country) {
+    filtered = filtered.filter((u) => u.country.toLowerCase() === params.country!.toLowerCase())
+  }
+  if (params.city) {
+    filtered = filtered.filter((u) => u.city.toLowerCase() === params.city!.toLowerCase())
+  }
+  if (params.institution) {
+    filtered = filtered.filter((u) => u.institution.toLowerCase() === params.institution!.toLowerCase())
+  }
+
+  if (params.sort === 'name' || params.sort === 'nickname' || params.sort === 'createdAt') {
+    const sortKey = params.sort
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return aVal.localeCompare(bVal) * direction
+    })
+  }
 
   const page = params.page || 1
   const limit = params.limit || 20
   const start = (page - 1) * limit
   const paged = filtered.slice(start, start + limit)
 
+  const totalPages = Math.ceil(filtered.length / limit) || 1
+
   return {
-    data: paged,
+    users: paged,
     pagination: {
-      totalCount: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit) || 1,
-      itemsPerPage: limit,
+      page,
+      limit,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     },
   }
 }
@@ -212,15 +259,11 @@ export const mockGroups: GroupListItem[] = [
   {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
     memberCount: 45,
-    leadCount: 3,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
     userRole: 'LEAD',
     createdAt: '2024-06-01T10:00:00Z',
   },
@@ -232,10 +275,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 22,
-    leadCount: 2,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
     userRole: 'MEMBER',
     createdAt: '2024-08-15T08:00:00Z',
   },
@@ -247,10 +286,6 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: false,
     memberCount: 78,
-    leadCount: 4,
-    contestCount: 20,
-    materialCount: 25,
-    activeContestCount: 2,
     userRole: null,
     createdAt: '2024-09-01T12:00:00Z',
   },
@@ -262,11 +297,7 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'INVITE',
     isGlobal: false,
     memberCount: 8,
-    leadCount: 1,
-    contestCount: 3,
-    materialCount: 2,
-    activeContestCount: 0,
-    userRole: null,
+    userRole: 'LEAD',
     createdAt: '2025-01-10T14:00:00Z',
   },
   {
@@ -277,12 +308,19 @@ export const mockGroups: GroupListItem[] = [
     joinPolicy: 'OPEN',
     isGlobal: true,
     memberCount: 150,
-    leadCount: 5,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
     userRole: 'MEMBER',
     createdAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'group-5',
+    name: 'Olimpiadas Regionales',
+    description: 'Grupo de preparación para olimpiadas regionales de programación.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'REQUEST',
+    isGlobal: false,
+    memberCount: 12,
+    userRole: null,
+    createdAt: '2025-03-01T10:00:00Z',
   },
 ]
 
@@ -290,25 +328,20 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
   'group-1': {
     id: 'group-1',
     name: 'ICPC Colombia',
-    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y contests.',
+    description: 'Grupo oficial de entrenamiento para ICPC Colombia. Práctica semanal y competencias.',
     visibility: 'VISIBLE',
     joinPolicy: 'REQUEST',
     isGlobal: false,
     statistics: {
       memberCount: 45,
       leadCount: 3,
-      contestCount: 12,
-      materialCount: 8,
-      activeContestCount: 1,
-      scheduledContestCount: 2,
-      finishedContestCount: 9,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
     createdAt: '2024-06-01T10:00:00Z',
   },
   'group-2': {
@@ -321,17 +354,12 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 22,
       leadCount: 2,
-      contestCount: 6,
-      materialCount: 15,
-      activeContestCount: 0,
-      scheduledContestCount: 1,
-      finishedContestCount: 5,
     },
     leads: [
       { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
       { userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez' },
     ],
-    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z', hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
     createdAt: '2024-08-15T08:00:00Z',
   },
   'group-3': {
@@ -344,33 +372,93 @@ export const mockGroupDetails: Record<string, GroupDetail> = {
     statistics: {
       memberCount: 78,
       leadCount: 4,
-      contestCount: 20,
-      materialCount: 25,
-      activeContestCount: 2,
-      scheduledContestCount: 3,
-      finishedContestCount: 15,
     },
     leads: [
       { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    userMembership: { isMember: false, role: null, joinedAt: null, hasPendingRequest: false, hasPendingInvitation: false },
+    userMembership: { isMember: false, role: null, joinedAt: null },
     createdAt: '2024-09-01T12:00:00Z',
+  },
+  'group-4': {
+    id: 'group-4',
+    name: 'Equipo Privado UBA',
+    description: 'Grupo privado del equipo de la UBA.',
+    visibility: 'NOT_VISIBLE',
+    joinPolicy: 'INVITE',
+    isGlobal: false,
+    statistics: {
+      memberCount: 8,
+      leadCount: 1,
+    },
+    leads: [
+      { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+    ],
+    userMembership: { isMember: true, role: 'LEAD', joinedAt: '2025-01-10T14:00:00Z' },
+    createdAt: '2025-01-10T14:00:00Z',
+  },
+  'group-global': {
+    id: 'group-global',
+    name: 'Training Center Global',
+    description: 'Grupo global de la plataforma. Todos los usuarios pertenecen automáticamente.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'OPEN',
+    isGlobal: true,
+    statistics: {
+      memberCount: 150,
+      leadCount: 5,
+    },
+    leads: [
+      { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+      { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
+    ],
+    userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-01-01T00:00:00Z' },
+    createdAt: '2024-01-01T00:00:00Z',
+  },
+  'group-5': {
+    id: 'group-5',
+    name: 'Olimpiadas Regionales',
+    description: 'Grupo de preparación para olimpiadas regionales de programación.',
+    visibility: 'VISIBLE',
+    joinPolicy: 'REQUEST',
+    isGlobal: false,
+    statistics: {
+      memberCount: 12,
+      leadCount: 1,
+    },
+    leads: [
+      { userId: 'u2', nickname: 'mariacoach', name: 'María Coach' },
+    ],
+    // Rejected once before — used to test distinguishing "rejected" from "never requested".
+    userMembership: { isMember: false, role: null, joinedAt: null },
+    createdAt: '2025-03-01T10:00:00Z',
   },
 }
 
 export const mockGroupMembers: Record<string, GroupMember[]> = {
   'group-1': [
-    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', joinedAt: '2024-06-01T10:00:00Z' },
-    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-06-05T08:00:00Z' },
-    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-07-10T12:00:00Z' },
-    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', joinedAt: '2024-08-20T09:00:00Z' },
-    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', joinedAt: '2024-11-20T14:00:00Z' },
-    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-12-05T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-06-01T10:00:00Z' },
+    { groupId: 'group-1', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-06-05T08:00:00Z' },
+    { groupId: 'group-1', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-07-10T12:00:00Z' },
+    { groupId: 'group-1', userId: 'u4', nickname: 'anagarcia', name: 'Ana García', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-08-20T09:00:00Z' },
+    { groupId: 'group-1', userId: 'u6', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-11-20T14:00:00Z' },
+    { groupId: 'group-1', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-12-05T10:00:00Z' },
   ],
   'group-2': [
-    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', joinedAt: '2024-08-15T08:00:00Z' },
-    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
-    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', joinedAt: '2024-09-10T10:00:00Z' },
+    { groupId: 'group-2', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-08-15T08:00:00Z' },
+    { groupId: 'group-2', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-09-01T12:00:00Z' },
+    { groupId: 'group-2', userId: 'u7', nickname: 'diegomartinez', name: 'Diego Martínez', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-09-10T10:00:00Z' },
+  ],
+  'group-4': [
+    { groupId: 'group-4', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2025-01-10T14:00:00Z' },
+    { groupId: 'group-4', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2025-01-12T09:00:00Z' },
+  ],
+  'group-global': [
+    { groupId: 'group-global', userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin', role: 'LEAD', systemRole: 'ADMIN', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2024-01-01T00:00:00Z' },
+    { groupId: 'group-global', userId: 'u3', nickname: 'carloscp', name: 'Carlos Pérez', role: 'MEMBER', systemRole: 'CONTESTANT', joinedAt: '2024-01-01T00:00:00Z' },
+  ],
+  'group-5': [
+    { groupId: 'group-5', userId: 'u2', nickname: 'mariacoach', name: 'María Coach', role: 'LEAD', systemRole: 'COACH', joinedAt: '2025-03-01T10:00:00Z' },
   ],
 }
 
@@ -383,6 +471,47 @@ export const mockJoinRequests: Record<string, JoinRequest[]> = {
       message: 'Me gustaría unirme para entrenar para ICPC.',
       status: 'PENDING',
       createdAt: '2026-03-10T14:00:00Z',
+    },
+    {
+      id: 'req-3',
+      groupId: 'group-1',
+      requester: { userId: 'u5', nickname: 'pedromartinez', name: 'Pedro Martínez' },
+      message: 'Ya participé en regionales anteriores.',
+      status: 'APPROVED',
+      createdAt: '2026-02-20T09:00:00Z',
+    },
+    {
+      id: 'req-4',
+      groupId: 'group-1',
+      requester: { userId: 'u8', nickname: 'pedroinactive', name: 'Pedro Inactivo' },
+      status: 'REJECTED',
+      createdAt: '2026-02-15T11:00:00Z',
+    },
+  ],
+  'group-5': [
+    {
+      id: 'req-2',
+      groupId: 'group-5',
+      requester: { userId: 'u1', nickname: 'luisadmin', name: 'Luis Admin' },
+      message: 'Quiero prepararme para las regionales.',
+      status: 'REJECTED',
+      createdAt: '2026-02-01T10:00:00Z',
+    },
+  ],
+}
+
+export const mockInvitations: Record<string, InvitationListItem[]> = {
+  'group-1': [
+    {
+      id: 'inv-1',
+      groupId: 'group-1',
+      invitee: { userId: 'u8', nickname: 'pedroinactive', email: 'contestant3@trainingcenter.com', name: 'Pedro Inactivo' },
+      expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'inv-2',
+      groupId: 'group-1',
+      expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ],
 }
@@ -398,10 +527,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'LEAD',
     joinedAt: '2024-06-01T10:00:00Z',
     memberCount: 45,
-    contestCount: 12,
-    materialCount: 8,
-    activeContestCount: 1,
-    unreadNotifications: 3,
   },
   {
     id: 'group-2',
@@ -413,10 +538,6 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-09-01T12:00:00Z',
     memberCount: 22,
-    contestCount: 6,
-    materialCount: 15,
-    activeContestCount: 0,
-    unreadNotifications: 0,
   },
   {
     id: 'group-global',
@@ -428,10 +549,17 @@ export const mockMyGroups: MyGroupItem[] = [
     myRole: 'MEMBER',
     joinedAt: '2024-01-01T00:00:00Z',
     memberCount: 150,
-    contestCount: 30,
-    materialCount: 40,
-    activeContestCount: 3,
-    unreadNotifications: 0,
+  },
+  {
+    id: 'group-4',
+    name: 'Equipo Privado UBA',
+    description: 'Grupo privado del equipo de la UBA.',
+    visibility: 'NOT_VISIBLE',
+    joinPolicy: 'INVITE',
+    isGlobal: false,
+    myRole: 'LEAD',
+    joinedAt: '2025-01-10T14:00:00Z',
+    memberCount: 8,
   },
 ]
 
@@ -443,6 +571,8 @@ export function buildGroupList(params: {
   search?: string
   joinPolicy?: string
   visibility?: string
+  sortBy?: string
+  order?: string
 }) {
   let filtered = [...mockGroups]
 
@@ -455,6 +585,17 @@ export function buildGroupList(params: {
   }
   if (params.visibility) {
     filtered = filtered.filter((g) => g.visibility === params.visibility)
+  }
+  if (params.sortBy === 'name' || params.sortBy === 'createdAt' || params.sortBy === 'memberCount') {
+    const sortKey = params.sortBy
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return typeof aVal === 'number' && typeof bVal === 'number'
+        ? (aVal - bVal) * direction
+        : String(aVal).localeCompare(String(bVal)) * direction
+    })
   }
 
   const page = params.page || 1
@@ -480,6 +621,8 @@ export function buildMyGroupsList(params: {
   limit?: number
   search?: string
   role?: string
+  sortBy?: string
+  order?: string
 }) {
   let filtered = [...mockMyGroups]
 
@@ -489,6 +632,18 @@ export function buildMyGroupsList(params: {
   }
   if (params.role) {
     filtered = filtered.filter((g) => g.myRole === params.role)
+  }
+
+  if (params.sortBy === 'name' || params.sortBy === 'joinedAt' || params.sortBy === 'memberCount') {
+    const sortKey = params.sortBy
+    const direction = params.order === 'desc' ? -1 : 1
+    filtered = [...filtered].sort((a, b) => {
+      const aVal = a[sortKey]
+      const bVal = b[sortKey]
+      return typeof aVal === 'number' && typeof bVal === 'number'
+        ? (aVal - bVal) * direction
+        : String(aVal).localeCompare(String(bVal)) * direction
+    })
   }
 
   const page = params.page || 1
@@ -517,13 +672,11 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'two-sum',
     title: 'Two Sum',
-    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
-    outputFormat: 'Imprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
-    examples: [
-      { input: '4 9\n2 7 11 15', output: '0 1', explanation: '$nums[0] + nums[1] = 2 + 7 = 9$' },
-      { input: '3 6\n3 2 4', output: '1 2' },
-      { input: '2 6\n3 3', output: '0 1' },
+    statement: 'Dado un arreglo de $n$ enteros y un entero objetivo $target$, encuentra dos índices $i$ y $j$ tales que $nums[i] + nums[j] = target$ con $i \\neq j$.\n\nPuedes asumir que cada entrada tiene exactamente una solución y no puedes usar el mismo elemento dos veces.\n\n### Restricciones\n\n- $2 \\leq n \\leq 10^4$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- $-10^9 \\leq target \\leq 10^9$\n- Existe exactamente una solución válida.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime dos enteros $i$ y $j$ (0-indexed) separados por un espacio, tales que $nums[i] + nums[j] = target$.',
+    samples: [
+      { name: '1', input: '4 9\n2 7 11 15', output: '0 1' },
+      { name: '2', input: '3 6\n3 2 4', output: '1 2' },
+      { name: '3', input: '2 6\n3 3', output: '0 1' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -536,7 +689,7 @@ export const mockProblems: ProblemDetail[] = [
       { nickname: 'mariacoach', name: 'María Coach' },
       { nickname: 'luisadmin', name: 'Luis Admin' },
     ],
-    files: { testCases: true, solutions: ['solution.cpp', 'solution.py'], checker: false, validator: true },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }, { filename: 'solution.py', language: 'python310' }], checker: false, validator: true },
     createdAt: '2025-06-10T10:00:00Z',
     updatedAt: '2025-07-01T14:00:00Z',
     problemJudgingUpdatedAt: '2025-07-01T14:00:00Z',
@@ -544,12 +697,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'binary-search',
     title: 'Binary Search',
-    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.',
-    outputFormat: 'Imprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
-    examples: [
-      { input: '6 9\n-1 0 3 5 9 12', output: '4' },
-      { input: '6 2\n-1 0 3 5 9 12', output: '-1' },
+    statement: 'Dado un arreglo ordenado de $n$ enteros distintos y un valor objetivo $target$, determina el índice donde se encuentra $target$. Si no existe, imprime $-1$.\n\nDebes implementar una solución con complejidad $O(\\log n)$.\n\n### Restricciones\n\n- $1 \\leq n \\leq 10^5$\n- $-10^9 \\leq nums[i] \\leq 10^9$\n- El arreglo está ordenado de forma estrictamente creciente.\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $target$.\n\nLa segunda línea contiene $n$ enteros ordenados de menor a mayor.\n\n## Salida\n\nImprime un entero: el índice (0-indexed) de $target$ en el arreglo, o $-1$ si no se encuentra.',
+    samples: [
+      { name: '1', input: '6 9\n-1 0 3 5 9 12', output: '4' },
+      { name: '2', input: '6 2\n-1 0 3 5 9 12', output: '-1' },
     ],
     timeLimit: 1000,
     memoryLimit: 128,
@@ -565,12 +716,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'merge-sort',
     title: 'Merge Sort',
-    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$',
-    inputFormat: 'La primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.',
-    outputFormat: 'Imprime $n$ enteros separados por espacios: el arreglo ordenado.',
-    examples: [
-      { input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
-      { input: '3\n-1 -5 3', output: '-5 -1 3' },
+    statement: 'Implementa el algoritmo de **Merge Sort**. Dado un arreglo de $n$ enteros, ordénalos de forma no decreciente.\n\n### Restricciones\n\n- $1 \\leq n \\leq 2 \\times 10^5$\n- $-10^9 \\leq a_i \\leq 10^9$\n\n## Entrada\n\nLa primera línea contiene un entero $n$.\n\nLa segunda línea contiene $n$ enteros separados por espacios.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: el arreglo ordenado.',
+    samples: [
+      { name: '1', input: '5\n5 2 3 1 4', output: '1 2 3 4 5' },
+      { name: '2', input: '3\n-1 -5 3', output: '-5 -1 3' },
     ],
     timeLimit: 3000,
     memoryLimit: 512,
@@ -580,7 +729,7 @@ export const mockProblems: ProblemDetail[] = [
     accessibility: 'PRIVATE',
     author: { nickname: 'mariacoach', name: 'María Coach' },
     modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
-    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: false },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }], checker: false, validator: false },
     createdAt: '2025-08-20T09:00:00Z',
     updatedAt: '2025-09-05T11:00:00Z',
     problemJudgingUpdatedAt: '2025-09-05T11:00:00Z',
@@ -588,12 +737,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'graph-bfs',
     title: 'Graph BFS',
-    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.',
-    inputFormat: 'La primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.',
-    outputFormat: 'Imprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
-    examples: [
-      { input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2', explanation: 'Desde el vértice 1: distancia a 2 es 1, a 3 es 1, a 4 es 2.' },
-      { input: '3 1 1\n1 2', output: '0 1 -1' },
+    statement: 'Dado un grafo no dirigido y no ponderado con $n$ vértices y $m$ aristas, y un vértice fuente $s$, encuentra la distancia mínima desde $s$ a todos los demás vértices usando BFS.\n\nSi un vértice no es alcanzable desde $s$, su distancia es $-1$.\n\n## Entrada\n\nLa primera línea contiene tres enteros $n$, $m$ y $s$ ($1 \\leq n \\leq 10^5$, $0 \\leq m \\leq 2 \\times 10^5$, $1 \\leq s \\leq n$).\n\nLas siguientes $m$ líneas contienen dos enteros $u$ y $v$ ($1 \\leq u, v \\leq n$, $u \\neq v$) representando una arista no dirigida.\n\nSe garantiza que no hay aristas múltiples ni bucles.\n\n## Salida\n\nImprime $n$ enteros separados por espacios: la distancia mínima desde $s$ a cada vértice (1-indexed).\n\nSi un vértice no es alcanzable desde $s$, imprime $-1$ para ese vértice.',
+    samples: [
+      { name: '1', input: '4 4 1\n1 2\n1 3\n2 4\n3 4', output: '0 1 1 2' },
+      { name: '2', input: '3 1 1\n1 2', output: '0 1 -1' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -609,12 +756,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'dynamic-knapsack',
     title: 'Dynamic Knapsack',
-    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$',
-    inputFormat: 'La primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.',
-    outputFormat: 'Imprime un entero: el valor máximo que se puede obtener.',
-    examples: [
-      { input: '3 50\n10 60\n20 100\n30 120', output: '220', explanation: 'Se toman los objetos 2 y 3 (peso total 50, valor 100+120=220).' },
-      { input: '2 10\n5 10\n5 10', output: '20' },
+    statement: 'Dados $n$ objetos con pesos $w_i$ y valores $v_i$, y una mochila con capacidad $W$, determina el valor máximo que puedes llevar sin exceder la capacidad.\n\nLa relación de recurrencia es:\n\n$$dp[i][w] = \\max(dp[i-1][w], \\; dp[i-1][w - w_i] + v_i)$$\n\n## Entrada\n\nLa primera línea contiene dos enteros $n$ y $W$ ($1 \\leq n \\leq 100$, $1 \\leq W \\leq 10^5$).\n\nLas siguientes $n$ líneas contienen dos enteros $w_i$ y $v_i$ ($1 \\leq w_i, v_i \\leq 10^3$), representando el peso y valor de cada objeto.\n\n## Salida\n\nImprime un entero: el valor máximo que se puede obtener.',
+    samples: [
+      { name: '1', input: '3 50\n10 60\n20 100\n30 120', output: '220' },
+      { name: '2', input: '2 10\n5 10\n5 10', output: '20' },
     ],
     timeLimit: 2000,
     memoryLimit: 256,
@@ -630,12 +775,10 @@ export const mockProblems: ProblemDetail[] = [
   {
     slug: 'string-matching',
     title: 'String Matching (KMP)',
-    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.',
-    inputFormat: '```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.',
-    outputFormat: '```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
-    examples: [
-      { input: 'abcabcabc\nabc', output: '3\n0 3 6' },
-      { input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
+    statement: 'Implementa el algoritmo KMP de búsqueda de cadenas. Dado un texto $t$ y un patrón $p$, encuentra todas las posiciones donde $p$ ocurre en $t$.\n\nLa complejidad esperada es $O(|t| + |p|)$.\n\n### Restricciones\n\n- $1 \\leq |p| \\leq |t| \\leq 10^6$\n- Ambas cadenas contienen solo letras minúsculas del alfabeto inglés.\n\n## Entrada\n\n```\nt\np\n```\n\nDonde $t$ es el texto y $p$ es el patrón a buscar.\n\n## Salida\n\n```\nk\ni_1 i_2 ... i_k\n```\n\nDonde $k$ es el número de ocurrencias y $i_1, i_2, \\ldots, i_k$ son las posiciones (0-indexed) donde comienza cada ocurrencia.',
+    samples: [
+      { name: '1', input: 'abcabcabc\nabc', output: '3\n0 3 6' },
+      { name: '2', input: 'aaaaaa\naa', output: '5\n0 1 2 3 4' },
     ],
     timeLimit: 1500,
     memoryLimit: 256,
@@ -645,7 +788,7 @@ export const mockProblems: ProblemDetail[] = [
     accessibility: 'PRIVATE',
     author: { nickname: 'mariacoach', name: 'María Coach' },
     modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }],
-    files: { testCases: true, solutions: ['solution.cpp'], checker: false, validator: true },
+    files: { testCases: true, solutions: [{ filename: 'solution.cpp', language: 'cpp20' }], checker: false, validator: true },
     createdAt: '2025-11-01T08:00:00Z',
     updatedAt: '2025-11-10T10:00:00Z',
     problemJudgingUpdatedAt: '2025-11-10T10:00:00Z',
@@ -654,9 +797,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'segment-tree-range',
     title: 'Segment Tree Range Query',
     statement: null,
-    inputFormat: null,
-    outputFormat: null,
-    examples: [],
+    samples: [],
     timeLimit: 3000,
     memoryLimit: 512,
     languageOverrides: [],
@@ -674,9 +815,7 @@ export const mockProblems: ProblemDetail[] = [
     slug: 'minimum-spanning-tree',
     title: 'Minimum Spanning Tree',
     statement: null,
-    inputFormat: null,
-    outputFormat: null,
-    examples: [],
+    samples: [],
     timeLimit: null,
     memoryLimit: null,
     languageOverrides: [],
@@ -712,6 +851,7 @@ export function buildProblemList(params: {
   accessibility?: string
   tags?: string
   author?: string
+  search?: string
   userNickname?: string
 }) {
   let filtered = [...mockProblems]
@@ -739,6 +879,10 @@ export function buildProblemList(params: {
   if (params.author) {
     filtered = filtered.filter((p) => p.author.nickname === params.author)
   }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((p) => p.title.toLowerCase().includes(s))
+  }
 
   // Sort by createdAt desc
   filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -747,14 +891,17 @@ export function buildProblemList(params: {
   const limit = params.limit || 20
   const start = (page - 1) * limit
   const paged = filtered.slice(start, start + limit)
+  const totalPages = Math.ceil(filtered.length / limit) || 1
 
   return {
     problems: paged.map(toListItem),
     pagination: {
-      totalCount: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit) || 1,
-      itemsPerPage: limit,
+      page,
+      limit,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     },
   }
 }
@@ -918,6 +1065,24 @@ export const mockSubmissions: SubmissionDetail[] = [
     memoryUsed: null,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
   },
+  {
+    id: 'sub-009-aaaa-bbbb-cccc-ddddeeee0009',
+    status: 'WRONG_ANSWER',
+    visibility: 'PRIVATE',
+    submittedAt: '2026-03-15T10:00:00Z',
+    judgedAt: '2026-03-15T10:00:04Z',
+    problem: { slug: 'two-sum', title: 'Two Sum' },
+    contest: null,
+    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    language: 'blockly',
+    compiler: 'pypy3',
+    executionTime: 200,
+    memoryUsed: 16,
+    sourceCode: 'n = int(input())\ntarget = int(input())\nnums = []\nfor i in range(n):\n  nums.append(int(input()))\nfor i in range(n):\n  for j in range(i + 1, n):\n    if nums[i] + nums[j] == target:\n      print(i, j)',
+    blocksSvgUrl: '/mock-blocks.svg',
+    isBlocklySubmission: true,
+    workspaceXml: '<xml xmlns="https://developers.google.com/blockly/xml"><variables><variable id="v1">n</variable><variable id="v2">target</variable><variable id="v3">nums</variable></variables><block type="variables_set" x="20" y="20"><field name="VAR" id="v1">n</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="variables_set"><field name="VAR" id="v2">target</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="text_print"><value name="TEXT"><shadow type="text"><field name="TEXT">Hola mundo</field></shadow></value></block></next></block></next></block></xml>',
+  },
 ]
 
 export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
@@ -941,6 +1106,8 @@ export function buildMySubmissionsList(params: {
   verdict?: string
   problemSlug?: string
   language?: string
+  from?: string
+  to?: string
   userNickname: string
 }) {
   let filtered = mockSubmissions.filter((s) => s.submittedBy.nickname === params.userNickname)
@@ -953,6 +1120,14 @@ export function buildMySubmissionsList(params: {
   }
   if (params.language) {
     filtered = filtered.filter((s) => s.language === params.language)
+  }
+  if (params.from) {
+    const fromTime = new Date(params.from).getTime()
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() >= fromTime)
+  }
+  if (params.to) {
+    const toTime = new Date(params.to).getTime() + 24 * 60 * 60 * 1000 - 1
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() <= toTime)
   }
 
   filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
@@ -1026,7 +1201,7 @@ import type {
 } from '@/types/contest'
 
 // Helper to compute contest status
-function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
+export function computeContestStatus(startTime: string, endTime: string): 'SCHEDULED' | 'ACTIVE' | 'FINISHED' {
   const now = Date.now()
   const start = new Date(startTime).getTime()
   const end = new Date(endTime).getTime()
@@ -1046,8 +1221,8 @@ const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
-    name: 'Contest Semanal #12',
-    description: 'Contest de práctica semanal enfocado en programación dinámica y grafos.',
+    name: 'Competencia Semanal #12',
+    description: 'Competencia de práctica semanal enfocada en programación dinámica y grafos.',
     startTime: inTwoDays.toISOString(),
     endTime: inTwoDaysEnd.toISOString(),
     duration: 18000,
@@ -1098,7 +1273,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-3',
-    name: 'Challenge Algoritmos Clásicos',
+    name: 'Reto Algoritmos Clásicos',
     description: 'Competencia de algoritmos clásicos: sorting, búsqueda, DP.',
     startTime: yesterday.toISOString(),
     endTime: yesterdayEnd.toISOString(),
@@ -1126,7 +1301,7 @@ export const mockContests: ContestDetail[] = [
   },
   {
     id: 'contest-4',
-    name: 'Mini Contest DP',
+    name: 'Mini Competencia DP',
     description: null,
     startTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     endTime: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
@@ -1149,6 +1324,59 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-18T14:00:00Z',
     updatedAt: '2026-03-18T14:00:00Z',
   },
+  {
+    // Belongs to group-3, where mariacoach (COACH, not Admin) is NOT a leader — used to test
+    // that contest management actions are hidden for a Coach who doesn't actually lead this group.
+    id: 'contest-5',
+    name: 'Competencia de Bienvenida',
+    description: 'Competencia introductoria para nuevos miembros.',
+    startTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
+    duration: 10800,
+    status: 'SCHEDULED',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 0,
+    isRegistered: false,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-3', name: 'Principiantes CP' },
+    owner: { id: 'u1', nickname: 'luisadmin' },
+    problems: [],
+    problemCount: 0,
+    createdAt: '2026-03-20T10:00:00Z',
+    updatedAt: '2026-03-20T10:00:00Z',
+  },
+  {
+    // ACTIVE, currently inside its own freeze window (ends soon, freezeMinutes covers "now") —
+    // used to test that Leads/Admins see real verdicts during freeze while others see '?'.
+    id: 'contest-6',
+    name: 'Competencia en Freeze',
+    description: 'Competencia activa actualmente en periodo de freeze.',
+    startTime: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+    endTime: new Date(now.getTime() + 20 * 60 * 1000).toISOString(),
+    duration: 8400,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: 60,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1163,9 +1391,11 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     penalty: c.penalty,
     freezeMinutes: c.freezeMinutes,
     enablePostContest: c.enablePostContest,
+    participationMode: c.participationMode,
     participantCount: c.participantCount,
     isRegistered: c.isRegistered,
     problemCount: c.problems.length,
+    group: c.group,
   }
 }
 
@@ -1174,6 +1404,7 @@ export function buildContestList(params: {
   page?: number
   limit?: number
   status?: string
+  search?: string
   sortBy?: string
   sortOrder?: string
 }) {
@@ -1187,6 +1418,10 @@ export function buildContestList(params: {
 
   if (params.status) {
     filtered = filtered.filter((c) => c.status === params.status)
+  }
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((c) => c.name.toLowerCase().includes(s))
   }
 
   const sortBy = params.sortBy || 'startTime'
@@ -1204,7 +1439,7 @@ export function buildContestList(params: {
   const paged = filtered.slice(start, start + limit)
 
   return {
-    data: paged.map(toContestListItem),
+    items: paged.map(toContestListItem),
     pagination: {
       page,
       limit,
@@ -1212,6 +1447,34 @@ export function buildContestList(params: {
       totalPages: Math.ceil(filtered.length / limit) || 1,
       hasNextPage: start + limit < filtered.length,
       hasPrevPage: page > 1,
+    },
+  }
+}
+
+export function buildRegistrations(params: { page?: number; limit?: number; search?: string }) {
+  let filtered = mockUsers.map((u, i) => ({
+    nickname: u.nickname,
+    registeredAt: new Date(Date.UTC(2026, 2, 15, 10 + i, 0, 0)).toISOString(),
+  }))
+
+  if (params.search) {
+    const s = params.search.toLowerCase()
+    filtered = filtered.filter((r) => r.nickname.toLowerCase().includes(s))
+  }
+
+  const page = params.page || 1
+  const limit = params.limit || 50
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    registrations: paged,
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasMore: start + limit < filtered.length,
     },
   }
 }
@@ -1319,7 +1582,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'carloscp', name: 'Carlos Pérez' },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 30 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-002',
@@ -1327,7 +1590,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-003',
@@ -1335,7 +1598,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
-    status: 'WRONG_ANSWER',
+    status: 'WRONG_ANSWER', canViewDetail: false,
   },
   {
     id: 'csub-004',
@@ -1343,7 +1606,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 45 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-005',
@@ -1351,7 +1614,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: false,
   },
   {
     id: 'csub-006',
@@ -1359,9 +1622,92 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED',
+    status: 'ACCEPTED', canViewDetail: false,
   },
 ]
+
+// Submissions whose author made them PUBLIC (canViewDetail is computed per viewer below).
+const publicContestSubmissionIds = new Set(['csub-004'])
+
+export function buildContestSubmissionsList(params: {
+  contestId: string
+  page?: number
+  limit?: number
+  phase?: string
+  problemSlug?: string
+  nickname?: string
+  isPrivileged: boolean
+  viewerNickname?: string
+}) {
+  const contest = mockContests.find((c) => c.id === params.contestId)
+  if (!contest) return null
+
+  let filtered = [...mockContestSubmissions]
+
+  if (params.problemSlug) {
+    filtered = filtered.filter((s) => s.problem.slug === params.problemSlug)
+  }
+  if (params.nickname) {
+    filtered = filtered.filter((s) =>
+      s.submittedBy.type === 'INDIVIDUAL'
+        ? s.submittedBy.nickname === params.nickname
+        : s.submittedBy.members?.includes(params.nickname!)
+    )
+  }
+  if (params.phase === 'competition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() <= new Date(contest.endTime).getTime())
+  } else if (params.phase === 'postcompetition') {
+    filtered = filtered.filter((s) => new Date(s.submittedAt).getTime() > new Date(contest.endTime).getTime())
+  }
+
+  // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
+  // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
+  const nowMs = Date.now()
+  const endMs = new Date(contest.endTime).getTime()
+  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
+  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+
+  filtered = filtered.map((s) => {
+    // Mirrors list_contest_submissions.go: Lead/Admin, own or team submission, or PUBLIC.
+    const isOwn = !!params.viewerNickname && (s.submittedBy.type === 'INDIVIDUAL'
+      ? s.submittedBy.nickname === params.viewerNickname
+      : !!s.submittedBy.members?.includes(params.viewerNickname))
+    const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    return isFrozenSubmission
+      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryUsed: undefined }
+      : { ...s, canViewDetail }
+  })
+
+  filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+
+  const page = params.page || 1
+  const limit = params.limit || 50
+  const start = (page - 1) * limit
+  const paged = filtered.slice(start, start + limit)
+
+  return {
+    contest: {
+      id: contest.id,
+      name: contest.name,
+      status: contest.status,
+      startTime: contest.startTime,
+      endTime: contest.endTime,
+      freezeMinutes: contest.freezeMinutes,
+      freezeTime: freezeStartMs != null ? new Date(freezeStartMs).toISOString() : undefined,
+      inFreeze,
+    },
+    submissions: paged,
+    pagination: {
+      page,
+      limit,
+      total: filtered.length,
+      totalPages: Math.ceil(filtered.length / limit) || 1,
+      hasNextPage: start + limit < filtered.length,
+      hasPrevPage: page > 1,
+    },
+  }
+}
 
 // === Mock Materials ===
 
@@ -1371,13 +1717,13 @@ export const mockMaterials: Material[] = [
   {
     id: 'mat-001',
     title: 'Bienvenidos al grupo de entrenamiento',
-    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en los contests semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
+    content: '# Bienvenidos\n\nEste es el grupo oficial de entrenamiento para la competencia regional.\n\n## Reglas\n\n1. Respetar los horarios de práctica\n2. Completar los problemas asignados\n3. Participar en las competencias semanales\n\n## Recursos útiles\n\n- [Competitive Programming Handbook](https://cses.fi/book/book.pdf)\n- [CP Algorithms](https://cp-algorithms.com/)\n\n## Video introductorio\n\n[Ver video de bienvenida](https://youtube.com/watch?v=dQw4w9WgXcQ)',
     tags: ['announcement', 'welcome'],
     status: 'PUBLISHED',
     pinned: true,
     pinnedAt: '2026-02-10T10:00:00Z',
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-01T10:00:00Z',
     updatedAt: '2026-02-10T10:00:00Z',
     publishedAt: '2026-02-01T12:00:00Z',
@@ -1391,7 +1737,7 @@ export const mockMaterials: Material[] = [
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-05T14:00:00Z',
     updatedAt: '2026-02-05T14:00:00Z',
     publishedAt: '2026-02-05T14:30:00Z',
@@ -1401,7 +1747,7 @@ export const mockMaterials: Material[] = [
     title: 'Guía Completa: Programación Dinámica',
     content: `# Programación Dinámica
 
-La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de un contest típico de ICPC.
+La **programación dinámica** (DP) es una de las técnicas más poderosas en programación competitiva. Si dominas DP, puedes resolver ~30% de los problemas de una competencia típica de ICPC.
 
 > "Those who cannot remember the past are condemned to repeat it." — Esta frase resume perfectamente la idea detrás de DP: **recordar resultados previos** para no recalcularlos.
 
@@ -1574,7 +1920,7 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'luisadmin', name: 'Luis Admin' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-12T09:00:00Z',
     updatedAt: '2026-02-12T09:00:00Z',
     publishedAt: '2026-02-12T10:00:00Z',
@@ -1588,24 +1934,40 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
     pinned: false,
     pinnedAt: null,
     author: { nickname: 'mariacoach', name: 'María Coach' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-18T16:00:00Z',
     updatedAt: '2026-02-18T16:00:00Z',
     publishedAt: null,
   },
   {
     id: 'mat-005',
-    title: 'Anuncio: Contest Regional',
-    content: '# Contest Regional 2026\n\nSe acerca el contest regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Contest**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
+    title: 'Anuncio: Competencia Regional',
+    content: '# Competencia Regional 2026\n\nSe acerca la competencia regional. Fechas importantes:\n\n- **Inscripción**: 1 de marzo\n- **Competencia**: 15 de marzo\n- **Lugar**: Virtual\n\nPrepárense practicando los problemas de las semanas anteriores.',
     tags: ['announcement'],
     status: 'PUBLISHED',
     pinned: true,
     pinnedAt: '2026-02-20T08:00:00Z',
     author: { nickname: 'luisadmin', name: 'Luis Admin' },
-    group: { id: 'group-1', name: 'ICPC Colombia' },
+    groupId: 'group-1',
     createdAt: '2026-02-19T11:00:00Z',
     updatedAt: '2026-02-20T08:00:00Z',
     publishedAt: '2026-02-19T12:00:00Z',
+  },
+  {
+    // Belongs to group-3, where mariacoach is NOT a leader — used to test that "Nuevo Material"
+    // and fijar/desfijar are hidden for a Coach who doesn't actually lead this group.
+    id: 'mat-006',
+    title: 'Guía de bienvenida para principiantes',
+    content: '# Bienvenidos a Principiantes CP\n\nAlgunos recursos para empezar.',
+    tags: ['welcome', 'resources'],
+    status: 'PUBLISHED',
+    pinned: false,
+    pinnedAt: null,
+    author: { nickname: 'luisadmin', name: 'Luis Admin' },
+    groupId: 'group-3',
+    createdAt: '2026-03-20T10:00:00Z',
+    updatedAt: '2026-03-20T10:00:00Z',
+    publishedAt: '2026-03-20T10:00:00Z',
   },
 ]
 
@@ -1616,8 +1978,13 @@ export function buildMaterialList(params: {
   pinned?: string
   tags?: string
   q?: string
+  author?: string
+  publishedFrom?: string
+  publishedTo?: string
+  sort?: string
+  status?: string
 }): MaterialListResponse {
-  let filtered = mockMaterials.filter((m) => m.group.id === params.groupId)
+  let filtered = mockMaterials.filter((m) => m.groupId === params.groupId)
 
   if (params.pinned === 'true') filtered = filtered.filter((m) => m.pinned)
   if (params.pinned === 'false') filtered = filtered.filter((m) => !m.pinned)
@@ -1634,37 +2001,68 @@ export function buildMaterialList(params: {
     )
   }
 
-  // Sort: pinned first by pinnedAt DESC, then by publishedAt DESC
-  filtered.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1
-    if (!a.pinned && b.pinned) return 1
-    if (a.pinned && b.pinned) {
-      return new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()
-    }
-    const aDate = a.publishedAt ?? a.createdAt
-    const bDate = b.publishedAt ?? b.createdAt
-    return new Date(bDate).getTime() - new Date(aDate).getTime()
-  })
+  if (params.status) {
+    filtered = filtered.filter((m) => m.status === params.status)
+  }
+
+  if (params.author) {
+    const a = params.author.toLowerCase()
+    filtered = filtered.filter((m) => m.author.nickname.toLowerCase().includes(a))
+  }
+
+  if (params.publishedFrom) {
+    const fromTime = new Date(params.publishedFrom).getTime()
+    filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() >= fromTime)
+  }
+  if (params.publishedTo) {
+    const toTime = new Date(params.publishedTo).getTime() + 24 * 60 * 60 * 1000 - 1
+    filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() <= toTime)
+  }
+
+  if (params.sort === 'title') {
+    filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
+  } else if (params.sort === 'publishedAt') {
+    filtered = [...filtered].sort((a, b) => {
+      const aDate = a.publishedAt ?? a.createdAt
+      const bDate = b.publishedAt ?? b.createdAt
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+  } else {
+    // Default ("relevance"): pinned first by pinnedAt DESC, then by publishedAt DESC
+    filtered.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      if (a.pinned && b.pinned) {
+        return new Date(b.pinnedAt!).getTime() - new Date(a.pinnedAt!).getTime()
+      }
+      const aDate = a.publishedAt ?? a.createdAt
+      const bDate = b.publishedAt ?? b.createdAt
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+  }
 
   const page = params.page || 1
   const limit = params.limit || 20
   const start = (page - 1) * limit
   const paged = filtered.slice(start, start + limit)
+  const totalPages = Math.ceil(filtered.length / limit) || 1
 
   return {
     materials: paged,
     pagination: {
-      totalCount: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit) || 1,
-      itemsPerPage: limit,
+      page,
+      limit,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
     },
   }
 }
 
 // === Teams ===
 
-import type { MyTeamItem, TeamDetail, TeamInvitationItem } from '@/types/team'
+import type { MyTeamItem, TeamDetail, TeamInvitationItem, ContestTeamRegistrationsResponse } from '@/types/team'
 
 export const mockMyTeams: MyTeamItem[] = [
   {
@@ -1680,6 +2078,13 @@ export const mockMyTeams: MyTeamItem[] = [
     memberCount: 4,
     joinedAt: '2026-02-01T14:00:00Z',
     createdAt: '2026-01-20T12:00:00Z',
+  },
+  {
+    id: 'team-4',
+    name: 'Byte Busters',
+    memberCount: 2,
+    joinedAt: '2026-03-01T09:00:00Z',
+    createdAt: '2026-02-25T10:00:00Z',
   },
 ]
 
@@ -1716,6 +2121,44 @@ export const mockTeamDetails: Record<string, TeamDetail> = {
     ],
     pendingInvitations: [],
   },
+  'team-3': {
+    id: 'team-3',
+    name: 'Code Warriors',
+    createdBy: { id: 'u5', nickname: 'pedromartinez' },
+    createdAt: '2026-02-01T09:00:00Z',
+    members: [
+      { id: 'u5', nickname: 'pedromartinez', joinedAt: '2026-02-01T09:00:00Z' },
+      { id: 'u6', nickname: 'sofiarodriguez', joinedAt: '2026-02-03T11:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+  'team-4': {
+    id: 'team-4',
+    name: 'Byte Busters',
+    createdBy: { id: 'u1', nickname: 'luisadmin' },
+    createdAt: '2026-02-25T10:00:00Z',
+    members: [
+      { id: 'u1', nickname: 'luisadmin', joinedAt: '2026-03-01T09:00:00Z' },
+      { id: 'u6', nickname: 'sofiarodriguez', joinedAt: '2026-03-01T09:00:00Z' },
+    ],
+    pendingInvitations: [],
+  },
+}
+
+// Keyed by contestId. Mutated by the register/update/unregister team-registration mock handlers
+// so the "equipo ya registrado" flow (modificar alineación / cancelar registro) is testable.
+export const mockTeamRegistrations: Record<string, ContestTeamRegistrationsResponse['teams']> = {
+  // team-1 registered to contest-2 (ACTIVE) — used to test blocking "leave team" mid-contest.
+  'contest-2': [
+    {
+      team: { id: 'team-1', name: 'Competitive Coders' },
+      selectedMembers: [
+        { id: 'u1', nickname: 'luisadmin' },
+        { id: 'u3', nickname: 'carloscp' },
+      ],
+      registeredAt: '2026-03-18T09:00:00Z',
+    },
+  ],
 }
 
 export const mockTeamInvitations: TeamInvitationItem[] = [

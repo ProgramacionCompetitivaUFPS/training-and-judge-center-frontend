@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { Plus } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { BreadcrumbItem } from '@/components/layout/Breadcrumbs'
+import { BreadcrumbItem } from '@/components/layout/types'
 import { Button, Card, CardContent } from '@/components/ui'
 
 interface EntityListPageProps<T> {

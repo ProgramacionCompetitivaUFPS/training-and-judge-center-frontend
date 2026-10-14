@@ -11,6 +11,7 @@ import type {
   ProblemStatistics,
   ProblemModifier,
   ProblemAccessibility,
+  ProblemFiles,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -20,7 +21,7 @@ export function getProblems(params?: ProblemListParams): Promise<ProblemListResp
 }
 
 export function getProblemDetail(slug: string): Promise<ProblemDetail> {
-  return apiClient.get(`/problems/${slug}`)
+  return apiClient.get(`/problems/p/${slug}`)
 }
 
 export function createProblem(data: CreateProblemRequest): Promise<ProblemDetail> {
@@ -28,57 +29,58 @@ export function createProblem(data: CreateProblemRequest): Promise<ProblemDetail
 }
 
 export function updateProblem(slug: string, data: UpdateProblemRequest): Promise<ProblemDetail> {
-  return apiClient.put(`/problems/${slug}`, data)
+  return apiClient.put(`/problems/p/${slug}`, data)
 }
 
 export function deleteProblem(slug: string, data: DeleteProblemRequest): Promise<void> {
-  return apiClient.delete(`/problems/${slug}`, { body: data })
+  return apiClient.delete(`/problems/p/${slug}`, { body: data })
 }
 
 // === Publish / Unpublish ===
 
 export function publishProblem(slug: string): Promise<PublishResponse> {
-  return apiClient.post(`/problems/${slug}/publish`)
+  return apiClient.post(`/problems/p/${slug}/publish`)
 }
 
 export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
-  return apiClient.post(`/problems/${slug}/unpublish`)
+  return apiClient.post(`/problems/p/${slug}/unpublish`)
 }
 
 // === Files ===
 
-export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: { testCases: boolean; solutions: string[]; checker: boolean; validator: boolean } }> {
+export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
   const formData = new FormData()
   formData.append('fileType', fileType)
   formData.append('file', file)
-  return apiClient.postFormData(`/problems/${slug}/files`, formData)
+  return apiClient.postFormData(`/problems/p/${slug}/files`, formData)
 }
 
 export function deleteProblemFile(slug: string, fileType: string, fileName?: string): Promise<void> {
   const params = fileName ? { fileName } : undefined
-  return apiClient.delete(`/problems/${slug}/files/${fileType}`, { params })
+  return apiClient.delete(`/problems/p/${slug}/files/${fileType}`, { params })
 }
 
 // === Modifiers ===
 
 export function addModifier(slug: string, userNickname: string): Promise<{ message: string; modifiers: Array<{ nickname: string; name: string }> }> {
-  return apiClient.post(`/problems/${slug}/modifiers`, { userNickname })
+  return apiClient.post(`/problems/p/${slug}/modifiers`, { userNickname })
 }
 
 export function removeModifier(slug: string, nickname: string): Promise<void> {
-  return apiClient.delete(`/problems/${slug}/modifiers/${nickname}`)
+  return apiClient.delete(`/problems/p/${slug}/modifiers/${nickname}`)
 }
 
 // === Statistics ===
 
 export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
-  return apiClient.get(`/problems/${slug}/statistics`)
+  return apiClient.get(`/problems/p/${slug}/statistics`)
 }
 
 // === Import ===
 
-export function importProblem(file: File): Promise<ProblemDetail> {
+export function importProblem(file: File, slug: string): Promise<ProblemDetail> {
   const formData = new FormData()
+  formData.append('slug', slug)
   formData.append('file', file)
   return apiClient.postFormData('/problems/import', formData)
 }
@@ -86,17 +88,17 @@ export function importProblem(file: File): Promise<ProblemDetail> {
 // === Accessibility ===
 
 export function updateAccessibility(slug: string, accessibility: ProblemAccessibility): Promise<void> {
-  return apiClient.patch(`/problems/${slug}/accessibility`, { accessibility })
+  return apiClient.patch(`/problems/p/${slug}/accessibility`, { accessibility })
 }
 
 // === Modifiers (read) ===
 
 export function getModifiers(slug: string): Promise<ProblemModifier[]> {
-  return apiClient.get(`/problems/${slug}/modifiers`)
+  return apiClient.get(`/problems/p/${slug}/modifiers`)
 }
 
 // === Admin Rejudge ===
 
-export function adminRejudgeProblem(slug: string): Promise<void> {
-  return apiClient.post(`/admin/problems/${slug}/rejudge`)
+export function adminRejudgeProblem(slug: string, contestId?: string): Promise<void> {
+  return apiClient.post(`/admin/problems/${slug}/rejudge`, undefined, { params: { contestId } })
 }
