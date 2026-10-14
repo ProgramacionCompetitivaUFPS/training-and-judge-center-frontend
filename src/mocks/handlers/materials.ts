@@ -1,6 +1,18 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockMaterials, buildMaterialList } from '../data'
+import { mockMaterials, buildMaterialList, distinctMaterialTags, mockGroupMembers, mockUsers } from '../data'
+import type { MaterialStatus } from '@/types/material'
 import { url } from './utils'
+
+function isPrivilegedViewer(request: Request, groupId: string): boolean {
+  const auth = request.headers.get('Authorization')
+  const token = auth?.replace('Bearer ', '') || ''
+  const viewerNickname = token.replace('mock-jwt-token-', '')
+  const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
+  const isRealLead = (mockGroupMembers[groupId] || []).some(
+    (m) => m.nickname === viewerNickname && m.role === 'LEAD',
+  )
+  return viewer?.role === 'ADMIN' || isRealLead
+}
 
 export const materialsHandlers = [
   // List materials in group
@@ -22,6 +34,15 @@ export const materialsHandlers = [
       status: sp.get('status') || undefined,
     })
     return HttpResponse.json(result)
+  }),
+
+  // Distinct tags actually used by materials in the group — mirrors the real
+  // GET /groups/:groupId/materials/tags, not a hardcoded list.
+  http.get(url('/groups/:groupId/materials/tags'), async ({ params, request }) => {
+    await delay(150)
+    const { groupId } = params as { groupId: string }
+    const statuses = isPrivilegedViewer(request, groupId) ? undefined : (['PUBLISHED'] as MaterialStatus[])
+    return HttpResponse.json({ tags: distinctMaterialTags(groupId, statuses) })
   }),
 
   // Material detail

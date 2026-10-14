@@ -34,6 +34,10 @@ export interface MaterialListParams extends PaginationParams {
   status?: MaterialStatus
 }
 
+export interface MaterialTagsResponse {
+  tags: string[]
+}
+
 export interface MaterialListResponse {
   materials: Material[]
   pagination: {
