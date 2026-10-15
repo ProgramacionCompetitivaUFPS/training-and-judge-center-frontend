@@ -16,6 +16,8 @@ interface SearchSelectProps<T> {
   renderItem: (item: T) => ReactNode
   onSelect: (item: T) => void
   className?: string
+  /** Passed through to the underlying input — lets a caller confirm the typed (unselected) query on Enter. */
+  onInputKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
 /** A text input with a debounced-results dropdown underneath. The caller owns debouncing the
@@ -33,6 +35,7 @@ export function SearchSelect<T>({
   renderItem,
   onSelect,
   className,
+  onInputKeyDown,
 }: SearchSelectProps<T>) {
   const [isFocused, setIsFocused] = useState(false)
   const showDropdown = isFocused && query.trim().length >= minChars
@@ -48,6 +51,7 @@ export function SearchSelect<T>({
           onChange={(e) => onQueryChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onKeyDown={onInputKeyDown}
         />
       </div>
 
