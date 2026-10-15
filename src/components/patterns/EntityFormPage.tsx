@@ -188,7 +188,7 @@ export function EntityFormPage({
   showCancel = true,
   additionalActions,
   validationErrors,
-  showSidebar = false,
+  showSidebar = true,
   maxWidth = 'narrow',
   sections,
 }: EntityFormPageProps) {

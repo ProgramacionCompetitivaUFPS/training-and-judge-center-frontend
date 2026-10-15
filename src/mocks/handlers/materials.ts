@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockMaterials, buildMaterialList, distinctMaterialTags, mockGroupMembers, mockUsers } from '../data'
+import { mockMaterials, buildMaterialList, distinctMaterialTags, distinctMaterialAuthors, mockGroupMembers, mockUsers } from '../data'
 import type { MaterialStatus } from '@/types/material'
 import { url } from './utils'
 
@@ -43,6 +43,15 @@ export const materialsHandlers = [
     const { groupId } = params as { groupId: string }
     const statuses = isPrivilegedViewer(request, groupId) ? undefined : (['PUBLISHED'] as MaterialStatus[])
     return HttpResponse.json({ tags: distinctMaterialTags(groupId, statuses) })
+  }),
+
+  // Authors of the group's recent materials — mirrors the real
+  // GET /groups/:groupId/materials/authors, not a full user search.
+  http.get(url('/groups/:groupId/materials/authors'), async ({ params, request }) => {
+    await delay(150)
+    const { groupId } = params as { groupId: string }
+    const statuses = isPrivilegedViewer(request, groupId) ? undefined : (['PUBLISHED'] as MaterialStatus[])
+    return HttpResponse.json({ authors: distinctMaterialAuthors(groupId, statuses) })
   }),
 
   // Material detail

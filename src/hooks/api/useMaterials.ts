@@ -16,6 +16,8 @@ export const materialKeys = {
     ['materials', 'detail', groupId, materialId] as const,
   tags: (groupId: string) =>
     ['materials', 'tags', groupId] as const,
+  authors: (groupId: string) =>
+    ['materials', 'authors', groupId] as const,
 }
 
 // === Queries ===
@@ -32,6 +34,14 @@ export function useMaterialTags(groupId: string) {
   return useQuery({
     queryKey: materialKeys.tags(groupId),
     queryFn: () => materialsApi.getMaterialTags(groupId),
+    enabled: !!groupId,
+  })
+}
+
+export function useMaterialAuthors(groupId: string) {
+  return useQuery({
+    queryKey: materialKeys.authors(groupId),
+    queryFn: () => materialsApi.getMaterialAuthors(groupId),
     enabled: !!groupId,
   })
 }
@@ -54,6 +64,7 @@ export function useCreateMaterial() {
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
       queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }
@@ -69,6 +80,7 @@ export function useUpdateMaterial() {
       queryClient.invalidateQueries({ queryKey: materialKeys.detail(groupId, materialId) })
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
       queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }
@@ -81,6 +93,7 @@ export function useDeleteMaterial() {
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
       queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }

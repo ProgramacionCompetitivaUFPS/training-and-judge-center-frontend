@@ -1995,6 +1995,14 @@ export function distinctMaterialTags(groupId: string, statuses?: MaterialStatus[
   return [...tags].sort()
 }
 
+export function distinctMaterialAuthors(groupId: string, statuses?: MaterialStatus[]): { nickname: string; name: string }[] {
+  const inGroup = mockMaterials.filter((m) => m.groupId === groupId)
+  const visible = statuses ? inGroup.filter((m) => statuses.includes(m.status)) : inGroup
+  const seen = new Map<string, { nickname: string; name: string }>()
+  visible.forEach((m) => seen.set(m.author.nickname, m.author))
+  return [...seen.values()].sort((a, b) => a.nickname.localeCompare(b.nickname))
+}
+
 export function buildMaterialList(params: {
   groupId: string
   page?: number

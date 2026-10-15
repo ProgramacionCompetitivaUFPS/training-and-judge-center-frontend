@@ -12,7 +12,7 @@ import {
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { TagFilterChips } from '@/components/features/TagFilterChips'
-import { useMaterials, useMaterialTags } from '@/hooks/api/useMaterials'
+import { useMaterials, useMaterialTags, useMaterialAuthors } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -51,13 +51,18 @@ export function MaterialsPage() {
   const [manualTag, setManualTag] = useState('')
   const [pinnedFilter, setPinnedFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  // El filtro de autor es exacto en el backend (match completo de nickname, no fuzzy) — por
+  // eso no se aplica en vivo mientras se escribe (como la búsqueda de texto), solo al elegir
+  // una sugerencia o al presionar Enter. `authorInput` es solo el texto visible/en edición;
+  // `confirmedAuthor` es lo que realmente se manda como filtro.
   const [authorInput, setAuthorInput] = useState('')
+  const [confirmedAuthor, setConfirmedAuthor] = useState('')
+  const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false)
   const [publishedFrom, setPublishedFrom] = useState('')
   const [publishedTo, setPublishedTo] = useState('')
   const [sort, setSort] = useState<MaterialListParams['sort']>('relevance')
   const [pageQuery, setPageQuery] = useState({ page: 1, limit: 5 })
   const debouncedSearch = useDebounce(search, 300)
-  const debouncedAuthor = useDebounce(authorInput, 300)
   const debouncedManualTag = useDebounce(manualTag, 300)
   const trimmedSearch = debouncedSearch.trim()
   const searchTooShort = trimmedSearch.length > 0 && trimmedSearch.length < MIN_SEARCH_LENGTH
@@ -75,7 +80,7 @@ export function MaterialsPage() {
     ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
     ...(activeTag && { tags: activeTag }),
     ...(statusFilter !== 'all' && { status: statusFilter as MaterialStatus }),
-    ...(debouncedAuthor && { author: debouncedAuthor }),
+    ...(confirmedAuthor && { author: confirmedAuthor }),
     ...(publishedFrom && { publishedFrom }),
     ...(publishedTo && { publishedTo }),
     ...(sort && sort !== 'relevance' && { sort }),
@@ -86,11 +91,34 @@ export function MaterialsPage() {
   const pagination = data?.pagination
   const { data: tagsData } = useMaterialTags(groupId!)
   const availableTags = tagsData?.tags ?? []
+  const { data: authorsData } = useMaterialAuthors(groupId!)
+  const availableAuthors = authorsData?.authors ?? []
+  const authorQuery = authorInput.trim().toLowerCase()
+  const authorSuggestions = (authorQuery
+    ? availableAuthors.filter((a) => a.nickname.toLowerCase().includes(authorQuery) || a.name.toLowerCase().includes(authorQuery))
+    : availableAuthors
+  ).slice(0, 8)
 
   function handleTagClick(tag: string) {
     setManualTag('')
     setSelectedTag((prev) => (prev === tag ? null : tag))
     setPageQuery((p) => ({ ...p, page: 1 }))
+  }
+
+  function confirmAuthor(nickname: string) {
+    setConfirmedAuthor(nickname)
+    setAuthorInput(nickname)
+    setShowAuthorSuggestions(false)
+    setPageQuery((p) => ({ ...p, page: 1 }))
+  }
+
+  function handleAuthorKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      confirmAuthor(authorInput.trim())
+    } else if (e.key === 'Escape') {
+      setShowAuthorSuggestions(false)
+    }
   }
 
   const breadcrumbs = [
@@ -137,15 +165,49 @@ export function MaterialsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 relative">
               <span className="text-xs font-semibold text-neutral-text-muted mr-1">Autor</span>
               <Input
                 variant="ghost"
                 containerClassName="w-[140px]"
                 placeholder="Nickname..."
                 value={authorInput}
-                onChange={(e) => { setAuthorInput(e.target.value); setPageQuery((p) => ({ ...p, page: 1 })) }}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setAuthorInput(value)
+                  setShowAuthorSuggestions(true)
+                  // Borrar el texto limpia el filtro de inmediato (sin esto, confirmedAuthor se
+                  // queda con el último valor confirmado para siempre, y el hint nunca se apaga).
+                  // Escribir texto nuevo sigue sin aplicarse hasta confirmar (Enter/elegir).
+                  if (value.trim() === '') {
+                    setConfirmedAuthor('')
+                    setPageQuery((p) => ({ ...p, page: 1 }))
+                  }
+                }}
+                onFocus={() => setShowAuthorSuggestions(true)}
+                onBlur={() => setShowAuthorSuggestions(false)}
+                onKeyDown={handleAuthorKeyDown}
               />
+              {showAuthorSuggestions && authorSuggestions.length > 0 && (
+                <div className="absolute left-0 top-full mt-1 z-10 w-[220px] rounded-md border border-neutral-border bg-neutral-surface shadow-elevation-2 py-1">
+                  {authorSuggestions.map((a) => (
+                    <button
+                      key={a.nickname}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); confirmAuthor(a.nickname) }}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-neutral-border/50 transition-colors"
+                    >
+                      <span className="font-medium text-neutral-text-primary">{a.nickname}</span>
+                      <span className="text-neutral-text-muted"> · {a.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {authorInput.trim() !== confirmedAuthor && (!showAuthorSuggestions || authorSuggestions.length === 0) && (
+                <p className="absolute left-0 top-full mt-1 z-10 w-[140px] rounded-md bg-neutral-surface px-2 py-1 text-xs text-neutral-text-muted shadow-elevation-2">
+                  Presiona Enter para filtrar
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-neutral-text-muted mr-1">Publicado</span>
