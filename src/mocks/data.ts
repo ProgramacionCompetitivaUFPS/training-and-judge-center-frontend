@@ -957,7 +957,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 45,
-    memoryUsed: 12,
+    memoryKb: 12288,
     sourceCode: '#include <iostream>\n#include <vector>\n#include <unordered_map>\nusing namespace std;\n\nint main() {\n    int n, target;\n    cin >> n >> target;\n    vector<int> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n\n    unordered_map<int, int> seen;\n    for (int i = 0; i < n; i++) {\n        int complement = target - nums[i];\n        if (seen.count(complement)) {\n            cout << seen[complement] << " " << i << endl;\n            return 0;\n        }\n        seen[nums[i]] = i;\n    }\n    return 0;\n}',
   },
   {
@@ -972,7 +972,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'python310',
     compiler: 'pypy3',
     executionTime: 120,
-    memoryUsed: 24,
+    memoryKb: 24576,
     sourceCode: 'def binary_search(arr, target):\n    lo, hi = 0, len(arr)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid\n    return -1\n\nn, t = map(int, input().split())\narr = list(map(int, input().split()))\nprint(binary_search(arr, t))',
   },
   {
@@ -987,7 +987,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'java17',
     compiler: 'javac',
     executionTime: 3000,
-    memoryUsed: 128,
+    memoryKb: 131072,
     sourceCode: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) arr[i] = sc.nextInt();\n        mergeSort(arr, 0, n - 1);\n        for (int x : arr) System.out.print(x + " ");\n    }\n\n    static void mergeSort(int[] a, int l, int r) {\n        if (l >= r) return;\n        int m = (l + r) / 2;\n        mergeSort(a, l, m);\n        mergeSort(a, m + 1, r);\n        merge(a, l, m, r);\n    }\n\n    static void merge(int[] a, int l, int m, int r) {\n        int[] tmp = Arrays.copyOfRange(a, l, r + 1);\n        int i = 0, j = m - l + 1, k = l;\n        while (i <= m - l && j <= r - l) {\n            a[k++] = tmp[i] <= tmp[j] ? tmp[i++] : tmp[j++];\n        }\n        while (i <= m - l) a[k++] = tmp[i++];\n        while (j <= r - l) a[k++] = tmp[j++];\n    }\n}',
   },
   {
@@ -1002,7 +1002,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 30,
-    memoryUsed: 8,
+    memoryKb: 8192,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int n, m, s;\n    cin >> n >> m >> s;\n    vector<vector<int>> adj(n + 1);\n    for (int i = 0; i < m; i++) {\n        int u, v;\n        cin >> u >> v;\n        adj[u].push_back(v);\n        adj[v].push_back(u);\n    }\n    vector<int> dist(n + 1, -1);\n    queue<int> q;\n    dist[s] = 0;\n    q.push(s);\n    while (!q.empty()) {\n        int u = q.front(); q.pop();\n        for (int v : adj[u]) {\n            if (dist[v] == -1) {\n                dist[v] = dist[u] + 1;\n                q.push(v);\n            }\n        }\n    }\n    for (int i = 1; i <= n; i++) cout << dist[i] << " ";\n}',
   },
   {
@@ -1017,7 +1017,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
-    memoryUsed: null,
+    memoryKb: null,
     sourceCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n, W;\n    cin >> n >> W;\n    // missing closing brace\n    int dp[n+1][W+1];\n    for (int i = 0; i <= n; i++)\n        for (int w = 0; w <= W; w++)\n            dp[i][w] = 0;\n',
   },
   {
@@ -1032,7 +1032,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'python310',
     compiler: 'pypy3',
     executionTime: 200,
-    memoryUsed: 32,
+    memoryKb: 32768,
     sourceCode: 'n, target = map(int, input().split())\nnums = list(map(int, input().split()))\nseen = {}\nfor i, x in enumerate(nums):\n    if target - x in seen:\n        print(seen[target - x], i)\n        break\n    seen[x] = i',
   },
   {
@@ -1047,7 +1047,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 5,
-    memoryUsed: 4,
+    memoryKb: 4096,
     sourceCode: '#include <iostream>\nusing namespace std;\nint main() {\n    int n, t;\n    cin >> n >> t;\n    int a[n];\n    for (int i = 0; i < n; i++) cin >> a[i];\n    // bug: accessing out of bounds\n    cout << a[n] << endl;\n    return 0;\n}',
   },
   {
@@ -1062,7 +1062,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
-    memoryUsed: null,
+    memoryKb: null,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
   },
   {
@@ -1077,7 +1077,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'blockly',
     compiler: 'pypy3',
     executionTime: 200,
-    memoryUsed: 16,
+    memoryKb: 16384,
     sourceCode: 'n = int(input())\ntarget = int(input())\nnums = []\nfor i in range(n):\n  nums.append(int(input()))\nfor i in range(n):\n  for j in range(i + 1, n):\n    if nums[i] + nums[j] == target:\n      print(i, j)',
     blocksSvgUrl: '/mock-blocks.svg',
     isBlocklySubmission: true,
@@ -1096,7 +1096,7 @@ export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
     submittedBy: s.submittedBy,
     language: s.language,
     executionTime: s.executionTime,
-    memoryUsed: s.memoryUsed,
+    memoryKb: s.memoryKb,
   }
 }
 
@@ -1675,7 +1675,7 @@ export function buildContestSubmissionsList(params: {
     const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
     const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
     return isFrozenSubmission
-      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryUsed: undefined }
+      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryKb: undefined }
       : { ...s, canViewDetail }
   })
 

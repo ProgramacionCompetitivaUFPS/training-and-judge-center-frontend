@@ -173,7 +173,7 @@ export function SubmissionDetailPage() {
           <MetaItem
             icon={HardDrive}
             label="Memoria"
-            value={submission.memoryUsed != null ? `${submission.memoryUsed} MiB` : '—'}
+            value={submission.memoryKb != null ? `${(submission.memoryKb / 1024).toFixed(1)} MiB` : '—'}
           />
           <MetaItem
             icon={Calendar}

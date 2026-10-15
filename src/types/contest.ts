@@ -236,8 +236,8 @@ export interface ContestSubmissionItem {
   submittedAt: string
   judgedAt?: string
   status: string // includes '?' during freeze
-  executionTime?: number
-  memoryUsed?: number
+  timeMs?: number
+  memoryKb?: number
   phase?: 'competition' | 'postcompetition'
   /** Own or team submission, Lead/Admin, or one its author made public. */
   canViewDetail: boolean

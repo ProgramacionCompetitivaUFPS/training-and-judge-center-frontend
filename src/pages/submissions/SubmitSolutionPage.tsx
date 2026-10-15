@@ -599,7 +599,7 @@ export function SubmitSolutionPage() {
                         <SubmissionStatusBadge status={sub.status} />
                       </td>
                       <td className="py-2 px-4 text-right text-neutral-text-muted">
-                        {sub.memoryUsed != null ? `${sub.memoryUsed} KB` : '—'}
+                        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
                       </td>
                       <td className="py-2 px-4 text-right">
                         <Button

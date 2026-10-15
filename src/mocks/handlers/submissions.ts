@@ -39,7 +39,7 @@ export const submissionsHandlers = [
       submission.status = 'ACCEPTED'
       submission.judgedAt = new Date().toISOString()
       submission.executionTime = 42
-      submission.memoryUsed = 2048
+      submission.memoryKb = 2048
     }
     return HttpResponse.json(submission)
   }),
