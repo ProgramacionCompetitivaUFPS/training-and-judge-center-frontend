@@ -185,12 +185,8 @@ export function ContestSubmissionsPage() {
                   <TableHead>Problema</TableHead>
                   <TableHead>Lenguaje</TableHead>
                   <TableHead>Veredicto</TableHead>
-                  {data.contest.status === 'FINISHED' && (
-                    <>
-                      <TableHead>Tiempo</TableHead>
-                      <TableHead>Memoria</TableHead>
-                    </>
-                  )}
+                  <TableHead>Tiempo</TableHead>
+                  <TableHead>Memoria</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -237,12 +233,11 @@ export function ContestSubmissionsPage() {
                           <SubmissionStatusBadge status={sub.status as SubmissionStatus} />
                         )}
                       </TableCell>
-                      {data.contest.status === 'FINISHED' && (
-                        <>
-                          <TableCell>{sub.executionTime != null ? `${sub.executionTime}ms` : '-'}</TableCell>
-                          <TableCell>{sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '-'}</TableCell>
-                        </>
-                      )}
+                      {/* The backend already decides who gets to see these (FINISHED, or Lead/Admin
+                          regardless of status) — timeMs/memoryKb are simply absent otherwise
+                          (omitempty), so no extra client-side gating by contest status is needed. */}
+                      <TableCell>{sub.timeMs != null ? `${sub.timeMs}ms` : '-'}</TableCell>
+                      <TableCell>{sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '-'}</TableCell>
                     </TableRow>
                   )
                 })}

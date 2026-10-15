@@ -10,10 +10,12 @@ import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@/components/ui/Select'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { TagFilterChips } from '@/components/features/TagFilterChips'
 import { useMaterials, useMaterialTags, useMaterialAuthors } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
@@ -57,7 +59,6 @@ export function MaterialsPage() {
   // `confirmedAuthor` es lo que realmente se manda como filtro.
   const [authorInput, setAuthorInput] = useState('')
   const [confirmedAuthor, setConfirmedAuthor] = useState('')
-  const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false)
   const [publishedFrom, setPublishedFrom] = useState('')
   const [publishedTo, setPublishedTo] = useState('')
   const [sort, setSort] = useState<MaterialListParams['sort']>('relevance')
@@ -94,10 +95,18 @@ export function MaterialsPage() {
   const { data: authorsData } = useMaterialAuthors(groupId!)
   const availableAuthors = authorsData?.authors ?? []
   const authorQuery = authorInput.trim().toLowerCase()
-  const authorSuggestions = (authorQuery
+  const localAuthorMatches = authorQuery
     ? availableAuthors.filter((a) => a.nickname.toLowerCase().includes(authorQuery) || a.name.toLowerCase().includes(authorQuery))
     : availableAuthors
-  ).slice(0, 8)
+  // Los autores recientes del grupo (arriba) son más relevantes para este filtro, pero no
+  // cubren a alguien que escribió hace tiempo y ya no sale en la muestra — /users/search cubre
+  // ese caso como respaldo (mismo endpoint ya usado en Grupos/Equipos para invitar).
+  const debouncedAuthorQuery = useDebounce(authorInput, 300)
+  const { data: userSearchData, isFetching: isSearchingAuthors } = useSearchUsers(debouncedAuthorQuery)
+  const authorSuggestions = [
+    ...localAuthorMatches,
+    ...(userSearchData?.users ?? []).filter((u) => !localAuthorMatches.some((a) => a.nickname === u.nickname)),
+  ].slice(0, 8)
 
   function handleTagClick(tag: string) {
     setManualTag('')
@@ -108,7 +117,6 @@ export function MaterialsPage() {
   function confirmAuthor(nickname: string) {
     setConfirmedAuthor(nickname)
     setAuthorInput(nickname)
-    setShowAuthorSuggestions(false)
     setPageQuery((p) => ({ ...p, page: 1 }))
   }
 
@@ -116,8 +124,6 @@ export function MaterialsPage() {
     if (e.key === 'Enter') {
       e.preventDefault()
       confirmAuthor(authorInput.trim())
-    } else if (e.key === 'Escape') {
-      setShowAuthorSuggestions(false)
     }
   }
 
@@ -165,49 +171,36 @@ export function MaterialsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <div className="flex items-center gap-1.5 relative">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-neutral-text-muted mr-1">Autor</span>
-              <Input
-                variant="ghost"
-                containerClassName="w-[140px]"
-                placeholder="Nickname..."
-                value={authorInput}
-                onChange={(e) => {
-                  const value = e.target.value
+              <SearchSelect
+                className="w-[200px]"
+                query={authorInput}
+                onQueryChange={(value) => {
                   setAuthorInput(value)
-                  setShowAuthorSuggestions(true)
                   // Borrar el texto limpia el filtro de inmediato (sin esto, confirmedAuthor se
-                  // queda con el último valor confirmado para siempre, y el hint nunca se apaga).
-                  // Escribir texto nuevo sigue sin aplicarse hasta confirmar (Enter/elegir).
+                  // queda con el último valor confirmado para siempre). Escribir texto nuevo
+                  // sigue sin aplicarse hasta confirmar (Enter/elegir una sugerencia).
                   if (value.trim() === '') {
                     setConfirmedAuthor('')
                     setPageQuery((p) => ({ ...p, page: 1 }))
                   }
                 }}
-                onFocus={() => setShowAuthorSuggestions(true)}
-                onBlur={() => setShowAuthorSuggestions(false)}
-                onKeyDown={handleAuthorKeyDown}
+                onInputKeyDown={handleAuthorKeyDown}
+                results={authorSuggestions}
+                isSearching={isSearchingAuthors}
+                minChars={0}
+                placeholder="Nickname..."
+                emptyLabel="Presiona Enter para usar este nickname"
+                getKey={(a) => a.nickname}
+                renderItem={(a) => (
+                  <>
+                    <span className="font-medium text-neutral-text-primary">{a.nickname}</span>
+                    <span className="text-neutral-text-muted"> · {a.name}</span>
+                  </>
+                )}
+                onSelect={(a) => confirmAuthor(a.nickname)}
               />
-              {showAuthorSuggestions && authorSuggestions.length > 0 && (
-                <div className="absolute left-0 top-full mt-1 z-10 w-[220px] rounded-md border border-neutral-border bg-neutral-surface shadow-elevation-2 py-1">
-                  {authorSuggestions.map((a) => (
-                    <button
-                      key={a.nickname}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); confirmAuthor(a.nickname) }}
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-neutral-border/50 transition-colors"
-                    >
-                      <span className="font-medium text-neutral-text-primary">{a.nickname}</span>
-                      <span className="text-neutral-text-muted"> · {a.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {authorInput.trim() !== confirmedAuthor && (!showAuthorSuggestions || authorSuggestions.length === 0) && (
-                <p className="absolute left-0 top-full mt-1 z-10 w-[140px] rounded-md bg-neutral-surface px-2 py-1 text-xs text-neutral-text-muted shadow-elevation-2">
-                  Presiona Enter para filtrar
-                </p>
-              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-neutral-text-muted mr-1">Publicado</span>

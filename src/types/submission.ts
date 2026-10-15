@@ -44,7 +44,7 @@ export interface SubmissionDetail {
   language: SubmissionLanguage
   compiler: SubmissionCompiler
   executionTime: number | null
-  memoryUsed: number | null
+  memoryKb: number | null
   /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
   sourceCode: string | null
   /** URL del SVG de bloques (solo para envíos Blockly) */
@@ -76,7 +76,7 @@ export interface SubmissionListItem {
   }
   language: SubmissionLanguage
   executionTime: number | null
-  memoryUsed: number | null
+  memoryKb: number | null
 }
 
 // === My Submissions List (GET /users/me/submissions) ===

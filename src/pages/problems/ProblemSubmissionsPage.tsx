@@ -196,7 +196,7 @@ export function ProblemSubmissionsPage() {
                         {sub.executionTime != null ? `${sub.executionTime} ms` : '—'}
                       </TableCell>
                       <TableCell className="text-right text-sm text-neutral-text-muted">
-                        {sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '—'}
+                        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
                       </TableCell>
                       <TableCell className="text-right text-xs text-neutral-text-muted">
                         {new Date(sub.submittedAt).toLocaleString('es')}

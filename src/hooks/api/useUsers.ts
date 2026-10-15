@@ -51,10 +51,9 @@ export function useUserProfile(nickname: string) {
   })
 }
 
-// Caller is expected to debounce `q`. `GET /users/search` is Coach/Admin-only — pass
-// `canSearch: false` when the viewer's platform role isn't one of those, even if some
-// domain-level check (group lead, problem modifier) would otherwise let the UI show through,
-// so a Contestant never fires a request that the backend would 403 anyway.
+// Caller is expected to debounce `q`. `GET /users/search` allows any authenticated role —
+// `canSearch` is just a caller-side gate for skipping the request while some other
+// precondition isn't met yet (e.g. the search UI isn't open), not a role check.
 export function useSearchUsers(q: string, limit?: number, canSearch = true) {
   return useQuery({
     queryKey: userKeys.search(q),

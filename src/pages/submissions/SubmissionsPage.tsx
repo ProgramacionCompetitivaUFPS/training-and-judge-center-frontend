@@ -69,13 +69,13 @@ const columns: Column<SubmissionListItem>[] = [
     ),
   },
   {
-    key: 'memoryUsed',
+    key: 'memoryKb',
     label: 'Memoria',
     width: '100px',
     align: 'right',
     render: (sub) => (
       <span className="text-sm text-neutral-text-muted">
-        {sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '—'}
+        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
       </span>
     ),
   },
