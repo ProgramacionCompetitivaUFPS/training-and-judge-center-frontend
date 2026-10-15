@@ -172,7 +172,18 @@ export function MaterialsPage() {
                 containerClassName="w-[140px]"
                 placeholder="Nickname..."
                 value={authorInput}
-                onChange={(e) => { setAuthorInput(e.target.value); setShowAuthorSuggestions(true) }}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setAuthorInput(value)
+                  setShowAuthorSuggestions(true)
+                  // Borrar el texto limpia el filtro de inmediato (sin esto, confirmedAuthor se
+                  // queda con el último valor confirmado para siempre, y el hint nunca se apaga).
+                  // Escribir texto nuevo sigue sin aplicarse hasta confirmar (Enter/elegir).
+                  if (value.trim() === '') {
+                    setConfirmedAuthor('')
+                    setPageQuery((p) => ({ ...p, page: 1 }))
+                  }
+                }}
                 onFocus={() => setShowAuthorSuggestions(true)}
                 onBlur={() => setShowAuthorSuggestions(false)}
                 onKeyDown={handleAuthorKeyDown}
@@ -193,8 +204,8 @@ export function MaterialsPage() {
                 </div>
               )}
               {authorInput.trim() !== confirmedAuthor && (!showAuthorSuggestions || authorSuggestions.length === 0) && (
-                <p className="absolute left-0 top-full mt-1 z-10 whitespace-nowrap rounded-md bg-neutral-surface px-2 py-1 text-xs text-neutral-text-muted shadow-elevation-2">
-                  Enter o elige una sugerencia para filtrar
+                <p className="absolute left-0 top-full mt-1 z-10 w-[140px] rounded-md bg-neutral-surface px-2 py-1 text-xs text-neutral-text-muted shadow-elevation-2">
+                  Presiona Enter para filtrar
                 </p>
               )}
             </div>
