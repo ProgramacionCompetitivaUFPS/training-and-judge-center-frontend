@@ -70,9 +70,10 @@ export function SearchSelect<T>({
                 <li key={getKey(item)}>
                   <button
                     type="button"
-                    // Fires before the input's onBlur closes the dropdown.
+                    // Fires before the input's onBlur would close the dropdown — without this,
+                    // clicking a result loses focus (and the click) before onClick ever fires.
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSelect(item)}
+                    onClick={() => { onSelect(item); setIsFocused(false) }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-background transition-colors"
                   >
                     {renderItem(item)}
