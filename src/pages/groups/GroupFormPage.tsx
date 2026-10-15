@@ -9,11 +9,14 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from '@/components/ui/Select'
 import { useGroupDetail, useCreateGroup, useUpdateGroup } from '@/hooks/api/useGroups'
+import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
+import { useDebounce } from '@/hooks/useDebounce'
 import { createGroupSchema, type CreateGroupFormData } from '@/lib/schemas/group'
 import { ROUTES, PATHS } from '@/lib/constants'
 import type { GroupVisibility, GroupJoinPolicy } from '@/types/group'
@@ -30,6 +33,21 @@ export function GroupFormPage() {
 
   const [initialLeads, setInitialLeads] = useState('')
   const [initialMembers, setInitialMembers] = useState('')
+
+  // El campo sigue siendo texto plano separado por coma (para pegar una lista completa de una),
+  // pero además se puede buscar y agregar uno a la vez sin tener que saber el nickname exacto.
+  const [leadSearchQuery, setLeadSearchQuery] = useState('')
+  const debouncedLeadSearch = useDebounce(leadSearchQuery)
+  const { data: leadSearchData, isFetching: isSearchingLeads } = useSearchUsers(debouncedLeadSearch)
+  const [memberSearchQuery, setMemberSearchQuery] = useState('')
+  const debouncedMemberSearch = useDebounce(memberSearchQuery)
+  const { data: memberSearchData, isFetching: isSearchingMembers } = useSearchUsers(debouncedMemberSearch)
+
+  function appendNickname(current: string, nickname: string): string {
+    const existing = current.split(',').map((s) => s.trim()).filter(Boolean)
+    if (existing.includes(nickname)) return current
+    return [...existing, nickname].join(', ')
+  }
 
   const {
     register, handleSubmit, setValue, control, reset, formState: { errors },
@@ -193,19 +211,61 @@ export function GroupFormPage() {
             {!isEdit && (
               <FormSection icon={<UserPlus className="h-4 w-4" />} title="Miembros iniciales">
                 <div className="space-y-4">
-                  <Input
-                    label="Líderes (nicknames separados por coma)"
-                    value={initialLeads}
-                    onChange={(e) => setInitialLeads(e.target.value)}
-                    placeholder="coach_john, coach_mary"
-                  />
-                  <p className="text-xs text-neutral-text-muted -mt-3">Solo coaches o admins pueden ser líderes</p>
-                  <Input
-                    label="Miembros (nicknames separados por coma)"
-                    value={initialMembers}
-                    onChange={(e) => setInitialMembers(e.target.value)}
-                    placeholder="student_alice, student_bob"
-                  />
+                  <div>
+                    <Input
+                      label="Líderes (nicknames separados por coma)"
+                      value={initialLeads}
+                      onChange={(e) => setInitialLeads(e.target.value)}
+                      placeholder="coach_john, coach_mary"
+                    />
+                    <p className="text-xs text-neutral-text-muted mt-1">Solo coaches o admins pueden ser líderes</p>
+                    <div className="mt-2">
+                      <label className="text-xs text-neutral-text-muted mb-1 block">O busca y agrega uno</label>
+                      <SearchSelect
+                        query={leadSearchQuery}
+                        onQueryChange={setLeadSearchQuery}
+                        results={leadSearchData?.users ?? []}
+                        isSearching={isSearchingLeads}
+                        placeholder="Buscar usuario por nombre o nickname..."
+                        hintLabel="Escribe al menos 2 caracteres"
+                        getKey={(u) => u.id}
+                        renderItem={(u) => (
+                          <>
+                            <span className="font-medium text-neutral-text-primary">{u.name}</span>
+                            <span className="text-neutral-text-muted"> · @{u.nickname}</span>
+                          </>
+                        )}
+                        onSelect={(u) => { setInitialLeads((prev) => appendNickname(prev, u.nickname)); setLeadSearchQuery('') }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Input
+                      label="Miembros (nicknames separados por coma)"
+                      value={initialMembers}
+                      onChange={(e) => setInitialMembers(e.target.value)}
+                      placeholder="student_alice, student_bob"
+                    />
+                    <div className="mt-2">
+                      <label className="text-xs text-neutral-text-muted mb-1 block">O busca y agrega uno</label>
+                      <SearchSelect
+                        query={memberSearchQuery}
+                        onQueryChange={setMemberSearchQuery}
+                        results={memberSearchData?.users ?? []}
+                        isSearching={isSearchingMembers}
+                        placeholder="Buscar usuario por nombre o nickname..."
+                        hintLabel="Escribe al menos 2 caracteres"
+                        getKey={(u) => u.id}
+                        renderItem={(u) => (
+                          <>
+                            <span className="font-medium text-neutral-text-primary">{u.name}</span>
+                            <span className="text-neutral-text-muted"> · @{u.nickname}</span>
+                          </>
+                        )}
+                        onSelect={(u) => { setInitialMembers((prev) => appendNickname(prev, u.nickname)); setMemberSearchQuery('') }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </FormSection>
             )}
