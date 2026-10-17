@@ -2,6 +2,7 @@ import { apiClient } from './client'
 import type {
   ProblemListParams,
   ProblemListResponse,
+  ProblemTagsResponse,
   ProblemDetail,
   CreateProblemRequest,
   UpdateProblemRequest,
@@ -18,6 +19,11 @@ import type {
 
 export function getProblems(params?: ProblemListParams): Promise<ProblemListResponse> {
   return apiClient.get('/problems', { params: params as Record<string, string | number | boolean | undefined> })
+}
+
+// Vocabulario cerrado real del backend — ver nota en types/problem.ts (ProblemTagsResponse).
+export function getProblemTags(): Promise<ProblemTagsResponse> {
+  return apiClient.get('/problems/tags')
 }
 
 export function getProblemDetail(slug: string): Promise<ProblemDetail> {

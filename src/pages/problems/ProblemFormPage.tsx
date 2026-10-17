@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useToastContext } from '@/hooks/useToastContext'
-import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem } from '@/hooks/api/useProblems'
+import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem, useProblemTags } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
 import { getErrorMessage } from '@/lib/errorMessages'
@@ -18,12 +18,6 @@ import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
 import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-
-const SUGGESTED_TAGS = [
-  'dp', 'graphs', 'arrays', 'strings', 'binary-search',
-  'sorting', 'data-structures', 'bfs', 'dfs', 'hash-table',
-  'divide-and-conquer', 'greedy', 'math', 'geometry', 'trees',
-] as const
 
 export function ProblemFormPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -179,15 +173,16 @@ interface TagChipsProps {
   value: string
   onChange: (value: string) => void
   error?: string
+  suggestions: string[]
 }
 
-function TagChips({ value, onChange, error }: TagChipsProps) {
+function TagChips({ value, onChange, error, suggestions }: TagChipsProps) {
   const [inputValue, setInputValue] = useState('')
   const tags = value ? value.split(',').map((t) => t.trim()).filter(Boolean) : []
 
   function addTag(tag: string) {
     const normalized = tag.trim().toLowerCase()
-    if (!normalized || tags.includes(normalized)) return
+    if (!normalized || tags.includes(normalized) || !suggestions.includes(normalized)) return
     onChange([...tags, normalized].join(', '))
     setInputValue('')
   }
@@ -196,7 +191,7 @@ function TagChips({ value, onChange, error }: TagChipsProps) {
     onChange(tags.filter((t) => t !== tag).join(', '))
   }
 
-  const availableSuggestions = SUGGESTED_TAGS.filter((t) => !tags.includes(t))
+  const availableSuggestions = suggestions.filter((t) => !tags.includes(t))
 
   return (
     <div className="space-y-3">
@@ -374,6 +369,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
   const statement = useWatch({ control, name: 'statement' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
+  const { data: tagsData } = useProblemTags()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showZipHelp, setShowZipHelp] = useState(false)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
@@ -502,6 +498,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
               value={tags || ''}
               onChange={(v) => setValue('tags', v)}
               error={errors.tags?.message}
+              suggestions={tagsData?.tags ?? []}
             />
           </FormSection>
         </div>
@@ -556,6 +553,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
   const accessibility = useWatch({ control, name: 'accessibility' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
+  const { data: tagsData } = useProblemTags()
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -611,6 +609,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
                 value={tags || ''}
                 onChange={(v) => setValue('tags', v)}
                 error={errors.tags?.message}
+                suggestions={tagsData?.tags ?? []}
               />
               <div>
                 <label className="block text-sm font-medium text-neutral-text-primary mb-1">Accesibilidad</label>
