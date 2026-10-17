@@ -182,7 +182,7 @@ function TagChips({ value, onChange, error, suggestions }: TagChipsProps) {
 
   function addTag(tag: string) {
     const normalized = tag.trim().toLowerCase()
-    if (!normalized || tags.includes(normalized)) return
+    if (!normalized || tags.includes(normalized) || !suggestions.includes(normalized)) return
     onChange([...tags, normalized].join(', '))
     setInputValue('')
   }
