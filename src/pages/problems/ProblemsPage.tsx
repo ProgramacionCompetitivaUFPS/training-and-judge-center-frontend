@@ -18,17 +18,12 @@ import {
   TableRow,
 } from '@/components/ui/Table'
 import { Card, CardContent } from '@/components/ui/Card'
-import { useProblems } from '@/hooks/api/useProblems'
+import { useProblems, useProblemTags } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import type { ProblemListParams, ProblemListItem } from '@/types/problem'
-
-const POPULAR_TAGS = [
-  'dp', 'graphs', 'arrays', 'strings', 'binary-search',
-  'sorting', 'data-structures', 'bfs', 'hash-table', 'divide-and-conquer',
-] as const
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
@@ -64,6 +59,7 @@ export function ProblemsPage() {
   }
 
   const { data, isLoading } = useProblems(queryParams)
+  const { data: tagsData } = useProblemTags()
 
   const problems = data?.problems ?? []
   const pagination = data?.pagination
@@ -202,7 +198,7 @@ export function ProblemsPage() {
               </div>
 
               <TagFilterChips
-                tags={POPULAR_TAGS}
+                tags={tagsData?.tags ?? []}
                 selectedTag={selectedTag}
                 onTagClick={handleTagClick}
                 onClear={() => { setSelectedTag(null); setFilters((prev) => ({ ...prev, page: 1 })) }}

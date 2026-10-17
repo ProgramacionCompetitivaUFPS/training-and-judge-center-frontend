@@ -16,6 +16,7 @@ export const problemKeys = {
   detail: (slug: string) => ['problems', 'detail', slug] as const,
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
+  tags: ['problems', 'tags'] as const,
 }
 
 // === Queries ===
@@ -50,6 +51,16 @@ export function useProblemStatistics(slug: string) {
     queryKey: problemKeys.statistics(slug),
     queryFn: () => problemsApi.getProblemStatistics(slug),
     enabled: !!slug,
+  })
+}
+
+// Vocabulario cerrado del backend (config/virtual_object.json) — no cambia con el contenido,
+// así que una caché larga evita refetch constante sin arriesgar sugerencias obsoletas.
+export function useProblemTags() {
+  return useQuery({
+    queryKey: problemKeys.tags,
+    queryFn: () => problemsApi.getProblemTags(),
+    staleTime: 10 * 60 * 1000,
   })
 }
 
