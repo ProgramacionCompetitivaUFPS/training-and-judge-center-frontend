@@ -24,6 +24,8 @@ export const contestKeys = {
     ['contests', 'registrations', groupId, contestId, params] as const,
   standings: (groupId: string, contestId: string, params?: StandingsParams) =>
     ['contests', 'standings', groupId, contestId, params] as const,
+  standingsFilterOptions: (groupId: string, contestId: string) =>
+    ['contests', 'standings-filter-options', groupId, contestId] as const,
   submissions: (groupId: string, contestId: string, params?: ContestSubmissionsParams) =>
     ['contests', 'submissions', groupId, contestId, params] as const,
 }
@@ -88,6 +90,14 @@ export function useStandings(
       const status = query.state.data?.contest?.status
       return status === 'ACTIVE' ? 30_000 : false
     },
+  })
+}
+
+export function useStandingsFilterOptions(groupId: string, contestId: string) {
+  return useQuery({
+    queryKey: contestKeys.standingsFilterOptions(groupId, contestId),
+    queryFn: () => contestsApi.getStandingsFilterOptions(groupId, contestId),
+    enabled: !!groupId && !!contestId,
   })
 }
 

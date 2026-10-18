@@ -9,6 +9,7 @@ import type {
   RegistrationListResponse,
   StandingsResponse,
   StandingsParams,
+  StandingsFilterOptions,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
 } from '@/types/contest'
@@ -102,6 +103,13 @@ export function getStandings(
   return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings`, {
     params: params as Record<string, string | number | boolean | undefined>,
   })
+}
+
+export function getStandingsFilterOptions(
+  groupId: string,
+  contestId: string,
+): Promise<StandingsFilterOptions> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings/filters`)
 }
 
 // === Contest Submissions ===

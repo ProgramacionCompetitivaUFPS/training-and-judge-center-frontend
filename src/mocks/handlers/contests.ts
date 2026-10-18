@@ -257,6 +257,26 @@ export const contestsHandlers = [
     })
   }),
 
+  // Standings filter options — distinct values across this contest's own participants,
+  // same shape/intent as GET /admin/users/filters.
+  http.get(url('/groups/:groupId/contests/:contestId/standings/filters'), async ({ params }) => {
+    await delay(150)
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
+    }
+
+    const distinct = (values: Array<string | null | undefined>) =>
+      [...new Set(values.filter((v): v is string => !!v))].sort()
+
+    return HttpResponse.json({
+      countries: distinct(mockStandings.map((e) => e.participant.country)),
+      cities: distinct(mockStandings.map((e) => e.participant.city)),
+      institutions: distinct(mockStandings.map((e) => e.participant.institution)),
+    })
+  }),
+
   // Contest submissions — Leads/Admins are exempt from freeze masking (list_contest_submissions.go).
   http.get(url('/groups/:groupId/contests/:contestId/submissions'), async ({ params, request }) => {
     await delay(300)
