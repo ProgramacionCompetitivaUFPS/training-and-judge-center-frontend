@@ -21,15 +21,6 @@ const ripplePathColor = encodeURIComponent(brandColors.brand.primary)
 const NAVBAR_RIPPLE_BG =
   `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='60' viewBox='0 0 170 60'%3E%3Cg fill='none' stroke='${ripplePathColor}'%3E%3Ccircle cx='34' cy='48' r='7' opacity='0.20'/%3E%3Ccircle cx='34' cy='48' r='15' opacity='0.13'/%3E%3Ccircle cx='34' cy='48' r='24' opacity='0.07'/%3E%3Ccircle cx='128' cy='12' r='6' opacity='0.18'/%3E%3Ccircle cx='128' cy='12' r='13' opacity='0.11'/%3E%3Ccircle cx='128' cy='12' r='21' opacity='0.06'/%3E%3C/g%3E%3C/svg%3E")`
 
-function BellFilled({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2a6 6 0 0 0-6 6c0 7-3 9-3 9h18s-3-2-3-9a6 6 0 0 0-6-6z" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 export function Navbar({ onMenuClick, showMenuButton = true, breadcrumbs }: NavbarProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -87,11 +78,6 @@ export function Navbar({ onMenuClick, showMenuButton = true, breadcrumbs }: Navb
         </form>
 
         <div className="flex items-center gap-2 ml-auto">
-          <Button variant="ghost" size="sm" className="relative text-neutral-text-muted hover:text-neutral-text-primary hover:bg-black/5">
-            <BellFilled className="h-[18px] w-[18px]" />
-            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-brand-primary" />
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-md border border-black/10 bg-white/60 px-2.5 py-1.5 text-xs font-mono hover:bg-white transition-colors">
