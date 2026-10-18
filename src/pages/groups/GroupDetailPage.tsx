@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { EntityDetailPage } from '@/components/patterns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatCard } from '@/components/features/StatCard'
@@ -100,6 +100,7 @@ function getInitialColor(name: string) {
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToastContext()
   const { user } = useAuth()
 
@@ -794,6 +795,19 @@ export function GroupDetailPage() {
     ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.totalItems }] : []),
   ]
 
+  // Kept in the URL (?tab=...) so navigating away (e.g. to create a contest) and back
+  // returns to the tab you were on, instead of always resetting to "Información".
+  const requestedTab = searchParams.get('tab')
+  const activeTab = requestedTab && tabs.some((t) => t.id === requestedTab) ? requestedTab : 'info'
+  const handleTabChange = (tabId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (tabId === 'info') next.delete('tab')
+      else next.set('tab', tabId)
+      return next
+    }, { replace: true })
+  }
+
   return (
     <>
       <EntityDetailPage
@@ -805,6 +819,8 @@ export function GroupDetailPage() {
         metadata={metadata}
         tabs={tabs}
         defaultTab="info"
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
         onEdit={canManage && !group?.isGlobal ? () => navigate(`/groups/${id}/edit`) : undefined}
         onDelete={canManage && !group?.isGlobal ? () => setDeleteOpen(true) : undefined}
         primaryAction={buildPrimaryAction()}
