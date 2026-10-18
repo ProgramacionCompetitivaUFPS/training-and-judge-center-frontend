@@ -14,9 +14,9 @@ import { EmptyState } from '@/components/patterns'
 import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
 import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import type { ProblemSubmissionsParams, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
+import type { ProblemSubmissionsParams, SubmissionOrigin, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
@@ -56,6 +56,17 @@ export function ProblemSubmissionsPage() {
   const pagination = data?.pagination
 
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
+
+  // Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back to this problem's
+  // submissions list instead of the unrelated global "Mis Envíos" list.
+  const submissionOrigin: SubmissionOrigin = {
+    backTo: PATHS.problemSubmissions(slug || ''),
+    backLabel: 'Envíos',
+    breadcrumbPrefix: [
+      { label: 'Problemas', href: '/problems' },
+      { label: problem?.title ?? slug ?? '...', href: PATHS.problem(slug || '') },
+    ],
+  }
 
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
@@ -209,7 +220,7 @@ export function ProblemSubmissionsPage() {
                     <TableRow
                       key={sub.id}
                       className="cursor-pointer hover:bg-neutral-bg/50"
-                      onClick={() => navigate(`/submissions/${sub.id}`)}
+                      onClick={() => navigate(`/submissions/${sub.id}`, { state: submissionOrigin })}
                     >
                       <TableCell>
                         <SubmissionStatusBadge status={sub.status} />

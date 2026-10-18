@@ -16,7 +16,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { cn, problemLabel } from '@/lib/utils'
 import type { ContestSubmissionsParams } from '@/types/contest'
-import type { SubmissionStatus } from '@/types/submission'
+import type { SubmissionOrigin, SubmissionStatus } from '@/types/submission'
 
 const PHASE_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -61,10 +61,23 @@ export function ContestSubmissionsPage() {
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
+  // Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back here — including
+  // the current filters (?problem=...) — instead of the unrelated global "Mis Envíos" list.
+  const submissionOrigin: SubmissionOrigin = {
+    backTo: `${PATHS.contestSubmissions(groupId || '', id || '')}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+    backLabel: 'Envíos',
+    breadcrumbPrefix: [
+      { label: 'Grupos', href: '/groups' },
+      { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
+      { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
+    ],
+  }
+
   return (
     <AppLayout
       breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
         // Filtered by one problem: show it like the problem page does (Problema A), so the
         // trail matches the general Problemas › problema › Envíos view.
@@ -200,7 +213,11 @@ export function ContestSubmissionsPage() {
                     <TableRow key={sub.id}>
                       <TableCell className="font-mono text-sm">
                         {sub.canViewDetail ? (
-                          <Link to={`/submissions/${sub.id}`} className="text-brand-primary hover:underline">
+                          <Link
+                            to={`/submissions/${sub.id}`}
+                            state={submissionOrigin}
+                            className="text-brand-primary hover:underline"
+                          >
                             {formatTime(sub.submittedAt)}
                           </Link>
                         ) : formatTime(sub.submittedAt)}

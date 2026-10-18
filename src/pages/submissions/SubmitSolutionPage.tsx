@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail, useProblemSearch } from '@/hooks/api/useProblems'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -42,6 +43,7 @@ export function SubmitSolutionPage() {
 
   const isContestContext = !!contestId
   const problemParam = searchParams.get('problem') || ''
+  const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
 
   // State
   const [selectedProblem, setSelectedProblem] = useState(problemParam)
@@ -290,7 +292,8 @@ export function SubmitSolutionPage() {
 
   const breadcrumbs = isContestContext
     ? [
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: 'Enviar solución' },
       ]

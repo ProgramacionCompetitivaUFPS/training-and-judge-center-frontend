@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
@@ -13,12 +13,14 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import type { SubmissionOrigin } from '@/types/submission'
 
 const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { toast } = useToastContext()
 
@@ -29,9 +31,18 @@ export function SubmissionDetailPage() {
   const ownRejudgeMutation = useRejudgeSubmission()
   const adminRejudgeMutation = useAdminRejudgeSubmission()
 
+  // Where the user actually came from (a contest's/problem's submissions list, the
+  // dashboard) — passed as router state by the page that linked here. Falls back to the
+  // global "Mis Envíos" list for a direct URL visit, a refresh, or a shared link, where
+  // there's no real origin to go back to.
+  const origin = location.state as SubmissionOrigin | null | undefined
+  const backTo = origin?.backTo ?? '/submissions'
+  const backLabel = origin?.backLabel ?? 'Envíos'
+  const breadcrumbPrefix = origin?.breadcrumbPrefix ?? []
+
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[...breadcrumbPrefix, { label: backLabel, href: backTo }, { label: '...' }]}>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-6 w-1/4" />
@@ -45,7 +56,7 @@ export function SubmissionDetailPage() {
 
   if (error || !submission) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: 'Error' }]}>
+      <AppLayout breadcrumbs={[...breadcrumbPrefix, { label: backLabel, href: backTo }, { label: 'Error' }]}>
         <div className="text-center py-12 text-neutral-text-muted">
           Envío no encontrado
         </div>
@@ -94,7 +105,8 @@ export function SubmissionDetailPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Envíos', href: '/submissions' },
+    ...breadcrumbPrefix,
+    { label: backLabel, href: backTo },
     { label: `#${submission.id.slice(0, 8)}` },
   ]
 
@@ -155,7 +167,7 @@ export function SubmissionDetailPage() {
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
-            <Button variant="ghost" onClick={() => navigate('/submissions')}>
+            <Button variant="ghost" onClick={() => navigate(backTo)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Button>

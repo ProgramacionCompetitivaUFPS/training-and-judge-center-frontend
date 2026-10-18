@@ -164,7 +164,13 @@ export function ContestFormPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(isEditing && groupId && id ? PATHS.contest(groupId, id) : `/groups/${groupId}`)}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" variant="primary" isLoading={isSubmitting}>
               {isEditing ? 'Guardar cambios' : 'Crear competencia'}
             </Button>

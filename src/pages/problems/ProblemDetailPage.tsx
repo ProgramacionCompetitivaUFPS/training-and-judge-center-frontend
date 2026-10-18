@@ -212,7 +212,8 @@ export function ProblemDetailPage() {
 
   const breadcrumbs = contestId
     ? [
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]

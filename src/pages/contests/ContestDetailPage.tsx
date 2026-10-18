@@ -19,6 +19,7 @@ import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, u
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
@@ -112,7 +113,11 @@ export function ContestDetailPage() {
 
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Competencias', href: '/contests' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[
+        { label: 'Grupos', href: '/groups' },
+        { label: ownerGroup?.name ?? '...', href: groupId ? PATHS.group(groupId) : undefined },
+        { label: '...' },
+      ]}>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
         </div>
@@ -161,7 +166,7 @@ export function ContestDetailPage() {
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
-          navigate('/contests')
+          navigate(PATHS.group(groupId))
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
       },
@@ -254,7 +259,8 @@ export function ContestDetailPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Competencias', href: '/contests' },
+    { label: 'Grupos', href: '/groups' },
+    { label: contest.group.name, href: PATHS.group(groupId) },
     { label: contest.name },
   ]
 
@@ -626,7 +632,7 @@ export function ContestDetailPage() {
               </Card>
 
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-              <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+              <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
               {isContestOwner && (
                 <Card>
@@ -720,7 +726,7 @@ export function ContestDetailPage() {
           <aside className="lg:col-span-4 space-y-4">
             <ContestInfoSidebar contest={contest} />
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-            <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+            <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
             {isContestOwner && (
               <Card>

@@ -137,7 +137,13 @@ export function GroupFormPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(isEdit && id ? PATHS.group(id) : ROUTES.GROUPS)}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" variant="primary" isLoading={isSubmitting}>
               {isEdit ? 'Guardar cambios' : 'Crear grupo'}
             </Button>

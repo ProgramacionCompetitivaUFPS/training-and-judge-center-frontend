@@ -31,7 +31,8 @@ export function ContestParticipantsPage() {
   return (
     <AppLayout
       breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
         { label: 'Participantes' },
       ]}
