@@ -220,6 +220,16 @@ export interface StandingsParams extends PaginationParams {
   realtime?: boolean
 }
 
+// Distinct, non-empty country/city/institution values actually in use among a
+// contest's participants (GET .../standings/filters) — backs the standings
+// filter so it offers real values instead of free text with an unknown exact
+// spelling. Same shape as AdminUserFilterOptions.
+export interface StandingsFilterOptions {
+  countries: string[]
+  cities: string[]
+  institutions: string[]
+}
+
 // === Contest Submissions ===
 
 export interface ContestSubmissionItem {

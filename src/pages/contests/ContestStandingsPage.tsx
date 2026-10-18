@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Clock, UsersRound } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Input } from '@/components/ui'
+import { Badge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
 import { Skeleton } from '@/components/ui'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
-import { useStandings } from '@/hooks/api/useContests'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { cn, problemLabel } from '@/lib/utils'
@@ -39,27 +38,25 @@ function ProblemCell({ result }: ProblemCellProps) {
 export function ContestStandingsPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
 
-  const [countryInput, setCountryInput] = useState('')
-  const debouncedCountry = useDebounce(countryInput, 300)
-  const [cityInput, setCityInput] = useState('')
-  const debouncedCity = useDebounce(cityInput, 300)
-  const [institutionInput, setInstitutionInput] = useState('')
-  const debouncedInstitution = useDebounce(institutionInput, 300)
+  const [countryFilter, setCountryFilter] = useState<string | undefined>(undefined)
+  const [cityFilter, setCityFilter] = useState<string | undefined>(undefined)
+  const [institutionFilter, setInstitutionFilter] = useState<string | undefined>(undefined)
   const [pagination, setPagination] = useState({ page: 1, limit: 50 })
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
   const params: StandingsParams = {
     ...pagination,
-    country: debouncedCountry || undefined,
-    city: debouncedCity || undefined,
-    institution: debouncedInstitution || undefined,
+    country: countryFilter,
+    city: cityFilter,
+    institution: institutionFilter,
   }
 
   const { data, isLoading } = useStandings(groupId || '', id || '', params)
+  const { data: filterOptions } = useStandingsFilterOptions(groupId || '', id || '')
 
-  const handleCountryFilter = (v: string) => { setCountryInput(v); setPagination((p) => ({ ...p, page: 1 })) }
-  const handleCityFilter = (v: string) => { setCityInput(v); setPagination((p) => ({ ...p, page: 1 })) }
-  const handleInstitutionFilter = (v: string) => { setInstitutionInput(v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleCountryFilter = (v: string) => { setCountryFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleCityFilter = (v: string) => { setCityFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
+  const handleInstitutionFilter = (v: string) => { setInstitutionFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
 
   return (
     <AppLayout
@@ -95,30 +92,33 @@ export function ContestStandingsPage() {
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-32 shrink-0">
-            <Input
-              placeholder="País"
-              className="h-8 px-2.5 py-1 text-sm"
-              value={countryInput}
-              onChange={(e) => handleCountryFilter(e.target.value)}
-            />
-          </div>
-          <div className="w-32 shrink-0">
-            <Input
-              placeholder="Ciudad"
-              className="h-8 px-2.5 py-1 text-sm"
-              value={cityInput}
-              onChange={(e) => handleCityFilter(e.target.value)}
-            />
-          </div>
-          <div className="w-36 shrink-0">
-            <Input
-              placeholder="Institución"
-              className="h-8 px-2.5 py-1 text-sm"
-              value={institutionInput}
-              onChange={(e) => handleInstitutionFilter(e.target.value)}
-            />
-          </div>
+          <Select value={countryFilter ?? 'ALL'} onValueChange={handleCountryFilter}>
+            <SelectTrigger className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los países</SelectItem>
+              {filterOptions?.countries.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={cityFilter ?? 'ALL'} onValueChange={handleCityFilter}>
+            <SelectTrigger className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Ciudad" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las ciudades</SelectItem>
+              {filterOptions?.cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={institutionFilter ?? 'ALL'} onValueChange={handleInstitutionFilter}>
+            <SelectTrigger className="w-40 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Institución" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las instituciones</SelectItem>
+              {filterOptions?.institutions.map((i) => (
+                <SelectItem key={i} value={i}>{i}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {data && !isLoading && (
