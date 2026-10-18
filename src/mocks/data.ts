@@ -920,7 +920,7 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
       { verdict: 'WRONG_ANSWER', count: 520 },
       { verdict: 'TIME_LIMIT_EXCEEDED', count: 180 },
       { verdict: 'COMPILATION_ERROR', count: 65 },
-      { verdict: 'RUNTIME_EXCEPTION', count: 35 },
+      { verdict: 'RUNTIME_ERROR', count: 35 },
     ],
   },
   'binary-search': {
@@ -934,7 +934,7 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
     verdictDistribution: [
       { verdict: 'ACCEPTED', count: 600 },
       { verdict: 'WRONG_ANSWER', count: 200 },
-      { verdict: 'RUNTIME_EXCEPTION', count: 50 },
+      { verdict: 'RUNTIME_ERROR', count: 50 },
       { verdict: 'TIME_LIMIT_EXCEEDED', count: 40 },
     ],
   },
@@ -1037,7 +1037,7 @@ export const mockSubmissions: SubmissionDetail[] = [
   },
   {
     id: 'sub-007-aaaa-bbbb-cccc-ddddeeee0007',
-    status: 'RUNTIME_EXCEPTION',
+    status: 'RUNTIME_ERROR',
     visibility: 'PRIVATE',
     submittedAt: '2026-03-08T11:30:00Z',
     judgedAt: '2026-03-08T11:30:02Z',
