@@ -12,7 +12,7 @@ import { PaginationControls, PaginationSummary } from '@/components/ui/Paginatio
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { EmptyState } from '@/components/patterns'
 import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
-import { useProblemDetail } from '@/hooks/api/useProblems'
+import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -38,9 +38,11 @@ export function ProblemSubmissionsPage() {
   const navigate = useNavigate()
 
   const { data: problem } = useProblemDetail(slug || '')
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
 
   const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 5 })
   const [mineOnly, setMineOnly] = useState(false)
+  const hasActiveFilters = !!filters.verdict || !!filters.language || mineOnly
 
   const queryParams: ProblemSubmissionsParams = {
     ...filters,
@@ -148,18 +150,44 @@ export function ProblemSubmissionsPage() {
         )}
 
         {/* Table */}
-        {isLoading ? (
+        {isLoading || (submissions.length === 0 && !hasActiveFilters && statsLoading) ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))}
           </div>
         ) : submissions.length === 0 ? (
-          <EmptyState
-            icon={FileCode2}
-            title="No hay envíos"
-            description="Aún no se han enviado soluciones para este problema con los filtros seleccionados."
-          />
+          hasActiveFilters ? (
+            <EmptyState
+              icon={FileCode2}
+              title="No hay envíos"
+              description="Ningún envío coincide con los filtros seleccionados."
+            />
+          ) : statsError && !stats ? (
+            // Sin estadísticas no se puede saber si hay historial dentro de competencias,
+            // así que no se afirma que nadie haya enviado.
+            <EmptyState
+              icon={FileCode2}
+              title="Sin envíos de práctica"
+              description="Este problema no tiene envíos públicos fuera de competencia."
+            />
+          ) : stats && stats.totalSubmissions > 0 ? (
+            // Esta lista excluye a propósito los envíos hechos dentro de una competencia
+            // (list_problem_submissions.go: ExcludeContest) — las estadísticas de arriba sí
+            // los cuentan, así que un problema puede mostrar envíos ahí y aun así salir vacío
+            // aquí si todo su historial ocurrió dentro de competencias.
+            <EmptyState
+              icon={FileCode2}
+              title="Sin envíos de práctica"
+              description="Este problema no tiene envíos públicos fuera de competencia — todo su historial registrado ocurrió dentro de una o más competencias. Revísalos desde la competencia correspondiente."
+            />
+          ) : (
+            <EmptyState
+              icon={FileCode2}
+              title="No hay envíos"
+              description="Todavía nadie ha enviado una solución para este problema."
+            />
+          )
         ) : (
           <Card>
             <CardContent className="p-0">
