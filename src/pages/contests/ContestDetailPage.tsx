@@ -718,7 +718,7 @@ export function ContestDetailPage() {
               <CardHeader>
                 <CardTitle>Problemas del concurso</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                 <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
               </CardContent>
             </Card>
