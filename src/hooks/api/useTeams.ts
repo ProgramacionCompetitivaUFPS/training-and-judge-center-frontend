@@ -134,6 +134,11 @@ export function useRegisterTeamToContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      // Literal prefix: ContestParticipantsPage's roster (contestKeys.registrations) isn't
+      // covered by either key above. Not contestKeys.registrations(groupId, contestId) itself —
+      // that appends a trailing `params: undefined`, which only matches a cached query whose
+      // params are ALSO exactly undefined, and ContestParticipantsPage always passes an object.
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }
@@ -154,6 +159,7 @@ export function useUpdateTeamRegistration() {
     }) => teamsApi.updateTeamRegistration(groupId, contestId, teamId, data),
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }
@@ -173,6 +179,7 @@ export function useUnregisterTeamFromContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.contestRegistrations(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }
