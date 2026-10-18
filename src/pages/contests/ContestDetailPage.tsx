@@ -542,8 +542,12 @@ export function ContestDetailPage() {
                   {contest.problems.length === 0 ? (
                     isLead ? (
                       <LockedProblemsPlaceholder
-                        title="Todavía no hay problemas"
-                        description='Agrégalos desde "Gestión de problemas", más abajo.'
+                        title={contest.locked ? 'Competencia bloqueada' : 'Todavía no hay problemas'}
+                        description={
+                          contest.locked
+                            ? 'No se pueden agregar problemas mientras la competencia esté bloqueada. Desbloquéala primero.'
+                            : 'Agrégalos desde "Gestión de problemas", más abajo.'
+                        }
                         showSkeleton={false}
                       />
                     ) : (
