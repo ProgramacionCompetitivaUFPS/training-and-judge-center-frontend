@@ -38,7 +38,7 @@ export function ProblemSubmissionsPage() {
   const navigate = useNavigate()
 
   const { data: problem } = useProblemDetail(slug || '')
-  const { data: stats } = useProblemStatistics(slug || '')
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
 
   const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 5 })
   const [mineOnly, setMineOnly] = useState(false)
@@ -150,7 +150,7 @@ export function ProblemSubmissionsPage() {
         )}
 
         {/* Table */}
-        {isLoading ? (
+        {isLoading || (submissions.length === 0 && !hasActiveFilters && statsLoading) ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -162,6 +162,14 @@ export function ProblemSubmissionsPage() {
               icon={FileCode2}
               title="No hay envíos"
               description="Ningún envío coincide con los filtros seleccionados."
+            />
+          ) : statsError && !stats ? (
+            // Sin estadísticas no se puede saber si hay historial dentro de competencias,
+            // así que no se afirma que nadie haya enviado.
+            <EmptyState
+              icon={FileCode2}
+              title="Sin envíos de práctica"
+              description="Este problema no tiene envíos públicos fuera de competencia."
             />
           ) : stats && stats.totalSubmissions > 0 ? (
             // Esta lista excluye a propósito los envíos hechos dentro de una competencia
