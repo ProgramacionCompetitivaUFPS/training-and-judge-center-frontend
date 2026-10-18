@@ -524,20 +524,31 @@ export function ContestDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Problems: locked or visible */}
+              {/* Problems: hidden pre-start for regular members, or genuinely empty (the
+                  backend only hides problems from non-Lead/Admin while SCHEDULED — get_contest.go:123
+                  — so for a Lead/Admin, an empty list here means nobody has added any yet, not
+                  that they're locked). */}
               <Card className={contest.problems.length === 0 ? 'border-dashed border-neutral-border' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     Problemas
-                    {contest.problems.length === 0 && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                    {contest.problems.length === 0 && !isLead && <Lock className="h-4 w-4 text-neutral-text-muted" />}
                   </CardTitle>
-                  {contest.problems.length === 0 && (
+                  {contest.problems.length === 0 && !isLead && (
                     <Badge variant="default">Acceso restringido</Badge>
                   )}
                 </CardHeader>
                 <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                   {contest.problems.length === 0 ? (
-                    <LockedProblemsPlaceholder />
+                    isLead ? (
+                      <LockedProblemsPlaceholder
+                        title="Todavía no hay problemas"
+                        description='Agrégalos desde "Gestión de problemas", más abajo.'
+                        showSkeleton={false}
+                      />
+                    ) : (
+                      <LockedProblemsPlaceholder />
+                    )
                   ) : (
                     <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
                   )}
