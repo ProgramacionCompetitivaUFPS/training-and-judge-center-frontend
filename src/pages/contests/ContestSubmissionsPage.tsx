@@ -70,6 +70,9 @@ export function ContestSubmissionsPage() {
       { label: 'Grupos', href: '/groups' },
       { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
       { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
+      ...(filteredProblemLetter
+        ? [{ label: `Problema ${filteredProblemLetter}`, href: PATHS.contestProblem(groupId || '', id || '', filteredProblemLetter) }]
+        : []),
     ],
   }
 
