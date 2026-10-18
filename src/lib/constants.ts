@@ -30,7 +30,7 @@ export const SUBMISSION_STATUS_CONFIG = {
   WRONG_ANSWER: { label: 'Respuesta Incorrecta', color: 'error' },
   TIME_LIMIT_EXCEEDED: { label: 'Tiempo Límite Excedido', color: 'warning' },
   MEMORY_LIMIT_EXCEEDED: { label: 'Memoria Límite Excedida', color: 'warning' },
-  RUNTIME_EXCEPTION: { label: 'Error en Tiempo de Ejecución', color: 'error' },
+  OUTPUT_LIMIT_EXCEEDED: { label: 'Salida Límite Excedida', color: 'warning' },
   RUNTIME_ERROR: { label: 'Error en Tiempo de Ejecución', color: 'error' },
   COMPILATION_ERROR: { label: 'Error de Compilación', color: 'error' },
   PENDING: { label: 'Pendiente', color: 'default' },

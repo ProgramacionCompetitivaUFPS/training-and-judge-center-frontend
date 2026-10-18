@@ -23,7 +23,9 @@ const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ACCEPTED', label: 'Aceptado' },
   { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
   { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memoria Límite Excedida' },
+  { value: 'OUTPUT_LIMIT_EXCEEDED', label: 'Salida Límite Excedida' },
+  { value: 'RUNTIME_ERROR', label: 'Error en Tiempo de Ejecución' },
   { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
   { value: 'PENDING', label: 'Pendiente' },
 ]

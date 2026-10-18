@@ -443,7 +443,7 @@ export function ProblemDetailPage() {
                               <div
                                 className={`h-full rounded-full ${
                                   v.verdict === 'ACCEPTED' ? 'bg-status-success' :
-                                  v.verdict === 'WRONG_ANSWER' || v.verdict === 'RUNTIME_EXCEPTION' ? 'bg-status-error' :
+                                  v.verdict === 'WRONG_ANSWER' || v.verdict === 'RUNTIME_ERROR' ? 'bg-status-error' :
                                   'bg-status-warning'
                                 }`}
                                 style={{ width: `${pct}%` }}
