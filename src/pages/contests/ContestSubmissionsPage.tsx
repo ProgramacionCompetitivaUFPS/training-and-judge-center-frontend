@@ -185,6 +185,9 @@ export function ContestSubmissionsPage() {
 
         {isLoading ? (
           <div className="space-y-2">
+            {/* Reserve space for the table's header row, which doesn't exist until data
+                arrives — same CLS fix as ContestStandingsPage. */}
+            <Skeleton className="h-10 w-full" />
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
