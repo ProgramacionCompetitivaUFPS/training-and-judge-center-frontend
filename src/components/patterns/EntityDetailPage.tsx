@@ -149,9 +149,11 @@ interface DetailContentProps {
   sections?: Section[]
   tabs?: Tab[]
   defaultTab?: string
+  activeTab?: string
+  onTabChange?: (id: string) => void
 }
 
-function DetailContent({ metadata, sections, tabs, defaultTab }: DetailContentProps) {
+function DetailContent({ metadata, sections, tabs, defaultTab, activeTab, onTabChange }: DetailContentProps) {
   return (
     <>
       {metadata && metadata.length > 0 && (
@@ -180,7 +182,10 @@ function DetailContent({ metadata, sections, tabs, defaultTab }: DetailContentPr
       )}
 
       {tabs && tabs.length > 0 ? (
-        <Tabs defaultValue={defaultTab || tabs[0].id}>
+        <Tabs
+          defaultValue={defaultTab || tabs[0].id}
+          {...(activeTab !== undefined ? { value: activeTab, onValueChange: onTabChange } : {})}
+        >
           <TabsList>
             {tabs.map((tab) => (
               <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
@@ -250,6 +255,8 @@ interface EntityDetailPageProps {
   sections?: Section[]
   tabs?: Tab[]
   defaultTab?: string
+  activeTab?: string
+  onTabChange?: (id: string) => void
 
   // Layout
   showSidebar?: boolean
@@ -270,6 +277,8 @@ export function EntityDetailPage({
   sections,
   tabs,
   defaultTab,
+  activeTab,
+  onTabChange,
   showSidebar = true,
   maxWidth = 'container',
 }: EntityDetailPageProps) {
@@ -308,6 +317,8 @@ export function EntityDetailPage({
           sections={sections}
           tabs={tabs}
           defaultTab={defaultTab}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
         />
       </div>
     </AppLayout>

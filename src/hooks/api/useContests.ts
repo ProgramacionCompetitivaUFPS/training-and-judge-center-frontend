@@ -173,6 +173,11 @@ export function useRegisterToContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: contestKeys.registrationStatus(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      // Literal prefix, not contestKeys.registrations(groupId, contestId) — that appends a
+      // trailing `params: undefined`, which only matches a cached query whose params are
+      // ALSO exactly undefined. ContestParticipantsPage always passes a params object, so
+      // that call would silently never match it.
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }
@@ -185,6 +190,7 @@ export function useUnregisterFromContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: contestKeys.registrationStatus(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }

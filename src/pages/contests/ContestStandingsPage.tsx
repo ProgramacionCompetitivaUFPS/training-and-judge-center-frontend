@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
-import { useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
+import { useContestDetail, useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { cn, problemLabel } from '@/lib/utils'
@@ -53,6 +53,7 @@ export function ContestStandingsPage() {
 
   const { data, isLoading } = useStandings(groupId || '', id || '', params)
   const { data: filterOptions } = useStandingsFilterOptions(groupId || '', id || '')
+  const { data: contestDetail } = useContestDetail(groupId || '', id || '')
 
   const handleCountryFilter = (v: string) => { setCountryFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
   const handleCityFilter = (v: string) => { setCityFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
@@ -61,7 +62,8 @@ export function ContestStandingsPage() {
   return (
     <AppLayout
       breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contestDetail?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: data?.contest.name || '...', href: PATHS.contest(groupId || '', id || '') },
         { label: 'Tabla de Posiciones' },
       ]}

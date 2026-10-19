@@ -151,7 +151,6 @@ export function useSubmitBlocklySolution() {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
-      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
     },
   })
 }
@@ -177,7 +176,6 @@ export function useSubmitBlocklyContestSolution() {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
-      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
     },
   })
 }

@@ -19,6 +19,7 @@ import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, u
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
@@ -112,7 +113,11 @@ export function ContestDetailPage() {
 
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Competencias', href: '/contests' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[
+        { label: 'Grupos', href: '/groups' },
+        { label: ownerGroup?.name ?? '...', href: groupId ? PATHS.group(groupId) : undefined },
+        { label: '...' },
+      ]}>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
         </div>
@@ -161,7 +166,7 @@ export function ContestDetailPage() {
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
-          navigate('/contests')
+          navigate(PATHS.group(groupId))
         },
         onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
       },
@@ -254,7 +259,8 @@ export function ContestDetailPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Competencias', href: '/contests' },
+    { label: 'Grupos', href: '/groups' },
+    { label: contest.group.name, href: PATHS.group(groupId) },
     { label: contest.name },
   ]
 
@@ -518,20 +524,35 @@ export function ContestDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Problems: locked or visible */}
+              {/* Problems: hidden pre-start for regular members, or genuinely empty (the
+                  backend only hides problems from non-Lead/Admin while SCHEDULED — get_contest.go:123
+                  — so for a Lead/Admin, an empty list here means nobody has added any yet, not
+                  that they're locked). */}
               <Card className={contest.problems.length === 0 ? 'border-dashed border-neutral-border' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     Problemas
-                    {contest.problems.length === 0 && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                    {contest.problems.length === 0 && !isLead && <Lock className="h-4 w-4 text-neutral-text-muted" />}
                   </CardTitle>
-                  {contest.problems.length === 0 && (
+                  {contest.problems.length === 0 && !isLead && (
                     <Badge variant="default">Acceso restringido</Badge>
                   )}
                 </CardHeader>
                 <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                   {contest.problems.length === 0 ? (
-                    <LockedProblemsPlaceholder />
+                    isLead ? (
+                      <LockedProblemsPlaceholder
+                        title={contest.locked ? 'Competencia bloqueada' : 'Todavía no hay problemas'}
+                        description={
+                          contest.locked
+                            ? 'No se pueden agregar problemas mientras la competencia esté bloqueada. Desbloquéala primero.'
+                            : 'Agrégalos desde "Gestión de problemas", más abajo.'
+                        }
+                        showSkeleton={false}
+                      />
+                    ) : (
+                      <LockedProblemsPlaceholder />
+                    )
                   ) : (
                     <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
                   )}
@@ -626,7 +647,7 @@ export function ContestDetailPage() {
               </Card>
 
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-              <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+              <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
               {isContestOwner && (
                 <Card>
@@ -701,7 +722,7 @@ export function ContestDetailPage() {
               <CardHeader>
                 <CardTitle>Problemas del concurso</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                 <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
               </CardContent>
             </Card>
@@ -720,7 +741,7 @@ export function ContestDetailPage() {
           <aside className="lg:col-span-4 space-y-4">
             <ContestInfoSidebar contest={contest} />
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-            <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+            <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
             {isContestOwner && (
               <Card>

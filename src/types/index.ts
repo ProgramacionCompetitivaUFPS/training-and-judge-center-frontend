@@ -108,6 +108,7 @@ export type {
   SubmissionListItem,
   MySubmissionsParams,
   SubmissionListResponse,
+  SubmissionOrigin,
   ProblemSubmissionsParams,
   SubmitSolutionResponse,
   UpdateVisibilityRequest,

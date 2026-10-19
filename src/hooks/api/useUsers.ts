@@ -156,6 +156,11 @@ export function useUpdateProfile() {
       queryClient.setQueryData(userKeys.me, (old: typeof updatedUser | undefined) =>
         old ? { ...old, ...updatedUser } : updatedUser
       )
+      // ProfilePage reads userKeys.profile(nickname), a sibling key setQueryData above never
+      // touches — without this, "Mi Perfil" keeps showing the pre-edit name/institution/etc.
+      // until a refresh. Invalidate (not setQueryData) since the response shape differs from
+      // what GET /users/:nickname returns.
+      queryClient.invalidateQueries({ queryKey: userKeys.profile(updatedUser.nickname) })
     },
   })
 }

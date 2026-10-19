@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
 import { SUBMISSION_STATUS_CONFIG, ROUTES, PATHS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import type { SubmissionStatus } from '@/types'
+import type { SubmissionStatus, SubmissionOrigin } from '@/types'
 import type { DashboardContest } from '@/types/user'
 
 function getGreeting(): string {
@@ -51,6 +51,10 @@ function getCountdown(startDate: string): string {
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
   return `${hours}h ${minutes}m`
 }
+
+// Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back to the dashboard
+// instead of the unrelated global "Mis Envíos" list.
+const SUBMISSION_ORIGIN: SubmissionOrigin = { backTo: ROUTES.DASHBOARD, backLabel: 'Panel de actividad' }
 
 export function UserDashboardPage() {
   const { user } = useAuth()
@@ -231,7 +235,7 @@ export function UserDashboardPage() {
                               </p>
                             </div>
                             {statusConfig && (
-                              <Link to={PATHS.submission(sub.id)}>
+                              <Link to={PATHS.submission(sub.id)} state={SUBMISSION_ORIGIN}>
                                 <Badge
                                   variant={statusConfig.color === 'success' ? 'default' : 'outline'}
                                   className="hover:opacity-80 transition-opacity"

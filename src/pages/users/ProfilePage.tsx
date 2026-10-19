@@ -42,7 +42,7 @@ export function ProfilePage() {
       : null
 
   return (
-    <AppLayout breadcrumbs={[{ label: 'Mi Perfil' }]}>
+    <AppLayout breadcrumbs={[{ label: isOwnProfile ? 'Mi Perfil' : (profile?.name ?? targetNickname) }]}>
       <div className="space-y-4">
         {isLoading && (
           <Card className="p-6">

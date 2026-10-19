@@ -103,6 +103,16 @@ export interface SubmissionListResponse {
   }
 }
 
+// Passed as router `state` by every page that links into SubmissionDetailPage (own
+// submissions, a contest's submissions, a problem's submissions, the dashboard), so the
+// detail page can build a breadcrumb/"Volver" that reflects where the user actually came
+// from instead of always assuming the global "Mis Envíos" list.
+export interface SubmissionOrigin {
+  backTo: string
+  backLabel: string
+  breadcrumbPrefix?: { label: string; href?: string }[]
+}
+
 // === Problem Submissions (GET /problems/:slug/submissions) ===
 
 export interface ProblemSubmissionsParams extends PaginationParams {

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Users, BarChart3, FileText } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui'
 import { formatDateTz, formatDuration, participationModeLabel } from '@/lib/utils'
@@ -98,11 +98,12 @@ export function ContestQuickLinks({ groupId, contestId }: ContestQuickLinksProps
 }
 
 interface ContestOrganizerCardProps {
+  groupId: string
   groupName: string
   ownerNickname: string
 }
 
-export function ContestOrganizerCard({ groupName, ownerNickname }: ContestOrganizerCardProps) {
+export function ContestOrganizerCard({ groupId, groupName, ownerNickname }: ContestOrganizerCardProps) {
   return (
     <Card>
       <CardContent className="pt-5 space-y-3">
@@ -110,7 +111,9 @@ export function ContestOrganizerCard({ groupName, ownerNickname }: ContestOrgani
         <div className="space-y-2">
           <p className="text-sm">
             <span className="text-neutral-text-muted">Grupo: </span>
-            <span className="font-semibold text-neutral-text-primary">{groupName}</span>
+            <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+              {groupName}
+            </Link>
           </p>
           <p className="text-sm">
             <span className="text-neutral-text-muted">Organizador: </span>
