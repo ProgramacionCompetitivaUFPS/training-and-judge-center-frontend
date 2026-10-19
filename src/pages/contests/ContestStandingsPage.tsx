@@ -138,6 +138,10 @@ export function ContestStandingsPage() {
         {/* Standings Table */}
         {isLoading ? (
           <div className="space-y-2">
+            {/* The real table always has a header row (#, Participante, Resueltos, Penalización,
+                + una por problema) that doesn't exist until data arrives — without a placeholder
+                for it, that row pops in out of nowhere and shifts everything below it. */}
+            <Skeleton className="h-10 w-full" />
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
