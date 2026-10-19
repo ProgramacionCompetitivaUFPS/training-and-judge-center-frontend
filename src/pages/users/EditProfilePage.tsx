@@ -186,6 +186,7 @@ function PasswordSection({ hasPassword }: PasswordSectionProps) {
 function ChangePasswordForm() {
   const changeMutation = useChangePassword()
   const { toast } = useToastContext()
+  const { logout } = useAuth()
 
   const {
     register,
@@ -207,8 +208,16 @@ function ChangePasswordForm() {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       })
-      toast({ variant: 'success', title: 'Contraseña actualizada', description: 'Tu contraseña se cambió correctamente.' })
       reset()
+      // The backend invalidates every session — including this one — on a password
+      // change (HU-USR-18). Without this, the user stays on a page with a dead token
+      // until their next request happens to 401 and the global interceptor catches it.
+      toast({
+        variant: 'success',
+        title: 'Contraseña actualizada',
+        description: 'Por seguridad, cerramos tu sesión. Inicia sesión de nuevo con tu nueva contraseña.',
+      })
+      logout()
     } catch (error) {
       if (error instanceof ApiClientError && error.details?.length) {
         error.details.forEach((d) => setError(d.field as keyof ChangePasswordFormData, { message: d.message }))
