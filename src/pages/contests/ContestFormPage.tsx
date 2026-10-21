@@ -13,6 +13,7 @@ import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode } from '@/types/contest'
 
@@ -23,6 +24,14 @@ function formatDurationFromDates(start: string, end: string): string {
   const hours = Math.floor(ms / 3600000)
   const minutes = Math.floor((ms % 3600000) / 60000)
   return `${hours}h ${minutes}m`
+}
+
+// datetime-local reads its value as local time, so an ISO string in UTC can't just be sliced —
+// that shifts the contest by the UTC offset every time it's edited and saved.
+function toDateTimeLocalValue(iso: string): string {
+  const date = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 export function ContestFormPage() {
@@ -54,8 +63,8 @@ export function ContestFormPage() {
       ? {
           name: existing.name,
           description: existing.description || '',
-          startTime: existing.startTime.slice(0, 16),
-          endTime: existing.endTime.slice(0, 16),
+          startTime: toDateTimeLocalValue(existing.startTime),
+          endTime: toDateTimeLocalValue(existing.endTime),
           penalty: existing.penalty,
           freezeMinutes: existing.freezeMinutes,
           enablePostContest: existing.enablePostContest,
@@ -96,7 +105,7 @@ export function ContestFormPage() {
             if (err instanceof ApiClientError && err.code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
               toast({ variant: 'error', title: 'No se puede cambiar la modalidad', description: 'Ya hay equipos registrados en esta competencia.' })
             } else {
-              toast({ variant: 'error', title: 'Error', description: 'No se pudo actualizar' })
+              toast({ variant: 'error', title: 'No se pudo actualizar', description: getErrorMessage(err) })
             }
           },
         },
@@ -109,7 +118,7 @@ export function ContestFormPage() {
             toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
             navigate(PATHS.contest(groupId, created.id))
           },
-          onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
+          onError: (err) => toast({ variant: 'error', title: 'No se pudo crear', description: getErrorMessage(err) }),
         },
       )
     }
