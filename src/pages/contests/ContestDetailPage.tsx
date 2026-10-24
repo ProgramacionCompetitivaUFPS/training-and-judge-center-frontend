@@ -379,6 +379,12 @@ export function ContestDetailPage() {
               <ContestInfoSidebar contest={contest} />
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
 
+              {/* Edit only, no delete: lets a lead extend the end time or fix details mid-contest
+                  (HU-COM-11 "antes o durante su ejecución"); the form keeps the start time read-only. */}
+              {isLead && !contest.locked && (
+                <ContestAdminActions contestId={contest.id} groupId={groupId} />
+              )}
+
               {contest.description && (
                 <Card>
                   <CardContent className="pt-5">

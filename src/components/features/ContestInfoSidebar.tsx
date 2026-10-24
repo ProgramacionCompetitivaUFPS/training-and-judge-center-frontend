@@ -128,7 +128,8 @@ export function ContestOrganizerCard({ groupId, groupName, ownerNickname }: Cont
 interface ContestAdminActionsProps {
   contestId: string
   groupId: string
-  onDelete: () => void
+  /** Omit to hide "Eliminar competencia" (e.g. while the contest is running). */
+  onDelete?: () => void
   isDeleting?: boolean
 }
 
@@ -141,9 +142,11 @@ export function ContestAdminActions({ contestId, groupId, onDelete, isDeleting }
         <Button variant="outline" className="w-full" onClick={() => navigate(PATHS.contestEdit(groupId, contestId))}>
           Editar competencia
         </Button>
-        <Button variant="danger" className="w-full" onClick={onDelete} isLoading={isDeleting}>
-          Eliminar competencia
-        </Button>
+        {onDelete && (
+          <Button variant="danger" className="w-full" onClick={onDelete} isLoading={isDeleting}>
+            Eliminar competencia
+          </Button>
+        )}
       </CardContent>
     </Card>
   )

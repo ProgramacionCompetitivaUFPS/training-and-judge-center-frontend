@@ -83,6 +83,11 @@ export function ContestFormPage() {
   const participationMode = useWatch({ control, name: 'participationMode' })
   const showTeamMembers = useWatch({ control, name: 'showTeamMembers' })
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
+  // The backend rejects a start (or end) time in the past, and moving either one after the fact
+  // would shift every submission's time and penalty — so once started, only the end can move
+  // (e.g. extending a running contest), and once finished, neither.
+  const startLocked = isEditing && !!existing && existing.status !== 'SCHEDULED'
+  const endLocked = isEditing && existing?.status === 'FINISHED'
 
   const onSubmit = (data: CreateContestFormData) => {
     const payload = {
@@ -228,19 +233,32 @@ export function ContestFormPage() {
           <FormSection icon={<Calendar className="h-4 w-4" />} title="Horario">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* readOnly, not disabled: react-hook-form drops disabled values from the submit data,
+                    which the freeze-vs-duration check still needs. */}
                 <Input
                   label="Fecha y hora de inicio"
                   type="datetime-local"
                   {...register('startTime')}
+                  readOnly={startLocked}
+                  className={startLocked ? 'bg-neutral-background text-neutral-text-muted cursor-not-allowed' : undefined}
                   error={errors.startTime?.message}
                 />
                 <Input
                   label="Fecha y hora de fin"
                   type="datetime-local"
                   {...register('endTime')}
+                  readOnly={endLocked}
+                  className={endLocked ? 'bg-neutral-background text-neutral-text-muted cursor-not-allowed' : undefined}
                   error={errors.endTime?.message}
                 />
               </div>
+              {startLocked && (
+                <p className="text-xs text-neutral-text-muted">
+                  {endLocked
+                    ? 'La competencia ya finalizó: sus fechas no se pueden modificar.'
+                    : 'La competencia ya comenzó: la fecha de inicio no se puede modificar, pero puedes extender o adelantar la hora de fin (siempre a un momento futuro).'}
+                </p>
+              )}
               {startTime && endTime && (
                 <div className="flex items-center gap-2 text-sm text-neutral-text-muted bg-neutral-surface rounded-lg px-4 py-2">
                   <Clock className="h-4 w-4" />
