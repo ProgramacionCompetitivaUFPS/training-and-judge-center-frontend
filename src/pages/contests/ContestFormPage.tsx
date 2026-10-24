@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/useToast'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
-import type { ParticipationMode } from '@/types/contest'
+import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
 
 function formatDurationFromDates(start: string, end: string): string {
   if (!start || !end) return '—'
@@ -76,7 +76,7 @@ export function ContestFormPage() {
       : undefined,
   })
 
-  const { register, handleSubmit, formState: { errors }, setValue, control } = form
+  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, control } = form
   const enablePostContest = useWatch({ control, name: 'enablePostContest' })
   const startTime = useWatch({ control, name: 'startTime' })
   const endTime = useWatch({ control, name: 'endTime' })
@@ -93,7 +93,27 @@ export function ContestFormPage() {
     }
 
     if (isEditing && groupId && id) {
-      const { problems: _unusedProblems, ...updatePayload } = payload
+      // Only send what the user changed: the backend re-validates every field it receives, so
+      // resending an untouched startTime breaks editing a contest that already started
+      // (START_TIME_IN_PAST), and an untouched participationMode breaks it once teams registered.
+      const updatePayload: UpdateContestRequest = {}
+      if (dirtyFields.name) updatePayload.name = payload.name
+      if (dirtyFields.description) updatePayload.description = data.description || null
+      if (dirtyFields.startTime) updatePayload.startTime = payload.startTime
+      if (dirtyFields.endTime) updatePayload.endTime = payload.endTime
+      if (dirtyFields.penalty) updatePayload.penalty = payload.penalty
+      if (dirtyFields.freezeMinutes) updatePayload.freezeMinutes = payload.freezeMinutes
+      if (dirtyFields.enablePostContest) updatePayload.enablePostContest = payload.enablePostContest
+      if (dirtyFields.participationMode) updatePayload.participationMode = payload.participationMode
+      if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
+      if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
+      if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
+
+      if (Object.keys(updatePayload).length === 0) {
+        navigate(PATHS.contest(groupId, id))
+        return
+      }
+
       updateMutation.mutate(
         { groupId, contestId: id, data: updatePayload },
         {
@@ -236,7 +256,7 @@ export function ContestFormPage() {
                 <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Participación</label>
                 <Select
                   value={participationMode}
-                  onValueChange={(v) => setValue('participationMode', v as ParticipationMode, { shouldValidate: true })}
+                  onValueChange={(v) => setValue('participationMode', v as ParticipationMode, { shouldValidate: true, shouldDirty: true })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -267,7 +287,7 @@ export function ContestFormPage() {
                   <div className="flex items-center gap-2">
                     <Checkbox
                       checked={showTeamMembers || false}
-                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked)}
+                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked, { shouldDirty: true })}
                     />
                     <label className="text-sm text-neutral-text-primary">
                       Mostrar los miembros del equipo en standings y envíos
@@ -304,7 +324,7 @@ export function ContestFormPage() {
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={enablePostContest || false}
-                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked)}
+                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked, { shouldDirty: true })}
                 />
                 <label className="text-sm text-neutral-text-primary">
                   Habilitar post-competencia (submissions después del fin no afectan standings)

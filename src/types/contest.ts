@@ -104,7 +104,8 @@ export interface CreateContestRequest {
 
 export interface UpdateContestRequest {
   name?: string
-  description?: string
+  /** null clears the description */
+  description?: string | null
   startTime?: string
   endTime?: string
   penalty?: number
