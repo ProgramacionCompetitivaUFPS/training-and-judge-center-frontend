@@ -56,6 +56,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const isAuthenticated = !!user && !!token
 
+  const [lastNickname, setLastNickname] = useState<string | null>(null)
+  if (user?.nickname && user.nickname !== lastNickname) {
+    setLastNickname(user.nickname)
+  }
+
   const hasRole = useCallback(
     (role: UserRole | UserRole[]) => {
       if (!user) return false
@@ -74,8 +79,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [logoutMutation])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading: bootstrapping || isLoading, isAuthenticated, hasRole, logout }),
-    [user, isLoading, bootstrapping, isAuthenticated, hasRole, logout],
+    () => ({ user, isLoading: bootstrapping || isLoading, isAuthenticated, hasRole, logout, lastNickname }),
+    [user, isLoading, bootstrapping, isAuthenticated, hasRole, logout, lastNickname],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
