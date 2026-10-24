@@ -6,6 +6,9 @@ export interface AuthContextValue {
   isLoading: boolean
   isAuthenticated: boolean
   hasRole: (role: UserRole | UserRole[]) => boolean
+  /** Nickname of the last user who had a session in this tab — survives logout, so the login
+   *  redirect can tell whether a pending `from` belongs to whoever signs in next. */
+  lastNickname: string | null
   logout: () => void
 }
 

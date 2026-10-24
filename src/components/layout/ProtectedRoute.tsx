@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, hasRole } = useAuth()
+  const { isAuthenticated, isLoading, hasRole, lastNickname } = useAuth()
   const location = useLocation()
 
   if (isLoading) {
@@ -28,7 +28,9 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />
+    // Tag `from` with whoever was on this page (logout, expiry, logout from another tab) so the
+    // login page doesn't drop a different user onto the previous user's last page.
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location, fromNickname: lastNickname }} replace />
   }
 
   // Same page as a missing route: a role-restricted page shouldn't confirm it exists.
