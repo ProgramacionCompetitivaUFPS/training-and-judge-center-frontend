@@ -304,7 +304,12 @@ export function GroupDetailPage() {
       setInviteNickname('')
       setInviteEmail('')
     } catch (err) {
-      toast({ variant: 'error', title: 'Error al enviar invitación', description: getErrorMessage(err) })
+      // ALREADY_MEMBER's generic text ("Ya eres miembro…") is written for the person joining;
+      // here the lead is inviting someone else.
+      const description = err instanceof ApiClientError && err.code === 'ALREADY_MEMBER'
+        ? 'Ese usuario ya es miembro del grupo.'
+        : getErrorMessage(err)
+      toast({ variant: 'error', title: 'Error al enviar invitación', description })
     }
   }
 

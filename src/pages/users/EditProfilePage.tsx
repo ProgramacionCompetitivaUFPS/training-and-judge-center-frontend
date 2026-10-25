@@ -621,10 +621,11 @@ function DeactivateSection({ hasPassword }: { hasPassword?: boolean }) {
       setStage('code')
       setPassword('')
     } catch (error) {
+      const wrongPassword = error instanceof ApiClientError && error.details?.some((d) => d.field === 'password')
       toast({
         variant: 'error',
-        title: 'Error al solicitar desactivación',
-        description: getErrorMessage(error),
+        title: wrongPassword ? 'Contraseña incorrecta' : 'Error al solicitar desactivación',
+        description: wrongPassword ? 'La contraseña que escribiste no es la de tu cuenta.' : getErrorMessage(error),
       })
     }
   }
