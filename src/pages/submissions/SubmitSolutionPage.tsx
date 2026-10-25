@@ -78,6 +78,11 @@ export function SubmitSolutionPage() {
 
   // Submission recovery
   const isBlockly = language === 'blockly'
+  // Name of a public top-level class other than Solution, if the Java code declares one.
+  const javaWrongPublicClass = language === 'java17'
+    ? code.match(/^\s*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m)?.[1]
+    : undefined
+  const javaClassMismatch = javaWrongPublicClass && javaWrongPublicClass !== 'Solution' ? javaWrongPublicClass : undefined
 
   const {
     recoverableSubmission,
@@ -392,6 +397,15 @@ export function SubmitSolutionPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* The judge compiles every Java source as Solution.java and runs `java Solution`
+                      (judge_config.yaml), so `public class Main` is a Compilation Error. */}
+                  {language === 'java17' && (
+                    <p className={`text-xs mt-2 ${javaClassMismatch ? 'text-status-error font-medium' : 'text-neutral-text-muted'}`}>
+                      {javaClassMismatch
+                        ? `Tu clase pública se llama "${javaClassMismatch}": el juez la compila como Solution.java, así que dará Error de Compilación. Renómbrala a Solution.`
+                        : <>En Java, la clase principal debe llamarse <code className="font-mono">Solution</code> (<code className="font-mono">public class Solution</code>).</>}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit button */}
