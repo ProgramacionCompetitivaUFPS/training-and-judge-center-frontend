@@ -151,13 +151,11 @@ export function useSubmitBlocklySolution() {
       problemSlug: string
       pythonCode: string
       workspaceXml: string
-      svgBlob: Blob
     }) =>
       submitBlocklySolution(
         params.problemSlug,
         params.pythonCode,
         params.workspaceXml,
-        params.svgBlob,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
@@ -174,7 +172,6 @@ export function useSubmitBlocklyContestSolution() {
       problemSlug: string
       pythonCode: string
       workspaceXml: string
-      svgBlob: Blob
     }) =>
       submitBlocklyContestSolution(
         params.groupId,
@@ -182,7 +179,6 @@ export function useSubmitBlocklyContestSolution() {
         params.problemSlug,
         params.pythonCode,
         params.workspaceXml,
-        params.svgBlob,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })

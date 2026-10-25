@@ -244,6 +244,7 @@ export interface ContestSubmissionItem {
     | { type: 'INDIVIDUAL'; nickname: string; name: string }
     | { type: 'TEAM'; teamId: string; teamName: string; members?: string[] }
   language: string
+  isBlocklySubmission: boolean
   submittedAt: string
   judgedAt?: string
   status: string // includes '?' during freeze
