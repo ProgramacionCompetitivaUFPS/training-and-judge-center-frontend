@@ -43,6 +43,14 @@ export function localDayStartIso(day: string, addDays = 0): string {
 
 
 /**
+ * "1 problema" / "3 problemas". Regular Spanish plural (+s) unless `plural` is given.
+ */
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+
+/**
  * Format a duration in seconds to a human-readable string, using days for long contests.
  * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min", 604800 → "7 días", 108000 → "1 día 6h"
  */

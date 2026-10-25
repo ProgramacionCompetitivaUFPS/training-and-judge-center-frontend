@@ -59,7 +59,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
@@ -759,7 +759,7 @@ export function GroupDetailPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Trophy className="h-3.5 w-3.5" />
-                    {c.problemCount} problemas
+                    {pluralize(c.problemCount, 'problema')}
                   </span>
                 </div>
               </CardContent>
@@ -792,7 +792,11 @@ export function GroupDetailPage() {
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
-    ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
+    // Join requests only exist under the REQUEST policy; keep the tab if some are still listed
+    // (e.g. the policy changed afterwards) so they can still be processed.
+    ...(canManage && (group?.joinPolicy === 'REQUEST' || (requestsData?.pagination.total ?? 0) > 0)
+      ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }]
+      : []),
     ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.total }] : []),
   ]
 

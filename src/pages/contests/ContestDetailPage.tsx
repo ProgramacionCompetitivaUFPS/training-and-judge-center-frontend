@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PATHS } from '@/lib/constants'
-import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
+import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
@@ -531,7 +531,7 @@ export function ContestDetailPage() {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Participantes</p>
-                        <p className="text-sm font-semibold text-neutral-text-primary">{contest.participantCount} inscritos</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{pluralize(contest.participantCount, 'inscrito')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
