@@ -29,6 +29,8 @@ interface BlocklyEditorProps {
   problemSlug: string
   onEmptyChange?: (isEmpty: boolean) => void
   onError?: (error: Error) => void
+  /** Called once the workspace exists, so a caller can load into an editor that was still mounting. */
+  onReady?: () => void
 }
 
 const WORKSPACE_CONFIG: Blockly.BlocklyOptions = {
@@ -50,7 +52,7 @@ function loadXmlToWorkspace(workspace: Blockly.WorkspaceSvg, xml: string): void 
 }
 
 const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
-  function BlocklyEditor({ problemSlug, onEmptyChange, onError }, ref) {
+  function BlocklyEditor({ problemSlug, onEmptyChange, onError, onReady }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const workspaceRef = useRef<Blockly.WorkspaceSvg | null>(null)
     const [initError, setInitError] = useState<string | null>(null)
@@ -150,6 +152,7 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         onEmptyChange?.(empty)
 
         ws.addChangeListener(handleWorkspaceChange)
+        onReady?.()
 
         return () => {
           ws.removeChangeListener(handleWorkspaceChange)

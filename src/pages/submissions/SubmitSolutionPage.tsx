@@ -48,6 +48,9 @@ export function SubmitSolutionPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const blocklyRef = useRef<BlocklyEditorHandle>(null)
+  // Workspace of a loaded submission that arrived while the block editor was still mounting
+  // (loading a Blockly submission from another language switches to Blockly first).
+  const pendingBlocklyXmlRef = useRef<string | null>(null)
   const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
 
   // Resolve problem slug in contest context (letter → slug)
@@ -108,7 +111,8 @@ export function SubmitSolutionPage() {
 
     if (subIsBlockly) {
       if (detail.workspaceXml) {
-        blocklyRef.current?.loadXml(detail.workspaceXml)
+        if (blocklyRef.current) blocklyRef.current.loadXml(detail.workspaceXml)
+        else pendingBlocklyXmlRef.current = detail.workspaceXml
       } else {
         toast({
           variant: 'warning',
@@ -515,6 +519,11 @@ export function SubmitSolutionPage() {
                         ref={blocklyRef}
                         problemSlug={resolvedSlug}
                         onEmptyChange={setIsBlocklyEmpty}
+                        onReady={() => {
+                          const xml = pendingBlocklyXmlRef.current
+                          pendingBlocklyXmlRef.current = null
+                          if (xml) blocklyRef.current?.loadXml(xml)
+                        }}
                       />
                     </Suspense>
                   </>
