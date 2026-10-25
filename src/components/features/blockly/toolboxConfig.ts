@@ -6,18 +6,8 @@ export const BLOCKLY_TOOLBOX = {
       name: 'Entradas',
       colour: '#995ba5',
       contents: [
-        {
-          kind: 'block',
-          type: 'text_prompt_ext',
-          inputs: {
-            TEXT: {
-              shadow: {
-                type: 'text',
-                fields: { TEXT: 'abc' },
-              },
-            },
-          },
-        },
+        { kind: 'block', type: 'read_value' },
+        { kind: 'block', type: 'read_values_line' },
       ],
     },
     {
@@ -267,7 +257,6 @@ export const BLOCKLY_TOOLBOX = {
       categorystyle: 'text_category',
       contents: [
         { kind: 'block', type: 'text' },
-        { kind: 'block', type: 'text_multiline' },
         { kind: 'block', type: 'text_join' },
         {
           kind: 'block',
