@@ -565,14 +565,14 @@ export function ProblemDetailPage() {
         </aside>
       </div>
 
-      {/* Unpublish confirm: the backend only blocks it during an ACTIVE contest
-          (unpublish_problem.go), so a scheduled one would start with a draft problem and reject
-          every submission (PROBLEM_NOT_PUBLISHED). */}
+      {/* Unpublish confirm. Caveat for maintainers: the backend only blocks unpublishing during an
+          ACTIVE contest (unpublish_problem.go), so a scheduled one could start with a draft problem
+          (PROBLEM_NOT_PUBLISHED). The real fix is listing the contests that use it (PRB-M04). */}
       <ConfirmDialog
         open={unpublishDialogOpen}
         onOpenChange={setUnpublishDialogOpen}
         title="Despublicar problema"
-        description="El problema volverá a borrador: los competidores dejarán de verlo y nadie podrá enviarle soluciones. Si está en una competencia programada, sus participantes no podrán enviar soluciones a este problema hasta que lo vuelvas a publicar."
+        description="El problema volverá a borrador y nadie podrá enviarle soluciones hasta que lo publiques de nuevo."
         variant="warning"
         confirmLabel="Despublicar"
         onConfirm={handleUnpublish}
