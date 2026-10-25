@@ -294,13 +294,13 @@ function SetPasswordForm() {
   const onSubmit = async (data: SetPasswordFormData) => {
     try {
       await setMutation.mutateAsync({ newPassword: data.newPassword })
-      toast({ variant: 'success', title: 'Contraseña creada', description: 'Ya podés iniciar sesión también con tu correo y contraseña.' })
+      toast({ variant: 'success', title: 'Contraseña creada', description: 'Ya puedes iniciar sesión también con tu correo y contraseña.' })
       reset()
     } catch (error) {
       if (error instanceof ApiClientError && error.details?.length) {
         error.details.forEach((d) => setError(d.field as keyof SetPasswordFormData, { message: d.message }))
       } else if (error instanceof ApiClientError && error.code === 'PASSWORD_ALREADY_SET') {
-        toast({ variant: 'error', title: 'Ya tenés una contraseña configurada' })
+        toast({ variant: 'error', title: 'Ya tienes una contraseña configurada' })
       } else {
         toast({
           variant: 'error',
@@ -321,8 +321,8 @@ function SetPasswordForm() {
           <h2 className="text-lg font-bold text-neutral-text-primary">Crear Contraseña</h2>
         </div>
         <p className="text-sm text-neutral-text-muted">
-          Hoy solo podés iniciar sesión con Google. Configurá una contraseña para poder entrar
-          también con tu correo, o si en algún momento perdés acceso a tu cuenta de Google.
+          Hoy solo puedes iniciar sesión con Google. Configura una contraseña para poder entrar
+          también con tu correo, o si en algún momento pierdes acceso a tu cuenta de Google.
         </p>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -367,8 +367,8 @@ function EmailSection({ hasPassword }: EmailSectionProps) {
             <h2 className="text-lg font-bold text-neutral-text-primary">Cambiar Correo</h2>
           </div>
           <p className="text-sm text-neutral-text-muted">
-            Para cambiar tu correo necesitás confirmar con tu contraseña. Como todavía no tienes una,
-            primero creá una contraseña.
+            Para cambiar tu correo necesitas confirmar con tu contraseña. Como todavía no tienes una,
+            primero crea una contraseña.
           </p>
           <Button variant="outline" onClick={scrollToPasswordSection}>
             Crear Contraseña
@@ -541,7 +541,7 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
       } else if (error instanceof ApiClientError && error.code === 'CANNOT_UNLINK_LAST_CREDENTIAL') {
         toast({
           variant: 'error',
-          title: 'Necesitás configurar una contraseña antes de desvincular tu cuenta de Google',
+          title: 'Necesitas configurar una contraseña antes de desvincular tu cuenta de Google',
           description: 'Es tu única forma de iniciar sesión por ahora.',
         })
         scrollToPasswordSection()
@@ -564,7 +564,7 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
           <>
             <p className="text-sm text-neutral-text-muted">
               {hasPassword === false
-                ? 'Como todavía no tenés una contraseña, Google es tu única forma de iniciar sesión. Creá una contraseña antes de desvincularla.'
+                ? 'Como todavía no tienes una contraseña, Google es tu única forma de iniciar sesión. Crea una contraseña antes de desvincularla.'
                 : 'Tu cuenta tiene Google vinculado como método de inicio de sesión. Al desvincularla, te enviaremos un correo de seguridad confirmando el cambio.'}
             </p>
             <Button
@@ -578,7 +578,7 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
         ) : (
           <>
             <p className="text-sm text-neutral-text-muted">
-              Vinculá tu cuenta de Google para poder iniciar sesión con ella. Vas a necesitar
+              Vincula tu cuenta de Google para poder iniciar sesión con ella. Tendrás que
               autenticarte con Google nuevamente.
             </p>
             <GoogleSignInButton onCredential={handleLinkCredential} text="continue_with" />
