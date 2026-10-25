@@ -61,7 +61,7 @@ export function EditProfilePage() {
         <PasswordSection hasPassword={user.hasPassword} />
         <EmailSection hasPassword={user.hasPassword} />
         <GoogleAccountSection googleLinked={user.googleLinked} hasPassword={user.hasPassword} />
-        <DeactivateSection />
+        <DeactivateSection hasPassword={user.hasPassword} />
       </div>
     </AppLayout>
   )
@@ -589,7 +589,7 @@ function GoogleAccountSection({ googleLinked, hasPassword }: GoogleAccountSectio
   )
 }
 
-function DeactivateSection() {
+function DeactivateSection({ hasPassword }: { hasPassword?: boolean }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const deactivateMutation = useRequestDeactivation()
@@ -598,6 +598,8 @@ function DeactivateSection() {
   const [stage, setStage] = useState<'idle' | 'password' | 'code'>('idle')
   const [password, setPassword] = useState('')
   const isAdmin = user?.role === 'ADMIN'
+  // Google-only accounts have no password to type; the emailed code is the real confirmation.
+  const needsPassword = hasPassword !== false
 
   const {
     register: registerConfirm,
@@ -666,19 +668,26 @@ function DeactivateSection() {
       )}
       {stage === 'password' && (
         <div className="space-y-3">
-          <PasswordInput
-            id="deactivatePassword"
-            label="Confirma tu contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          {needsPassword ? (
+            <PasswordInput
+              id="deactivatePassword"
+              label="Confirma tu contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          ) : (
+            <p className="text-sm text-neutral-text-muted">
+              Tu cuenta inicia sesión con Google, así que no hace falta contraseña: te enviaremos un código a
+              tu correo para confirmar la desactivación.
+            </p>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setStage('idle'); setPassword('') }}>
               Cancelar
             </Button>
             <Button
               onClick={handleDeactivate}
-              disabled={!password || deactivateMutation.isPending}
+              disabled={(needsPassword && !password) || deactivateMutation.isPending}
               className="bg-status-error hover:bg-status-error/90"
             >
               {deactivateMutation.isPending ? 'Procesando...' : 'Confirmar Desactivación'}
