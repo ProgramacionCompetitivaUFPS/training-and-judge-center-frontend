@@ -382,7 +382,7 @@ export function GroupDetailPage() {
                 <TableCell>
                   <Badge variant={m.role === 'LEAD' ? 'warning' : 'outline'}>{m.role === 'LEAD' ? 'Líder' : 'Miembro'}</Badge>
                 </TableCell>
-                <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString()}</TableCell>
+                <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString('es')}</TableCell>
                 {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -485,7 +485,7 @@ export function GroupDetailPage() {
                       {r.status === 'PENDING' ? 'Pendiente' : r.status === 'APPROVED' ? 'Aprobada' : 'Rechazada'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{new Date(r.createdAt).toLocaleDateString('es')}</TableCell>
                   <TableCell className="text-right">
                     {r.status === 'PENDING' && (
                       <div className="flex items-center justify-end gap-1">
@@ -551,7 +551,7 @@ export function GroupDetailPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-neutral-text-muted">{inv.invitee?.email ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString('es')}</TableCell>
                 </TableRow>
               ))}
               {(!invitationsData || invitationsData.invitations.length === 0) && (

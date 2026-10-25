@@ -205,7 +205,7 @@ export function MaterialDetailPage() {
                       {material.author.name}
                     </p>
                     <p className="text-xs text-neutral-text-muted">
-                      @{material.author.nickname} · {new Date(material.publishedAt ?? material.createdAt).toLocaleDateString()}
+                      @{material.author.nickname} · {new Date(material.publishedAt ?? material.createdAt).toLocaleDateString('es')}
                     </p>
                   </div>
                 </div>
@@ -238,14 +238,14 @@ export function MaterialDetailPage() {
                       <span className="text-sm text-neutral-text-muted flex items-center gap-2">
                         <Calendar className="h-3.5 w-3.5" /> Creado
                       </span>
-                      <span className="text-sm font-medium">{new Date(material.createdAt).toLocaleDateString()}</span>
+                      <span className="text-sm font-medium">{new Date(material.createdAt).toLocaleDateString('es')}</span>
                     </div>
                     {material.publishedAt && (
                       <div className="flex items-center justify-between py-1.5 border-b border-neutral-border">
                         <span className="text-sm text-neutral-text-muted flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5" /> Publicado
                         </span>
-                        <span className="text-sm font-medium">{new Date(material.publishedAt).toLocaleDateString()}</span>
+                        <span className="text-sm font-medium">{new Date(material.publishedAt).toLocaleDateString('es')}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between py-1.5">
