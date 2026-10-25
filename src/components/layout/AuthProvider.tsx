@@ -4,12 +4,30 @@ import { useCurrentUser, useLogout } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
 import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired } from '@/lib/tokenStore'
 import { refreshSession } from '@/api/users'
+import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
 import { useToastContext } from '@/hooks/useToastContext'
 import type { UserRole } from '@/types/user'
 
 interface AuthProviderProps {
   children: ReactNode
+}
+
+async function refreshWithRetry(isCancelled: () => boolean, maxAttempts = 3): Promise<string | null> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (isCancelled()) return null
+    try {
+      const res = await refreshSession()
+      return res.token
+    } catch (err) {
+      const transient = !(err instanceof ApiClientError) || err.status >= 500
+      if (!transient) return null
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, attempt * 500))
+      }
+    }
+  }
+  return null
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -29,14 +47,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let cancelled = false
-    refreshSession()
-      .then((res) => {
-        if (!cancelled) setAccessToken(res.token)
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setBootstrapping(false)
-      })
+    refreshWithRetry(() => cancelled).then((token) => {
+      if (cancelled) return
+      if (token) setAccessToken(token)
+      setBootstrapping(false)
+    })
     return () => {
       cancelled = true
     }
