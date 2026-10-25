@@ -357,7 +357,7 @@ export function ProblemDetailPage() {
                   }}
                 >
                   <BarChart3 className="h-4 w-4" />
-                  Ver submissions
+                  Ver envíos
                 </Button>
               </CardContent>
             </Card>

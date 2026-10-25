@@ -278,7 +278,7 @@ export function UserDashboardPage() {
                 {myContests.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <Trophy className="h-8 w-8 text-neutral-border" />
-                    <p className="text-sm text-neutral-text-muted">No hay contests en tus grupos.</p>
+                    <p className="text-sm text-neutral-text-muted">No hay competencias en tus grupos.</p>
                     <Link
                       to={ROUTES.GROUPS}
                       className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline"

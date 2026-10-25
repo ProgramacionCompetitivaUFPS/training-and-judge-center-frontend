@@ -230,7 +230,7 @@ export function ContestStandingsPage() {
           </div>
         ) : (
           <div className="text-center py-12 text-neutral-text-muted">
-            No hay standings disponibles aún.
+            Todavía no hay posiciones para mostrar.
           </div>
         )}
 

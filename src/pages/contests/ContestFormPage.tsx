@@ -320,7 +320,7 @@ export function ContestFormPage() {
                       onCheckedChange={(checked) => setValue('showTeamMembers', !!checked, { shouldDirty: true })}
                     />
                     <label className="text-sm text-neutral-text-primary">
-                      Mostrar los miembros del equipo en standings y envíos
+                      Mostrar los miembros del equipo en la tabla de posiciones y en los envíos
                     </label>
                   </div>
                 </>

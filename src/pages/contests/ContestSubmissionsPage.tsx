@@ -179,7 +179,7 @@ export function ContestSubmissionsPage() {
 
         {data?.contest.inFreeze && (
           <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
-            El contest está en periodo de freeze. Algunas submissions muestran estado pendiente.
+            La competencia está en periodo de congelamiento (freeze): algunos envíos muestran su veredicto como pendiente.
           </div>
         )}
 
@@ -271,7 +271,7 @@ export function ContestSubmissionsPage() {
           </Card>
         ) : (
           <div className="text-center py-12 text-neutral-text-muted">
-            No hay submissions en este contest.
+            Aún no hay envíos en esta competencia.
           </div>
         )}
 
