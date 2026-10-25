@@ -9,7 +9,32 @@ import {
 import * as Blockly from 'blockly/core'
 import 'blockly/blocks'
 import * as Es from 'blockly/msg/es'
-import { pythonGenerator } from 'blockly/python'
+import { pythonGenerator, Order } from 'blockly/python'
+
+// Force Python 3 input() — Blockly's built-in text_prompt_ext uses raw_input (Python 2).
+// definitions_ is reset by init() on each getCode() call, so we override forBlock instead.
+type PythonGen = typeof pythonGenerator & {
+  provideFunction_: (name: string, code: string) => string
+  FUNCTION_NAME_PLACEHOLDER_: string
+}
+type ForBlockFn = (block: Blockly.Block, generator: typeof pythonGenerator) => [string, Order]
+const _py3TextPrompt: ForBlockFn = (block, generator) => {
+  const text = generator.valueToCode(block, 'TEXT', Order.NONE) || "''"
+  const gen = generator as unknown as PythonGen
+  // provideFunction_ is an internal Blockly API. If a Blockly upgrade removes it,
+  // fall back to raw_input so the editor stays functional while the warning is visible.
+  if (typeof gen.provideFunction_ !== 'function' || typeof gen.FUNCTION_NAME_PLACEHOLDER_ !== 'string') {
+    console.warn('BlocklyEditor: provideFunction_ not available — Python 2 raw_input fallback active. Check Blockly version.')
+    return [`raw_input(${text})`, Order.FUNCTION_CALL]
+  }
+  const funcName = gen.provideFunction_(
+    'text_prompt',
+    `def ${gen.FUNCTION_NAME_PLACEHOLDER_}(msg):\n  try:\n    return input(msg)\n  except EOFError:\n    return ''\n`,
+  )
+  return [`${funcName}(${text})`, Order.FUNCTION_CALL]
+}
+pythonGenerator.forBlock['text_prompt_ext'] = _py3TextPrompt
+pythonGenerator.forBlock['text_prompt'] = _py3TextPrompt
 
 import { registerCustomBlocks } from './blockly/customBlocks'
 import { BLOCKLY_TOOLBOX } from './blockly/toolboxConfig'

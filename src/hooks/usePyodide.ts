@@ -7,45 +7,15 @@ interface UsePyodideReturn {
   loadError: string | null
 }
 
-interface PyodideInterface {
-  setStdin: (options: { stdin: () => string | undefined }) => void
-  setStdout: (options: { batched: (text: string) => void }) => void
-  setStderr: (options: { batched: (text: string) => void }) => void
-  runPythonAsync: (code: string) => Promise<unknown>
-}
+type WorkerMessage =
+  | { type: 'ready' }
+  | { type: 'loadError'; message: string }
+  | { type: 'result'; stdout: string; stderr: string }
+  | { type: 'execError'; message: string; stdout: string; stderr: string }
 
-declare global {
-  interface Window {
-    loadPyodide?: () => Promise<PyodideInterface>
-  }
-}
-
-// Module-level cache shared across components
-let pyodideInstance: PyodideInterface | null = null
-let pyodideLoading: Promise<PyodideInterface> | null = null
-
-async function getPyodide(): Promise<PyodideInterface> {
-  if (pyodideInstance) return pyodideInstance
-  if (pyodideLoading) return pyodideLoading
-
-  pyodideLoading = (async () => {
-    if (!window.loadPyodide) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js'
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('No se pudo cargar Pyodide'))
-        document.head.appendChild(script)
-      })
-    }
-    pyodideInstance = await window.loadPyodide!()
-    return pyodideInstance
-  })()
-
-  return pyodideLoading
-}
-
-const EXECUTION_TIMEOUT = 5000
+// 30s to download Pyodide from CDN; 5s for actual Python code execution
+const LOAD_TIMEOUT = 30_000
+const EXECUTION_TIMEOUT = 5_000
 
 export function usePyodide(): UsePyodideReturn {
   const [isLoading, setIsLoading] = useState(false)
@@ -60,16 +30,15 @@ export function usePyodide(): UsePyodideReturn {
 
     runningRef.current = true
     setIsRunning(true)
+    setIsLoading(true)
     setLoadError(null)
 
-    let pyodide: PyodideInterface
+    let worker: Worker
 
     try {
-      setIsLoading(!pyodideInstance)
-      pyodide = await getPyodide()
-      setIsLoading(false)
+      worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al cargar Pyodide'
+      const msg = err instanceof Error ? err.message : 'No se pudo crear el worker de ejecución'
       setLoadError(msg)
       setIsLoading(false)
       setIsRunning(false)
@@ -77,51 +46,74 @@ export function usePyodide(): UsePyodideReturn {
       return { stdout: '', stderr: msg }
     }
 
-    let stdout = ''
-    let stderr = ''
-
     try {
-      // Set up stdin
-      const stdinLines = (stdin || '').split('\n')
-      let stdinIndex = 0
-      pyodide.setStdin({
-        stdin: () => {
-          if (stdinIndex < stdinLines.length) {
-            return stdinLines[stdinIndex++]
+      const result = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+        let loadTimeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+          worker.terminate()
+          reject(new Error('Tiempo límite de carga excedido'))
+        }, LOAD_TIMEOUT)
+
+        let execTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+        worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+          const msg = e.data
+          if (msg.type === 'ready') {
+            clearTimeout(loadTimeoutId!)
+            loadTimeoutId = null
+            setIsLoading(false)
+            execTimeoutId = setTimeout(() => {
+              worker.terminate()
+              reject(new Error('Tiempo límite excedido'))
+            }, EXECUTION_TIMEOUT)
+          } else if (msg.type === 'loadError') {
+            clearTimeout(loadTimeoutId!)
+            loadTimeoutId = null
+            setIsLoading(false)
+            setLoadError(msg.message)
+            reject(new Error(msg.message))
+          } else if (msg.type === 'result') {
+            if (execTimeoutId !== null) {
+              clearTimeout(execTimeoutId)
+              execTimeoutId = null
+            }
+            resolve({ stdout: msg.stdout, stderr: msg.stderr })
+          } else if (msg.type === 'execError') {
+            if (execTimeoutId !== null) {
+              clearTimeout(execTimeoutId)
+              execTimeoutId = null
+            }
+            resolve({ stdout: msg.stdout, stderr: msg.message })
           }
-          return undefined
-        },
+        }
+
+        worker.onerror = (e) => {
+          if (loadTimeoutId !== null) {
+            clearTimeout(loadTimeoutId)
+            loadTimeoutId = null
+          }
+          if (execTimeoutId !== null) {
+            clearTimeout(execTimeoutId)
+            execTimeoutId = null
+          }
+          setIsLoading(false)
+          const errMsg = e.message || 'Error en el worker de ejecución'
+          setLoadError(errMsg)
+          reject(new Error(errMsg))
+        }
+
+        worker.postMessage({ code, stdin })
       })
 
-      // Set up stdout/stderr capture
-      pyodide.setStdout({ batched: (text: string) => { stdout += text + '\n' } })
-      pyodide.setStderr({ batched: (text: string) => { stderr += text + '\n' } })
-
-      // Patch Blockly-generated code for Pyodide compatibility
-      // Blockly generates a text_prompt function that uses raw_input (Python 2)
-      // which doesn't exist in Python 3/Pyodide. Replace it with a Python 3 version.
-      const patchedCode = code.replace(
-        /def text_prompt\(msg\):[\s\S]*?(?=\n\S|\n\n\S|$)/,
-        `def text_prompt(msg):\n  try:\n    return input(msg)\n  except EOFError:\n    return ''\n`,
-      )
-
-      // Execute with timeout
-      const fullCode = patchedCode
-      const executionPromise = pyodide.runPythonAsync(fullCode)
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Tiempo límite excedido')), EXECUTION_TIMEOUT),
-      )
-
-      await Promise.race([executionPromise, timeoutPromise])
+      return result
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      stderr += msg + '\n'
+      return { stdout: '', stderr: msg }
     } finally {
+      worker.terminate()
       setIsRunning(false)
+      setIsLoading(false)
       runningRef.current = false
     }
-
-    return { stdout: stdout.trimEnd(), stderr: stderr.trimEnd() }
   }, [])
 
   return { runCode, isLoading, isRunning, loadError }
