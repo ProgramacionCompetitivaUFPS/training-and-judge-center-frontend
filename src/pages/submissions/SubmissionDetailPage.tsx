@@ -11,7 +11,7 @@ import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmissio
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
-import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS, judgeLanguage } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { SubmissionOrigin } from '@/types/submission'
@@ -84,7 +84,8 @@ export function SubmissionDetailPage() {
 
   function handleDownload() {
     if (!submission || submission.sourceCode === null) return
-    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    // Blockly submissions are stored as their generated Python.
+    const ext = judgeLanguage(submission.language)?.fileExtension ?? 'py'
     const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
     downloadSubmissionBlob(submission.sourceCode, filename)
   }

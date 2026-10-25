@@ -15,7 +15,7 @@ import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { useDebounce } from '@/hooks/useDebounce'
-import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS, JUDGE_LANGUAGES, judgeLanguage, languageForFilename, isLanguageTemplate } from '@/lib/constants'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
@@ -25,26 +25,8 @@ const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEdit
 // CodeMirror only loads on this page, so the rest of the app doesn't carry it.
 const CodeEditor = React.lazy(() => import('@/components/features/CodeEditor'))
 
-// Starting point per language. Java's class must be Solution: the judge compiles the source as
-// Solution.java and runs `java Solution` (judge_config.yaml).
-const CODE_TEMPLATES: Record<string, string> = {
-  cpp20: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    \n    return 0;\n}\n',
-  java17: 'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) throws IOException {\n        \n    }\n}\n',
-  python310: 'import sys\n\n\ndef main():\n    \n\n\nif __name__ == "__main__":\n    main()\n',
-}
-const isTemplate = (code: string) => Object.values(CODE_TEMPLATES).includes(code)
-
-const LANGUAGE_COMPILER_MAP: Record<string, string> = {
-  cpp20: 'g++',
-  java17: 'javac',
-  python310: 'python3',
-}
-
-const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
-  cpp20: { ext: 'cpp', accept: ['.cpp', '.cc', '.cxx'] },
-  java17: { ext: 'java', accept: ['.java'] },
-  python310: { ext: 'py', accept: ['.py'] },
-}
+// Every extension the judge accepts, for the file picker.
+const ACCEPTED_EXTENSIONS = Object.values(JUDGE_LANGUAGES).flatMap((cfg) => cfg.accept).join(',')
 
 export function SubmitSolutionPage() {
   const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
@@ -116,7 +98,7 @@ export function SubmitSolutionPage() {
 
   const hasEditorChanges = useCallback((): boolean => {
     if (isBlockly) return true // Blockly always has content (default or user blocks)
-    return code.trim().length > 0 && !isTemplate(code)
+    return code.trim().length > 0 && !isLanguageTemplate(code)
   }, [isBlockly, code])
 
   const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
@@ -225,16 +207,10 @@ export function SubmitSolutionPage() {
       return
     }
     setUploadedFile({ name: file.name, size: file.size })
-    // Auto-detect language
-    if (!language) {
-      const ext = '.' + file.name.split('.').pop()?.toLowerCase()
-      for (const [lang, config] of Object.entries(LANGUAGE_EXTENSIONS)) {
-        if (config.accept.includes(ext)) {
-          setLanguage(lang)
-          break
-        }
-      }
-    }
+    // The extension decides the language, even over a previous pick: a .py file sent as C++ is
+    // always a Compilation Error.
+    const detected = languageForFilename(file.name)
+    if (detected) setLanguage(detected)
     // Read file content into textarea
     const reader = new FileReader()
     reader.onload = (ev) => {
@@ -275,13 +251,14 @@ export function SubmitSolutionPage() {
 
     if (!resolvedSlug || !language || !code.trim()) return
 
-    const ext = LANGUAGE_EXTENSIONS[language]?.ext || 'txt'
-    const file = new File([code], `solution.${ext}`, { type: 'text/plain' })
-    const compiler = LANGUAGE_COMPILER_MAP[language] || language
+    const config = judgeLanguage(language)
+    const file = new File([code], `solution.${config?.fileExtension ?? 'txt'}`, { type: 'text/plain' })
+    const compiler = config?.compiler ?? language
 
     const onSuccess = (res: { id: string }) => {
       toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
-      setCode('')
+      // Back to the starting point, so the next attempt doesn't begin from an empty editor.
+      setCode(config?.template ?? '')
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -304,15 +281,15 @@ export function SubmitSolutionPage() {
 
   const handleLanguageSelect = (value: string) => {
     setLanguage(value)
-    if (!code.trim() || isTemplate(code)) {
-      setCode(CODE_TEMPLATES[value] ?? '')
+    if (!code.trim() || isLanguageTemplate(code)) {
+      setCode(judgeLanguage(value)?.template ?? '')
       setUploadedFile(null)
     }
   }
 
   const canSubmit = isBlockly
     ? (!!resolvedSlug && !isBlocklyEmpty && !isSubmitting)
-    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting)
+    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isLanguageTemplate(code) && !isSubmitting)
 
   const breadcrumbs = isContestContext
     ? [
@@ -326,16 +303,6 @@ export function SubmitSolutionPage() {
         ...(problemDetail ? [{ label: problemDetail.title, href: PATHS.problem(problemDetail.slug) }] : []),
         { label: 'Enviar solución' },
       ]
-
-  const submitRef = useRef(handleSubmit)
-  const canSubmitRef = useRef(canSubmit)
-  useEffect(() => {
-    submitRef.current = handleSubmit
-    canSubmitRef.current = canSubmit
-  })
-  const submitFromEditor = useCallback(() => {
-    if (canSubmitRef.current) submitRef.current()
-  }, [])
 
   const codeSize = new Blob([code]).size
   const codeSizeKB = (codeSize / 1024).toFixed(1)
@@ -585,7 +552,7 @@ export function SubmitSolutionPage() {
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept=".cpp,.cc,.cxx,.java,.py"
+                      accept={ACCEPTED_EXTENSIONS}
                       onChange={handleFileUpload}
                     />
                   </div>
@@ -599,15 +566,9 @@ export function SubmitSolutionPage() {
                         setUploadedFile(null)
                       }}
                       language={language}
-                      onSubmit={submitFromEditor}
                       placeholder="Elige un lenguaje o pega tu código aquí…"
                     />
                   </Suspense>
-                  <p className="text-xs text-neutral-text-muted mt-2">
-                    <kbd className="px-1 py-0.5 rounded border border-neutral-border font-mono">Ctrl</kbd>
-                    {' + '}
-                    <kbd className="px-1 py-0.5 rounded border border-neutral-border font-mono">Enter</kbd> para enviar
-                  </p>
                 </CardContent>
               </Card>
             )}

@@ -1,24 +1,19 @@
 import { useMemo } from 'react'
-import CodeMirror, { EditorView, Prec, keymap, type Extension } from '@uiw/react-codemirror'
+import CodeMirror, { EditorView, type Extension } from '@uiw/react-codemirror'
 import { cpp } from '@codemirror/lang-cpp'
 import { java } from '@codemirror/lang-java'
 import { python } from '@codemirror/lang-python'
+import { codeModeOf, type CodeMode } from '@/lib/constants'
 
 interface CodeEditorProps {
   value: string
   onChange: (value: string) => void
   /** Submission language value (cpp20, java17, python310). */
   language: string
-  /** Called on Ctrl/Cmd+Enter. */
-  onSubmit?: () => void
   placeholder?: string
 }
 
-const LANGUAGE_EXTENSIONS: Record<string, () => Extension> = {
-  cpp20: cpp,
-  java17: java,
-  python310: python,
-}
+const MODE_EXTENSIONS: Record<CodeMode, () => Extension> = { cpp, java, python }
 
 const theme = EditorView.theme({
   '&': { fontSize: '14px', backgroundColor: 'transparent' },
@@ -28,22 +23,14 @@ const theme = EditorView.theme({
   '&.cm-focused': { outline: 'none' },
 })
 
-/**
- * Code editor for the submit page (CodeMirror 6): highlighting for the judge's languages, line
- * numbers, auto-indent, bracket closing and Tab indenting. Loaded lazily by the submit page so
- * the rest of the app doesn't pay for it.
- */
-export default function CodeEditor({ value, onChange, language, onSubmit, placeholder }: CodeEditorProps) {
+/** Source editor with syntax highlighting for the judge's languages. Loaded lazily (CodeMirror is heavy). */
+export default function CodeEditor({ value, onChange, language, placeholder }: CodeEditorProps) {
   const extensions = useMemo(() => {
     const exts: Extension[] = [theme, EditorView.lineWrapping]
-    const lang = LANGUAGE_EXTENSIONS[language]
-    if (lang) exts.push(lang())
-    if (onSubmit) {
-      // Highest precedence: the default keymap already binds Mod-Enter to insertBlankLine.
-      exts.push(Prec.highest(keymap.of([{ key: 'Mod-Enter', preventDefault: true, run: () => { onSubmit(); return true } }])))
-    }
+    const mode = codeModeOf(language)
+    if (mode) exts.push(MODE_EXTENSIONS[mode]())
     return exts
-  }, [language, onSubmit])
+  }, [language])
 
   return (
     <CodeMirror
