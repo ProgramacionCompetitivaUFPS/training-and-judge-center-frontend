@@ -20,7 +20,7 @@ import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,
 } from '@/lib/schemas/material'
-import { X } from 'lucide-react'
+import { FileText, X } from 'lucide-react'
 import { DEFAULT_MATERIAL_CONTENT_MARKDOWN } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/errorMessages'
 
@@ -199,22 +199,27 @@ export function MaterialFormPage() {
       description: 'Escribe en Markdown. Puedes incluir imágenes, links y videos de YouTube/Vimeo.',
       content: (
         <Tabs defaultValue="edit">
-          {!content.trim() && (
-            <div className="flex justify-end mb-2">
+          {/* Same row as the tabs so it doesn't add an empty line; same outline style as the
+              tags' "Agregar" button above. Only offered while the editor is empty. */}
+          <div className="flex items-center justify-between gap-2">
+            <TabsList>
+              <TabsTrigger value="edit">Editar</TabsTrigger>
+              <TabsTrigger value="preview">Vista previa</TabsTrigger>
+            </TabsList>
+            {!content.trim() && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
+                className="gap-1.5 whitespace-nowrap shrink-0"
                 onClick={() => form.setValue('content', DEFAULT_MATERIAL_CONTENT_MARKDOWN, { shouldDirty: true })}
               >
-                Insertar plantilla de ejemplo
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Usar plantilla de ejemplo</span>
+                <span className="sm:hidden">Plantilla</span>
               </Button>
-            </div>
-          )}
-          <TabsList>
-            <TabsTrigger value="edit">Editar</TabsTrigger>
-            <TabsTrigger value="preview">Vista previa</TabsTrigger>
-          </TabsList>
+            )}
+          </div>
           <TabsContent value="edit">
             <Textarea
               {...form.register('content')}
