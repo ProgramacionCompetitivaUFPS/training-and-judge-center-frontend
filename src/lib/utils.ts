@@ -32,6 +32,17 @@ export function formatDateTz(iso: string, options?: { short?: boolean }): string
 
 
 /**
+ * Turn a local `YYYY-MM-DD` (what `<input type="date">` gives) into the RFC3339 instant of
+ * that day's local midnight, optionally shifted by whole days.
+ * e.g. ("2026-10-21") in UTC-5 → "2026-10-21T05:00:00Z"; ("2026-10-21", 1) → next midnight.
+ */
+export function localDayStartIso(day: string, addDays = 0): string {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d + addDays).toISOString().replace(/\.\d{3}Z$/, 'Z')
+}
+
+
+/**
  * Format a duration in seconds to a human-readable string.
  * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min"
  */
