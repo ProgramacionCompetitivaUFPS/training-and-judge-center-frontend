@@ -81,7 +81,8 @@ export const JUDGE_LANGUAGES: Record<'cpp20' | 'java17' | 'python310', JudgeLang
     template: 'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) throws IOException {\n        \n    }\n}\n',
   },
   python310: {
-    compiler: 'python3',
+    // Not "python3": the backend's language_validator.go expects "py" and answers COMPILER_MISMATCH otherwise.
+    compiler: 'py',
     fileExtension: 'py',
     accept: ['.py'],
     mode: 'python',
