@@ -48,11 +48,24 @@ export function useContests(groupId: string, params?: ContestListParams) {
   })
 }
 
+// Poll while the cached status is behind the clock (a start or end time already passed but the
+// backend still said SCHEDULED/ACTIVE), so the page flips on its own instead of staying on
+// "Comienza en 00:00:00". Also covers a client clock slightly ahead of the server's.
+const STATUS_CATCH_UP_INTERVAL_MS = 3000
+
 export function useContestDetail(groupId: string, contestId: string) {
   return useQuery({
     queryKey: contestKeys.detail(groupId, contestId),
     queryFn: () => contestsApi.getContest(groupId, contestId),
     enabled: !!groupId && !!contestId,
+    refetchInterval: (query) => {
+      const contest = query.state.data
+      if (!contest) return false
+      const now = Date.now()
+      const startPassed = contest.status === 'SCHEDULED' && now >= Date.parse(contest.startTime)
+      const endPassed = contest.status === 'ACTIVE' && now >= Date.parse(contest.endTime)
+      return startPassed || endPassed ? STATUS_CATCH_UP_INTERVAL_MS : false
+    },
   })
 }
 

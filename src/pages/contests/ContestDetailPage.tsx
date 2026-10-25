@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
@@ -61,7 +61,9 @@ export function ContestDetailPage() {
   const { user } = useAuth()
   const { toast } = useToastContext()
 
-  const { data: contest, isLoading, error } = useContestDetail(groupId || '', id || '')
+  const { data: contest, isLoading, error, refetch: refetchContest } = useContestDetail(groupId || '', id || '')
+  // Flip to the next state (problems visible / results) as soon as the countdown hits zero.
+  const handleCountdownEnd = useCallback(() => { void refetchContest() }, [refetchContest])
   const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
@@ -135,8 +137,16 @@ export function ContestDetailPage() {
   // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
   // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
   const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
-  const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
+  // Same rules as register_to_contest.go: admins and group leads organize, they can't compete,
+  // and only group members can register. Without this they'd see "Registrarse" and get a 403.
+  const registrationBlock: 'admin' | 'lead' | 'nonmember' | null =
+    user?.role === 'ADMIN' ? 'admin'
+      : ownerGroup?.userMembership.role === 'LEAD' ? 'lead'
+        : ownerGroup && !ownerGroup.userMembership.isMember ? 'nonmember'
+          : null
+  const offersIndividualRegistration = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
+  const canRegisterIndividual = offersIndividualRegistration && !registrationBlock
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
@@ -312,7 +322,7 @@ export function ContestDetailPage() {
                 <Clock className="h-4 w-4 text-brand-primary flex-shrink-0" />
                 <div>
                   <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Tiempo restante</p>
-                  <ContestCountdown targetTime={contest.endTime} />
+                  <ContestCountdown targetTime={contest.endTime} onComplete={handleCountdownEnd} />
                 </div>
               </div>
               <div className="h-8 w-px bg-neutral-border" />
@@ -420,6 +430,7 @@ export function ContestDetailPage() {
                 targetTime={contest.startTime}
                 label="Comienza en"
                 variant="hero"
+                onComplete={handleCountdownEnd}
               />
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 {canRegisterIndividual && (
@@ -427,6 +438,22 @@ export function ContestDetailPage() {
                     <User className="h-4 w-4 mr-2" />
                     Registrarse
                   </Button>
+                )}
+                {offersIndividualRegistration && registrationBlock === 'nonmember' && (
+                  <p className="text-sm text-neutral-text-muted self-center">
+                    Para registrarte, primero únete al grupo{' '}
+                    <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+                      {ownerGroup?.name}
+                    </Link>
+                    .
+                  </p>
+                )}
+                {offersIndividualRegistration && (registrationBlock === 'admin' || registrationBlock === 'lead') && (
+                  <p className="text-sm text-neutral-text-muted self-center">
+                    {registrationBlock === 'admin'
+                      ? 'Los administradores no participan en competencias.'
+                      : 'Como líder del grupo organizas esta competencia, así que no puedes registrarte.'}
+                  </p>
                 )}
                 {showTeamRegistration && (
                   <TeamContestRegistration
