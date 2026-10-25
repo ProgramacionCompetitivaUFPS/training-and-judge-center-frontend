@@ -75,7 +75,7 @@ export function useMyJoinRequest(groupId: string, options?: { enabled?: boolean 
   })
 }
 
-export function useInvitations(groupId: string, params?: { page?: number; size?: number }) {
+export function useInvitations(groupId: string, params?: { page?: number; limit?: number }) {
   return useQuery({
     queryKey: [...groupKeys.invitations(groupId), params],
     queryFn: () => groupsApi.getInvitations(groupId, params),

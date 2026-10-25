@@ -120,7 +120,7 @@ export function GroupDetailPage() {
   const { data: myJoinRequest } = useMyJoinRequest(id!, {
     enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
-  const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, size: 10 })
+  const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, limit: 10 })
   const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
@@ -177,7 +177,7 @@ export function GroupDetailPage() {
     setRequestsPageQuery((p) => ({ ...p, page: 1 }))
   }
   const handleInvitationsPageChange = (page: number) => setInvitationsPageQuery((p) => ({ ...p, page }))
-  const handleInvitationsSizeChange = (size: number) => setInvitationsPageQuery({ page: 1, size })
+  const handleInvitationsSizeChange = (limit: number) => setInvitationsPageQuery({ page: 1, limit })
   const { handlePageChange: handleContestsPageChange, handleLimitChange: handleContestsLimitChange } = usePaginationHandlers(setContestsPageQuery)
   const handleContestsStatusChange = (value: string) => {
     setContestsStatus(value as ContestStatus | 'all')
@@ -521,11 +521,11 @@ export function GroupDetailPage() {
     <div className="space-y-4">
       {invitationsData && (
         <PaginationSummary
-          total={invitationsData.pagination.totalItems}
+          total={invitationsData.pagination.total}
           totalLabel="invitaciones"
           currentPage={invitationsData.pagination.page}
           totalPages={invitationsData.pagination.totalPages}
-          limit={invitationsPageQuery.size}
+          limit={invitationsPageQuery.limit}
           onLimitChange={handleInvitationsSizeChange}
         />
       )}
@@ -793,7 +793,7 @@ export function GroupDetailPage() {
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
     ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
-    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.totalItems }] : []),
+    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.total }] : []),
   ]
 
   // Kept in the URL (?tab=...) so navigating away (e.g. to create a contest) and back
