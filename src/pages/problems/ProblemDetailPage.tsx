@@ -79,6 +79,7 @@ export function ProblemDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
+  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
@@ -150,13 +151,17 @@ export function ProblemDetailPage() {
   function handleUnpublish() {
     if (!problem) return
     unpublishMutation.mutate(problem.slug, {
-      onSuccess: () => toast({ variant: 'success', title: 'Problema despublicado' }),
+      onSuccess: () => {
+        toast({ variant: 'success', title: 'Problema despublicado' })
+        setUnpublishDialogOpen(false)
+      },
       onError: (err) => {
         if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
           toast({ variant: 'error', title: 'No se puede despublicar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
         } else {
-          toast({ variant: 'error', title: 'Error al despublicar' })
+          toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
         }
+        setUnpublishDialogOpen(false)
       },
     })
   }
@@ -512,7 +517,7 @@ export function ProblemDetailPage() {
                   )
                 )}
                 {problem.status === 'PUBLISHED' && (
-                  <Button variant="outline" className="w-full gap-2" onClick={handleUnpublish} isLoading={unpublishMutation.isPending}>
+                  <Button variant="outline" className="w-full gap-2" onClick={() => setUnpublishDialogOpen(true)} isLoading={unpublishMutation.isPending}>
                     <ArrowDownCircle className="h-4 w-4" />
                     Despublicar
                   </Button>
@@ -559,6 +564,20 @@ export function ProblemDetailPage() {
           )}
         </aside>
       </div>
+
+      {/* Unpublish confirm: the backend only blocks it during an ACTIVE contest
+          (unpublish_problem.go), so a scheduled one would start with a draft problem and reject
+          every submission (PROBLEM_NOT_PUBLISHED). */}
+      <ConfirmDialog
+        open={unpublishDialogOpen}
+        onOpenChange={setUnpublishDialogOpen}
+        title="Despublicar problema"
+        description="El problema volverá a borrador: los competidores dejarán de verlo y nadie podrá enviarle soluciones. Si está en una competencia programada, sus participantes no podrán enviar soluciones a este problema hasta que lo vuelvas a publicar."
+        variant="warning"
+        confirmLabel="Despublicar"
+        onConfirm={handleUnpublish}
+        isLoading={unpublishMutation.isPending}
+      />
 
       {/* Admin rejudge (global) confirm dialog */}
       <ConfirmDialog
