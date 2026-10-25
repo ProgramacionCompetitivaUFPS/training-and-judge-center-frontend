@@ -22,8 +22,9 @@ export { ContestSessionContext }
 function useContestParamsFromUrl(): { groupId: string | null; contestId: string | null } {
   const location = useLocation()
 
-  // Match /groups/:groupId/contests/:contestId and sub-paths
-  const match = location.pathname.match(/^\/groups\/([^/]+)\/contests\/([^/]+)/)
+  // Match /groups/:groupId/contests/:contestId and sub-paths. "new" (the create form,
+  // ROUTES.CONTEST_NEW) isn't a contest: matching it fired GET .../contests/new → 404.
+  const match = location.pathname.match(/^\/groups\/([^/]+)\/contests\/(?!new(?:\/|$))([^/]+)/)
   if (match) return { groupId: match[1], contestId: match[2] }
 
   return { groupId: null, contestId: null }
