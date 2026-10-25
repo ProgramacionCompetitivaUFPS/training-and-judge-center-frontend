@@ -110,6 +110,9 @@ export function isLanguageTemplate(code: string): boolean {
   return Object.values(JUDGE_LANGUAGES).some((cfg) => cfg.template === code)
 }
 
+/** Judge language used when submitting a Blockly solution (Blockly compiles to Python). */
+export const BLOCKLY_JUDGE_LANGUAGE = 'python310' as const
+
 // Neither the backend nor the create/import flows apply any default when these are left
 // blank — they just stay null until someone fills them in (and they're required to publish).
 // Most simple problems keep these as-is, so the create/edit forms pre-fill them instead of
