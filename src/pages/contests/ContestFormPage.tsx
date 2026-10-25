@@ -16,14 +16,13 @@ import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
+import { formatDuration } from '@/lib/utils'
 
 function formatDurationFromDates(start: string, end: string): string {
   if (!start || !end) return '—'
   const ms = new Date(end).getTime() - new Date(start).getTime()
   if (ms <= 0) return 'Inválido'
-  const hours = Math.floor(ms / 3600000)
-  const minutes = Math.floor((ms % 3600000) / 60000)
-  return `${hours}h ${minutes}m`
+  return formatDuration(Math.floor(ms / 1000))
 }
 
 // datetime-local reads its value as local time, so an ISO string in UTC can't just be sliced —

@@ -43,12 +43,17 @@ export function localDayStartIso(day: string, addDays = 0): string {
 
 
 /**
- * Format a duration in seconds to a human-readable string.
- * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min"
+ * Format a duration in seconds to a human-readable string, using days for long contests.
+ * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min", 604800 → "7 días", 108000 → "1 día 6h"
  */
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
+  if (days > 0) {
+    const dayPart = `${days} ${days === 1 ? 'día' : 'días'}`
+    return hours > 0 ? `${dayPart} ${hours}h` : dayPart
+  }
   if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`
   if (hours > 0) return `${hours}h`
   return `${minutes}min`
