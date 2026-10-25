@@ -17,24 +17,39 @@ type PythonGen = typeof pythonGenerator & {
   provideFunction_: (name: string, code: string) => string
   FUNCTION_NAME_PLACEHOLDER_: string
 }
-type ForBlockFn = (block: Blockly.Block, generator: typeof pythonGenerator) => [string, Order]
-const _py3TextPrompt: ForBlockFn = (block, generator) => {
-  const text = generator.valueToCode(block, 'TEXT', Order.NONE) || "''"
-  const gen = generator as unknown as PythonGen
+
+function _makeInputHelper(gen: PythonGen): string {
   // provideFunction_ is an internal Blockly API. If a Blockly upgrade removes it,
   // fall back to raw_input so the editor stays functional while the warning is visible.
   if (typeof gen.provideFunction_ !== 'function' || typeof gen.FUNCTION_NAME_PLACEHOLDER_ !== 'string') {
     console.warn('BlocklyEditor: provideFunction_ not available — Python 2 raw_input fallback active. Check Blockly version.')
-    return [`raw_input(${text})`, Order.FUNCTION_CALL]
+    return 'raw_input'
   }
-  const funcName = gen.provideFunction_(
+  return gen.provideFunction_(
     'text_prompt',
     `def ${gen.FUNCTION_NAME_PLACEHOLDER_}(msg):\n  try:\n    return input(msg)\n  except EOFError:\n    return ''\n`,
   )
-  return [`${funcName}(${text})`, Order.FUNCTION_CALL]
 }
-pythonGenerator.forBlock['text_prompt_ext'] = _py3TextPrompt
-pythonGenerator.forBlock['text_prompt'] = _py3TextPrompt
+
+// text_prompt — classic block: message is a plain text FIELD, no type dropdown.
+pythonGenerator.forBlock['text_prompt'] = (block, generator) => {
+  const raw = block.getFieldValue('TEXT') ?? ''
+  const msg = `'${raw.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+  const gen = generator as unknown as PythonGen
+  if (typeof gen.provideFunction_ !== 'function') {
+    return [`raw_input(${msg})`, Order.FUNCTION_CALL]
+  }
+  return [`${_makeInputHelper(gen)}(${msg})`, Order.FUNCTION_CALL]
+}
+
+// text_prompt_ext — extended block: message is a connected VALUE input; TYPE dropdown NUMBER/TEXT.
+pythonGenerator.forBlock['text_prompt_ext'] = (block, generator) => {
+  const text = generator.valueToCode(block, 'TEXT', Order.NONE) || "''"
+  const isNumber = block.getFieldValue('TYPE') === 'NUMBER'
+  const gen = generator as unknown as PythonGen
+  const call = `${_makeInputHelper(gen)}(${text})`
+  return [isNumber ? `float(${call})` : call, Order.FUNCTION_CALL]
+}
 
 import { registerCustomBlocks } from './blockly/customBlocks'
 import { BLOCKLY_TOOLBOX } from './blockly/toolboxConfig'
