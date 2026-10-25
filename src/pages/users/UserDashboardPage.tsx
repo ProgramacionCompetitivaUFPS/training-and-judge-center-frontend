@@ -9,7 +9,7 @@ import { StatCard } from '@/components/features/StatCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
 import { SUBMISSION_STATUS_CONFIG, ROUTES, PATHS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 import type { SubmissionStatus, SubmissionOrigin } from '@/types'
 import type { DashboardContest } from '@/types/user'
 
@@ -180,7 +180,7 @@ export function UserDashboardPage() {
                   icon={<Trophy className="h-5 w-5 text-brand-accent" />}
                   label="Último Resultado"
                   value={lastResult ? `#${lastResult.position}` : '—'}
-                  sub={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin competencias finalizadas'}
+                  sub={lastResult ? `${lastResult.contestName} · ${pluralize(lastResult.problemsSolved, 'resuelto')}` : 'sin competencias finalizadas'}
                   accentBorder="border-t-brand-accent"
                   valueSize="text-3xl"
                 />
@@ -278,7 +278,7 @@ export function UserDashboardPage() {
                 {myContests.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <Trophy className="h-8 w-8 text-neutral-border" />
-                    <p className="text-sm text-neutral-text-muted">No hay contests en tus grupos.</p>
+                    <p className="text-sm text-neutral-text-muted">No hay competencias en tus grupos.</p>
                     <Link
                       to={ROUTES.GROUPS}
                       className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline"

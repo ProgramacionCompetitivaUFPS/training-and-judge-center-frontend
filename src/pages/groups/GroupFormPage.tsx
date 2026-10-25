@@ -20,6 +20,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { createGroupSchema, type CreateGroupFormData } from '@/lib/schemas/group'
 import { ROUTES, PATHS } from '@/lib/constants'
 import type { GroupVisibility, GroupJoinPolicy } from '@/types/group'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function GroupFormPage() {
   const { id } = useParams<{ id: string }>()
@@ -87,8 +88,8 @@ export function GroupFormPage() {
         toast({ variant: 'success', title: 'Grupo creado' })
         navigate(PATHS.group(created.id))
       }
-    } catch {
-      toast({ variant: 'error', title: isEdit ? 'Error al actualizar grupo' : 'Error al crear grupo' })
+    } catch (err) {
+      toast({ variant: 'error', title: isEdit ? 'Error al actualizar grupo' : 'Error al crear grupo', description: getErrorMessage(err) })
     }
   }
 

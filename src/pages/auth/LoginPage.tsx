@@ -68,7 +68,7 @@ export function LoginPage() {
           toast({
             variant: 'error',
             title: 'Ya existe una cuenta con este correo',
-            description: 'Iniciá sesión con tu contraseña y vinculá Google desde tu perfil.',
+            description: 'Inicia sesión con tu contraseña y vincula Google desde tu perfil.',
           })
         } else {
           toast({

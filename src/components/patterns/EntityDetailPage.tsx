@@ -99,7 +99,7 @@ function DetailActions({ onEdit, onDelete, primaryAction, additionalActions }: D
       {hasDropdown && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" aria-label="Más acciones" title="Más acciones">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

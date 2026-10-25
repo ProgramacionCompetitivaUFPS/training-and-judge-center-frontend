@@ -111,7 +111,7 @@ export function createInvitation(groupId: string, data: CreateInvitationRequest)
   return apiClient.post(`/groups/${groupId}/invitations`, data)
 }
 
-export function getInvitations(groupId: string, params?: { page?: number; size?: number }): Promise<InvitationListResponse> {
+export function getInvitations(groupId: string, params?: { page?: number; limit?: number }): Promise<InvitationListResponse> {
   return apiClient.get(`/groups/${groupId}/invitations`, { params: params as Record<string, string | number | boolean | undefined> })
 }
 

@@ -32,15 +32,39 @@ export function formatDateTz(iso: string, options?: { short?: boolean }): string
 
 
 /**
- * Format a duration in seconds to a human-readable string.
- * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min"
+ * Turn a local `YYYY-MM-DD` (what `<input type="date">` gives) into the RFC3339 instant of
+ * that day's local midnight, optionally shifted by whole days.
+ * e.g. ("2026-10-21") in UTC-5 → "2026-10-21T05:00:00Z"; ("2026-10-21", 1) → next midnight.
+ */
+export function localDayStartIso(day: string, addDays = 0): string {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(y, m - 1, d + addDays).toISOString().replace(/\.\d{3}Z$/, 'Z')
+}
+
+
+/**
+ * "1 problema" / "3 problemas". Regular Spanish plural (+s) unless `plural` is given.
+ */
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+
+/**
+ * Format a duration in seconds to a human-readable string, using days for long contests.
+ * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min", 604800 → "7 días", 108000 → "1 día 6h",
+ * 88200 → "1 día 30min" (zero parts are skipped, but no part is dropped)
  */
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`
-  if (hours > 0) return `${hours}h`
-  return `${minutes}min`
+  const parts = [
+    days > 0 && `${days} ${days === 1 ? 'día' : 'días'}`,
+    hours > 0 && `${hours}h`,
+    minutes > 0 && `${minutes}min`,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : '0min'
 }
 
 /**

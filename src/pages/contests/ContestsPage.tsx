@@ -9,7 +9,7 @@ import { ParticipationModeTag } from '@/components/features/ParticipationModeTag
 import { useMyContests } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useDebounce } from '@/hooks/useDebounce'
-import { formatDuration } from '@/lib/utils'
+import { formatDuration, pluralize } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { ContestListItem, ContestStatus } from '@/types/contest'
 
@@ -63,7 +63,7 @@ function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: (
         <ParticipationModeTag mode={contest.participationMode} className="hidden sm:inline-flex" />
         <span className="hidden sm:flex items-center gap-1"><Users className="h-3.5 w-3.5" />{contest.participantCount}</span>
         {contest.status !== 'SCHEDULED' && (
-          <span className="hidden md:flex items-center gap-1"><Code2 className="h-3.5 w-3.5" />{contest.problemCount} problemas</span>
+          <span className="hidden md:flex items-center gap-1"><Code2 className="h-3.5 w-3.5" />{pluralize(contest.problemCount, 'problema')}</span>
         )}
         <span className="font-mono whitespace-nowrap">{isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}</span>
       </div>
@@ -189,7 +189,7 @@ function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps)
           </div>
           <div className="flex items-center gap-2 text-neutral-text-muted">
             <Code2 className="h-4 w-4" />
-            <span className="text-xs font-medium">{contest.problemCount} problemas</span>
+            <span className="text-xs font-medium">{pluralize(contest.problemCount, 'problema')}</span>
           </div>
         </div>
 

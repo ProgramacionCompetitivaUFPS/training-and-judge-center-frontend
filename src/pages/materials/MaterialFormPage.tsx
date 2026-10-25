@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import {
-  useMaterialDetail, useCreateMaterial, useUpdateMaterial, useMaterialTags,
+  useMaterialDetail, useCreateMaterial, useUpdateMaterial, useMaterialTags, usePublishMaterial,
 } from '@/hooks/api/useMaterials'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
@@ -20,8 +20,9 @@ import {
   createMaterialSchema, updateMaterialSchema,
   type CreateMaterialFormData,
 } from '@/lib/schemas/material'
-import { X } from 'lucide-react'
+import { FileText, X } from 'lucide-react'
 import { DEFAULT_MATERIAL_CONTENT_MARKDOWN } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -36,6 +37,7 @@ export function MaterialFormPage() {
   )
   const createMutation = useCreateMaterial()
   const updateMutation = useUpdateMaterial()
+  const publishMutation = usePublishMaterial()
   // Sugerencias para reusar tags ya existentes en el grupo (evita variantes como "data-structures"
   // vs "data_structures" para lo mismo) — es una muestra de los materiales más recientes, no un
   // registro exhaustivo, así que el usuario sigue pudiendo escribir cualquier tag a mano.
@@ -45,7 +47,7 @@ export function MaterialFormPage() {
   const schema = isEditing ? updateMaterialSchema : createMaterialSchema
   const form = useForm<CreateMaterialFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', content: isEditing ? '' : DEFAULT_MATERIAL_CONTENT_MARKDOWN, tags: [] },
+    defaultValues: { title: '', content: '', tags: [] },
   })
 
   const [tagInput, setTagInput] = useState('')
@@ -76,23 +78,38 @@ export function MaterialFormPage() {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag() }
   }
 
-  const onSubmit = async (data: CreateMaterialFormData) => {
+  // New materials are created as drafts (only leads see them); "Publicar" also publishes it in
+  // the same step, so a coach doesn't end up thinking members can already read a draft.
+  const save = async (data: CreateMaterialFormData, publish: boolean) => {
+    if (!isEditing && data.content.trim() === DEFAULT_MATERIAL_CONTENT_MARKDOWN.trim()) {
+      toast({ variant: 'error', title: 'El contenido es la plantilla de ejemplo', description: 'Reemplázala por el contenido real del material antes de guardar.' })
+      return
+    }
     try {
       if (isEditing) {
         await updateMutation.mutateAsync({ groupId: groupId!, materialId: materialId!, data })
         toast({ variant: 'success', title: 'Material actualizado' })
         navigate(`/groups/${groupId}/materials/${materialId}`)
-      } else {
-        const created = await createMutation.mutateAsync({ groupId: groupId!, data })
-        toast({ variant: 'success', title: 'Material creado' })
-        navigate(`/groups/${groupId}/materials/${created.id}`)
+        return
       }
-    } catch {
-      toast({ variant: 'error', title: isEditing ? 'Error al actualizar' : 'Error al crear' })
+      const created = await createMutation.mutateAsync({ groupId: groupId!, data })
+      if (publish) {
+        try {
+          await publishMutation.mutateAsync({ groupId: groupId!, materialId: created.id })
+          toast({ variant: 'success', title: 'Material publicado', description: 'Los miembros del grupo ya pueden verlo.' })
+        } catch (err) {
+          toast({ variant: 'error', title: 'Se guardó como borrador, pero no se pudo publicar', description: getErrorMessage(err) })
+        }
+      } else {
+        toast({ variant: 'success', title: 'Borrador guardado', description: 'Los miembros del grupo no lo verán hasta que lo publiques.' })
+      }
+      navigate(`/groups/${groupId}/materials/${created.id}`)
+    } catch (err) {
+      toast({ variant: 'error', title: isEditing ? 'Error al actualizar' : 'Error al crear', description: getErrorMessage(err) })
     }
   }
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending
+  const isSubmitting = createMutation.isPending || updateMutation.isPending || publishMutation.isPending
 
   // Real leadership of the group, not just having the Coach role platform-wide — the backend
   // already rejects create on a group the Coach doesn't lead (create_material.go); this just
@@ -182,10 +199,27 @@ export function MaterialFormPage() {
       description: 'Escribe en Markdown. Puedes incluir imágenes, links y videos de YouTube/Vimeo.',
       content: (
         <Tabs defaultValue="edit">
-          <TabsList>
-            <TabsTrigger value="edit">Editar</TabsTrigger>
-            <TabsTrigger value="preview">Vista previa</TabsTrigger>
-          </TabsList>
+          {/* Same row as the tabs so it doesn't add an empty line; same outline style as the
+              tags' "Agregar" button above. Only offered while the editor is empty. */}
+          <div className="flex items-center justify-between gap-2">
+            <TabsList>
+              <TabsTrigger value="edit">Editar</TabsTrigger>
+              <TabsTrigger value="preview">Vista previa</TabsTrigger>
+            </TabsList>
+            {!content.trim() && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 whitespace-nowrap shrink-0"
+                onClick={() => form.setValue('content', DEFAULT_MATERIAL_CONTENT_MARKDOWN, { shouldDirty: true })}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Usar plantilla de ejemplo</span>
+                <span className="sm:hidden">Plantilla</span>
+              </Button>
+            )}
+          </div>
           <TabsContent value="edit">
             <Textarea
               {...form.register('content')}
@@ -227,7 +261,18 @@ export function MaterialFormPage() {
         { label: 'Materiales', href: `/groups/${groupId}/materials` },
         { label: isEditing ? 'Editar' : 'Nuevo' },
       ]}
-      onSubmit={form.handleSubmit(onSubmit)}
+      onSubmit={form.handleSubmit((data) => save(data, true))}
+      submitLabel={isEditing ? 'Guardar cambios' : 'Publicar'}
+      additionalActions={!isEditing && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          onClick={form.handleSubmit((data) => save(data, false))}
+        >
+          Guardar borrador
+        </Button>
+      )}
       onCancel={() => navigate(isEditing ? `/groups/${groupId}/materials/${materialId}` : `/groups/${groupId}/materials`)}
       isSubmitting={isSubmitting}
       isLoading={(isEditing && isLoadingDetail) || isLoadingGroup}

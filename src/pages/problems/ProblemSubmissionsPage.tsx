@@ -145,7 +145,7 @@ export function ProblemSubmissionsPage() {
               onCheckedChange={(checked) => { setMineOnly(checked === true); setFilters((prev) => ({ ...prev, page: 1 })) }}
             />
             <label htmlFor="mineOnly" className="text-sm text-neutral-text-primary whitespace-nowrap cursor-pointer">
-              Solo mis submissions
+              Solo mis envíos
             </label>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { UsersRound, Check, LogOut } from 'lucide-react'
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { pluralize } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -284,7 +285,7 @@ export function TeamContestRegistration({
                   <SelectContent>
                     {teams.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.name} ({t.memberCount} miembros)
+                        {t.name} ({pluralize(t.memberCount, 'miembro')})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -359,7 +360,7 @@ export function TeamContestRegistration({
                   </p>
                 ) : !isValidSelection && selectedMembers.length > 0 && (
                   <p className="text-xs text-status-warning mt-1">
-                    Necesitas al menos {teamSizeMin} miembros
+                    Necesitas al menos {pluralize(teamSizeMin, 'miembro')}
                   </p>
                 )}
               </div>

@@ -18,6 +18,7 @@ import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { useDebounce } from '@/hooks/useDebounce'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { problemLabel } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -77,6 +78,11 @@ export function SubmitSolutionPage() {
 
   // Submission recovery
   const isBlockly = language === 'blockly'
+  // Name of a public top-level class other than Solution, if the Java code declares one.
+  const javaWrongPublicClass = language === 'java17'
+    ? code.match(/^\s*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m)?.[1]
+    : undefined
+  const javaClassMismatch = javaWrongPublicClass && javaWrongPublicClass !== 'Solution' ? javaWrongPublicClass : undefined
 
   const {
     recoverableSubmission,
@@ -239,8 +245,8 @@ export function SubmitSolutionPage() {
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       }
-      const onError = () => {
-        toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+      const onError = (err: unknown) => {
+        toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
       }
 
       if (isContestContext && activeContest) {
@@ -269,8 +275,8 @@ export function SubmitSolutionPage() {
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    const onError = () => {
-      toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+    const onError = (err: unknown) => {
+      toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
     }
 
     if (isContestContext && activeContest) {
@@ -391,6 +397,15 @@ export function SubmitSolutionPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* The judge compiles every Java source as Solution.java and runs `java Solution`
+                      (judge_config.yaml), so `public class Main` is a Compilation Error. */}
+                  {language === 'java17' && (
+                    <p className={`text-xs mt-2 ${javaClassMismatch ? 'text-status-error font-medium' : 'text-neutral-text-muted'}`}>
+                      {javaClassMismatch
+                        ? `Tu clase pública se llama "${javaClassMismatch}": el juez la compila como Solution.java, así que dará Error de Compilación. Renómbrala a Solution.`
+                        : <>En Java, la clase principal debe llamarse <code className="font-mono">Solution</code> (<code className="font-mono">public class Solution</code>).</>}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit button */}
