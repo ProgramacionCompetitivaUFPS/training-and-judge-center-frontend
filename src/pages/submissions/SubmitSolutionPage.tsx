@@ -4,7 +4,6 @@ import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon, X } fr
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
 import { SearchSelect } from '@/components/ui/SearchSelect'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { RecoveryBanner } from '@/components/features/RecoveryBanner'
@@ -23,6 +22,17 @@ import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
 const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
+// CodeMirror only loads on this page, so the rest of the app doesn't carry it.
+const CodeEditor = React.lazy(() => import('@/components/features/CodeEditor'))
+
+// Starting point per language. Java's class must be Solution: the judge compiles the source as
+// Solution.java and runs `java Solution` (judge_config.yaml).
+const CODE_TEMPLATES: Record<string, string> = {
+  cpp20: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    \n    return 0;\n}\n',
+  java17: 'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) throws IOException {\n        \n    }\n}\n',
+  python310: 'import sys\n\n\ndef main():\n    \n\n\nif __name__ == "__main__":\n    main()\n',
+}
+const isTemplate = (code: string) => Object.values(CODE_TEMPLATES).includes(code)
 
 const LANGUAGE_COMPILER_MAP: Record<string, string> = {
   cpp20: 'g++',
@@ -106,7 +116,7 @@ export function SubmitSolutionPage() {
 
   const hasEditorChanges = useCallback((): boolean => {
     if (isBlockly) return true // Blockly always has content (default or user blocks)
-    return code.trim().length > 0
+    return code.trim().length > 0 && !isTemplate(code)
   }, [isBlockly, code])
 
   const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
@@ -292,6 +302,14 @@ export function SubmitSolutionPage() {
     }
   }
 
+  const handleLanguageSelect = (value: string) => {
+    setLanguage(value)
+    if (!code.trim() || isTemplate(code)) {
+      setCode(CODE_TEMPLATES[value] ?? '')
+      setUploadedFile(null)
+    }
+  }
+
   const canSubmit = isBlockly
     ? (!!resolvedSlug && !isBlocklyEmpty && !isSubmitting)
     : (!!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting)
@@ -308,6 +326,16 @@ export function SubmitSolutionPage() {
         ...(problemDetail ? [{ label: problemDetail.title, href: PATHS.problem(problemDetail.slug) }] : []),
         { label: 'Enviar solución' },
       ]
+
+  const submitRef = useRef(handleSubmit)
+  const canSubmitRef = useRef(canSubmit)
+  useEffect(() => {
+    submitRef.current = handleSubmit
+    canSubmitRef.current = canSubmit
+  })
+  const submitFromEditor = useCallback(() => {
+    if (canSubmitRef.current) submitRef.current()
+  }, [])
 
   const codeSize = new Blob([code]).size
   const codeSizeKB = (codeSize / 1024).toFixed(1)
@@ -387,7 +415,7 @@ export function SubmitSolutionPage() {
                 {/* Language selector */}
                 <div>
                   <label className="block text-sm font-medium text-neutral-text-primary mb-2">Lenguaje</label>
-                  <Select value={language} onValueChange={setLanguage}>
+                  <Select value={language} onValueChange={handleLanguageSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar lenguaje" />
                     </SelectTrigger>
@@ -563,15 +591,23 @@ export function SubmitSolutionPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 pt-0">
-                  <Textarea
-                    value={code}
-                    onChange={(e) => {
-                      setCode(e.target.value)
-                      setUploadedFile(null)
-                    }}
-                    placeholder="Pega tu código aquí..."
-                    className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
-                  />
+                  <Suspense fallback={<div className="min-h-[400px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                    <CodeEditor
+                      value={code}
+                      onChange={(value) => {
+                        setCode(value)
+                        setUploadedFile(null)
+                      }}
+                      language={language}
+                      onSubmit={submitFromEditor}
+                      placeholder="Elige un lenguaje o pega tu código aquí…"
+                    />
+                  </Suspense>
+                  <p className="text-xs text-neutral-text-muted mt-2">
+                    <kbd className="px-1 py-0.5 rounded border border-neutral-border font-mono">Ctrl</kbd>
+                    {' + '}
+                    <kbd className="px-1 py-0.5 rounded border border-neutral-border font-mono">Enter</kbd> para enviar
+                  </p>
                 </CardContent>
               </Card>
             )}
