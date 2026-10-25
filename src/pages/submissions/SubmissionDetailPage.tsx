@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
+import { CodeViewer } from '@/components/features/CodeViewer'
 import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
@@ -234,9 +235,11 @@ export function SubmissionDetailPage() {
                 </CardHeader>
                 <CardContent>
                   {showBlocklyCode ? (
-                    <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                      <code>{submission.sourceCode ?? SOURCE_CODE_UNAVAILABLE}</code>
-                    </pre>
+                    submission.sourceCode === null ? (
+                      <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                    ) : (
+                      <CodeViewer code={submission.sourceCode} language={submission.language} />
+                    )
                   ) : (
                     <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
                   )}
@@ -257,9 +260,7 @@ export function SubmissionDetailPage() {
                 {submission.sourceCode === null ? (
                   <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
                 ) : (
-                  <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                    <code>{submission.sourceCode}</code>
-                  </pre>
+                  <CodeViewer code={submission.sourceCode} language={submission.language} />
                 )}
               </CardContent>
             </Card>
