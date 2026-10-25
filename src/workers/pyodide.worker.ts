@@ -36,7 +36,7 @@ self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
 
   try {
     const raw = (stdin ?? '').replace(/\r\n/g, '\n')
-    const stdinLines = raw === '' ? [] : raw.replace(/\n$/, '').split('\n')
+    const stdinLines = raw === '' ? [] : raw.trimEnd().split('\n')
     let stdinIndex = 0
     pyodide.setStdin({
       stdin: () => {

@@ -1,19 +1,27 @@
 import * as Blockly from 'blockly/core'
 import { pythonGenerator, Order } from 'blockly/python'
 
+export type ReadType = 'INT' | 'FLOAT' | 'STR'
+
+export const READ_TYPE_OPTIONS: [string, ReadType][] = [
+  ['número entero', 'INT'],
+  ['decimal', 'FLOAT'],
+  ['texto', 'STR'],
+]
+
+/** Wraps a Python expression with the cast matching the selected read type. */
+export function wrapWithType(expr: string, type: ReadType): string {
+  if (type === 'INT') return `int(${expr})`
+  if (type === 'FLOAT') return `float(${expr})`
+  return expr
+}
+
 export function registerInputBlocks(): void {
   Blockly.Blocks['read_value'] = {
     init(this: Blockly.Block) {
       this.appendDummyInput()
         .appendField('leer')
-        .appendField(
-          new Blockly.FieldDropdown([
-            ['número entero', 'INT'],
-            ['decimal', 'FLOAT'],
-            ['texto', 'STR'],
-          ]),
-          'TYPE',
-        )
+        .appendField(new Blockly.FieldDropdown(READ_TYPE_OPTIONS), 'TYPE')
       this.setOutput(true, null)
       this.setColour(160)
       this.setTooltip('Lee un valor de la entrada estándar según el tipo seleccionado.')
@@ -21,13 +29,13 @@ export function registerInputBlocks(): void {
     },
   }
   pythonGenerator.forBlock['read_value'] = (block: Blockly.Block) => {
-    const type = block.getFieldValue('TYPE') as 'INT' | 'FLOAT' | 'STR'
-    const wrappers: Record<typeof type, string> = {
+    const type = block.getFieldValue('TYPE') as ReadType
+    const exprs: Record<ReadType, string> = {
       INT: 'int(input())',
       FLOAT: 'float(input())',
       STR: 'input()',
     }
-    return [wrappers[type], Order.FUNCTION_CALL]
+    return [exprs[type], Order.FUNCTION_CALL]
   }
 
   Blockly.Blocks['read_values_line'] = {

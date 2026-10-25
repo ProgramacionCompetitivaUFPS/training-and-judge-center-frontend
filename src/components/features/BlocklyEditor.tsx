@@ -42,16 +42,31 @@ pythonGenerator.forBlock['text_prompt'] = (block, generator) => {
   return [`${_makeInputHelper(gen)}(${msg})`, Order.FUNCTION_CALL]
 }
 
-// text_prompt_ext — extended block: message is a connected VALUE input; TYPE dropdown NUMBER/TEXT.
+// text_prompt_ext — extended block: message is a connected VALUE input; TYPE dropdown INT/FLOAT/STR.
+// We re-register the block definition to replace Blockly's built-in NUMBER/TEXT dropdown with our
+// three-option type selector, matching read_value. Old workspace XMLs with NUMBER are handled by
+// the fallback: unknown TYPE values map to STR (no cast), same as the previous TEXT branch.
+Blockly.Blocks['text_prompt_ext'] = {
+  init(this: Blockly.Block) {
+    this.appendValueInput('TEXT').setCheck('String').appendField('pedir')
+    this.appendDummyInput().appendField(new Blockly.FieldDropdown(READ_TYPE_OPTIONS), 'TYPE')
+    this.setOutput(true, null)
+    this.setColour(160)
+    this.setInputsInline(true)
+    this.setTooltip('Muestra un mensaje al usuario y lee su respuesta según el tipo seleccionado.')
+    this.setHelpUrl('')
+  },
+}
 pythonGenerator.forBlock['text_prompt_ext'] = (block, generator) => {
   const text = generator.valueToCode(block, 'TEXT', Order.NONE) || "''"
-  const isNumber = block.getFieldValue('TYPE') === 'NUMBER'
+  const type = (block.getFieldValue('TYPE') ?? 'STR') as ReadType
   const gen = generator as unknown as PythonGen
   const call = `${_makeInputHelper(gen)}(${text})`
-  return [isNumber ? `float(${call})` : call, Order.FUNCTION_CALL]
+  return [wrapWithType(call, type), Order.FUNCTION_CALL]
 }
 
 import { registerCustomBlocks } from './blockly/customBlocks'
+import { READ_TYPE_OPTIONS, wrapWithType, type ReadType } from './blockly/customBlocks/inputBlocks'
 import { BLOCKLY_TOOLBOX } from './blockly/toolboxConfig'
 import { DEFAULT_WORKSPACE_XML } from './blockly/defaultWorkspace'
 import { useBlocklyPersistence } from '@/hooks/useBlocklyPersistence'
