@@ -112,11 +112,14 @@ export function GroupDetailPage() {
   const isMember = group?.userMembership.isMember ?? false
   const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
   const [requestsPageQuery, setRequestsPageQuery] = useState({ page: 1, limit: 10 })
+  // Only leads/admins can list requests (the backend answers 403 to anyone else).
   const { data: requestsData } = useJoinRequests(id!, {
     status: requestsStatus === 'all' ? undefined : requestsStatus,
     page: requestsPageQuery.page,
     limit: requestsPageQuery.limit,
-  })
+  }, { enabled: canManage })
+  // Unfiltered count, so whether the tab exists doesn't depend on the status filter picked in it.
+  const { data: allRequestsData } = useJoinRequests(id!, { limit: 1 }, { enabled: canManage })
   const { data: myJoinRequest } = useMyJoinRequest(id!, {
     enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
@@ -792,9 +795,9 @@ export function GroupDetailPage() {
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
-    // Join requests only exist under the REQUEST policy; keep the tab if some are still listed
+    // Join requests only exist under the REQUEST policy; keep the tab if the group still has any
     // (e.g. the policy changed afterwards) so they can still be processed.
-    ...(canManage && (group?.joinPolicy === 'REQUEST' || (requestsData?.pagination.total ?? 0) > 0)
+    ...(canManage && (group?.joinPolicy === 'REQUEST' || (allRequestsData?.pagination.total ?? 0) > 0)
       ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }]
       : []),
     ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.total }] : []),

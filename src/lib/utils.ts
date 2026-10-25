@@ -52,19 +52,19 @@ export function pluralize(count: number, singular: string, plural = `${singular}
 
 /**
  * Format a duration in seconds to a human-readable string, using days for long contests.
- * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min", 604800 → "7 días", 108000 → "1 día 6h"
+ * e.g. 7200 → "2h", 5400 → "1h 30min", 1800 → "30min", 604800 → "7 días", 108000 → "1 día 6h",
+ * 88200 → "1 día 30min" (zero parts are skipped, but no part is dropped)
  */
 export function formatDuration(seconds: number): string {
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  if (days > 0) {
-    const dayPart = `${days} ${days === 1 ? 'día' : 'días'}`
-    return hours > 0 ? `${dayPart} ${hours}h` : dayPart
-  }
-  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`
-  if (hours > 0) return `${hours}h`
-  return `${minutes}min`
+  const parts = [
+    days > 0 && `${days} ${days === 1 ? 'día' : 'días'}`,
+    hours > 0 && `${hours}h`,
+    minutes > 0 && `${minutes}min`,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : '0min'
 }
 
 /**

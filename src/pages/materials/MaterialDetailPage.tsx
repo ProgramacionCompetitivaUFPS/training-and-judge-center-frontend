@@ -187,7 +187,7 @@ export function MaterialDetailPage() {
                 {canEdit && material.status === 'DRAFT' && (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-status-warning/30 bg-status-warning/10 px-4 py-3">
                     <p className="text-sm text-neutral-text-primary">
-                      Este material es un <span className="font-semibold">borrador</span>: solo los líderes del grupo lo ven.
+                      Este material es un <span className="font-semibold">borrador</span>: aún no está publicado y los miembros del grupo no lo ven.
                     </p>
                     <Button size="sm" onClick={handlePublish} isLoading={publishMutation.isPending} className="shrink-0">
                       Publicar

@@ -57,11 +57,15 @@ export function useGroupMembers(groupId: string, params?: { page?: number; limit
   })
 }
 
-export function useJoinRequests(groupId: string, params?: { status?: string; page?: number; limit?: number }) {
+export function useJoinRequests(
+  groupId: string,
+  params?: { status?: string; page?: number; limit?: number },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: [...groupKeys.joinRequests(groupId), params],
     queryFn: () => groupsApi.getJoinRequests(groupId, params),
-    enabled: !!groupId,
+    enabled: !!groupId && (options?.enabled ?? true),
   })
 }
 

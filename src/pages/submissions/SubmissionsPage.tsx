@@ -245,7 +245,9 @@ export function SubmissionsPage() {
         )}
 
         {/* Table */}
-        {isError ? (
+        {/* A failed background poll keeps the previous data (isError + data): don't replace a
+            populated table with the alert, only show it when there's nothing to show. */}
+        {isError && !data ? (
           <Alert variant="error">No se pudieron cargar tus envíos. Revisa los filtros o inténtalo de nuevo.</Alert>
         ) : !isLoading && submissions.length === 0 ? (
           <EmptyState

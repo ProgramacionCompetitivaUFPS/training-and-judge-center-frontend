@@ -101,7 +101,7 @@ export function MaterialFormPage() {
           toast({ variant: 'error', title: 'Se guardó como borrador, pero no se pudo publicar', description: getErrorMessage(err) })
         }
       } else {
-        toast({ variant: 'success', title: 'Borrador guardado', description: 'Solo los líderes del grupo lo ven. Publícalo cuando esté listo.' })
+        toast({ variant: 'success', title: 'Borrador guardado', description: 'Los miembros del grupo no lo verán hasta que lo publiques.' })
       }
       navigate(`/groups/${groupId}/materials/${created.id}`)
     } catch (err) {
