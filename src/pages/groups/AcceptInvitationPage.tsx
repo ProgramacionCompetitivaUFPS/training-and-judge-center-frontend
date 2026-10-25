@@ -51,17 +51,23 @@ export function AcceptInvitationPage() {
           <CardContent className="space-y-4">
             {isLoading ? (
               <Skeleton className="h-6 w-2/3" />
-            ) : !group ? (
-              <p className="text-status-error text-sm">No se pudo encontrar el grupo de esta invitación.</p>
             ) : (
               <>
-                <p className="text-neutral-text-muted">
-                  Has sido invitado a unirte al grupo{' '}
-                  <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
-                    {group.name}
-                  </Link>
-                  .
-                </p>
+                {group ? (
+                  <p className="text-neutral-text-muted">
+                    Has sido invitado a unirte al grupo{' '}
+                    <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+                      {group.name}
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  // A NOT_VISIBLE group answers 404 to non-members (get_group.go), and invitation
+                  // groups are usually private — accepting doesn't need the detail, so don't block on it.
+                  <p className="text-neutral-text-muted">
+                    Has sido invitado a unirte a un grupo privado. Acepta la invitación para ver su contenido.
+                  </p>
+                )}
                 <Button onClick={handleAccept} isLoading={acceptMutation.isPending} className="w-full">
                   Aceptar invitación
                   <ArrowRight className="h-4 w-4 ml-2" />
