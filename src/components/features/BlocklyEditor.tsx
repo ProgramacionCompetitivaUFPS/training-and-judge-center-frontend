@@ -20,7 +20,6 @@ import './blockly/blockly-overrides.css'
 export interface BlocklyEditorHandle {
   getCode(): string
   getXml(): string
-  getSvg(): Blob
   isEmpty(): boolean
   reset(): void
   loadXml(xml: string): void
@@ -77,41 +76,6 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
         if (!ws) return ''
         const dom = Blockly.Xml.workspaceToDom(ws)
         return Blockly.Xml.domToText(dom)
-      },
-
-      getSvg(): Blob {
-        const ws = workspaceRef.current
-        if (!ws) {
-          return createPlaceholderSvg()
-        }
-        try {
-          const canvas = (ws as unknown as { svgBlockCanvas_: SVGElement }).svgBlockCanvas_.cloneNode(true) as SVGElement
-          canvas.removeAttribute('transform')
-
-          const bbox = (
-            (ws as unknown as { svgBlockCanvas_: SVGGraphicsElement }).svgBlockCanvas_
-          ).getBBox()
-
-          const css =
-            '<defs><style type="text/css" xmlns="http://www.w3.org/1999/xhtml">' +
-            '<![CDATA[' +
-            'rect { height: 0; } .blocklyDropdownText { font-weight: bold; }' +
-            ']]></style></defs>'
-
-          const content = new XMLSerializer().serializeToString(canvas)
-
-          const svgString =
-            '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"' +
-            ` width="${bbox.width}" height="${bbox.height}"` +
-            ` viewBox="${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}">` +
-            css +
-            content +
-            '</svg>'
-
-          return new Blob([svgString], { type: 'image/svg+xml' })
-        } catch {
-          return createPlaceholderSvg()
-        }
       },
 
       isEmpty(): boolean {
@@ -224,13 +188,5 @@ const BlocklyEditor = forwardRef<BlocklyEditorHandle, BlocklyEditorProps>(
     return <div ref={containerRef} style={{ height: 480, width: '100%', position: 'relative', zIndex: 0 }} />
   },
 )
-
-function createPlaceholderSvg(): Blob {
-  const svg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50">' +
-    '<text x="10" y="30" font-size="14" fill="#666">Error al generar imagen</text>' +
-    '</svg>'
-  return new Blob([svg], { type: 'image/svg+xml' })
-}
 
 export default BlocklyEditor

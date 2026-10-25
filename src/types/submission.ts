@@ -17,7 +17,8 @@ export type SubmissionStatus =
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
 
 export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310' | 'blockly'
-export type SubmissionCompiler = 'g++' | 'javac' | 'pypy3'
+// Must match the backend's language_validator.go (and JUDGE_LANGUAGES in lib/constants.ts).
+export type SubmissionCompiler = 'g++' | 'javac' | 'py'
 
 // Display type that includes '?' for frozen contest submissions
 export type SubmissionStatusDisplay = SubmissionStatus | '?'
@@ -48,12 +49,10 @@ export interface SubmissionDetail {
   memoryKb: number | null
   /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
   sourceCode: string | null
-  /** URL del SVG de bloques (solo para envíos Blockly) */
-  blocksSvgUrl?: string
-  /** Indica si es un envío Blockly */
-  isBlocklySubmission?: boolean
-  /** XML del workspace de Blockly (solo para envíos Blockly con soporte) */
-  workspaceXml?: string
+  /** Hecho con el editor de bloques: el backend lo guarda como python310 + el workspace. */
+  isBlocklySubmission: boolean
+  /** Workspace de Blockly del envío; null en envíos normales o si el archivo ya no existe */
+  workspaceXml: string | null
 }
 
 // === Submission List Item (no source code) ===
@@ -76,6 +75,7 @@ export interface SubmissionListItem {
     nickname: string
   }
   language: SubmissionLanguage
+  isBlocklySubmission: boolean
   executionTime: number | null
   memoryKb: number | null
 }

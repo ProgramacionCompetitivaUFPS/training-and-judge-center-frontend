@@ -226,7 +226,6 @@ export function SubmitSolutionPage() {
 
       const pythonCode = editor.getCode()
       const workspaceXml = editor.getXml()
-      const svgBlob = editor.getSvg()
 
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
@@ -237,12 +236,12 @@ export function SubmitSolutionPage() {
 
       if (isContestContext && activeContest) {
         blocklyContestSubmitMutation.mutate(
-          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml },
           { onSuccess, onError },
         )
       } else {
         blocklySubmitMutation.mutate(
-          { problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { problemSlug: resolvedSlug, pythonCode, workspaceXml },
           { onSuccess, onError },
         )
       }
@@ -423,8 +422,10 @@ export function SubmitSolutionPage() {
                 <CardContent className="pt-5 space-y-3">
                   <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Límites del problema</p>
                   {(() => {
-                    const override = language
-                      ? problemDetail.languageOverrides.find((lo) => lo.language === language)
+                    // Blockly is judged as Python 3.10, so it gets Python's limits.
+                    const judgedAs = isBlockly ? 'python310' : language
+                    const override = judgedAs
+                      ? problemDetail.languageOverrides.find((lo) => lo.language === judgedAs)
                       : undefined
                     const effectiveTime = override?.timeLimit ?? problemDetail.timeLimit
                     const effectiveMemory = override?.memoryLimit ?? problemDetail.memoryLimit

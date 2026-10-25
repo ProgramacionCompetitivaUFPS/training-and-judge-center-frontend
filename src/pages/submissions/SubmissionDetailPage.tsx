@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { Suspense, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -6,7 +6,6 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { CodeViewer } from '@/components/features/CodeViewer'
-import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,6 +15,8 @@ import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { SubmissionOrigin } from '@/types/submission'
 import { getErrorMessage } from '@/lib/errorMessages'
+
+const BlocklyWorkspaceViewer = React.lazy(() => import('@/components/features/BlocklyWorkspaceViewer'))
 
 const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
@@ -204,11 +205,9 @@ export function SubmissionDetailPage() {
           </div>
         </div>
 
-        {/* Source Code / Blockly SVG */}
+        {/* Source Code / Blockly blocks */}
         {(() => {
-          const isBlocklySubmission = submission.language === 'blockly' && submission.blocksSvgUrl
-
-          if (isBlocklySubmission) {
+          if (submission.isBlocklySubmission && submission.workspaceXml !== null) {
             return (
               <Card>
                 <CardHeader>
@@ -242,7 +241,9 @@ export function SubmissionDetailPage() {
                       <CodeViewer code={submission.sourceCode} language={submission.language} />
                     )
                   ) : (
-                    <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
+                    <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                      <BlocklyWorkspaceViewer workspaceXml={submission.workspaceXml} />
+                    </Suspense>
                   )}
                 </CardContent>
               </Card>
