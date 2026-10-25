@@ -849,7 +849,7 @@ export function GroupDetailPage() {
         open={leaveOpen}
         onOpenChange={setLeaveOpen}
         title="Salir del grupo"
-        description="¿Seguro que deseas salir del grupo?"
+        description="¿Seguro que deseas salir del grupo? También se cancelarán tus inscripciones individuales a las competencias programadas de este grupo."
         confirmLabel="Salir"
         variant="warning"
         onConfirm={handleLeave}
