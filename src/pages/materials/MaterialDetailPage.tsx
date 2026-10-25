@@ -145,7 +145,7 @@ export function MaterialDetailPage() {
                   {(canEdit || canPin) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="shrink-0">
+                        <Button variant="outline" size="sm" className="shrink-0" aria-label="Acciones del material">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -181,6 +181,19 @@ export function MaterialDetailPage() {
                     </DropdownMenu>
                   )}
                 </div>
+
+                {/* A draft is invisible to members; make that and the way out obvious instead of
+                    leaving "Publicar" inside the ⋮ menu. */}
+                {canEdit && material.status === 'DRAFT' && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-status-warning/30 bg-status-warning/10 px-4 py-3">
+                    <p className="text-sm text-neutral-text-primary">
+                      Este material es un <span className="font-semibold">borrador</span>: solo los líderes del grupo lo ven.
+                    </p>
+                    <Button size="sm" onClick={handlePublish} isLoading={publishMutation.isPending} className="shrink-0">
+                      Publicar
+                    </Button>
+                  </div>
+                )}
 
                 {/* Author line */}
                 <div className="flex items-center gap-3">
