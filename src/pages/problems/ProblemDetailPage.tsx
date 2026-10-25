@@ -1,7 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
+import {
+  Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { TestCasesViewer } from '@/components/features/TestCasesViewer'
@@ -130,6 +134,79 @@ export function ProblemDetailPage() {
     contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
   const isContestLead = isAdmin || isContestOwnerOrLead
   const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
+  const showManagementTabs = canEdit && !isContestContext
+  // A draft can't be published without test cases and a solution, and those live in the other
+  // tab now, so say so on the tab instead of leaving a new author to look for them.
+  const missingFiles =
+    problem.status === 'DRAFT' && (!problem.files?.testCases || (problem.files?.solutions.length ?? 0) === 0)
+
+  const problemContent = (
+    <>
+      {/* Statement — the "Enunciado" label is only useful while reviewing a draft
+          alongside the Archivos/Gestión cards; once published, this is the only thing
+          on the page and a contestant is just here to read the problem, so the label
+          would be redundant chrome. */}
+      <Card>
+        {problem.status !== 'PUBLISHED' && (
+          <CardHeader>
+            <CardTitle>Enunciado</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
+          {problem.statement ? (
+            <MarkdownRenderer content={problem.statement} />
+          ) : (
+            <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
+          `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
+      {!!problem.samples?.length && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ejemplos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {problem.samples.map((sample, index) => (
+              <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
+                <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+                  <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+                  <div className="p-4">
+                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
+                  </div>
+                  <div className="p-4">
+                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </>
+  )
+
+  const managementContent = (
+    <>
+      {/* Files (only for modifiers, and only while the problem is still a draft — the
+          backend rejects uploads to a published problem) */}
+      {problem.files && problem.status !== 'PUBLISHED' && (
+        <FilesManager problem={problem} />
+      )}
+
+      {/* Test cases: reading them is allowed on a published problem too (only uploading isn't) */}
+      {problem.files?.testCases && <TestCasesViewer slug={problem.slug} />}
+
+      {/* Modifiers (only for modifiers) */}
+      <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+    </>
+  )
 
   function handlePublish() {
     if (!problem) return
@@ -275,66 +352,37 @@ export function ProblemDetailPage() {
             )}
           </div>
 
-          {/* Statement — the "Enunciado" label is only useful while reviewing a draft
-              alongside the Archivos/Gestión cards; once published, this is the only thing
-              on the page and a contestant is just here to read the problem, so the label
-              would be redundant chrome. */}
-          <Card>
-            {problem.status !== 'PUBLISHED' && (
-              <CardHeader>
-                <CardTitle>Enunciado</CardTitle>
-              </CardHeader>
-            )}
-            <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
-              {problem.statement ? (
-                <MarkdownRenderer content={problem.statement} />
-              ) : (
-                <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
-              `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
-          {!!problem.samples?.length && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ejemplos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {problem.samples.map((sample, index) => (
-                  <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
-                    <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
-                      <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
-                      <div className="p-4">
-                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
-                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
-                      </div>
-                      <div className="p-4">
-                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
-                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Files (only for modifiers, and only while the problem is still a draft — the
-              backend rejects uploads to a published problem) */}
-          {canEdit && problem.files && problem.status !== 'PUBLISHED' && (
-            <FilesManager problem={problem} />
-          )}
-
-          {/* Test cases: reading them is allowed on a published problem too (only uploading isn't) */}
-          {canEdit && problem.files?.testCases && <TestCasesViewer slug={problem.slug} />}
-
-          {/* Modifiers (only for modifiers) */}
-          {canEdit && (
-            <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+          {showManagementTabs ? (
+            // Whoever edits the problem gets the reader's view (statement and examples, as a
+            // contestant sees it) apart from the management cards, instead of one long page.
+            <Tabs defaultValue="problem" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="problem">Problema</TabsTrigger>
+                <TabsTrigger value="files" className="gap-1.5">
+                  Archivos y colaboradores
+                  {missingFiles && (
+                    <span
+                      className="h-2 w-2 rounded-full bg-status-warning"
+                      role="img"
+                      aria-label="Faltan archivos por subir"
+                      title="Faltan archivos por subir"
+                    />
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="problem" className="mt-0 space-y-6">
+                {problemContent}
+              </TabsContent>
+              <TabsContent value="files" className="mt-0 space-y-6">
+                {managementContent}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <>
+              {problemContent}
+              {/* Inside a contest only an Admin can reach this, and no tabs there */}
+              {canEdit && managementContent}
+            </>
           )}
         </div>
 
@@ -535,33 +583,44 @@ export function ProblemDetailPage() {
                     Despublicar
                   </Button>
                 )}
-                <Button variant="outline" className="w-full gap-2" onClick={() => navigate(PATHS.problemEdit(problem.slug))}>
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </Button>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" className="w-full gap-2" onClick={handleExport} isLoading={exportMutation.isPending}>
-                      <Download className="h-4 w-4" />
-                      Exportar ZIP
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Descarga el problema en formato ICPC (enunciado, casos, soluciones, checker y validador). Se puede volver a importar.</p>
-                  </TooltipContent>
-                </Tooltip>
-                {isAdmin && (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => setAdminRejudgeDialogOpen(true)} isLoading={adminRejudgeMutation.isPending}>
-                    <RefreshCw className="h-4 w-4" />
-                    Rejuzgar (global)
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate(PATHS.problemEdit(problem.slug))}>
+                    <Pencil className="h-4 w-4" />
+                    Editar
                   </Button>
-                )}
-                {canDelete && (
-                  <Button variant="danger" className="w-full gap-2" onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 className="h-4 w-4" />
-                    Eliminar
-                  </Button>
-                )}
+                  {/* Rare or destructive actions stay out of sight so the card doesn't grow with every new feature */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" aria-label="Más acciones" title="Más acciones">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+                        <Download className="mr-2 h-4 w-4 shrink-0" />
+                        <span>
+                          {exportMutation.isPending ? 'Exportando…' : 'Exportar ZIP'}
+                          <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
+                        </span>
+                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <DropdownMenuItem onClick={() => setAdminRejudgeDialogOpen(true)} disabled={adminRejudgeMutation.isPending}>
+                          <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
+                          Rejuzgar (global)
+                        </DropdownMenuItem>
+                      )}
+                      {canDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
+                            <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </CardContent>
             </Card>
           )}
