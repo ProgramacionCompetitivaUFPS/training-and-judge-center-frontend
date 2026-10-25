@@ -22,6 +22,7 @@ import {
 } from '@/lib/schemas/material'
 import { X } from 'lucide-react'
 import { DEFAULT_MATERIAL_CONTENT_MARKDOWN } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function MaterialFormPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -87,8 +88,8 @@ export function MaterialFormPage() {
         toast({ variant: 'success', title: 'Material creado' })
         navigate(`/groups/${groupId}/materials/${created.id}`)
       }
-    } catch {
-      toast({ variant: 'error', title: isEditing ? 'Error al actualizar' : 'Error al crear' })
+    } catch (err) {
+      toast({ variant: 'error', title: isEditing ? 'Error al actualizar' : 'Error al crear', description: getErrorMessage(err) })
     }
   }
 

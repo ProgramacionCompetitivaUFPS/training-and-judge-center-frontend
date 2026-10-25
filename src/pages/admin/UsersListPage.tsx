@@ -143,8 +143,8 @@ export function UsersListPage() {
       await editUserMutation.mutateAsync({ id: editingUser.id, data: formData })
       toast({ variant: 'success', title: 'Usuario actualizado' })
       setEditingUser(null)
-    } catch {
-      toast({ variant: 'error', title: 'Error al actualizar el usuario' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al actualizar el usuario', description: getErrorMessage(err) })
     }
   }
 

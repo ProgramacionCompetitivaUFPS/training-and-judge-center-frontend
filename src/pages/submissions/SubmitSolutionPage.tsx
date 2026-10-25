@@ -18,6 +18,7 @@ import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { useDebounce } from '@/hooks/useDebounce'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { problemLabel } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -239,8 +240,8 @@ export function SubmitSolutionPage() {
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       }
-      const onError = () => {
-        toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+      const onError = (err: unknown) => {
+        toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
       }
 
       if (isContestContext && activeContest) {
@@ -269,8 +270,8 @@ export function SubmitSolutionPage() {
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    const onError = () => {
-      toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+    const onError = (err: unknown) => {
+      toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
     }
 
     if (isContestContext && activeContest) {

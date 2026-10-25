@@ -80,6 +80,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 // Deterministic color from name initial
 const INITIAL_COLORS = [
@@ -190,8 +191,8 @@ export function GroupDetailPage() {
     try {
       await joinMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Te has unido al grupo' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al unirse al grupo' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al unirse al grupo', description: getErrorMessage(err) })
     }
   }
 
@@ -201,8 +202,8 @@ export function GroupDetailPage() {
       toast({ variant: 'success', title: 'Solicitud enviada' })
       setRequestOpen(false)
       setRequestMessage('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al enviar la solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al enviar la solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -210,8 +211,8 @@ export function GroupDetailPage() {
     try {
       await cancelRequestMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Solicitud cancelada' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al cancelar solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cancelar solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -237,8 +238,8 @@ export function GroupDetailPage() {
       await deleteMutation.mutateAsync({ id, data: { confirmationName: deleteConfirm } })
       toast({ variant: 'success', title: 'Grupo eliminado' })
       navigate(ROUTES.GROUPS)
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar grupo' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar grupo', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
     setDeleteConfirm('')
@@ -248,8 +249,8 @@ export function GroupDetailPage() {
     try {
       await processRequestMutation.mutateAsync({ groupId: id, requestId, data: { status } })
       toast({ variant: 'success', title: status === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al procesar solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al procesar solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -258,8 +259,8 @@ export function GroupDetailPage() {
     try {
       await removeMemberMutation.mutateAsync({ groupId: id, nickname: removeMemberTarget })
       toast({ variant: 'success', title: 'Miembro eliminado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar miembro' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar miembro', description: getErrorMessage(err) })
     } finally {
       setRemoveMemberTarget(null)
     }
@@ -269,8 +270,8 @@ export function GroupDetailPage() {
     try {
       await changeRoleMutation.mutateAsync({ groupId: id, nickname, data: { role } })
       toast({ variant: 'success', title: 'Rol actualizado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al cambiar rol' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cambiar rol', description: getErrorMessage(err) })
     }
   }
 
@@ -281,8 +282,8 @@ export function GroupDetailPage() {
       toast({ variant: 'success', title: 'Miembro agregado' })
       setAddMemberOpen(false)
       setAddNickname('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al agregar miembro' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al agregar miembro', description: getErrorMessage(err) })
     }
   }
 
@@ -299,8 +300,8 @@ export function GroupDetailPage() {
       setGeneratedInviteUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(id, response.id)}`)
       setInviteNickname('')
       setInviteEmail('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al enviar invitación' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al enviar invitación', description: getErrorMessage(err) })
     }
   }
 

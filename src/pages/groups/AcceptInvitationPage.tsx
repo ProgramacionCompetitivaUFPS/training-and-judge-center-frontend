@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useGroupDetail, useAcceptInvitation } from '@/hooks/api/useGroups'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PATHS, ROUTES } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function AcceptInvitationPage() {
   const { groupId, invitationId } = useParams<{ groupId: string; invitationId: string }>()
@@ -26,8 +27,12 @@ export function AcceptInvitationPage() {
           toast({ variant: 'success', title: 'Te has unido al grupo' })
           navigate(PATHS.group(groupId))
         },
-        onError: () => {
-          toast({ variant: 'error', title: 'Error al aceptar la invitación', description: 'El enlace pudo haber expirado, ya fue usado, o no está dirigido a tu cuenta.' })
+        onError: (err) => {
+          toast({
+            variant: 'error',
+            title: 'Error al aceptar la invitación',
+            description: getErrorMessage(err, 'El enlace pudo haber expirado, ya fue usado, o no está dirigido a tu cuenta.'),
+          })
         },
       },
     )

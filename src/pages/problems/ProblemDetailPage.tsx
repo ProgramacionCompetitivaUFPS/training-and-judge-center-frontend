@@ -187,7 +187,7 @@ export function ProblemDetailPage() {
       { slug: problem.slug },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
-        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
       },
     )
     setAdminRejudgeDialogOpen(false)
@@ -197,7 +197,7 @@ export function ProblemDetailPage() {
     if (!problem || !groupId || !contestId) return
     const onSettled = {
       onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+      onError: (err: unknown) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
     }
     // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
     // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
@@ -973,7 +973,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
           toast({ variant: 'success', title: 'Colaborador agregado' })
           setUserQuery('')
         },
-        onError: () => toast({ variant: 'error', title: 'Error al agregar colaborador' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al agregar colaborador', description: getErrorMessage(err) }),
       },
     )
   }
@@ -984,7 +984,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
       { slug: problem.slug, nickname: removeTarget },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Colaborador removido' }),
-        onError: () => toast({ variant: 'error', title: 'Error al remover colaborador' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al remover colaborador', description: getErrorMessage(err) }),
       },
     )
     setRemoveTarget(null)

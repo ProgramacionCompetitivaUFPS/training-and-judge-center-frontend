@@ -17,7 +17,7 @@ import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
+import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
@@ -59,7 +59,7 @@ export function ContestDetailPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { toast } = useToastContext()
 
   const { data: contest, isLoading, error } = useContestDetail(groupId || '', id || '')
   const { data: ownerGroup } = useGroupDetail(groupId || '')
@@ -145,7 +145,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado a la competencia' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo registrar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -155,7 +155,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Desregistrado', description: 'Has cancelado tu registro' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo cancelar el registro' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -168,7 +168,7 @@ export function ContestDetailPage() {
           toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
           navigate(PATHS.group(groupId))
         },
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -188,10 +188,10 @@ export function ContestDetailPage() {
           title: newLocked ? 'Bloqueado' : 'Desbloqueado',
           description: newLocked ? 'La competencia fue bloqueada' : 'La competencia fue desbloqueada',
         }),
-        onError: () => toast({
+        onError: (err) => toast({
           variant: 'error',
-          title: 'Error',
-          description: newLocked ? 'No se pudo bloquear' : 'No se pudo desbloquear',
+          title: newLocked ? 'No se pudo bloquear' : 'No se pudo desbloquear',
+          description: getErrorMessage(err),
         }),
       },
     )
@@ -222,7 +222,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, teamId },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido de la competencia' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -240,7 +240,7 @@ export function ContestDetailPage() {
           toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" a la competencia` })
           setProblemSearchQuery('')
         },
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -253,7 +253,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, data: { problems: remaining } },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" de la competencia` }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -452,7 +452,7 @@ export function ContestDetailPage() {
                     isRegistering={registerTeamMutation.isPending}
                     isUpdating={updateTeamRegistrationMutation.isPending}
                     isUnregistering={unregisterTeamMutation.isPending}
-                    registrationError={registerTeamMutation.error?.message}
+                    registrationError={registerTeamMutation.error ? getErrorMessage(registerTeamMutation.error) : undefined}
                     onTeamSelect={setSelectedTeamId}
                   />
                 )}

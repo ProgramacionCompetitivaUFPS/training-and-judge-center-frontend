@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function MaterialDetailPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -56,8 +57,8 @@ export function MaterialDetailPage() {
       await deleteMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material eliminado' })
       navigate(`/groups/${groupId}/materials`)
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar material' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar material', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
   }
@@ -66,8 +67,8 @@ export function MaterialDetailPage() {
     try {
       await publishMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material publicado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al publicar' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al publicar', description: getErrorMessage(err) })
     }
   }
 
@@ -75,8 +76,8 @@ export function MaterialDetailPage() {
     try {
       await unpublishMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material despublicado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al despublicar' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
     }
   }
 
@@ -89,8 +90,8 @@ export function MaterialDetailPage() {
         await pinMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
         toast({ variant: 'success', title: 'Material fijado' })
       }
-    } catch {
-      toast({ variant: 'error', title: 'Error al cambiar fijado' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cambiar fijado', description: getErrorMessage(err) })
     }
   }
 

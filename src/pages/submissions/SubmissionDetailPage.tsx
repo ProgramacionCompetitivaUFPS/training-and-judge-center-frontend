@@ -14,6 +14,7 @@ import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { SubmissionOrigin } from '@/types/submission'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
@@ -75,7 +76,7 @@ export function SubmissionDetailPage() {
       { id: submission.id, data: { visibility: newVisibility } },
       {
         onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility === 'PUBLIC' ? 'Pública' : 'Privada'}` }),
-        onError: () => toast({ variant: 'error', title: 'Error al cambiar visibilidad' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al cambiar visibilidad', description: getErrorMessage(err) }),
       },
     )
   }

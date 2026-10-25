@@ -11,7 +11,7 @@ import { useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/ap
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
+import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
@@ -37,7 +37,7 @@ function toDateTimeLocalValue(iso: string): string {
 export function ContestFormPage() {
   const { groupId, id } = useParams<{ groupId: string; id?: string }>()
   const navigate = useNavigate()
-  const { toast } = useToast()
+  const { toast } = useToastContext()
   const { user } = useAuth()
   const isEditing = !!id
 

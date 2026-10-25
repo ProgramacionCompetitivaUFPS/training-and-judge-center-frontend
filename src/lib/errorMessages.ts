@@ -166,6 +166,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   CONTEST_FINISHED: 'La competencia ya finalizó y el modo postcompetencia no está habilitado',
   NO_REJUDGE_NEEDED: 'Este envío no necesita ser rejuzgado: no ha habido cambios en el juzgamiento desde que se envió',
   CANNOT_REJUDGE_IN_ACTIVE_CONTEST: 'No puedes rejuzgar tus propios envíos durante una competencia activa',
+  INVALID_LANGUAGE: 'Lenguaje no soportado. Usa C++ 20, Java 17 o Python 3.10',
+  NO_TEST_CASES: 'Este problema todavía no tiene casos de prueba, así que no se puede juzgar',
+  SOURCE_CODE_NOT_FOUND: 'El código fuente de este envío ya no está disponible',
+  INVALID_STATUS_TRANSITION: 'El envío cambió de estado mientras se procesaba la acción. Recarga e inténtalo de nuevo',
+  CONTEST_CONFLICT: 'Alguien más modificó esta competencia al mismo tiempo. Recarga e inténtalo de nuevo',
+  VALIDATION_PIPELINE_NOT_READY: 'El sistema de validación de problemas no está disponible en este momento. Inténtalo más tarde',
+  CANNOT_REMOVE_ADMIN_FROM_GLOBAL_GROUP: 'No se puede quitar a un administrador del grupo global',
 }
 
 // Devuelve el mensaje en español para un error de la API, usando el código para
