@@ -952,7 +952,10 @@ export function GroupDetailPage() {
                   <SearchSelect
                     query={inviteNickname}
                     onQueryChange={setInviteNickname}
-                    results={inviteSearchData?.users ?? []}
+                    results={(inviteSearchData?.users ?? []).filter(
+                      (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
+                    )}
+                    emptyLabel="Sin resultados (o ya es miembro)"
                     isSearching={isSearchingInvite}
                     placeholder="Buscar usuario por nombre o nickname..."
                     hintLabel="Escribe al menos 2 caracteres"
