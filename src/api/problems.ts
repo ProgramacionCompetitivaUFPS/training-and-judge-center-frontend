@@ -13,6 +13,9 @@ import type {
   ProblemModifier,
   ProblemAccessibility,
   ProblemFiles,
+  TestCasesResponse,
+  TestCasePreview,
+  TestCaseKind,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -64,6 +67,26 @@ export function uploadProblemFile(slug: string, fileType: string, file: File): P
 export function deleteProblemFile(slug: string, fileType: string, fileName?: string): Promise<void> {
   const params = fileName ? { fileName } : undefined
   return apiClient.delete(`/problems/p/${slug}/files/${fileType}`, { params })
+}
+
+// === Lectura de archivos (autor, colaboradores y Admin) ===
+
+export function getProblemTestCases(slug: string): Promise<TestCasesResponse> {
+  return apiClient.get(`/problems/p/${slug}/testcases`)
+}
+
+export function getProblemTestCase(slug: string, kind: TestCaseKind, name: string): Promise<TestCasePreview> {
+  return apiClient.get(`/problems/p/${slug}/testcases/${kind}/${encodeURIComponent(name)}`)
+}
+
+// El ZIP de casos de prueba tal como se subió.
+export function downloadProblemTestCases(slug: string): Promise<Blob> {
+  return apiClient.getBlob(`/problems/p/${slug}/files/testcases`)
+}
+
+// Paquete ICPC completo (el inverso de "Importar ZIP").
+export function exportProblem(slug: string): Promise<Blob> {
+  return apiClient.getBlob(`/problems/p/${slug}/export`)
 }
 
 // === Modifiers ===

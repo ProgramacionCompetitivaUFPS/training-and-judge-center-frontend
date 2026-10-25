@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
+import { TestCasesViewer } from '@/components/features/TestCasesViewer'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -17,6 +18,7 @@ import {
   useAddModifier,
   useRemoveModifier,
   useAdminRejudgeProblem,
+  useExportProblem,
 } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useRejudgeContestProblem } from '@/hooks/api/useContests'
@@ -74,6 +76,7 @@ export function ProblemDetailPage() {
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
+  const exportMutation = useExportProblem()
   const rejudgeContestMutation = useRejudgeContestProblem()
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -184,6 +187,13 @@ export function ProblemDetailPage() {
         },
       },
     )
+  }
+
+  function handleExport() {
+    if (!problem) return
+    exportMutation.mutate(problem.slug, {
+      onError: (err) => toast({ variant: 'error', title: 'No se pudo exportar el problema', description: getErrorMessage(err) }),
+    })
   }
 
   function handleAdminRejudge() {
@@ -318,6 +328,9 @@ export function ProblemDetailPage() {
           {canEdit && problem.files && problem.status !== 'PUBLISHED' && (
             <FilesManager problem={problem} />
           )}
+
+          {/* Test cases: reading them is allowed on a published problem too (only uploading isn't) */}
+          {canEdit && problem.files?.testCases && <TestCasesViewer slug={problem.slug} />}
 
           {/* Modifiers (only for modifiers) */}
           {canEdit && (
@@ -526,6 +539,17 @@ export function ProblemDetailPage() {
                   <Pencil className="h-4 w-4" />
                   Editar
                 </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" className="w-full gap-2" onClick={handleExport} isLoading={exportMutation.isPending}>
+                      <Download className="h-4 w-4" />
+                      Exportar ZIP
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Descarga el problema en formato ICPC (enunciado, casos, soluciones, checker y validador). Se puede volver a importar.</p>
+                  </TooltipContent>
+                </Tooltip>
                 {isAdmin && (
                   <Button variant="outline" className="w-full gap-2" onClick={() => setAdminRejudgeDialogOpen(true)} isLoading={adminRejudgeMutation.isPending}>
                     <RefreshCw className="h-4 w-4" />

@@ -6,7 +6,9 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   ProblemAccessibility,
+  TestCaseKind,
 } from '@/types/problem'
+import { saveBlobAs } from '@/lib/download'
 
 // === Query Keys ===
 
@@ -16,6 +18,8 @@ export const problemKeys = {
   detail: (slug: string) => ['problems', 'detail', slug] as const,
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
+  testCases: (slug: string) => ['problems', 'testCases', slug] as const,
+  testCase: (slug: string, kind: TestCaseKind, name: string) => ['problems', 'testCases', slug, kind, name] as const,
   tags: ['problems', 'tags'] as const,
 }
 
@@ -128,6 +132,7 @@ export function useUploadProblemFile() {
       problemsApi.uploadProblemFile(slug, fileType, file),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
     },
   })
 }
@@ -139,6 +144,43 @@ export function useDeleteProblemFile() {
       problemsApi.deleteProblemFile(slug, fileType, fileName),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+    },
+  })
+}
+
+// === Lectura y descarga de archivos (autor, colaboradores y Admin) ===
+
+// `enabled` lets the caller hold the request until the list is actually opened: the backend
+// reads the whole test cases ZIP from storage to answer it.
+export function useProblemTestCases(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCases(slug),
+    queryFn: () => problemsApi.getProblemTestCases(slug),
+    enabled,
+  })
+}
+
+export function useProblemTestCase(slug: string, kind: TestCaseKind, name: string, enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCase(slug, kind, name),
+    queryFn: () => problemsApi.getProblemTestCase(slug, kind, name),
+    enabled,
+  })
+}
+
+export function useDownloadTestCases() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.downloadProblemTestCases(slug), `${slug}-testcases.zip`)
+    },
+  })
+}
+
+export function useExportProblem() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.exportProblem(slug), `${slug}.zip`)
     },
   })
 }

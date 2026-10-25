@@ -140,7 +140,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PROBLEM_NOT_FOUND: 'Problema no encontrado',
   PROBLEM_IN_ACTIVE_CONTEST: 'No se puede modificar un problema que está siendo usado en una competencia activa',
   VALIDATION_IN_PROGRESS: 'Ya hay una validación en progreso para este problema. Espera a que termine antes de modificar los archivos',
-  PROBLEM_FILE_NOT_FOUND: 'El problema no tiene ese archivo para eliminar',
+  PROBLEM_FILE_NOT_FOUND: 'El problema no tiene ese archivo, o ya no está disponible en el almacenamiento',
   PROBLEM_IS_PUBLISHED: 'No se puede modificar un problema publicado. Despublícalo primero',
   PROBLEM_MISSING_FILENAME: 'Debes indicar el nombre del archivo',
   PROBLEM_INVALID_FILE_TYPE: 'Tipo de archivo inválido. Permitidos: testCases, solution, checker, validator',
