@@ -6,6 +6,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { CodeViewer } from '@/components/features/CodeViewer'
+import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
@@ -241,9 +242,21 @@ export function SubmissionDetailPage() {
                       <CodeViewer code={submission.sourceCode} language={submission.language} />
                     )
                   ) : (
-                    <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
-                      <BlocklyWorkspaceViewer workspaceXml={submission.workspaceXml} />
-                    </Suspense>
+                    // If the viewer's chunk can't load, the generated Python is still readable.
+                    <LoadErrorBoundary
+                      fallback={
+                        submission.sourceCode === null ? (
+                          <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                        ) : (
+                          <CodeViewer code={submission.sourceCode} language={submission.language} />
+                        )
+                      }
+                    >
+                      <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                        {/* Keyed by submission so moving to another one starts the viewer fresh. */}
+                        <BlocklyWorkspaceViewer key={submission.id} workspaceXml={submission.workspaceXml} />
+                      </Suspense>
+                    </LoadErrorBoundary>
                   )}
                 </CardContent>
               </Card>

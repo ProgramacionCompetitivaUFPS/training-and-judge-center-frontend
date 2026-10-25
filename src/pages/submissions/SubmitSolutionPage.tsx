@@ -8,6 +8,7 @@ import { SearchSelect } from '@/components/ui/SearchSelect'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { RecoveryBanner } from '@/components/features/RecoveryBanner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail, useProblemSearch } from '@/hooks/api/useProblems'
@@ -49,8 +50,9 @@ export function SubmitSolutionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const blocklyRef = useRef<BlocklyEditorHandle>(null)
   // Workspace of a loaded submission that arrived while the block editor was still mounting
-  // (loading a Blockly submission from another language switches to Blockly first).
-  const pendingBlocklyXmlRef = useRef<string | null>(null)
+  // (loading a Blockly submission from another language switches to Blockly first). Tied to its
+  // problem so a stale one never lands in another problem's workspace.
+  const pendingBlocklyXmlRef = useRef<{ xml: string; problemSlug: string } | null>(null)
   const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
 
   // Resolve problem slug in contest context (letter → slug)
@@ -99,6 +101,11 @@ export function SubmitSolutionPage() {
     setLoadedSubmissionId(null)
   }, [resolvedSlug, language])
 
+  // A workspace waiting for the block editor is abandoned once the page leaves Blockly mode.
+  useEffect(() => {
+    if (!isBlockly) pendingBlocklyXmlRef.current = null
+  }, [isBlockly])
+
   const hasEditorChanges = useCallback((): boolean => {
     if (isBlockly) return true // Blockly always has content (default or user blocks)
     return code.trim().length > 0 && !isLanguageTemplate(code)
@@ -112,7 +119,7 @@ export function SubmitSolutionPage() {
     if (subIsBlockly) {
       if (detail.workspaceXml) {
         if (blocklyRef.current) blocklyRef.current.loadXml(detail.workspaceXml)
-        else pendingBlocklyXmlRef.current = detail.workspaceXml
+        else pendingBlocklyXmlRef.current = { xml: detail.workspaceXml, problemSlug: detail.problem.slug }
       } else {
         toast({
           variant: 'warning',
@@ -508,24 +515,32 @@ export function SubmitSolutionPage() {
                         Reiniciar bloques
                       </Button>
                     </div>
-                    <Suspense fallback={
+                    <LoadErrorBoundary fallback={
                       <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
                         <CardContent>
-                          <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                          <p className="text-neutral-text-muted">No se pudo cargar el editor de bloques. Recarga la página.</p>
                         </CardContent>
                       </Card>
                     }>
-                      <BlocklyEditor
-                        ref={blocklyRef}
-                        problemSlug={resolvedSlug}
-                        onEmptyChange={setIsBlocklyEmpty}
-                        onReady={() => {
-                          const xml = pendingBlocklyXmlRef.current
-                          pendingBlocklyXmlRef.current = null
-                          if (xml) blocklyRef.current?.loadXml(xml)
-                        }}
-                      />
-                    </Suspense>
+                      <Suspense fallback={
+                        <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                          <CardContent>
+                            <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                          </CardContent>
+                        </Card>
+                      }>
+                        <BlocklyEditor
+                          ref={blocklyRef}
+                          problemSlug={resolvedSlug}
+                          onEmptyChange={setIsBlocklyEmpty}
+                          onReady={() => {
+                            const pending = pendingBlocklyXmlRef.current
+                            pendingBlocklyXmlRef.current = null
+                            if (pending && pending.problemSlug === resolvedSlug) blocklyRef.current?.loadXml(pending.xml)
+                          }}
+                        />
+                      </Suspense>
+                    </LoadErrorBoundary>
                   </>
                 ) : (
                   <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
@@ -568,17 +583,34 @@ export function SubmitSolutionPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 pt-0">
-                  <Suspense fallback={<div className="min-h-[400px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
-                    <CodeEditor
-                      value={code}
-                      onChange={(value) => {
-                        setCode(value)
-                        setUploadedFile(null)
-                      }}
-                      language={language}
-                      placeholder="Elige un lenguaje o pega tu código aquí…"
-                    />
-                  </Suspense>
+                  {/* If the editor's chunk can't load, a plain textarea still lets the user submit. */}
+                  <LoadErrorBoundary
+                    fallback={
+                      <textarea
+                        value={code}
+                        onChange={(e) => {
+                          setCode(e.target.value)
+                          setUploadedFile(null)
+                        }}
+                        placeholder="Elige un lenguaje o pega tu código aquí…"
+                        spellCheck={false}
+                        aria-label="Editor de código"
+                        className="w-full min-h-[400px] rounded-md border border-neutral-border bg-neutral-background p-3 font-mono text-sm"
+                      />
+                    }
+                  >
+                    <Suspense fallback={<div className="min-h-[400px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                      <CodeEditor
+                        value={code}
+                        onChange={(value) => {
+                          setCode(value)
+                          setUploadedFile(null)
+                        }}
+                        language={language}
+                        placeholder="Elige un lenguaje o pega tu código aquí…"
+                      />
+                    </Suspense>
+                  </LoadErrorBoundary>
                 </CardContent>
               </Card>
             )}
