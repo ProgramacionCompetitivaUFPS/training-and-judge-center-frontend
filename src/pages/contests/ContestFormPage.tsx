@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,6 +34,8 @@ function toDateTimeLocalValue(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+const FREEZE_DEFAULT_MIN_DURATION_MS = 4 * 60 * 60 * 1000
+
 export function ContestFormPage() {
   const { groupId, id } = useParams<{ groupId: string; id?: string }>()
   const navigate = useNavigate()
@@ -54,7 +56,7 @@ export function ContestFormPage() {
       startTime: '',
       endTime: '',
       penalty: 20,
-      freezeMinutes: 60,
+      freezeMinutes: 0,
       enablePostContest: false,
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
@@ -88,6 +90,17 @@ export function ContestFormPage() {
   // (e.g. extending a running contest), and once finished, neither.
   const startLocked = isEditing && !!existing && existing.status !== 'SCHEDULED'
   const endLocked = isEditing && existing?.status === 'FINISHED'
+
+  // Same default the backend applies when freeze is omitted (create_contest.go): 60 min for
+  // contests of 4 h or more, none for shorter ones. Follows the dates until the user edits it,
+  // so a 90-min class practice isn't frozen for two thirds of its duration by default.
+  const freezeTouched = !!dirtyFields.freezeMinutes
+  useEffect(() => {
+    if (isEditing || freezeTouched || !startTime || !endTime) return
+    const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime()
+    if (!(durationMs > 0)) return
+    setValue('freezeMinutes', durationMs >= FREEZE_DEFAULT_MIN_DURATION_MS ? 60 : 0, { shouldValidate: true })
+  }, [isEditing, freezeTouched, startTime, endTime, setValue])
 
   const onSubmit = (data: CreateContestFormData) => {
     const payload = {
@@ -331,13 +344,20 @@ export function ContestFormPage() {
                   error={errors.penalty?.message}
                   placeholder="20"
                 />
-                <Input
-                  label="Freeze (minutos antes del fin)"
-                  type="number"
-                  {...register('freezeMinutes')}
-                  error={errors.freezeMinutes?.message}
-                  placeholder="60"
-                />
+                <div>
+                  <Input
+                    label="Freeze (minutos antes del fin)"
+                    type="number"
+                    {...register('freezeMinutes')}
+                    error={errors.freezeMinutes?.message}
+                    placeholder="0"
+                  />
+                  {!isEditing && (
+                    <p className="text-xs text-neutral-text-muted mt-1">
+                      Por defecto: 60 min si la competencia dura 4 h o más; sin freeze si dura menos.
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
