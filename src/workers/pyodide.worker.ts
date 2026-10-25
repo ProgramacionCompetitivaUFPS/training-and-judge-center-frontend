@@ -11,11 +11,9 @@ interface PyodideInterface {
 
 declare function loadPyodide(): Promise<PyodideInterface>
 
-self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
-  const { code, stdin } = e.data
-
-  // Load phase — posts 'ready' when Pyodide is available
-  let pyodide: PyodideInterface
+// Load Pyodide once when the worker starts; subsequent runCode calls reuse the instance.
+let pyodide: PyodideInterface | null = null
+;(async () => {
   try {
     importScripts('https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js')
     pyodide = await loadPyodide()
@@ -23,10 +21,16 @@ self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     self.postMessage({ type: 'loadError', message })
+  }
+})()
+
+self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
+  if (!pyodide) {
+    self.postMessage({ type: 'execError', message: 'Pyodide no está listo', stdout: '', stderr: '' })
     return
   }
 
-  // Execution phase — stdout/stderr declared here so they survive into the catch
+  const { code, stdin } = e.data
   let stdout = ''
   let stderr = ''
 
@@ -44,7 +48,6 @@ self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
     pyodide.setStderr({ batched: (text: string) => { stderr += text + '\n' } })
 
     await pyodide.runPythonAsync(code)
-
     self.postMessage({ type: 'result', stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
