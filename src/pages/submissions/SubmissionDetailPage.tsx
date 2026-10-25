@@ -5,12 +5,13 @@ import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
+import { CodeViewer } from '@/components/features/CodeViewer'
 import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
-import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS, judgeLanguage } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { SubmissionOrigin } from '@/types/submission'
@@ -83,7 +84,8 @@ export function SubmissionDetailPage() {
 
   function handleDownload() {
     if (!submission || submission.sourceCode === null) return
-    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    // Blockly submissions are stored as their generated Python.
+    const ext = judgeLanguage(submission.language)?.fileExtension ?? 'py'
     const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
     downloadSubmissionBlob(submission.sourceCode, filename)
   }
@@ -234,9 +236,11 @@ export function SubmissionDetailPage() {
                 </CardHeader>
                 <CardContent>
                   {showBlocklyCode ? (
-                    <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                      <code>{submission.sourceCode ?? SOURCE_CODE_UNAVAILABLE}</code>
-                    </pre>
+                    submission.sourceCode === null ? (
+                      <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                    ) : (
+                      <CodeViewer code={submission.sourceCode} language={submission.language} />
+                    )
                   ) : (
                     <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
                   )}
@@ -257,9 +261,7 @@ export function SubmissionDetailPage() {
                 {submission.sourceCode === null ? (
                   <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
                 ) : (
-                  <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                    <code>{submission.sourceCode}</code>
-                  </pre>
+                  <CodeViewer code={submission.sourceCode} language={submission.language} />
                 )}
               </CardContent>
             </Card>

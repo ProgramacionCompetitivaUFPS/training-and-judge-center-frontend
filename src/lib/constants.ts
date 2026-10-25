@@ -45,6 +45,71 @@ export const PROGRAMMING_LANGUAGES = [
   { value: 'blockly', label: 'Blockly' },
 ] as const
 
+/** Syntax mode shared by the editor (CodeMirror) and the viewer (highlight.js). */
+export type CodeMode = 'cpp' | 'java' | 'python'
+
+export interface JudgeLanguageConfig {
+  /** Sent with the submission; must match the backend's language validator. */
+  compiler: string
+  /** Extension of the file built from the editor's code. */
+  fileExtension: string
+  /** Extensions accepted (and auto-detected) when uploading a file. */
+  accept: readonly string[]
+  mode: CodeMode
+  /** Starting code when the language is picked over an empty editor. */
+  template: string
+}
+
+/**
+ * Everything the UI needs per judge language, in one place: adding a language means adding one
+ * entry here (plus the label above). Java's class must be Solution: the judge compiles the source
+ * as Solution.java and runs `java Solution` (judge_config.yaml).
+ */
+export const JUDGE_LANGUAGES: Record<'cpp20' | 'java17' | 'python310', JudgeLanguageConfig> = {
+  cpp20: {
+    compiler: 'g++',
+    fileExtension: 'cpp',
+    accept: ['.cpp', '.cc', '.cxx'],
+    mode: 'cpp',
+    template: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    \n    return 0;\n}\n',
+  },
+  java17: {
+    compiler: 'javac',
+    fileExtension: 'java',
+    accept: ['.java'],
+    mode: 'java',
+    template: 'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) throws IOException {\n        \n    }\n}\n',
+  },
+  python310: {
+    // Not "python3": the backend's language_validator.go expects "py" and answers COMPILER_MISMATCH otherwise.
+    compiler: 'py',
+    fileExtension: 'py',
+    accept: ['.py'],
+    mode: 'python',
+    template: 'import sys\n\n\ndef main():\n    \n\n\nif __name__ == "__main__":\n    main()\n',
+  },
+}
+
+export function judgeLanguage(language: string): JudgeLanguageConfig | undefined {
+  return (JUDGE_LANGUAGES as Record<string, JudgeLanguageConfig>)[language]
+}
+
+/** Syntax mode for a submission language; Blockly submissions are stored as generated Python. */
+export function codeModeOf(language: string): CodeMode | undefined {
+  return language === 'blockly' ? 'python' : judgeLanguage(language)?.mode
+}
+
+/** Judge language for an uploaded file name, by extension (e.g. "sol.py" → "python310"). */
+export function languageForFilename(filename: string): string | undefined {
+  const ext = '.' + (filename.split('.').pop() ?? '').toLowerCase()
+  return Object.entries(JUDGE_LANGUAGES).find(([, cfg]) => cfg.accept.includes(ext))?.[0]
+}
+
+/** True when the code is one of the untouched starter templates. */
+export function isLanguageTemplate(code: string): boolean {
+  return Object.values(JUDGE_LANGUAGES).some((cfg) => cfg.template === code)
+}
+
 // Neither the backend nor the create/import flows apply any default when these are left
 // blank — they just stay null until someone fills them in (and they're required to publish).
 // Most simple problems keep these as-is, so the create/edit forms pre-fill them instead of
