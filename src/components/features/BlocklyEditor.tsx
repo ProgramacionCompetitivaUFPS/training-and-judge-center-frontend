@@ -44,17 +44,30 @@ pythonGenerator.forBlock['text_prompt'] = (block, generator) => {
 
 // text_prompt_ext — extended block: message is a connected VALUE input; TYPE dropdown INT/FLOAT/STR.
 // We re-register the block definition to replace Blockly's built-in NUMBER/TEXT dropdown with our
-// three-option type selector, matching read_value. Old workspace XMLs with NUMBER are handled by
-// the fallback: unknown TYPE values map to STR (no cast), same as the previous TEXT branch.
+// three-option type selector, matching read_value.
 Blockly.Blocks['text_prompt_ext'] = {
   init(this: Blockly.Block) {
     this.appendValueInput('TEXT').setCheck('String').appendField('pedir')
-    this.appendDummyInput().appendField(new Blockly.FieldDropdown(READ_TYPE_OPTIONS), 'TYPE')
-    this.setOutput(true, null)
+    // Validator migrates values saved by the old built-in block (NUMBER→FLOAT, TEXT→STR).
+    const typeField = new Blockly.FieldDropdown(
+      READ_TYPE_OPTIONS as Blockly.MenuGenerator,
+      function(this: Blockly.FieldDropdown, newValue: string): string {
+        if (newValue === 'NUMBER') return 'FLOAT'
+        if (newValue === 'TEXT') return 'STR'
+        return newValue
+      },
+    )
+    this.appendDummyInput().appendField(typeField, 'TYPE')
+    this.setOutput(true, 'Number') // INT is the first (default) option
     this.setColour(160)
     this.setInputsInline(true)
     this.setTooltip('Muestra un mensaje al usuario y lee su respuesta según el tipo seleccionado.')
     this.setHelpUrl('')
+  },
+  onchange(this: Blockly.Block) {
+    if (!this.workspace) return
+    const type = this.getFieldValue('TYPE') as string
+    if (type) this.setOutput(true, type === 'STR' ? 'String' : 'Number')
   },
 }
 pythonGenerator.forBlock['text_prompt_ext'] = (block, generator) => {

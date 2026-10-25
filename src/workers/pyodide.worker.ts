@@ -6,7 +6,8 @@ interface PyodideInterface {
   setStdin: (options: { stdin: () => string | undefined }) => void
   setStdout: (options: { batched: (text: string) => void }) => void
   setStderr: (options: { batched: (text: string) => void }) => void
-  runPythonAsync: (code: string) => Promise<unknown>
+  runPythonAsync: (code: string, options?: { globals?: unknown }) => Promise<unknown>
+  globals: { get(key: string): unknown }
 }
 
 declare function loadPyodide(): Promise<PyodideInterface>
@@ -47,8 +48,15 @@ self.onmessage = async (e: MessageEvent<{ code: string; stdin?: string }>) => {
     pyodide.setStdout({ batched: (text: string) => { stdout += text + '\n' } })
     pyodide.setStderr({ batched: (text: string) => { stderr += text + '\n' } })
 
-    await pyodide.runPythonAsync(code)
-    self.postMessage({ type: 'result', stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
+    // Fresh globals dict per run — prevents Python state leaking between executions.
+    const mkDict = pyodide.globals.get('dict') as () => { destroy(): void }
+    const ns = mkDict()
+    try {
+      await pyodide.runPythonAsync(code, { globals: ns })
+      self.postMessage({ type: 'result', stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
+    } finally {
+      ns.destroy()
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     self.postMessage({ type: 'execError', message, stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
