@@ -1,7 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
+
+const LIST_MAX_HEIGHT = 240
+const LIST_MARGIN = 12
+const MIN_COMFORTABLE_HEIGHT = 160
 
 interface TagPickerProps {
   value: string[]
@@ -26,6 +30,9 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const [typedError, setTypedError] = useState<string | null>(null)
+  // Where the list fits: below the field if there is room, otherwise above it, never taller than the space it gets
+  const [placement, setPlacement] = useState<{ up: boolean; maxHeight: number }>({ up: false, maxHeight: LIST_MAX_HEIGHT })
+  const listRef = useRef<HTMLUListElement>(null)
 
   const normalized = query.trim().toLowerCase()
   const matches = useMemo(() => {
@@ -33,6 +40,30 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
     // What starts with the text first: "dp" before "bitmask-dp"
     return [...free].sort((a, b) => Number(b.startsWith(normalized)) - Number(a.startsWith(normalized)) || a.localeCompare(b))
   }, [options, value, normalized])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    function place() {
+      const rect = containerRef.current?.querySelector('input')?.getBoundingClientRect()
+      if (!rect) return
+      const below = window.innerHeight - rect.bottom - LIST_MARGIN
+      const above = rect.top - LIST_MARGIN
+      const up = below < MIN_COMFORTABLE_HEIGHT && above > below
+      setPlacement({ up, maxHeight: Math.max(Math.min(LIST_MAX_HEIGHT, up ? above : below), 96) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, matches.length])
+
+  // keep the option picked with the arrow keys in view
+  useEffect(() => {
+    if (open) listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [active, open])
 
   useEffect(() => {
     function onPointerDown(e: MouseEvent) {
@@ -136,9 +167,14 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
         {open && (
           <ul
             id={listId}
+            ref={listRef}
             role="listbox"
             aria-label="Tags disponibles"
-            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-neutral-border bg-neutral-surface p-1 shadow-elevation-2"
+            style={{ maxHeight: placement.maxHeight }}
+            className={cn(
+              'absolute z-20 w-full overflow-auto rounded-md border border-neutral-border bg-neutral-surface p-1 shadow-elevation-2',
+              placement.up ? 'bottom-full mb-1' : 'top-full mt-1',
+            )}
           >
             {matches.map((tag, i) => (
               <li
