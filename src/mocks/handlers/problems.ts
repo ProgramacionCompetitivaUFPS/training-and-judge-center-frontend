@@ -385,6 +385,21 @@ export const problemsHandlers = [
     return mockZip(`${(params as { slug: string }).slug}-testcases.zip`)
   }),
 
+  // Source of a solution / checker / validator: placeholder code, enough to exercise the viewer.
+  http.get(url('/problems/p/:slug/files/:fileType'), async ({ params, request }) => {
+    await delay(200)
+    const { slug, fileType } = params as { slug: string; fileType: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const fileName = new URL(request.url).searchParams.get('fileName')
+    const solution = problem?.files?.solutions.find((s) => s.filename === fileName)
+    const hasFile = fileType === 'solution' ? !!solution : fileType === 'checker' || fileType === 'validator' ? !!problem?.files?.[fileType] : false
+    if (!hasFile) return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'The problem has no such file' }, { status: 404 })
+    const filename = solution?.filename ?? `${fileType}.py`
+    const language = solution?.language ?? 'python310'
+    const content = language === 'python310' ? `# ${filename}\nprint("mock")\n` : `// ${filename}\n#include <iostream>\nint main() {}\n`
+    return HttpResponse.json({ fileType, filename, language, content, truncated: false, sizeBytes: content.length })
+  }),
+
   http.get(url('/problems/p/:slug/export'), async ({ params }) => {
     await delay(400)
     return mockZip(`${(params as { slug: string }).slug}.zip`)

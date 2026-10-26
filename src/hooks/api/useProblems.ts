@@ -7,6 +7,7 @@ import type {
   DeleteProblemRequest,
   ProblemAccessibility,
   TestCaseKind,
+  ProblemSourceFileType,
 } from '@/types/problem'
 import { saveBlobAs } from '@/lib/download'
 
@@ -20,6 +21,8 @@ export const problemKeys = {
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
   testCases: (slug: string) => ['problems', 'testCases', slug] as const,
   testCase: (slug: string, kind: TestCaseKind, name: string) => ['problems', 'testCases', slug, kind, name] as const,
+  sourceFiles: (slug: string) => ['problems', 'sourceFiles', slug] as const,
+  sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string) => ['problems', 'sourceFiles', slug, fileType, fileName ?? ''] as const,
   tags: ['problems', 'tags'] as const,
 }
 
@@ -133,6 +136,7 @@ export function useUploadProblemFile() {
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
   })
 }
@@ -145,6 +149,7 @@ export function useDeleteProblemFile() {
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
   })
 }
@@ -165,6 +170,14 @@ export function useProblemTestCase(slug: string, kind: TestCaseKind, name: strin
   return useQuery({
     queryKey: problemKeys.testCase(slug, kind, name),
     queryFn: () => problemsApi.getProblemTestCase(slug, kind, name),
+    enabled,
+  })
+}
+
+export function useProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.sourceFile(slug, fileType, fileName),
+    queryFn: () => problemsApi.getProblemSourceFile(slug, fileType, fileName),
     enabled,
   })
 }

@@ -239,3 +239,18 @@ export interface TestCasePreview {
   inputTruncated: boolean
   answerTruncated: boolean
 }
+
+// === Código de soluciones, checker y validador (lectura; solo autor, colaboradores y Admin) ===
+
+export type ProblemSourceFileType = 'solution' | 'checker' | 'validator'
+
+export interface ProblemSourceFile {
+  fileType: ProblemSourceFileType
+  /** Nombre con el que el autor subió el archivo */
+  filename: string
+  language: string
+  content: string
+  /** El backend corta el contenido a 256 KiB; sizeBytes sigue siendo el tamaño real */
+  truncated: boolean
+  sizeBytes: number
+}

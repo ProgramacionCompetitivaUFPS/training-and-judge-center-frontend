@@ -16,6 +16,8 @@ import type {
   TestCasesResponse,
   TestCasePreview,
   TestCaseKind,
+  ProblemSourceFile,
+  ProblemSourceFileType,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -77,6 +79,11 @@ export function getProblemTestCases(slug: string): Promise<TestCasesResponse> {
 
 export function getProblemTestCase(slug: string, kind: TestCaseKind, name: string): Promise<TestCasePreview> {
   return apiClient.get(`/problems/p/${slug}/testcases/${kind}/${encodeURIComponent(name)}`)
+}
+
+// Código de una solución (fileName obligatorio: puede haber varias), del checker o del validador.
+export function getProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName?: string): Promise<ProblemSourceFile> {
+  return apiClient.get(`/problems/p/${slug}/files/${fileType}`, { params: fileName ? { fileName } : undefined })
 }
 
 // El ZIP de casos de prueba tal como se subió.

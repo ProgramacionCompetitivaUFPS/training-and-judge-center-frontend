@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -9,6 +9,7 @@ import {
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { TestCasesViewer } from '@/components/features/TestCasesViewer'
+import { SourceFileDialog, type SourceFileTarget } from '@/components/features/SourceFileDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -194,11 +195,9 @@ export function ProblemDetailPage() {
 
   const managementContent = (
     <>
-      {/* Files (only for modifiers, and only while the problem is still a draft — the
-          backend rejects uploads to a published problem) */}
-      {problem.files && problem.status !== 'PUBLISHED' && (
-        <FilesManager problem={problem} />
-      )}
+      {/* Files: always readable; uploading and deleting only while it's a draft — the backend
+          rejects changes to a published problem */}
+      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
 
       {/* Test cases: reading them is allowed on a published problem too (only uploading isn't) */}
       {problem.files?.testCases && <TestCasesViewer slug={problem.slug} />}
@@ -855,9 +854,10 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
   return null
 }
 
-interface FilesManagerProps { problem: ProblemDetail }
+interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
 
-function FilesManager({ problem }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
+  const [viewTarget, setViewTarget] = useState<SourceFileTarget | null>(null)
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -957,16 +957,30 @@ function FilesManager({ problem }: FilesManagerProps) {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => triggerUpload(fileType)}
-                isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
-              >
-                <Upload className="h-3.5 w-3.5 mr-1" />
-                {files[fileType] ? 'Reemplazar' : 'Subir'}
-              </Button>
-              {files[fileType] && (
+              {/* Test cases have their own card with the list and the preview */}
+              {fileType !== 'testCases' && files[fileType] && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
+                  aria-label={`Ver ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  Ver
+                </Button>
+              )}
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => triggerUpload(fileType)}
+                  isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1" />
+                  {files[fileType] ? 'Reemplazar' : 'Subir'}
+                </Button>
+              )}
+              {!readOnly && files[fileType] && (
                 <button
                   type="button"
                   onClick={() => setDeleteTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
@@ -986,15 +1000,17 @@ function FilesManager({ problem }: FilesManagerProps) {
               Soluciones
               <FileFormatHint fileType="solution" />
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => triggerUpload('solution')}
-              isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
-            >
-              <Upload className="h-3.5 w-3.5 mr-1" />
-              Agregar
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerUpload('solution')}
+                isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                Agregar
+              </Button>
+            )}
           </div>
           {files.solutions.length === 0 ? (
             <p className="text-xs text-neutral-text-muted">Sin soluciones cargadas.</p>
@@ -1003,20 +1019,40 @@ function FilesManager({ problem }: FilesManagerProps) {
               {files.solutions.map((sol) => (
                 <li key={sol.filename} className="flex items-center justify-between text-sm">
                   <span className="text-neutral-text-muted font-mono text-xs">{sol.filename}</span>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
-                    className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                    aria-label={`Eliminar ${sol.filename}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
+                      aria-label={`Ver ${sol.filename}`}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Ver
+                    </Button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
+                        className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                        aria-label={`Eliminar ${sol.filename}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+        {readOnly && (
+          <p className="pt-2 border-t border-neutral-border text-xs text-neutral-text-muted">
+            Para subir o eliminar archivos, despublica el problema primero.
+          </p>
+        )}
       </CardContent>
+
+      <SourceFileDialog slug={problem.slug} target={viewTarget} onClose={() => setViewTarget(null)} />
 
       <ConfirmDialog
         open={!!deleteTarget}
