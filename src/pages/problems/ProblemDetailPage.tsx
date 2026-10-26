@@ -333,6 +333,12 @@ export function ProblemDetailPage() {
         onError: (err) => {
           if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
             toast({ variant: 'error', title: 'No se puede eliminar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+          } else if (err instanceof ApiClientError && err.code === 'PROBLEM_HAS_CONTEST_HISTORY') {
+            toast({
+              variant: 'error',
+              title: 'No se puede eliminar',
+              description: 'Tiene envíos hechos en una competencia: borrarlo cambiaría sus resultados. Despublícalo en su lugar.',
+            })
           } else {
             toast({ variant: 'error', title: 'Error al eliminar' })
           }
@@ -813,6 +819,7 @@ export function ProblemDetailPage() {
               <p className="text-neutral-text-muted">
                 Si eliminas, se borran sus archivos y se quita de las competencias donde esté. Si solo quieres que nadie más
                 lo use, despublícalo: vuelve a borrador y conserva todo, y lo puedes publicar de nuevo cuando quieras.
+                Si ya recibió envíos dentro de una competencia, no se puede eliminar: sus resultados dependen de él.
               </p>
               <Button
                 variant="primary"
