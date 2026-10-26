@@ -209,19 +209,9 @@ export function ProblemDetailPage() {
           {canDelete && (
             <>
               <DropdownMenuSeparator />
-              {/* The backend refuses to delete a published problem: say what to do instead of failing */}
-              <DropdownMenuItem
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={problem.status === 'PUBLISHED'}
-                className="text-status-error"
-              >
+              <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
                 <Trash2 className="mr-2 h-4 w-4 shrink-0" />
-                <span>
-                  Eliminar
-                  {problem.status === 'PUBLISHED' && (
-                    <span className="block text-xs text-neutral-text-muted">Despublica el problema antes de eliminarlo</span>
-                  )}
-                </span>
+                Eliminar
               </DropdownMenuItem>
             </>
           )}
@@ -803,7 +793,13 @@ export function ProblemDetailPage() {
       </Dialog>
 
       {/* Delete dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open)
+          if (!open) setConfirmSlug('')
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar problema</DialogTitle>
@@ -811,6 +807,27 @@ export function ProblemDetailPage() {
               Esta acción es irreversible. Escribe <span className="font-mono font-semibold">{problem.slug}</span> para confirmar.
             </DialogDescription>
           </DialogHeader>
+          {problem.status === 'PUBLISHED' && (
+            <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm space-y-1" role="status">
+              <p className="font-semibold text-neutral-text-primary">Este problema está publicado.</p>
+              <p className="text-neutral-text-muted">
+                Si eliminas, se borran sus archivos y se quita de las competencias donde esté. Si solo quieres que nadie más
+                lo use, despublícalo: vuelve a borrador y conserva todo, y lo puedes publicar de nuevo cuando quieras.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setConfirmSlug('')
+                  setUnpublishDialogOpen(true)
+                }}
+              >
+                Despublicar en vez de eliminar
+              </Button>
+            </div>
+          )}
           <Input
             label="Confirmar slug"
             value={confirmSlug}
@@ -818,14 +835,14 @@ export function ProblemDetailPage() {
             placeholder={problem.slug}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setConfirmSlug('') }}>Cancelar</Button>
             <Button
               variant="danger"
               onClick={handleDelete}
               isLoading={deleteMutation.isPending}
               disabled={confirmSlug !== problem.slug}
             >
-              Eliminar
+              {problem.status === 'PUBLISHED' ? 'Eliminar de todos modos' : 'Eliminar'}
             </Button>
           </DialogFooter>
         </DialogContent>
