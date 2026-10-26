@@ -22,7 +22,9 @@ export const problemKeys = {
   testCases: (slug: string) => ['problems', 'testCases', slug] as const,
   testCase: (slug: string, kind: TestCaseKind, name: string) => ['problems', 'testCases', slug, kind, name] as const,
   sourceFiles: (slug: string) => ['problems', 'sourceFiles', slug] as const,
-  sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string) => ['problems', 'sourceFiles', slug, fileType, fileName ?? ''] as const,
+  sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false) =>
+    ['problems', 'sourceFiles', slug, fileType, fileName ?? '', full ? 'full' : 'preview'] as const,
+  testCasePart: (slug: string, kind: TestCaseKind, name: string, part: string) => ['problems', 'testCases', slug, kind, name, part] as const,
   tags: ['problems', 'tags'] as const,
 }
 
@@ -174,11 +176,21 @@ export function useProblemTestCase(slug: string, kind: TestCaseKind, name: strin
   })
 }
 
-export function useProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName: string | undefined, enabled: boolean) {
+export function useProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName: string | undefined, enabled: boolean, full = false) {
   return useQuery({
-    queryKey: problemKeys.sourceFile(slug, fileType, fileName),
-    queryFn: () => problemsApi.getProblemSourceFile(slug, fileType, fileName),
+    queryKey: problemKeys.sourceFile(slug, fileType, fileName, full),
+    queryFn: () => problemsApi.getProblemSourceFile(slug, fileType, fileName, full),
     enabled,
+  })
+}
+
+// A whole test file can be tens of MB: don't keep it in memory once the page is left.
+export function useProblemTestCasePart(slug: string, kind: TestCaseKind, name: string, part: 'input' | 'answer', enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCasePart(slug, kind, name, part),
+    queryFn: () => problemsApi.getProblemTestCasePart(slug, kind, name, part),
+    enabled,
+    gcTime: 30_000,
   })
 }
 

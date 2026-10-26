@@ -379,6 +379,17 @@ export const problemsHandlers = [
     return HttpResponse.json({ ...found, inputTruncated: false, answerTruncated: false })
   }),
 
+  // One whole file of a case, as plain text
+  http.get(url('/problems/p/:slug/testcases/:kind/:name/:part'), async ({ params }) => {
+    await delay(200)
+    const { slug, kind, name, part } = params as { slug: string; kind: string; name: string; part: string }
+    const found = mockTestCases(slug)?.find((c) => c.kind === kind && c.name === name)
+    if (!found || (part !== 'input' && part !== 'answer')) {
+      return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'Test case not found' }, { status: 404 })
+    }
+    return new HttpResponse(part === 'input' ? found.input : found.answer, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }),
+
   // The ZIPs are placeholders: enough to exercise the download flow, not real packages.
   http.get(url('/problems/p/:slug/files/testcases'), async ({ params }) => {
     await delay(300)

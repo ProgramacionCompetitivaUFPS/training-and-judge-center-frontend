@@ -244,6 +244,9 @@ export const ROUTES = {
   PROBLEM_EDIT: '/problems/:slug/edit',
   PROBLEM_STATISTICS: '/problems/:slug/statistics',
   PROBLEM_SUBMISSIONS: '/problems/:slug/submissions',
+  PROBLEM_SOLUTION_FILE: '/problems/:slug/files/solution/:fileName',
+  PROBLEM_JUDGING_FILE: '/problems/:slug/files/:fileType',
+  PROBLEM_TESTCASE: '/problems/:slug/testcases/:kind/:name',
   GROUPS: '/groups',
   GROUP_NEW: '/groups/new',
   GROUP_DETAIL: '/groups/:id',
@@ -293,6 +296,10 @@ export const PATHS = {
   problem: (slug: string) => `/problems/${slug}`,
   problemEdit: (slug: string) => `/problems/${slug}/edit`,
   problemSubmissions: (slug: string) => `/problems/${slug}/submissions`,
+  // Full-file views (real URLs, so they open in a new tab)
+  problemSolutionFile: (slug: string, fileName: string) => `/problems/${slug}/files/solution/${encodeURIComponent(fileName)}`,
+  problemJudgingFile: (slug: string, fileType: 'checker' | 'validator') => `/problems/${slug}/files/${fileType}`,
+  problemTestCase: (slug: string, kind: 'sample' | 'secret', name: string) => `/problems/${slug}/testcases/${kind}/${encodeURIComponent(name)}`,
   // Submissions
   submission: (id: string) => `/submissions/${id}`,
   // Materials

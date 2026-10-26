@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Download, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Download, AlertTriangle, ExternalLink } from 'lucide-react'
 import { Badge, Button } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/Dialog'
@@ -7,6 +8,7 @@ import { useProblemTestCases, useProblemTestCase, useDownloadTestCases } from '@
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { PATHS } from '@/lib/constants'
 import { cn, formatBytes } from '@/lib/utils'
 import type { TestCaseKind, TestCaseSummary } from '@/types/problem'
 
@@ -147,6 +149,18 @@ function CasePreview({ slug, kind, name }: { slug: string; kind: TestCaseKind; n
 
   return (
     <div className="space-y-4 min-w-0">
+      <div className="flex justify-end">
+        {/* The dialog is a quick look and cuts each file at 64 KB; this page reads all of it */}
+        <Link
+          to={PATHS.problemTestCase(slug, kind, name)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-brand-primary hover:underline"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ver completo
+        </Link>
+      </div>
       <Pane label="Entrada" text={data.input} truncated={data.inputTruncated} />
       <Pane label="Salida esperada" text={data.answer} truncated={data.answerTruncated} />
     </div>
@@ -161,7 +175,7 @@ function Pane({ label, text, truncated }: { label: string; text: string; truncat
         {text === '' ? <span className="text-neutral-text-muted italic">(vacío)</span> : text}
       </pre>
       {truncated && (
-        <p className="mt-1 text-xs text-status-warning">Se muestran solo los primeros 64 KB. Descarga el ZIP para ver el archivo completo.</p>
+        <p className="mt-1 text-xs text-status-warning">Se muestran solo los primeros 64 KB. Usa «Ver completo» para leerlo todo.</p>
       )}
     </div>
   )

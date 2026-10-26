@@ -30,6 +30,8 @@ import { ProblemsPage } from '@/pages/problems/ProblemsPage'
 import { ProblemDetailPage } from '@/pages/problems/ProblemDetailPage'
 import { ProblemFormPage } from '@/pages/problems/ProblemFormPage'
 import { ProblemSubmissionsPage } from '@/pages/problems/ProblemSubmissionsPage'
+import { ProblemFilePage } from '@/pages/problems/ProblemFilePage'
+import { ProblemTestCasePage } from '@/pages/problems/ProblemTestCasePage'
 
 // Submission pages
 import { SubmissionsPage } from '@/pages/submissions/SubmissionsPage'
@@ -115,6 +117,16 @@ export default function App() {
               } />
               <Route path={ROUTES.PROBLEM_SUBMISSIONS} element={
                 <ProtectedRoute><ProblemSubmissionsPage /></ProtectedRoute>
+              } />
+              {/* Full view of what a problem setter uploaded; the API still decides who may read it */}
+              <Route path={ROUTES.PROBLEM_SOLUTION_FILE} element={
+                <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFilePage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROBLEM_JUDGING_FILE} element={
+                <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemFilePage /></ProtectedRoute>
+              } />
+              <Route path={ROUTES.PROBLEM_TESTCASE} element={
+                <ProtectedRoute roles={['ADMIN', 'COACH']}><ProblemTestCasePage /></ProtectedRoute>
               } />
 
               {/* Admin routes */}

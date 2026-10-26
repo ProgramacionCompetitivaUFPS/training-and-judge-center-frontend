@@ -1,10 +1,12 @@
-import { AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/Dialog'
 import { CodeViewer } from '@/components/features/CodeViewer'
 import { useProblemSourceFile } from '@/hooks/api/useProblems'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { PATHS } from '@/lib/constants'
 import { formatBytes } from '@/lib/utils'
 import type { ProblemSourceFileType } from '@/types/problem'
 
@@ -39,8 +41,11 @@ export function SourceFileDialog({ slug, target, onClose }: SourceFileDialogProp
             <span className="font-mono">{data?.filename ?? target?.label}</span>
             {data && <Badge variant="outline" className="text-[10px]">{data.language}</Badge>}
           </DialogTitle>
-          <DialogDescription>
-            {data ? formatBytes(data.sizeBytes) : 'Código que el juez usa para este problema.'}
+          <DialogDescription className="flex items-center gap-3 flex-wrap">
+            <span>{data ? formatBytes(data.sizeBytes) : 'Código que el juez usa para este problema.'}</span>
+            {target && (
+              <FullViewLink slug={slug} target={target} />
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,11 +61,26 @@ export function SourceFileDialog({ slug, target, onClose }: SourceFileDialogProp
               <p className="flex items-center gap-1.5 text-xs text-status-warning">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Se muestran solo los primeros 256 KB de {formatBytes(data.sizeBytes)}.
+                {target && <FullViewLink slug={slug} target={target} label="Ver el archivo completo" />}
               </p>
             )}
           </div>
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** The full-file page, in a new tab: the dialog is a quick look, that page reads everything. */
+function FullViewLink({ slug, target, label = 'Ver completo' }: { slug: string; target: SourceFileTarget; label?: string }) {
+  const to =
+    target.fileType === 'solution'
+      ? PATHS.problemSolutionFile(slug, target.fileName ?? '')
+      : PATHS.problemJudgingFile(slug, target.fileType)
+  return (
+    <Link to={to} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-brand-primary hover:underline">
+      <ExternalLink className="h-3.5 w-3.5" />
+      {label}
+    </Link>
   )
 }

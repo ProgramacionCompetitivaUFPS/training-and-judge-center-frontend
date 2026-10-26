@@ -82,8 +82,19 @@ export function getProblemTestCase(slug: string, kind: TestCaseKind, name: strin
 }
 
 // Código de una solución (fileName obligatorio: puede haber varias), del checker o del validador.
-export function getProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName?: string): Promise<ProblemSourceFile> {
-  return apiClient.get(`/problems/p/${slug}/files/${fileType}`, { params: fileName ? { fileName } : undefined })
+// `full` asks for the whole file; without it the backend cuts it at 256 KiB (enough for a preview).
+export function getProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false): Promise<ProblemSourceFile> {
+  const params: Record<string, string | boolean> = {}
+  if (fileName) params.fileName = fileName
+  if (full) params.full = true
+  return apiClient.get(`/problems/p/${slug}/files/${fileType}`, { params })
+}
+
+// One file of a case in full, as plain text (a test input can weigh tens of MB, so it doesn't go
+// through JSON like the preview does).
+export async function getProblemTestCasePart(slug: string, kind: TestCaseKind, name: string, part: 'input' | 'answer'): Promise<string> {
+  const blob = await apiClient.getBlob(`/problems/p/${slug}/testcases/${kind}/${encodeURIComponent(name)}/${part}`)
+  return blob.text()
 }
 
 // El ZIP de casos de prueba tal como se subió.
