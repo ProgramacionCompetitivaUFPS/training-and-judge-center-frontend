@@ -13,7 +13,7 @@ import './markdown.css'
 interface MarkdownRendererProps {
   content: string
   className?: string
-  /** `statement` sets the prose in the reading serif face used for problem statements. */
+  /** `statement` is the larger, looser reading size used for problem statements. */
   variant?: 'default' | 'statement'
 }
 

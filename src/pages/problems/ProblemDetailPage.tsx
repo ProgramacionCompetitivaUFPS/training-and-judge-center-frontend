@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
-import { TestCasesViewer } from '@/components/features/TestCasesViewer'
+import { TestCasesDialog } from '@/components/features/TestCasesDialog'
 import { SourceFileDialog, type SourceFileTarget } from '@/components/features/SourceFileDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -277,9 +277,6 @@ export function ProblemDetailPage() {
       {/* Files: always readable; uploading and deleting only while it's a draft — the backend
           rejects changes to a published problem */}
       {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
-
-      {/* Test cases: reading them is allowed on a published problem too (only uploading isn't) */}
-      {problem.files?.testCases && <TestCasesViewer slug={problem.slug} />}
 
       {/* Modifiers (only for modifiers) */}
       <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
@@ -861,6 +858,7 @@ interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
 
 function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
   const [viewTarget, setViewTarget] = useState<SourceFileTarget | null>(null)
+  const [viewCases, setViewCases] = useState(false)
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -950,8 +948,7 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
       <CardContent className="space-y-3">
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
 
-        {/* Read-only, the test cases row would only be a dot: the "Casos de prueba" card below is where they're read */}
-        {(['testCases', 'checker', 'validator'] as const).filter((t) => !(readOnly && t === 'testCases')).map((fileType) => (
+        {(['testCases', 'checker', 'validator'] as const).map((fileType) => (
           <div key={fileType} className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
@@ -961,12 +958,15 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Test cases have their own card with the list and the preview */}
-              {fileType !== 'testCases' && files[fileType] && (
+              {files[fileType] && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setViewTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
+                  onClick={() =>
+                    fileType === 'testCases'
+                      ? setViewCases(true)
+                      : setViewTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })
+                  }
                   aria-label={`Ver ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" />
@@ -1057,6 +1057,7 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
       </CardContent>
 
       <SourceFileDialog slug={problem.slug} target={viewTarget} onClose={() => setViewTarget(null)} />
+      <TestCasesDialog slug={problem.slug} open={viewCases} onClose={() => setViewCases(false)} />
 
       <ConfirmDialog
         open={!!deleteTarget}

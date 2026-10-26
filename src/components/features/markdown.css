@@ -5,12 +5,11 @@
   word-wrap: break-word;
 }
 
-/* Problem statements: a reading face apart from the interface's sans-serif. KaTeX already sets the
-   math in a Computer Modern-like face, which a serif body sits well with. Code blocks and inline
-   code keep their own monospace font (set further down), so this only changes the prose. */
+/* Problem statements are read for a long time, so they get a larger size and more leading than
+   the 14px default used for short texts. Same typeface as the rest of the interface: a serif
+   was tried and dropped, it didn't sit right with the rest of the page. */
 .markdown-body.markdown-statement {
-  font-family: theme('fontFamily.serif');
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.8;
 }
 
