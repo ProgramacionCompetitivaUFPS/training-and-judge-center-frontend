@@ -20,7 +20,6 @@ export const problemKeys = {
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
   testCases: (slug: string) => ['problems', 'testCases', slug] as const,
-  testCase: (slug: string, kind: TestCaseKind, name: string) => ['problems', 'testCases', slug, kind, name] as const,
   sourceFiles: (slug: string) => ['problems', 'sourceFiles', slug] as const,
   sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false) =>
     ['problems', 'sourceFiles', slug, fileType, fileName ?? '', full ? 'full' : 'preview'] as const,
@@ -164,14 +163,6 @@ export function useProblemTestCases(slug: string, enabled: boolean) {
   return useQuery({
     queryKey: problemKeys.testCases(slug),
     queryFn: () => problemsApi.getProblemTestCases(slug),
-    enabled,
-  })
-}
-
-export function useProblemTestCase(slug: string, kind: TestCaseKind, name: string, enabled: boolean) {
-  return useQuery({
-    queryKey: problemKeys.testCase(slug, kind, name),
-    queryFn: () => problemsApi.getProblemTestCase(slug, kind, name),
     enabled,
   })
 }

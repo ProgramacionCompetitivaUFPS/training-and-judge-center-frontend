@@ -1,15 +1,13 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
-  Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
+  Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
   Tabs, TabsList, TabsTrigger, TabsContent,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
-import { TestCasesDialog } from '@/components/features/TestCasesDialog'
-import { SourceFileDialog, type SourceFileTarget } from '@/components/features/SourceFileDialog'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -62,6 +60,8 @@ function publishRequirementLabel(fieldKey: string): string {
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
   const navigate = useNavigate()
+  // Which tab is open lives in the URL, so a file page's "Volver" and the browser's back button land on it
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
   const { toast } = useToastContext()
@@ -209,9 +209,19 @@ export function ProblemDetailPage() {
           {canDelete && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
+              {/* The backend refuses to delete a published problem: say what to do instead of failing */}
+              <DropdownMenuItem
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={problem.status === 'PUBLISHED'}
+                className="text-status-error"
+              >
                 <Trash2 className="mr-2 h-4 w-4 shrink-0" />
-                Eliminar
+                <span>
+                  Eliminar
+                  {problem.status === 'PUBLISHED' && (
+                    <span className="block text-xs text-neutral-text-muted">Despublica el problema antes de eliminarlo</span>
+                  )}
+                </span>
               </DropdownMenuItem>
             </>
           )}
@@ -279,7 +289,7 @@ export function ProblemDetailPage() {
       {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
 
       {/* Modifiers (only for modifiers) */}
-      <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+      <ModifiersManager problem={problem} canManage={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
     </>
   )
 
@@ -434,7 +444,11 @@ export function ProblemDetailPage() {
           {showManagementTabs ? (
             // Whoever edits the problem gets the reader's view (statement and examples, as a
             // contestant sees it) apart from the management cards, instead of one long page.
-            <Tabs defaultValue="problem" className="space-y-4">
+            <Tabs
+              value={searchParams.get('tab') === 'files' ? 'files' : 'problem'}
+              onValueChange={(tab) => setSearchParams(tab === 'files' ? { tab: 'files' } : {}, { replace: true })}
+              className="space-y-4"
+            >
               <TabsList>
                 <TabsTrigger value="problem">Problema</TabsTrigger>
                 <TabsTrigger value="files" className="gap-1.5">
@@ -857,8 +871,6 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
 interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
 
 function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
-  const [viewTarget, setViewTarget] = useState<SourceFileTarget | null>(null)
-  const [viewCases, setViewCases] = useState(false)
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -959,19 +971,15 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
             </div>
             <div className="flex items-center gap-1">
               {files[fileType] && (
-                <Button
+                <LinkButton
+                  to={fileType === 'testCases' ? PATHS.problemTestCases(problem.slug) : PATHS.problemJudgingFile(problem.slug, fileType)}
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    fileType === 'testCases'
-                      ? setViewCases(true)
-                      : setViewTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })
-                  }
                   aria-label={`Ver ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" />
                   Ver
-                </Button>
+                </LinkButton>
               )}
               {!readOnly && (
                 <Button
@@ -1024,15 +1032,15 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
                 <li key={sol.filename} className="flex items-center justify-between text-sm">
                   <span className="text-neutral-text-muted font-mono text-xs">{sol.filename}</span>
                   <div className="flex items-center gap-1">
-                    <Button
+                    <LinkButton
+                      to={PATHS.problemSolutionFile(problem.slug, sol.filename)}
                       variant="ghost"
                       size="sm"
-                      onClick={() => setViewTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
                       aria-label={`Ver ${sol.filename}`}
                     >
                       <Eye className="h-3.5 w-3.5 mr-1" />
                       Ver
-                    </Button>
+                    </LinkButton>
                     {!readOnly && (
                       <button
                         type="button"
@@ -1056,8 +1064,6 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
         )}
       </CardContent>
 
-      <SourceFileDialog slug={problem.slug} target={viewTarget} onClose={() => setViewTarget(null)} />
-      <TestCasesDialog slug={problem.slug} open={viewCases} onClose={() => setViewCases(false)} />
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -1095,15 +1101,15 @@ function FileFormatHint({ fileType }: { fileType: ProblemFileType }) {
   )
 }
 
-interface ModifiersManagerProps { problem: ProblemDetail; canSearchUsers: boolean }
+interface ModifiersManagerProps { problem: ProblemDetail; /** Only the author and Admin may add or remove collaborators; the backend answers 403 to anyone else */ canManage: boolean; canSearchUsers: boolean }
 
-function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
+function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManagerProps) {
   const addMutation = useAddModifier()
   const removeMutation = useRemoveModifier()
   const { toast } = useToastContext()
   const [userQuery, setUserQuery] = useState('')
   const debouncedUserQuery = useDebounce(userQuery)
-  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers && canManage)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
 
   const modifiers = problem.modifiers ?? []
@@ -1139,6 +1145,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
         <CardTitle>Modificadores</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {canManage ? (
         <SearchSelect
           query={userQuery}
           onQueryChange={setUserQuery}
@@ -1156,20 +1163,26 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
           )}
           onSelect={(u) => handleAdd(u.nickname)}
         />
+        ) : (
+          <p className="text-xs text-neutral-text-muted">Solo el autor y los administradores pueden cambiar quién colabora en este problema.</p>
+        )}
         {addMutation.isPending && <p className="text-xs text-neutral-text-muted">Agregando...</p>}
         {modifiers.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {modifiers.map((m) => (
               <Badge key={m.nickname} variant="outline" className="gap-1 pr-1">
                 {m.name} (@{m.nickname})
-                <button
-                  type="button"
-                  onClick={() => setRemoveTarget(m.nickname)}
-                  className="ml-1 p-0.5 rounded-full hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                  aria-label={`Quitar a ${m.nickname}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
+                {/* The author keeps editing rights whatever the list says, so a "×" on them does nothing useful */}
+                {canManage && m.nickname !== problem.author.nickname && (
+                  <button
+                    type="button"
+                    onClick={() => setRemoveTarget(m.nickname)}
+                    className="ml-1 p-0.5 rounded-full hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                    aria-label={`Quitar a ${m.nickname}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </Badge>
             ))}
           </div>

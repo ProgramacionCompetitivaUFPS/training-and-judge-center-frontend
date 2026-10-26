@@ -1,11 +1,11 @@
 import React, { Suspense, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, WrapText } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent } from '@/components/ui'
+import { Badge, Button, Card, CardContent, LinkButton } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
-import { useProblemDetail, useProblemTestCases, useProblemTestCasePart } from '@/hooks/api/useProblems'
+import { useProblemDetail, useProblemTestCases, useProblemTestCasePart, useDownloadTestCases } from '@/hooks/api/useProblems'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PATHS } from '@/lib/constants'
 import { saveBlobAs } from '@/lib/download'
@@ -19,13 +19,17 @@ const CodeBlockViewer = React.lazy(() => import('@/components/features/CodeBlock
 const KIND_LABEL: Record<TestCaseKind, string> = { sample: 'Ejemplo', secret: 'Secreto' }
 
 /**
- * One test case in full, input and expected output side by side. The dialog on the problem page
- * is the quick look and cuts each file at 64 KB; this is where a problem setter reads all of it
- * (a test input can weigh tens of MB). Its own URL, so it opens in a new tab and can be shared.
+ * One test case in full, input and expected output side by side, with the means to move through
+ * the rest: previous / next and a selector with every case (a problem can have thousands, and
+ * this is the only place where they are browsed). Its own URL, so it opens in a new tab and can
+ * be shared; "Volver" returns to the files tab of the problem.
  */
 export function ProblemTestCasePage() {
   const { slug = '', kind = '', name = '' } = useParams<{ slug: string; kind: string; name: string }>()
+  const navigate = useNavigate()
+  const { toast } = useToastContext()
   const [wrap, setWrap] = useState(false)
+  const downloadZip = useDownloadTestCases()
 
   const valid = kind === 'sample' || kind === 'secret'
   const caseKind = kind as TestCaseKind
@@ -41,6 +45,7 @@ export function ProblemTestCasePage() {
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
     { label: problem?.title ?? slug, href: PATHS.problem(slug) },
+    { label: 'Archivos', href: PATHS.problemFiles(slug) },
     { label: `Caso ${name}` },
   ]
 
@@ -51,7 +56,7 @@ export function ProblemTestCasePage() {
           <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-extrabold text-neutral-text-primary">
-                Caso <span className="font-mono">{name}</span>
+                Caso <span className="font-mono break-all">{name}</span>
               </h1>
               {valid && <Badge variant={caseKind === 'sample' ? 'primary' : 'outline'}>{KIND_LABEL[caseKind]}</Badge>}
             </div>
@@ -60,13 +65,30 @@ export function ProblemTestCasePage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <LinkButton to={PATHS.problemFiles(slug)} variant="outline" size="sm">
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+              Volver a los archivos
+            </LinkButton>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadZip.mutate(slug, { onError: (err) => toast({ variant: 'error', title: 'No se pudo descargar el ZIP', description: getErrorMessage(err) }) })}
+              isLoading={downloadZip.isPending}
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              ZIP con todos los casos
+            </Button>
+          </div>
+        </div>
+
+        {/* Moving between cases: previous / next, and a selector to jump to any of them */}
+        {valid && (
+          <div className="flex items-center gap-2 flex-wrap">
             {prev ? (
-              <Link to={caseHref(prev)}>
-                <Button variant="outline" size="sm" aria-label={`Caso anterior: ${prev.name}`}>
-                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-                  Anterior
-                </Button>
-              </Link>
+              <LinkButton to={caseHref(prev)} variant="outline" size="sm" aria-label={`Caso anterior: ${prev.name}`}>
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                Anterior
+              </LinkButton>
             ) : (
               <Button variant="outline" size="sm" disabled>
                 <ChevronLeft className="h-3.5 w-3.5 mr-1" />
@@ -74,30 +96,49 @@ export function ProblemTestCasePage() {
               </Button>
             )}
             {next ? (
-              <Link to={caseHref(next)}>
-                <Button variant="outline" size="sm" aria-label={`Caso siguiente: ${next.name}`}>
-                  Siguiente
-                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
-              </Link>
+              <LinkButton to={caseHref(next)} variant="outline" size="sm" aria-label={`Caso siguiente: ${next.name}`}>
+                Siguiente
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </LinkButton>
             ) : (
               <Button variant="outline" size="sm" disabled>
                 Siguiente
                 <ChevronRight className="h-3.5 w-3.5 ml-1" />
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setWrap((v) => !v)} aria-pressed={wrap}>
+            {list && list.cases.length > 1 && (
+              <>
+                <label htmlFor="case-select" className="sr-only">Ir a otro caso</label>
+                <select
+                  id="case-select"
+                  value={`${kind}/${name}`}
+                  onChange={(e) => {
+                    const [k, ...rest] = e.target.value.split('/')
+                    navigate(PATHS.problemTestCase(slug, k as TestCaseKind, rest.join('/')))
+                  }}
+                  className="h-8 max-w-[14rem] rounded-sm border-2 border-neutral-border bg-neutral-surface px-2 text-sm text-neutral-text-primary"
+                >
+                  {list.cases.map((c) => (
+                    <option key={`${c.kind}/${c.name}`} value={`${c.kind}/${c.name}`}>
+                      {KIND_LABEL[c.kind]} · {c.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setWrap((v) => !v)}
+              aria-pressed={wrap}
+              title="Cuando una línea es más ancha que la pantalla, la parte en varias líneas en vez de obligarte a deslizar en horizontal. No conviene en entradas de una sola línea muy larga."
+            >
               <WrapText className="h-3.5 w-3.5 mr-1" />
-              {wrap ? 'No ajustar líneas' : 'Ajustar líneas'}
+              {wrap ? 'Líneas largas: partidas' : 'Líneas largas: con scroll'}
             </Button>
-            <Link to={PATHS.problem(slug)}>
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                Volver al problema
-              </Button>
-            </Link>
           </div>
-        </div>
+        )}
 
         {!valid ? (
           <Card>
@@ -217,5 +258,33 @@ function PartPanel({ slug, kind, name, part, label, fileName, sizeBytes, wrap }:
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * /problems/:slug/testcases: the entry to the test cases. They are browsed one at a time on their
+ * own page (with previous / next and a selector), so this lands on the first one.
+ */
+export function ProblemTestCasesRedirect() {
+  const { slug = '' } = useParams<{ slug: string }>()
+  const { data: list, isLoading, isError, error } = useProblemTestCases(slug, true)
+  const first = list?.cases[0]
+
+  if (first) return <Navigate to={PATHS.problemTestCase(slug, first.kind, first.name)} replace />
+
+  return (
+    <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: slug, href: PATHS.problem(slug) }, { label: 'Casos de prueba' }]}>
+      <Card>
+        <CardContent className="pt-6 space-y-3">
+          {isLoading && <Skeleton className="h-8 w-64" />}
+          {isError && <p className="text-sm text-status-error">{getErrorMessage(error)}</p>}
+          {list && !list.hasTestCases && <p className="text-sm text-neutral-text-muted">Este problema aún no tiene casos de prueba.</p>}
+          <LinkButton to={PATHS.problemFiles(slug)} variant="outline" size="sm">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+            Volver a los archivos
+          </LinkButton>
+        </CardContent>
+      </Card>
+    </AppLayout>
   )
 }

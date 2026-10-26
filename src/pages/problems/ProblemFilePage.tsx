@@ -1,8 +1,8 @@
 import React, { Suspense, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { ArrowLeft, Copy, Download, WrapText } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent } from '@/components/ui'
+import { Badge, Button, Card, CardContent, LinkButton } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
 import { useProblemDetail, useProblemSourceFile } from '@/hooks/api/useProblems'
@@ -19,9 +19,9 @@ const FILE_TYPES: ProblemSourceFileType[] = ['solution', 'checker', 'validator']
 const FILE_TYPE_LABEL: Record<ProblemSourceFileType, string> = { solution: 'Solución', checker: 'Checker', validator: 'Validador' }
 
 /**
- * A solution, checker or validator of a problem, in full. The dialog on the problem page is the
- * quick look (and cuts long files); this is where a problem setter reads everything they uploaded.
- * It is its own URL so it can be opened in a new tab, bookmarked or shared with a co-author.
+ * A solution, checker or validator of a problem, in full: this is where a problem setter reads
+ * everything they uploaded. Its own URL, so it opens in a new tab, can be bookmarked and shared
+ * with a co-author; "Volver" returns to the files tab of the problem, where they came from.
  */
 export function ProblemFilePage() {
   const params = useParams<{ slug: string; fileType?: string; fileName?: string }>()
@@ -40,6 +40,7 @@ export function ProblemFilePage() {
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
     { label: problem?.title ?? slug, href: PATHS.problem(slug) },
+    { label: 'Archivos', href: PATHS.problemFiles(slug) },
     { label: title },
   ]
 
@@ -68,21 +69,30 @@ export function ProblemFilePage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link to={PATHS.problem(slug)}>
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                Volver al problema
-              </Button>
-            </Link>
-            <Button variant="outline" size="sm" onClick={() => setWrap((v) => !v)} aria-pressed={wrap}>
+            <LinkButton to={PATHS.problemFiles(slug)} variant="outline" size="sm">
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+              Volver a los archivos
+            </LinkButton>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWrap((v) => !v)}
+              aria-pressed={wrap}
+              title="Cuando una línea es más ancha que la pantalla, la parte en varias líneas en vez de obligarte a deslizar en horizontal."
+            >
               <WrapText className="h-3.5 w-3.5 mr-1" />
-              {wrap ? 'No ajustar líneas' : 'Ajustar líneas'}
+              {wrap ? 'Líneas largas: partidas' : 'Líneas largas: con scroll'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleCopy} disabled={!file}>
               <Copy className="h-3.5 w-3.5 mr-1" />
               Copiar todo
             </Button>
-            <Button variant="outline" size="sm" onClick={() => file && saveBlobAs(new Blob([file.content], { type: 'text/plain' }), file.filename)} disabled={!file}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => file && saveBlobAs(new Blob([file.content], { type: 'text/plain' }), file.filename)}
+              disabled={!file}
+            >
               <Download className="h-3.5 w-3.5 mr-1" />
               Descargar
             </Button>

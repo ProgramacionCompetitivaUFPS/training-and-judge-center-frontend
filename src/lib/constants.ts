@@ -246,6 +246,7 @@ export const ROUTES = {
   PROBLEM_SUBMISSIONS: '/problems/:slug/submissions',
   PROBLEM_SOLUTION_FILE: '/problems/:slug/files/solution/:fileName',
   PROBLEM_JUDGING_FILE: '/problems/:slug/files/:fileType',
+  PROBLEM_TESTCASES: '/problems/:slug/testcases',
   PROBLEM_TESTCASE: '/problems/:slug/testcases/:kind/:name',
   GROUPS: '/groups',
   GROUP_NEW: '/groups/new',
@@ -296,7 +297,10 @@ export const PATHS = {
   problem: (slug: string) => `/problems/${slug}`,
   problemEdit: (slug: string) => `/problems/${slug}/edit`,
   problemSubmissions: (slug: string) => `/problems/${slug}/submissions`,
+  // The problem's page already on its files tab (what the file pages go back to)
+  problemFiles: (slug: string) => `/problems/${slug}?tab=files`,
   // Full-file views (real URLs, so they open in a new tab)
+  problemTestCases: (slug: string) => `/problems/${slug}/testcases`,
   problemSolutionFile: (slug: string, fileName: string) => `/problems/${slug}/files/solution/${encodeURIComponent(fileName)}`,
   problemJudgingFile: (slug: string, fileType: 'checker' | 'validator') => `/problems/${slug}/files/${fileType}`,
   problemTestCase: (slug: string, kind: 'sample' | 'secret', name: string) => `/problems/${slug}/testcases/${kind}/${encodeURIComponent(name)}`,

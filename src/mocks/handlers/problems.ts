@@ -371,14 +371,6 @@ export const problemsHandlers = [
     })
   }),
 
-  http.get(url('/problems/p/:slug/testcases/:kind/:name'), async ({ params }) => {
-    await delay(200)
-    const { slug, kind, name } = params as { slug: string; kind: string; name: string }
-    const found = mockTestCases(slug)?.find((c) => c.kind === kind && c.name === name)
-    if (!found) return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'Test case not found' }, { status: 404 })
-    return HttpResponse.json({ ...found, inputTruncated: false, answerTruncated: false })
-  }),
-
   // One whole file of a case, as plain text
   http.get(url('/problems/p/:slug/testcases/:kind/:name/:part'), async ({ params }) => {
     await delay(200)

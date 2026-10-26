@@ -230,16 +230,6 @@ export interface TestCasesResponse {
   cases: TestCaseSummary[]
 }
 
-export interface TestCasePreview {
-  kind: TestCaseKind
-  name: string
-  input: string
-  answer: string
-  /** El backend corta cada archivo a 64 KiB en la vista previa */
-  inputTruncated: boolean
-  answerTruncated: boolean
-}
-
 // === Código de soluciones, checker y validador (lectura; solo autor, colaboradores y Admin) ===
 
 export type ProblemSourceFileType = 'solution' | 'checker' | 'validator'

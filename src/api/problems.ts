@@ -14,7 +14,6 @@ import type {
   ProblemAccessibility,
   ProblemFiles,
   TestCasesResponse,
-  TestCasePreview,
   TestCaseKind,
   ProblemSourceFile,
   ProblemSourceFileType,
@@ -77,12 +76,8 @@ export function getProblemTestCases(slug: string): Promise<TestCasesResponse> {
   return apiClient.get(`/problems/p/${slug}/testcases`)
 }
 
-export function getProblemTestCase(slug: string, kind: TestCaseKind, name: string): Promise<TestCasePreview> {
-  return apiClient.get(`/problems/p/${slug}/testcases/${kind}/${encodeURIComponent(name)}`)
-}
-
 // Código de una solución (fileName obligatorio: puede haber varias), del checker o del validador.
-// `full` asks for the whole file; without it the backend cuts it at 256 KiB (enough for a preview).
+// `full` asks for the whole file; without it the backend cuts it at 256 KiB.
 export function getProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false): Promise<ProblemSourceFile> {
   const params: Record<string, string | boolean> = {}
   if (fileName) params.fileName = fileName
