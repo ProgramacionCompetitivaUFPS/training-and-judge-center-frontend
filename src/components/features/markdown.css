@@ -5,12 +5,40 @@
   word-wrap: break-word;
 }
 
-/* Problem statements are read for a long time, so they get a larger size and more leading than
-   the 14px default used for short texts. Same typeface as the rest of the interface: a serif
-   was tried and dropped, it didn't sit right with the rest of the page. */
+/* Problem statements are read for a long time, so the body gets a little more size and leading
+   than the 14px used for short texts. The headings are scaled down on purpose: the generic
+   Markdown ones (32/24/20px) are bigger than the page's own titles (24px for the page, 20px for
+   card titles), so a "## Entrada" shouted louder than the problem's name. Same typeface as the
+   rest of the interface: a serif was tried and dropped, it didn't sit right with the page. */
 .markdown-body.markdown-statement {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+.markdown-body.markdown-statement h1 {
+  font-size: 1.25rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body.markdown-statement h2 {
+  font-size: 1.0625rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
+}
+.markdown-body.markdown-statement h3 {
   font-size: 1rem;
-  line-height: 1.8;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+}
+.markdown-body.markdown-statement h4 {
+  font-size: 0.9375rem;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+.markdown-body.markdown-statement > h1:first-child,
+.markdown-body.markdown-statement > h2:first-child,
+.markdown-body.markdown-statement > h3:first-child {
+  margin-top: 0;
 }
 
 /* Headings */

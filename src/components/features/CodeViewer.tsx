@@ -18,6 +18,27 @@ hljs.registerLanguage('python', python)
 // source is shown as plain text instead.
 const MAX_HIGHLIGHT_CHARS = 200_000
 
+// What it costs to draw depends on the number of lines far more than on the bytes: a few hundred
+// thousand near-empty lines froze the tab for over a minute. Past this only the start is drawn;
+// "Copiar" still copies the whole source.
+const MAX_RENDERED_LINES = 5_000
+
+function limitLines(code: string): { shown: string; totalLines: number; cut: boolean } {
+  let newlines = 0
+  let cutAt = -1
+  for (let i = 0; i < code.length; i++) {
+    if (code.charCodeAt(i) === 10) {
+      newlines++
+      if (newlines === MAX_RENDERED_LINES) cutAt = i
+    }
+  }
+  // A trailing newline ends the last line, it doesn't start another one.
+  const totalLines = newlines + (code.endsWith('\n') ? 0 : 1)
+  return totalLines > MAX_RENDERED_LINES
+    ? { shown: code.slice(0, cutAt), totalLines, cut: true }
+    : { shown: code, totalLines, cut: false }
+}
+
 interface CodeViewerProps {
   code: string
   /** Submission language value (cpp20, java17, python310, blockly). */
@@ -33,18 +54,20 @@ export function CodeViewer({ code, language, className }: CodeViewerProps) {
 
   useEffect(() => () => clearTimeout(copiedTimer.current), [])
 
+  const { shown, totalLines, cut } = useMemo(() => limitLines(code), [code])
+
   // highlight.js escapes the source, so its HTML output is safe to inject.
   const html = useMemo(
     () =>
-      mode && code.length <= MAX_HIGHLIGHT_CHARS
-        ? hljs.highlight(code, { language: mode, ignoreIllegals: true }).value
+      mode && shown.length <= MAX_HIGHLIGHT_CHARS
+        ? hljs.highlight(shown, { language: mode, ignoreIllegals: true }).value
         : null,
-    [code, mode],
+    [shown, mode],
   )
-  const lineNumbers = useMemo(() => {
-    const count = code.replace(/\n$/, '').split('\n').length
-    return Array.from({ length: count }, (_, i) => i + 1).join('\n')
-  }, [code])
+  const lineNumbers = useMemo(
+    () => Array.from({ length: cut ? MAX_RENDERED_LINES : totalLines }, (_, i) => i + 1).join('\n'),
+    [cut, totalLines],
+  )
 
   const handleCopy = async () => {
     try {
@@ -81,10 +104,16 @@ export function CodeViewer({ code, language, className }: CodeViewerProps) {
           {html !== null ? (
             <code className="hljs !bg-transparent !p-0" dangerouslySetInnerHTML={{ __html: html }} />
           ) : (
-            <code>{code}</code>
+            <code>{shown}</code>
           )}
         </pre>
       </div>
+      {cut && (
+        <p className="border-t border-neutral-border px-4 py-2 text-xs text-status-warning">
+          Se muestran solo las primeras {MAX_RENDERED_LINES.toLocaleString('es')} de {totalLines.toLocaleString('es')} líneas.
+          «Copiar» copia el código completo.
+        </p>
+      )}
     </div>
   )
 }
