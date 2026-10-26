@@ -289,7 +289,7 @@ export function ProblemDetailPage() {
       {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
 
       {/* Modifiers (only for modifiers) */}
-      <ModifiersManager problem={problem} canManage={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+      <ModifiersManager problem={problem} canAdd={!!canEdit} canRemove={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
     </>
   )
 
@@ -1101,15 +1101,22 @@ function FileFormatHint({ fileType }: { fileType: ProblemFileType }) {
   )
 }
 
-interface ModifiersManagerProps { problem: ProblemDetail; /** Only the author and Admin may add or remove collaborators; the backend answers 403 to anyone else */ canManage: boolean; canSearchUsers: boolean }
+interface ModifiersManagerProps {
+  problem: ProblemDetail
+  /** Whoever can edit the problem can bring in more collaborators; the backend answers 403 to anyone else */
+  canAdd: boolean
+  /** Removing a collaborator stays with the author and Admin */
+  canRemove: boolean
+  canSearchUsers: boolean
+}
 
-function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManagerProps) {
+function ModifiersManager({ problem, canAdd, canRemove, canSearchUsers }: ModifiersManagerProps) {
   const addMutation = useAddModifier()
   const removeMutation = useRemoveModifier()
   const { toast } = useToastContext()
   const [userQuery, setUserQuery] = useState('')
   const debouncedUserQuery = useDebounce(userQuery)
-  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers && canManage)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers && canAdd)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
 
   const modifiers = problem.modifiers ?? []
@@ -1145,7 +1152,7 @@ function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManag
         <CardTitle>Modificadores</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {canManage ? (
+        {canAdd ? (
         <SearchSelect
           query={userQuery}
           onQueryChange={setUserQuery}
@@ -1164,7 +1171,7 @@ function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManag
           onSelect={(u) => handleAdd(u.nickname)}
         />
         ) : (
-          <p className="text-xs text-neutral-text-muted">Solo el autor y los administradores pueden cambiar quién colabora en este problema.</p>
+          <p className="text-xs text-neutral-text-muted">Solo quien puede editar este problema puede agregar colaboradores.</p>
         )}
         {addMutation.isPending && <p className="text-xs text-neutral-text-muted">Agregando...</p>}
         {modifiers.length > 0 && (
@@ -1173,7 +1180,7 @@ function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManag
               <Badge key={m.nickname} variant="outline" className="gap-1 pr-1">
                 {m.name} (@{m.nickname})
                 {/* The author keeps editing rights whatever the list says, so a "×" on them does nothing useful */}
-                {canManage && m.nickname !== problem.author.nickname && (
+                {canRemove && m.nickname !== problem.author.nickname && (
                   <button
                     type="button"
                     onClick={() => setRemoveTarget(m.nickname)}
@@ -1186,6 +1193,9 @@ function ModifiersManager({ problem, canManage, canSearchUsers }: ModifiersManag
               </Badge>
             ))}
           </div>
+        )}
+        {canAdd && !canRemove && (
+          <p className="text-xs text-neutral-text-muted">Solo el autor y los administradores pueden quitar colaboradores.</p>
         )}
       </CardContent>
 
