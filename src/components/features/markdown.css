@@ -5,6 +5,15 @@
   word-wrap: break-word;
 }
 
+/* Problem statements: a reading face apart from the interface's sans-serif. KaTeX already sets the
+   math in a Computer Modern-like face, which a serif body sits well with. Code blocks and inline
+   code keep their own monospace font (set further down), so this only changes the prose. */
+.markdown-body.markdown-statement {
+  font-family: theme('fontFamily.serif');
+  font-size: 1.0625rem;
+  line-height: 1.8;
+}
+
 /* Headings */
 .markdown-body h1 {
   font-size: 2rem;

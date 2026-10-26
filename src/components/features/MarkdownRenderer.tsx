@@ -13,6 +13,8 @@ import './markdown.css'
 interface MarkdownRendererProps {
   content: string
   className?: string
+  /** `statement` sets the prose in the reading serif face used for problem statements. */
+  variant?: 'default' | 'statement'
 }
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/
@@ -70,13 +72,13 @@ function normalizeLatex(text: string): string {
     .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_match, p1) => `$${p1.trim()}$`)
 }
 
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, variant = 'default' }: MarkdownRendererProps) {
   const remarkPlugins = useMemo(() => [remarkGfm, remarkMath], [])
   const rehypePlugins = useMemo(() => [rehypeKatex, rehypeHighlight], [])
   const normalized = useMemo(() => normalizeLatex(content), [content])
 
   return (
-    <div className={cn('markdown-body', className)}>
+    <div className={cn('markdown-body', variant === 'statement' && 'markdown-statement', className)}>
       <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
         {normalized}
       </ReactMarkdown>

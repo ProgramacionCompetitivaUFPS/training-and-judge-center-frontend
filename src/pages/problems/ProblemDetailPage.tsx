@@ -141,6 +141,85 @@ export function ProblemDetailPage() {
   const missingFiles =
     problem.status === 'DRAFT' && (!problem.files?.testCases || (problem.files?.solutions.length ?? 0) === 0)
 
+  // Only Publicar stays in view, and only on a draft: it's the last step of the flow, so hiding it
+  // would make a new author hunt for it (the tooltip says what's still missing). Everything else
+  // lives in the menu so this doesn't grow with every new feature.
+  const managementActions = (
+    <div className="flex items-center gap-2 shrink-0">
+      {problem.status === 'DRAFT' &&
+        (missingPublishRequirements.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="block">
+                <Button variant="primary" className="gap-2" disabled>
+                  <ArrowUpCircle className="h-4 w-4" />
+                  Publicar
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
+              <ul className="mt-1 list-disc list-inside">
+                {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button variant="primary" className="gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+            <ArrowUpCircle className="h-4 w-4" />
+            Publicar
+          </Button>
+        ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" aria-label="Más acciones" title="Más acciones">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {/* The edit form refuses a published problem, so say why here instead of leading to a dead end */}
+          <DropdownMenuItem onClick={() => navigate(PATHS.problemEdit(problem.slug))} disabled={problem.status === 'PUBLISHED'}>
+            <Pencil className="mr-2 h-4 w-4 shrink-0" />
+            <span>
+              Editar
+              {problem.status === 'PUBLISHED' && (
+                <span className="block text-xs text-neutral-text-muted">Despublica el problema para editarlo</span>
+              )}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+            <Download className="mr-2 h-4 w-4 shrink-0" />
+            <span>
+              {exportMutation.isPending ? 'Exportando…' : 'Exportar ZIP'}
+              <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
+            </span>
+          </DropdownMenuItem>
+          {problem.status === 'PUBLISHED' && (
+            <DropdownMenuItem onClick={() => setUnpublishDialogOpen(true)} disabled={unpublishMutation.isPending}>
+              <ArrowDownCircle className="mr-2 h-4 w-4 shrink-0" />
+              Despublicar
+            </DropdownMenuItem>
+          )}
+          {isAdmin && (
+            <DropdownMenuItem onClick={() => setAdminRejudgeDialogOpen(true)} disabled={adminRejudgeMutation.isPending}>
+              <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
+              Rejuzgar (global)
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
+                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+
   const problemContent = (
     <>
       {/* Statement — the "Enunciado" label is only useful while reviewing a draft
@@ -155,7 +234,7 @@ export function ProblemDetailPage() {
         )}
         <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
           {problem.statement ? (
-            <MarkdownRenderer content={problem.statement} />
+            <MarkdownRenderer content={problem.statement} variant="statement" />
           ) : (
             <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
           )}
@@ -328,27 +407,31 @@ export function ProblemDetailPage() {
             </div>
           )}
 
-          {/* Title + badges */}
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-extrabold text-neutral-text-primary">
-                {isContestContext && letter && `${letter.toUpperCase()}. `}{problem.title}
-              </h1>
-              {!isContestContext && canSeeManagement && (
-                <>
-                  <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-                    {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-                  </Badge>
-                  <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-                    {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-                  </Badge>
-                </>
+          {/* Title + badges, with the management actions on the right (up here so an author
+              doesn't have to scroll the sidebar to find them) */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
+                <h1 className="text-2xl font-extrabold text-neutral-text-primary">
+                  {isContestContext && letter && `${letter.toUpperCase()}. `}{problem.title}
+                </h1>
+                {!isContestContext && canSeeManagement && (
+                  <>
+                    <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+                      {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                    </Badge>
+                    <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+                      {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+                    </Badge>
+                  </>
+                )}
+                {/* Letter badge removed — letter is now prefixed in the title */}
+              </div>
+              {!isContestContext && (
+                <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
               )}
-              {/* Letter badge removed — letter is now prefixed in the title */}
             </div>
-            {!isContestContext && (
-              <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
-            )}
+            {canEdit && !isContestContext && managementActions}
           </div>
 
           {showManagementTabs ? (
@@ -540,86 +623,6 @@ export function ProblemDetailPage() {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Management actions (only for editors) */}
-          {canEdit && !isContestContext && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Gestión</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {problem.status === 'DRAFT' && (
-                  missingPublishRequirements.length > 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="block">
-                          <Button variant="primary" className="w-full gap-2" disabled>
-                            <ArrowUpCircle className="h-4 w-4" />
-                            Publicar
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
-                        <ul className="mt-1 list-disc list-inside">
-                          {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
-                        </ul>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
-                      <ArrowUpCircle className="h-4 w-4" />
-                      Publicar
-                    </Button>
-                  )
-                )}
-                {problem.status === 'PUBLISHED' && (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => setUnpublishDialogOpen(true)} isLoading={unpublishMutation.isPending}>
-                    <ArrowDownCircle className="h-4 w-4" />
-                    Despublicar
-                  </Button>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate(PATHS.problemEdit(problem.slug))}>
-                    <Pencil className="h-4 w-4" />
-                    Editar
-                  </Button>
-                  {/* Rare or destructive actions stay out of sight so the card doesn't grow with every new feature */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" aria-label="Más acciones" title="Más acciones">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
-                        <Download className="mr-2 h-4 w-4 shrink-0" />
-                        <span>
-                          {exportMutation.isPending ? 'Exportando…' : 'Exportar ZIP'}
-                          <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
-                        </span>
-                      </DropdownMenuItem>
-                      {isAdmin && (
-                        <DropdownMenuItem onClick={() => setAdminRejudgeDialogOpen(true)} disabled={adminRejudgeMutation.isPending}>
-                          <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
-                          Rejuzgar (global)
-                        </DropdownMenuItem>
-                      )}
-                      {canDelete && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
-                            <Trash2 className="mr-2 h-4 w-4 shrink-0" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -947,7 +950,8 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
       <CardContent className="space-y-3">
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
 
-        {(['testCases', 'checker', 'validator'] as const).map((fileType) => (
+        {/* Read-only, the test cases row would only be a dot: the "Casos de prueba" card below is where they're read */}
+        {(['testCases', 'checker', 'validator'] as const).filter((t) => !(readOnly && t === 'testCases')).map((fileType) => (
           <div key={fileType} className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />

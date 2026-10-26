@@ -513,7 +513,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
               </div>
               <div className="min-h-[200px] max-h-[60vh] overflow-y-auto">
                 {statement ? (
-                  <MarkdownRenderer content={statement} className="text-sm" />
+                  <MarkdownRenderer content={statement} variant="statement" />
                 ) : (
                   <p className="text-sm text-neutral-text-muted italic">El preview del enunciado aparecerá aquí...</p>
                 )}
@@ -637,7 +637,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
               </div>
               <div className="min-h-[200px] max-h-[60vh] overflow-y-auto">
                 {statement ? (
-                  <MarkdownRenderer content={statement} className="text-sm" />
+                  <MarkdownRenderer content={statement} variant="statement" />
                 ) : (
                   <p className="text-sm text-neutral-text-muted italic">El preview del enunciado aparecerá aquí...</p>
                 )}
