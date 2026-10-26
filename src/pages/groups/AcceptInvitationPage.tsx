@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useGroupDetail, useAcceptInvitation } from '@/hooks/api/useGroups'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PATHS, ROUTES } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function AcceptInvitationPage() {
   const { groupId, invitationId } = useParams<{ groupId: string; invitationId: string }>()
@@ -26,8 +27,12 @@ export function AcceptInvitationPage() {
           toast({ variant: 'success', title: 'Te has unido al grupo' })
           navigate(PATHS.group(groupId))
         },
-        onError: () => {
-          toast({ variant: 'error', title: 'Error al aceptar la invitación', description: 'El enlace pudo haber expirado, ya fue usado, o no está dirigido a tu cuenta.' })
+        onError: (err) => {
+          toast({
+            variant: 'error',
+            title: 'Error al aceptar la invitación',
+            description: getErrorMessage(err, 'El enlace pudo haber expirado, ya fue usado, o no está dirigido a tu cuenta.'),
+          })
         },
       },
     )
@@ -46,17 +51,23 @@ export function AcceptInvitationPage() {
           <CardContent className="space-y-4">
             {isLoading ? (
               <Skeleton className="h-6 w-2/3" />
-            ) : !group ? (
-              <p className="text-status-error text-sm">No se pudo encontrar el grupo de esta invitación.</p>
             ) : (
               <>
-                <p className="text-neutral-text-muted">
-                  Has sido invitado a unirte al grupo{' '}
-                  <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
-                    {group.name}
-                  </Link>
-                  .
-                </p>
+                {group ? (
+                  <p className="text-neutral-text-muted">
+                    Has sido invitado a unirte al grupo{' '}
+                    <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+                      {group.name}
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  // A NOT_VISIBLE group answers 404 to non-members (get_group.go), and invitation
+                  // groups are usually private — accepting doesn't need the detail, so don't block on it.
+                  <p className="text-neutral-text-muted">
+                    Has sido invitado a unirte a un grupo privado. Acepta la invitación para ver su contenido.
+                  </p>
+                )}
                 <Button onClick={handleAccept} isLoading={acceptMutation.isPending} className="w-full">
                   Aceptar invitación
                   <ArrowRight className="h-4 w-4 ml-2" />

@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { withBlocklyLanguage } from './submissions'
 import type {
   ContestDetail,
   ContestListParams,
@@ -9,6 +10,7 @@ import type {
   RegistrationListResponse,
   StandingsResponse,
   StandingsParams,
+  StandingsFilterOptions,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
 } from '@/types/contest'
@@ -104,16 +106,24 @@ export function getStandings(
   })
 }
 
+export function getStandingsFilterOptions(
+  groupId: string,
+  contestId: string,
+): Promise<StandingsFilterOptions> {
+  return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings/filters`)
+}
+
 // === Contest Submissions ===
 
-export function getContestSubmissions(
+export async function getContestSubmissions(
   groupId: string,
   contestId: string,
   params?: ContestSubmissionsParams,
 ): Promise<ContestSubmissionsResponse> {
-  return apiClient.get(`/groups/${groupId}/contests/${contestId}/submissions`, {
+  const res = await apiClient.get<ContestSubmissionsResponse>(`/groups/${groupId}/contests/${contestId}/submissions`, {
     params: params as Record<string, string | number | boolean | undefined>,
   })
+  return { ...res, submissions: res.submissions.map(withBlocklyLanguage) }
 }
 
 // === Rejudge ===

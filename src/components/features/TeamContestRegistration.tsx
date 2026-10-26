@@ -3,6 +3,7 @@ import { UsersRound, Check, LogOut } from 'lucide-react'
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { pluralize } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -90,6 +91,12 @@ export function TeamContestRegistration({
   onTeamSelect,
 }: TeamContestRegistrationProps) {
   const [showDialog, setShowDialog] = useState(false)
+  // Reuses the same dialog as registering (HU: "modificar miembros seleccionados mientras esté
+  // programada", P1) — same team-size checks, same per-member eligibility, just prefilled with
+  // the current roster and PATCHing instead of POSTing. teamAlreadyRegistered from the
+  // eligibility check is expected to be true here (that's the whole premise), so it must not
+  // block submission the way it does for a fresh registration.
+  const [isEditingRoster, setIsEditingRoster] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -118,6 +125,7 @@ export function TeamContestRegistration({
   }
 
   const openRegisterDialog = () => {
+    setIsEditingRoster(false)
     setSelectedTeamId('')
     setSelectedMembers([])
     // Clear the parent's team too, so re-picking the same team re-runs the eligibility check.
@@ -125,9 +133,22 @@ export function TeamContestRegistration({
     setShowDialog(true)
   }
 
-  const handleRegister = () => {
+  const openEditRosterDialog = () => {
+    if (!myRegistration) return
+    setIsEditingRoster(true)
+    setSelectedTeamId(myRegistration.team.id)
+    setSelectedMembers(myRegistration.selectedMembers.map((m) => m.id))
+    onTeamSelect(myRegistration.team.id)
+    setShowDialog(true)
+  }
+
+  const handleSubmitDialog = () => {
     if (!selectedTeamId || selectedMembers.length === 0) return
-    onRegisterTeam(selectedTeamId, selectedMembers)
+    if (isEditingRoster) {
+      onUpdateTeamRegistration(selectedTeamId, selectedMembers)
+    } else {
+      onRegisterTeam(selectedTeamId, selectedMembers)
+    }
     setShowDialog(false)
     setSelectedTeamId('')
     setSelectedMembers([])
@@ -167,6 +188,10 @@ export function TeamContestRegistration({
 
   const registeredActions = myRegistration && (
     <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" onClick={openEditRosterDialog}>
+        <UsersRound className="h-4 w-4 mr-2" />
+        Editar alineación
+      </Button>
       <Button
         variant="outline"
         onClick={() => setLeaveOpen(true)}
@@ -237,16 +262,20 @@ export function TeamContestRegistration({
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Registrar equipo a la competencia</DialogTitle>
+            <DialogTitle>{isEditingRoster ? 'Editar alineación' : 'Registrar equipo a la competencia'}</DialogTitle>
             <DialogDescription>
-              Selecciona tu equipo y los miembros que participarán ({teamSizeMin}–{teamSizeMax} miembros).
+              {isEditingRoster
+                ? `Ajusta quién participa con "${myRegistration?.team.name}" (${teamSizeMin}–${teamSizeMax} miembros).`
+                : `Selecciona tu equipo y los miembros que participarán (${teamSizeMin}–${teamSizeMax} miembros).`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
               <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Equipo</label>
-              {teams.length === 0 ? (
+              {isEditingRoster ? (
+                <p className="text-sm font-medium text-neutral-text-primary">{myRegistration?.team.name}</p>
+              ) : teams.length === 0 ? (
                 <p className="text-sm text-neutral-text-muted">No tienes equipos. Crea uno primero en la sección de Equipos.</p>
               ) : (
                 <Select value={selectedTeamId} onValueChange={handleTeamSelect}>
@@ -256,7 +285,7 @@ export function TeamContestRegistration({
                   <SelectContent>
                     {teams.map((t) => (
                       <SelectItem key={t.id} value={t.id}>
-                        {t.name} ({t.memberCount} miembros)
+                        {t.name} ({pluralize(t.memberCount, 'miembro')})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -278,14 +307,14 @@ export function TeamContestRegistration({
               </div>
             )}
 
-            {selectedTeamId && eligibility?.teamAlreadyRegistered && (
+            {selectedTeamId && eligibility?.teamAlreadyRegistered && !isEditingRoster && (
               <p className="text-sm text-status-warning">
                 Este equipo ya está inscrito en esta competencia sin ti. Para sumarte, alguien de la alineación
                 debe cancelar la inscripción y volver a registrar al equipo contigo.
               </p>
             )}
 
-            {selectedTeamId && eligibility && !eligibility.teamAlreadyRegistered && (
+            {selectedTeamId && eligibility && (!eligibility.teamAlreadyRegistered || isEditingRoster) && (
               <div>
                 <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">
                   Miembros participantes
@@ -331,7 +360,7 @@ export function TeamContestRegistration({
                   </p>
                 ) : !isValidSelection && selectedMembers.length > 0 && (
                   <p className="text-xs text-status-warning mt-1">
-                    Necesitas al menos {teamSizeMin} miembros
+                    Necesitas al menos {pluralize(teamSizeMin, 'miembro')}
                   </p>
                 )}
               </div>
@@ -344,12 +373,13 @@ export function TeamContestRegistration({
             </Button>
             <Button
               variant="primary"
-              onClick={handleRegister}
-              isLoading={isRegistering}
+              onClick={handleSubmitDialog}
+              isLoading={isEditingRoster ? isUpdating : isRegistering}
               // Wait for any re-check to land so a selection made against cached eligibility can't be submitted.
-              disabled={!isValidSelection || !selectedTeamId || !!eligibility?.teamAlreadyRegistered || isFetchingEligibility}
+              // teamAlreadyRegistered is expected (and ignored) while editing — that's the whole premise.
+              disabled={!isValidSelection || !selectedTeamId || (!isEditingRoster && !!eligibility?.teamAlreadyRegistered) || isFetchingEligibility}
             >
-              Registrar equipo
+              {isEditingRoster ? 'Guardar cambios' : 'Registrar equipo'}
             </Button>
           </DialogFooter>
         </DialogContent>

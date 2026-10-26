@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UsersRound, UserPlus, LogOut, Clock, Mail } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Badge, Input } from '@/components/ui'
+import { Button, Badge } from '@/components/ui'
+import { SearchSelect } from '@/components/ui/SearchSelect'
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,10 @@ import {
 } from '@/components/ui/Table'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useTeamDetail, useInviteTeamMember, useLeaveTeam } from '@/hooks/api/useTeams'
+import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
+import { useDebounce } from '@/hooks/useDebounce'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
@@ -45,6 +48,9 @@ export function TeamDetailPage() {
     resolver: zodResolver(inviteTeamMemberSchema),
     defaultValues: { nickname: '' },
   })
+  const nicknameQuery = useWatch({ control: form.control, name: 'nickname' }) ?? ''
+  const debouncedNicknameQuery = useDebounce(nicknameQuery)
+  const { data: searchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedNicknameQuery)
 
   const handleInvite = async (data: InviteTeamMemberFormData) => {
     if (!teamId) return
@@ -218,12 +224,29 @@ export function TeamDetailPage() {
           </DialogHeader>
           <form onSubmit={form.handleSubmit(handleInvite)}>
             <div className="py-4">
-              <Input
-                label="Nickname"
-                placeholder="Ej: john_doe"
-                error={form.formState.errors.nickname?.message}
-                {...form.register('nickname')}
+              <label className="text-sm font-medium mb-1 block">Nickname</label>
+              <SearchSelect
+                query={nicknameQuery}
+                onQueryChange={(v) => form.setValue('nickname', v, { shouldValidate: true })}
+                results={(searchData?.users ?? []).filter(
+                  (u) => !team.members.some((m) => m.nickname === u.nickname),
+                )}
+                isSearching={isSearchingUsers}
+                placeholder="Buscar usuario por nombre o nickname..."
+                emptyLabel="Sin resultados (o ya es miembro)"
+                hintLabel="Escribe al menos 2 caracteres"
+                getKey={(u) => u.id}
+                renderItem={(u) => (
+                  <div>
+                    <p className="font-medium text-neutral-text-primary">{u.name}</p>
+                    <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+                  </div>
+                )}
+                onSelect={(u) => form.setValue('nickname', u.nickname, { shouldValidate: true })}
               />
+              {form.formState.errors.nickname?.message && (
+                <p className="text-sm text-status-error mt-1">{form.formState.errors.nickname.message}</p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => { setShowInviteDialog(false); form.reset() }}>

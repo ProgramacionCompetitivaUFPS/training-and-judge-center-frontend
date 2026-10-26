@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 export function MaterialDetailPage() {
   const { groupId, materialId } = useParams<{ groupId: string; materialId: string }>()
@@ -56,8 +57,8 @@ export function MaterialDetailPage() {
       await deleteMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material eliminado' })
       navigate(`/groups/${groupId}/materials`)
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar material' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar material', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
   }
@@ -66,8 +67,8 @@ export function MaterialDetailPage() {
     try {
       await publishMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material publicado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al publicar' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al publicar', description: getErrorMessage(err) })
     }
   }
 
@@ -75,8 +76,8 @@ export function MaterialDetailPage() {
     try {
       await unpublishMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
       toast({ variant: 'success', title: 'Material despublicado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al despublicar' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
     }
   }
 
@@ -89,8 +90,8 @@ export function MaterialDetailPage() {
         await pinMutation.mutateAsync({ groupId: groupId!, materialId: materialId! })
         toast({ variant: 'success', title: 'Material fijado' })
       }
-    } catch {
-      toast({ variant: 'error', title: 'Error al cambiar fijado' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cambiar fijado', description: getErrorMessage(err) })
     }
   }
 
@@ -144,7 +145,7 @@ export function MaterialDetailPage() {
                   {(canEdit || canPin) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="shrink-0">
+                        <Button variant="outline" size="sm" className="shrink-0" aria-label="Acciones del material">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -181,6 +182,19 @@ export function MaterialDetailPage() {
                   )}
                 </div>
 
+                {/* A draft is invisible to members; make that and the way out obvious instead of
+                    leaving "Publicar" inside the ⋮ menu. */}
+                {canEdit && material.status === 'DRAFT' && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-status-warning/30 bg-status-warning/10 px-4 py-3">
+                    <p className="text-sm text-neutral-text-primary">
+                      Este material es un <span className="font-semibold">borrador</span>: aún no está publicado y los miembros del grupo no lo ven.
+                    </p>
+                    <Button size="sm" onClick={handlePublish} isLoading={publishMutation.isPending} className="shrink-0">
+                      Publicar
+                    </Button>
+                  </div>
+                )}
+
                 {/* Author line */}
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center">
@@ -191,7 +205,7 @@ export function MaterialDetailPage() {
                       {material.author.name}
                     </p>
                     <p className="text-xs text-neutral-text-muted">
-                      @{material.author.nickname} · {new Date(material.publishedAt ?? material.createdAt).toLocaleDateString()}
+                      @{material.author.nickname} · {new Date(material.publishedAt ?? material.createdAt).toLocaleDateString('es')}
                     </p>
                   </div>
                 </div>
@@ -224,14 +238,14 @@ export function MaterialDetailPage() {
                       <span className="text-sm text-neutral-text-muted flex items-center gap-2">
                         <Calendar className="h-3.5 w-3.5" /> Creado
                       </span>
-                      <span className="text-sm font-medium">{new Date(material.createdAt).toLocaleDateString()}</span>
+                      <span className="text-sm font-medium">{new Date(material.createdAt).toLocaleDateString('es')}</span>
                     </div>
                     {material.publishedAt && (
                       <div className="flex items-center justify-between py-1.5 border-b border-neutral-border">
                         <span className="text-sm text-neutral-text-muted flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5" /> Publicado
                         </span>
-                        <span className="text-sm font-medium">{new Date(material.publishedAt).toLocaleDateString()}</span>
+                        <span className="text-sm font-medium">{new Date(material.publishedAt).toLocaleDateString('es')}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between py-1.5">

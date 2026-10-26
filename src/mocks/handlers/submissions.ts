@@ -39,7 +39,7 @@ export const submissionsHandlers = [
       submission.status = 'ACCEPTED'
       submission.judgedAt = new Date().toISOString()
       submission.executionTime = 42
-      submission.memoryUsed = 2048
+      submission.memoryKb = 2048
     }
     return HttpResponse.json(submission)
   }),
@@ -120,11 +120,16 @@ export const submissionsHandlers = [
 
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
 
-    // Detect Blockly submission via FormData
+    // Like the backend: language/compiler come from the form, and a workspaceXml part marks a
+    // block editor (Blockly) submission.
+    let language = 'cpp20'
+    let compiler = 'g++'
     let isBlockly = false
     try {
       const formData = await request.formData()
-      isBlockly = formData.get('blocklySubmission') === '1'
+      language = String(formData.get('language') ?? language)
+      compiler = String(formData.get('compiler') ?? compiler)
+      isBlockly = formData.has('workspaceXml')
     } catch {
       // Not FormData — regular JSON submission
     }
@@ -134,10 +139,11 @@ export const submissionsHandlers = [
       status: 'PENDING',
       submittedAt: new Date().toISOString(),
       problem: { slug: problem.slug, title: problem.title },
-      language: isBlockly ? 'Blockly' : 'cpp20',
-      compiler: isBlockly ? 'python3' : 'g++',
+      language,
+      compiler,
       fileSize: 1024,
       fileHash: 'mock-hash-' + newId,
+      isBlocklySubmission: isBlockly,
     }, { status: 201 })
   }),
 
@@ -148,11 +154,16 @@ export const submissionsHandlers = [
     const problem = mockProblems.find((p) => p.slug === slug)
     const newId = 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
 
-    // Detect Blockly submission via FormData
+    // Like the backend: language/compiler come from the form, and a workspaceXml part marks a
+    // block editor (Blockly) submission.
+    let language = 'cpp20'
+    let compiler = 'g++'
     let isBlockly = false
     try {
       const formData = await request.formData()
-      isBlockly = formData.get('blocklySubmission') === '1'
+      language = String(formData.get('language') ?? language)
+      compiler = String(formData.get('compiler') ?? compiler)
+      isBlockly = formData.has('workspaceXml')
     } catch {
       // Not FormData — regular JSON submission
     }
@@ -162,10 +173,11 @@ export const submissionsHandlers = [
       status: 'PENDING',
       submittedAt: new Date().toISOString(),
       problem: { slug, title: problem?.title || slug },
-      language: isBlockly ? 'Blockly' : 'cpp20',
-      compiler: isBlockly ? 'python3' : 'g++',
+      language,
+      compiler,
       fileSize: 1024,
       fileHash: 'mock-hash-' + newId,
+      isBlocklySubmission: isBlockly,
     }, { status: 201 })
   }),
 ]

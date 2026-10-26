@@ -3,6 +3,8 @@ import type {
   Material,
   MaterialListParams,
   MaterialListResponse,
+  MaterialTagsResponse,
+  MaterialAuthorsResponse,
   CreateMaterialRequest,
   UpdateMaterialRequest,
 } from '@/types/material'
@@ -14,6 +16,18 @@ export async function getMaterials(
   params?: MaterialListParams,
 ): Promise<MaterialListResponse> {
   return apiClient.get(`/groups/${groupId}/materials`, { params: params as Record<string, string | number | boolean | undefined> })
+}
+
+// Tags distintos realmente usados en los materiales del grupo (no una lista fija) —
+// así el filtro de tags de la UI solo ofrece opciones que existen de verdad.
+export async function getMaterialTags(groupId: string): Promise<MaterialTagsResponse> {
+  return apiClient.get(`/groups/${groupId}/materials/tags`)
+}
+
+// Autores reales de los materiales recientes del grupo — sugerencias para el filtro de autor,
+// no un registro exhaustivo (igual que getMaterialTags).
+export async function getMaterialAuthors(groupId: string): Promise<MaterialAuthorsResponse> {
+  return apiClient.get(`/groups/${groupId}/materials/authors`)
 }
 
 // Orphan endpoint decision: kept — needed for the material detail page

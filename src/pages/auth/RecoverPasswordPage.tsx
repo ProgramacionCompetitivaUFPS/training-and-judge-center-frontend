@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
@@ -23,11 +23,12 @@ export function RecoverPasswordPage() {
   const [email, setEmail] = useState('')
 
   if (step === 'reset') {
-    return <ResetStep email={email} />
+    return <ResetStep email={email} onChangeEmail={() => setStep('request')} />
   }
 
   return (
     <RequestStep
+      defaultEmail={email}
       onSuccess={(submittedEmail) => {
         setEmail(submittedEmail)
         setStep('reset')
@@ -36,9 +37,9 @@ export function RecoverPasswordPage() {
   )
 }
 
-interface RequestStepProps { onSuccess: (email: string) => void }
+interface RequestStepProps { defaultEmail: string; onSuccess: (email: string) => void }
 
-function RequestStep({ onSuccess }: RequestStepProps) {
+function RequestStep({ defaultEmail, onSuccess }: RequestStepProps) {
   const recoverMutation = useRecoverPassword()
   const { toast } = useToastContext()
 
@@ -48,7 +49,7 @@ function RequestStep({ onSuccess }: RequestStepProps) {
     formState: { errors, isSubmitting },
   } = useForm<RecoverPasswordFormData>({
     resolver: zodResolver(recoverPasswordSchema),
-    defaultValues: { email: '' },
+    defaultValues: { email: defaultEmail },
   })
 
   const onSubmit = async (data: RecoverPasswordFormData) => {
@@ -89,12 +90,32 @@ function RequestStep({ onSuccess }: RequestStepProps) {
   )
 }
 
-interface ResetStepProps { email: string }
+interface ResetStepProps { email: string; onChangeEmail: () => void }
 
-function ResetStep({ email }: ResetStepProps) {
+const RESEND_COOLDOWN_SECONDS = 30
+
+function ResetStep({ email, onChangeEmail }: ResetStepProps) {
   const resetMutation = useResetPassword()
+  const resendMutation = useRecoverPassword()
   const navigate = useNavigate()
   const { toast } = useToastContext()
+  // Seconds until "Reenviar código" is available again; starts counting from the first send.
+  const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_SECONDS)
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendIn])
+
+  const handleResend = async () => {
+    try {
+      await resendMutation.mutateAsync({ email })
+      toast({ variant: 'success', title: 'Código reenviado', description: `Revisa tu correo ${email}.` })
+      setResendIn(RESEND_COOLDOWN_SECONDS)
+    } catch (error) {
+      toast({ variant: 'error', title: 'No se pudo reenviar el código', description: getErrorMessage(error, 'Intenta de nuevo.') })
+    }
+  }
 
   const {
     register,
@@ -163,6 +184,29 @@ function ResetStep({ email }: ResetStepProps) {
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Restableciendo...' : 'Restablecer Contraseña'}
         </Button>
+
+        <div className="flex flex-col items-center gap-2 text-sm text-neutral-text-muted">
+          <p>
+            ¿No te llegó el código?{' '}
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendIn > 0 || resendMutation.isPending}
+              className="text-brand-primary hover:underline disabled:text-neutral-text-muted disabled:no-underline disabled:cursor-not-allowed"
+            >
+              {resendMutation.isPending ? 'Reenviando...' : resendIn > 0 ? `Reenviar código (${resendIn} s)` : 'Reenviar código'}
+            </button>
+          </p>
+          <p>
+            <button type="button" onClick={onChangeEmail} className="text-brand-primary hover:underline">
+              Usar otro correo
+            </button>
+            {' · '}
+            <Link to={ROUTES.LOGIN} className="text-brand-primary hover:underline">
+              Volver a Iniciar Sesión
+            </Link>
+          </p>
+        </div>
       </form>
     </AuthLayout>
   )

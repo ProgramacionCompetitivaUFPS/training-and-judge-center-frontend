@@ -10,7 +10,7 @@ import { StatCard } from '@/components/features/StatCard'
 import { useUserProfile, useUserStats } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { ROLE_CONFIG, ROUTES } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 import type { UserRole } from '@/types/user'
 
 function getInitials(name: string): string {
@@ -42,7 +42,7 @@ export function ProfilePage() {
       : null
 
   return (
-    <AppLayout breadcrumbs={[{ label: 'Mi Perfil' }]}>
+    <AppLayout breadcrumbs={[{ label: isOwnProfile ? 'Mi Perfil' : (profile?.name ?? targetNickname) }]}>
       <div className="space-y-4">
         {isLoading && (
           <Card className="p-6">
@@ -154,7 +154,7 @@ export function ProfilePage() {
                     align="center"
                     value={String(stats.problemsSolved)}
                     label="Problemas resueltos"
-                    sub={`${stats.contestsParticipated} competencias`}
+                    sub={pluralize(stats.contestsParticipated, 'competencia')}
                   />
                   <StatCard
                     align="center"

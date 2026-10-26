@@ -24,7 +24,7 @@ export function ContestProblemsTable({ problems, groupId, contestId, showSubmit 
   const navigate = useNavigate()
 
   if (problems.length === 0) {
-    return <p className="text-neutral-text-muted text-sm py-4">No hay problemas disponibles.</p>
+    return <p className="text-neutral-text-muted text-sm text-center py-8">No hay problemas disponibles.</p>
   }
 
   return (

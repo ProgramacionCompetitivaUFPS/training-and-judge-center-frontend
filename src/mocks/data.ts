@@ -920,7 +920,7 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
       { verdict: 'WRONG_ANSWER', count: 520 },
       { verdict: 'TIME_LIMIT_EXCEEDED', count: 180 },
       { verdict: 'COMPILATION_ERROR', count: 65 },
-      { verdict: 'RUNTIME_EXCEPTION', count: 35 },
+      { verdict: 'RUNTIME_ERROR', count: 35 },
     ],
   },
   'binary-search': {
@@ -934,7 +934,7 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
     verdictDistribution: [
       { verdict: 'ACCEPTED', count: 600 },
       { verdict: 'WRONG_ANSWER', count: 200 },
-      { verdict: 'RUNTIME_EXCEPTION', count: 50 },
+      { verdict: 'RUNTIME_ERROR', count: 50 },
       { verdict: 'TIME_LIMIT_EXCEEDED', count: 40 },
     ],
   },
@@ -944,7 +944,11 @@ export const mockProblemStatistics: Record<string, ProblemStatistics> = {
 
 import type { SubmissionListItem, SubmissionDetail } from '@/types/submission'
 
-export const mockSubmissions: SubmissionDetail[] = [
+// Same shape as the API: regular submissions get isBlocklySubmission/workspaceXml filled in below.
+type MockSubmission = Omit<SubmissionDetail, 'isBlocklySubmission' | 'workspaceXml'> &
+  Partial<Pick<SubmissionDetail, 'isBlocklySubmission' | 'workspaceXml'>>
+
+const rawMockSubmissions: MockSubmission[] = [
   {
     id: 'sub-001-aaaa-bbbb-cccc-ddddeeee0001',
     status: 'ACCEPTED',
@@ -957,7 +961,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 45,
-    memoryUsed: 12,
+    memoryKb: 12288,
     sourceCode: '#include <iostream>\n#include <vector>\n#include <unordered_map>\nusing namespace std;\n\nint main() {\n    int n, target;\n    cin >> n >> target;\n    vector<int> nums(n);\n    for (int i = 0; i < n; i++) cin >> nums[i];\n\n    unordered_map<int, int> seen;\n    for (int i = 0; i < n; i++) {\n        int complement = target - nums[i];\n        if (seen.count(complement)) {\n            cout << seen[complement] << " " << i << endl;\n            return 0;\n        }\n        seen[nums[i]] = i;\n    }\n    return 0;\n}',
   },
   {
@@ -970,9 +974,9 @@ export const mockSubmissions: SubmissionDetail[] = [
     contest: null,
     submittedBy: { id: 'u1', nickname: 'luisadmin' },
     language: 'python310',
-    compiler: 'pypy3',
+    compiler: 'py',
     executionTime: 120,
-    memoryUsed: 24,
+    memoryKb: 24576,
     sourceCode: 'def binary_search(arr, target):\n    lo, hi = 0, len(arr)\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid\n    return -1\n\nn, t = map(int, input().split())\narr = list(map(int, input().split()))\nprint(binary_search(arr, t))',
   },
   {
@@ -987,7 +991,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'java17',
     compiler: 'javac',
     executionTime: 3000,
-    memoryUsed: 128,
+    memoryKb: 131072,
     sourceCode: 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] arr = new int[n];\n        for (int i = 0; i < n; i++) arr[i] = sc.nextInt();\n        mergeSort(arr, 0, n - 1);\n        for (int x : arr) System.out.print(x + " ");\n    }\n\n    static void mergeSort(int[] a, int l, int r) {\n        if (l >= r) return;\n        int m = (l + r) / 2;\n        mergeSort(a, l, m);\n        mergeSort(a, m + 1, r);\n        merge(a, l, m, r);\n    }\n\n    static void merge(int[] a, int l, int m, int r) {\n        int[] tmp = Arrays.copyOfRange(a, l, r + 1);\n        int i = 0, j = m - l + 1, k = l;\n        while (i <= m - l && j <= r - l) {\n            a[k++] = tmp[i] <= tmp[j] ? tmp[i++] : tmp[j++];\n        }\n        while (i <= m - l) a[k++] = tmp[i++];\n        while (j <= r - l) a[k++] = tmp[j++];\n    }\n}',
   },
   {
@@ -1002,7 +1006,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 30,
-    memoryUsed: 8,
+    memoryKb: 8192,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int n, m, s;\n    cin >> n >> m >> s;\n    vector<vector<int>> adj(n + 1);\n    for (int i = 0; i < m; i++) {\n        int u, v;\n        cin >> u >> v;\n        adj[u].push_back(v);\n        adj[v].push_back(u);\n    }\n    vector<int> dist(n + 1, -1);\n    queue<int> q;\n    dist[s] = 0;\n    q.push(s);\n    while (!q.empty()) {\n        int u = q.front(); q.pop();\n        for (int v : adj[u]) {\n            if (dist[v] == -1) {\n                dist[v] = dist[u] + 1;\n                q.push(v);\n            }\n        }\n    }\n    for (int i = 1; i <= n; i++) cout << dist[i] << " ";\n}',
   },
   {
@@ -1017,7 +1021,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
-    memoryUsed: null,
+    memoryKb: null,
     sourceCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n, W;\n    cin >> n >> W;\n    // missing closing brace\n    int dp[n+1][W+1];\n    for (int i = 0; i <= n; i++)\n        for (int w = 0; w <= W; w++)\n            dp[i][w] = 0;\n',
   },
   {
@@ -1030,14 +1034,14 @@ export const mockSubmissions: SubmissionDetail[] = [
     contest: null,
     submittedBy: { id: 'u3', nickname: 'carloscp' },
     language: 'python310',
-    compiler: 'pypy3',
+    compiler: 'py',
     executionTime: 200,
-    memoryUsed: 32,
+    memoryKb: 32768,
     sourceCode: 'n, target = map(int, input().split())\nnums = list(map(int, input().split()))\nseen = {}\nfor i, x in enumerate(nums):\n    if target - x in seen:\n        print(seen[target - x], i)\n        break\n    seen[x] = i',
   },
   {
     id: 'sub-007-aaaa-bbbb-cccc-ddddeeee0007',
-    status: 'RUNTIME_EXCEPTION',
+    status: 'RUNTIME_ERROR',
     visibility: 'PRIVATE',
     submittedAt: '2026-03-08T11:30:00Z',
     judgedAt: '2026-03-08T11:30:02Z',
@@ -1047,7 +1051,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 5,
-    memoryUsed: 4,
+    memoryKb: 4096,
     sourceCode: '#include <iostream>\nusing namespace std;\nint main() {\n    int n, t;\n    cin >> n >> t;\n    int a[n];\n    for (int i = 0; i < n; i++) cin >> a[i];\n    // bug: accessing out of bounds\n    cout << a[n] << endl;\n    return 0;\n}',
   },
   {
@@ -1062,7 +1066,7 @@ export const mockSubmissions: SubmissionDetail[] = [
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
-    memoryUsed: null,
+    memoryKb: null,
     sourceCode: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n, W;\n    cin >> n >> W;\n    vector<int> w(n), v(n);\n    for (int i = 0; i < n; i++) cin >> w[i] >> v[i];\n    vector<long long> dp(W + 1, 0);\n    for (int i = 0; i < n; i++)\n        for (int j = W; j >= w[i]; j--)\n            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);\n    cout << dp[W] << endl;\n}',
   },
   {
@@ -1074,16 +1078,27 @@ export const mockSubmissions: SubmissionDetail[] = [
     problem: { slug: 'two-sum', title: 'Two Sum' },
     contest: null,
     submittedBy: { id: 'u1', nickname: 'luisadmin' },
-    language: 'blockly',
-    compiler: 'pypy3',
+    language: 'python310',
+    compiler: 'py',
     executionTime: 200,
-    memoryUsed: 16,
+    memoryKb: 16384,
     sourceCode: 'n = int(input())\ntarget = int(input())\nnums = []\nfor i in range(n):\n  nums.append(int(input()))\nfor i in range(n):\n  for j in range(i + 1, n):\n    if nums[i] + nums[j] == target:\n      print(i, j)',
-    blocksSvgUrl: '/mock-blocks.svg',
     isBlocklySubmission: true,
     workspaceXml: '<xml xmlns="https://developers.google.com/blockly/xml"><variables><variable id="v1">n</variable><variable id="v2">target</variable><variable id="v3">nums</variable></variables><block type="variables_set" x="20" y="20"><field name="VAR" id="v1">n</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="variables_set"><field name="VAR" id="v2">target</field><value name="VALUE"><block type="text_prompt_ext"><mutation type="NUMBER"></mutation><field name="TYPE">NUMBER</field><value name="TEXT"><shadow type="text"><field name="TEXT"></field></shadow></value></block></value><next><block type="text_print"><value name="TEXT"><shadow type="text"><field name="TEXT">Hola mundo</field></shadow></value></block></next></block></next></block></xml>',
   },
 ]
+
+export const mockSubmissions: SubmissionDetail[] = rawMockSubmissions.map((s) => ({
+  isBlocklySubmission: false,
+  workspaceXml: null,
+  ...s,
+}))
+
+// Mirrors the backend: "blockly" selects block editor submissions and "python310" leaves them out.
+function matchesLanguageFilter(s: SubmissionDetail, language: string): boolean {
+  if (language === 'blockly') return s.isBlocklySubmission
+  return s.language === language && !s.isBlocklySubmission
+}
 
 export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
   return {
@@ -1095,8 +1110,9 @@ export function toSubmissionListItem(s: SubmissionDetail): SubmissionListItem {
     contest: s.contest,
     submittedBy: s.submittedBy,
     language: s.language,
+    isBlocklySubmission: s.isBlocklySubmission,
     executionTime: s.executionTime,
-    memoryUsed: s.memoryUsed,
+    memoryKb: s.memoryKb,
   }
 }
 
@@ -1119,7 +1135,7 @@ export function buildMySubmissionsList(params: {
     filtered = filtered.filter((s) => s.problem.slug.includes(params.problemSlug!))
   }
   if (params.language) {
-    filtered = filtered.filter((s) => s.language === params.language)
+    filtered = filtered.filter((s) => matchesLanguageFilter(s, params.language!))
   }
   if (params.from) {
     const fromTime = new Date(params.from).getTime()
@@ -1168,7 +1184,7 @@ export function buildProblemSubmissionsList(params: {
     filtered = filtered.filter((s) => s.status === params.verdict)
   }
   if (params.language) {
-    filtered = filtered.filter((s) => s.language === params.language)
+    filtered = filtered.filter((s) => matchesLanguageFilter(s, params.language!))
   }
 
   filtered.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
@@ -1582,7 +1598,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'carloscp', name: 'Carlos Pérez' },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 30 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: false,
+    status: 'ACCEPTED', isBlocklySubmission: false, canViewDetail: false,
   },
   {
     id: 'csub-002',
@@ -1590,7 +1606,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-1', teamName: 'Competitive Coders', members: ['luisadmin', 'carloscp', 'anagarcia'] },
     language: 'cpp20',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: false,
+    status: 'ACCEPTED', isBlocklySubmission: false, canViewDetail: false,
   },
   {
     id: 'csub-003',
@@ -1598,7 +1614,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 25 * 60 * 1000).toISOString(),
-    status: 'WRONG_ANSWER', canViewDetail: false,
+    status: 'WRONG_ANSWER', isBlocklySubmission: false, canViewDetail: false,
   },
   {
     id: 'csub-004',
@@ -1606,7 +1622,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'sofiarodriguez', name: 'Sofía Rodríguez' },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 45 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: false,
+    status: 'ACCEPTED', isBlocklySubmission: false, canViewDetail: false,
   },
   {
     id: 'csub-005',
@@ -1614,7 +1630,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'TEAM', teamId: 'team-2', teamName: 'Algorithm Masters', members: ['pedromartinez', 'sofiarodriguez'] },
     language: 'java17',
     submittedAt: new Date(oneHourAgo.getTime() + 35 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: false,
+    status: 'ACCEPTED', isBlocklySubmission: false, canViewDetail: false,
   },
   {
     id: 'csub-006',
@@ -1622,7 +1638,7 @@ export const mockContestSubmissions: ContestSubmissionItem[] = [
     submittedBy: { type: 'INDIVIDUAL', nickname: 'anagarcia', name: 'Ana García' },
     language: 'python310',
     submittedAt: new Date(oneHourAgo.getTime() + 20 * 60 * 1000).toISOString(),
-    status: 'ACCEPTED', canViewDetail: false,
+    status: 'ACCEPTED', isBlocklySubmission: false, canViewDetail: false,
   },
 ]
 
@@ -1675,7 +1691,7 @@ export function buildContestSubmissionsList(params: {
     const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
     const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
     return isFrozenSubmission
-      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryUsed: undefined }
+      ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryKb: undefined }
       : { ...s, canViewDetail }
   })
 
@@ -1711,7 +1727,7 @@ export function buildContestSubmissionsList(params: {
 
 // === Mock Materials ===
 
-import type { Material, MaterialListResponse } from '@/types/material'
+import type { Material, MaterialListResponse, MaterialStatus } from '@/types/material'
 
 export const mockMaterials: Material[] = [
   {
@@ -1971,6 +1987,38 @@ $$F(n) = \\frac{\\phi^n - \\psi^n}{\\sqrt{5}}, \\quad \\text{donde } \\phi = \\f
   },
 ]
 
+// Tokeniza igual que to_tsvector/to_tsquery con el diccionario 'simple': runs de letras/números.
+function tokenizeForSearch(text: string): string[] {
+  return text.toLowerCase().match(/[a-z0-9áéíóúñ]+/gi) || []
+}
+
+// Espeja el prefix tsquery del backend real (toPrefixTsQuery en repository.go): cada palabra
+// de la búsqueda debe ser prefijo de alguna palabra del título o contenido — no basta un
+// substring cualquiera, por eso una palabra a medio escribir sí matchea pero un fragmento
+// interior de una palabra no.
+function materialMatchesSearch(m: Material, q: string): boolean {
+  const queryWords = tokenizeForSearch(q)
+  if (queryWords.length === 0) return true
+  const textWords = [...tokenizeForSearch(m.title), ...tokenizeForSearch(m.content)]
+  return queryWords.every((qw) => textWords.some((tw) => tw.startsWith(qw)))
+}
+
+export function distinctMaterialTags(groupId: string, statuses?: MaterialStatus[]): string[] {
+  const inGroup = mockMaterials.filter((m) => m.groupId === groupId)
+  const visible = statuses ? inGroup.filter((m) => statuses.includes(m.status)) : inGroup
+  const tags = new Set<string>()
+  visible.forEach((m) => m.tags.forEach((t) => tags.add(t)))
+  return [...tags].sort()
+}
+
+export function distinctMaterialAuthors(groupId: string, statuses?: MaterialStatus[]): { nickname: string; name: string }[] {
+  const inGroup = mockMaterials.filter((m) => m.groupId === groupId)
+  const visible = statuses ? inGroup.filter((m) => statuses.includes(m.status)) : inGroup
+  const seen = new Map<string, { nickname: string; name: string }>()
+  visible.forEach((m) => seen.set(m.author.nickname, m.author))
+  return [...seen.values()].sort((a, b) => a.nickname.localeCompare(b.nickname))
+}
+
 export function buildMaterialList(params: {
   groupId: string
   page?: number
@@ -1994,11 +2042,9 @@ export function buildMaterialList(params: {
     filtered = filtered.filter((m) => requiredTags.every((t) => m.tags.includes(t)))
   }
 
-  if (params.q) {
-    const q = params.q.toLowerCase()
-    filtered = filtered.filter(
-      (m) => m.title.toLowerCase().includes(q) || m.content.toLowerCase().includes(q),
-    )
+  const hasQuery = !!params.q?.trim()
+  if (hasQuery) {
+    filtered = filtered.filter((m) => materialMatchesSearch(m, params.q!))
   }
 
   if (params.status) {
@@ -2019,17 +2065,19 @@ export function buildMaterialList(params: {
     filtered = filtered.filter((m) => m.publishedAt && new Date(m.publishedAt).getTime() <= toTime)
   }
 
+  // Espeja al backend real (repository.go listOrderBy): "título" nunca fija primero;
+  // "relevancia" y "fecha de publicación" sí lo hacen, pero solo cuando NO hay búsqueda
+  // activa — con búsqueda, el boost de fijados se suprime (FR-032) en ambas.
   if (params.sort === 'title') {
     filtered = [...filtered].sort((a, b) => a.title.localeCompare(b.title))
-  } else if (params.sort === 'publishedAt') {
+  } else if (hasQuery) {
     filtered = [...filtered].sort((a, b) => {
       const aDate = a.publishedAt ?? a.createdAt
       const bDate = b.publishedAt ?? b.createdAt
       return new Date(bDate).getTime() - new Date(aDate).getTime()
     })
   } else {
-    // Default ("relevance"): pinned first by pinnedAt DESC, then by publishedAt DESC
-    filtered.sort((a, b) => {
+    filtered = [...filtered].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1
       if (!a.pinned && b.pinned) return 1
       if (a.pinned && b.pinned) {

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Loader2, Search } from 'lucide-react'
 import { Input } from './Input'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,8 @@ interface SearchSelectProps<T> {
   renderItem: (item: T) => ReactNode
   onSelect: (item: T) => void
   className?: string
+  /** Passed through to the underlying input — lets a caller confirm the typed (unselected) query on Enter. */
+  onInputKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
 /** A text input with a debounced-results dropdown underneath. The caller owns debouncing the
@@ -33,8 +35,10 @@ export function SearchSelect<T>({
   renderItem,
   onSelect,
   className,
+  onInputKeyDown,
 }: SearchSelectProps<T>) {
   const [isFocused, setIsFocused] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const showDropdown = isFocused && query.trim().length >= minChars
 
   return (
@@ -42,12 +46,14 @@ export function SearchSelect<T>({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
         <Input
+          ref={inputRef}
           placeholder={placeholder}
           className="pl-9"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onKeyDown={onInputKeyDown}
         />
       </div>
 
@@ -66,9 +72,18 @@ export function SearchSelect<T>({
                 <li key={getKey(item)}>
                   <button
                     type="button"
-                    // Fires before the input's onBlur closes the dropdown.
+                    // Fires before the input's onBlur would close the dropdown — without this,
+                    // clicking a result loses focus (and the click) before onClick ever fires.
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSelect(item)}
+                    onClick={() => {
+                      onSelect(item)
+                      // onMouseDown's preventDefault above means the input never actually lost
+                      // DOM focus, so isFocused=false here would desync from the real focus
+                      // state — the next keystroke wouldn't get a fresh onFocus to reopen the
+                      // dropdown. Blur it for real so a later focus is a genuine focus event.
+                      inputRef.current?.blur()
+                      setIsFocused(false)
+                    }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-background transition-colors"
                   >
                     {renderItem(item)}

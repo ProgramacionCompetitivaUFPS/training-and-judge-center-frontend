@@ -9,14 +9,16 @@ export type SubmissionStatus =
   | 'WRONG_ANSWER'
   | 'TIME_LIMIT_EXCEEDED'
   | 'MEMORY_LIMIT_EXCEEDED'
-  | 'RUNTIME_EXCEPTION'
+  | 'OUTPUT_LIMIT_EXCEEDED'
+  | 'RUNTIME_ERROR'
   | 'COMPILATION_ERROR'
   | 'SYSTEM_ERROR'
 
 export type SubmissionVisibility = 'PUBLIC' | 'PRIVATE'
 
 export type SubmissionLanguage = 'cpp20' | 'java17' | 'python310' | 'blockly'
-export type SubmissionCompiler = 'g++' | 'javac' | 'pypy3'
+// Must match the backend's language_validator.go (and JUDGE_LANGUAGES in lib/constants.ts).
+export type SubmissionCompiler = 'g++' | 'javac' | 'py'
 
 // Display type that includes '?' for frozen contest submissions
 export type SubmissionStatusDisplay = SubmissionStatus | '?'
@@ -44,15 +46,13 @@ export interface SubmissionDetail {
   language: SubmissionLanguage
   compiler: SubmissionCompiler
   executionTime: number | null
-  memoryUsed: number | null
+  memoryKb: number | null
   /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
   sourceCode: string | null
-  /** URL del SVG de bloques (solo para envíos Blockly) */
-  blocksSvgUrl?: string
-  /** Indica si es un envío Blockly */
-  isBlocklySubmission?: boolean
-  /** XML del workspace de Blockly (solo para envíos Blockly con soporte) */
-  workspaceXml?: string
+  /** Hecho con el editor de bloques: el backend lo guarda como python310 + el workspace. */
+  isBlocklySubmission: boolean
+  /** Workspace de Blockly del envío; null en envíos normales o si el archivo ya no existe */
+  workspaceXml: string | null
 }
 
 // === Submission List Item (no source code) ===
@@ -75,8 +75,9 @@ export interface SubmissionListItem {
     nickname: string
   }
   language: SubmissionLanguage
+  isBlocklySubmission: boolean
   executionTime: number | null
-  memoryUsed: number | null
+  memoryKb: number | null
 }
 
 // === My Submissions List (GET /users/me/submissions) ===
@@ -100,6 +101,16 @@ export interface SubmissionListResponse {
     hasNextPage: boolean
     hasPrevPage: boolean
   }
+}
+
+// Passed as router `state` by every page that links into SubmissionDetailPage (own
+// submissions, a contest's submissions, a problem's submissions, the dashboard), so the
+// detail page can build a breadcrumb/"Volver" that reflects where the user actually came
+// from instead of always assuming the global "Mis Envíos" list.
+export interface SubmissionOrigin {
+  backTo: string
+  backLabel: string
+  breadcrumbPrefix?: { label: string; href?: string }[]
 }
 
 // === Problem Submissions (GET /problems/:slug/submissions) ===

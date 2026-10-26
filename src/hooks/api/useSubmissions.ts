@@ -7,6 +7,7 @@ import {
 import type {
   MySubmissionsParams,
   ProblemSubmissionsParams,
+  SubmissionListResponse,
   UpdateVisibilityRequest,
 } from '@/types/submission'
 
@@ -22,10 +23,20 @@ export const submissionKeys = {
 
 // === Queries ===
 
+const IN_PROGRESS_STATUSES = ['PENDING', 'RUNNING']
+const IN_PROGRESS_POLL_MS = 3000
+
+// Keep polling a list while any row is still waiting for the judge, so verdicts show up on
+// their own (the submit page's "Envíos recientes" and "Mis Envíos" used to stay on "En cola").
+function pollWhileJudging(data: SubmissionListResponse | undefined): number | false {
+  return data?.submissions.some((s) => IN_PROGRESS_STATUSES.includes(s.status)) ? IN_PROGRESS_POLL_MS : false
+}
+
 export function useMySubmissions(params?: MySubmissionsParams) {
   return useQuery({
     queryKey: submissionKeys.myList(params),
     queryFn: () => submissionsApi.getMySubmissions(params),
+    refetchInterval: (query) => pollWhileJudging(query.state.data),
   })
 }
 
@@ -34,10 +45,9 @@ export function useProblemSubmissions(slug: string, params?: ProblemSubmissionsP
     queryKey: submissionKeys.problemList(slug, params),
     queryFn: () => submissionsApi.getProblemSubmissions(slug, params),
     enabled: !!slug,
+    refetchInterval: (query) => pollWhileJudging(query.state.data),
   })
 }
-
-const IN_PROGRESS_STATUSES = ['PENDING', 'RUNNING']
 
 export function useSubmissionDetail(id: string) {
   return useQuery({
@@ -45,7 +55,7 @@ export function useSubmissionDetail(id: string) {
     queryFn: () => submissionsApi.getSubmission(id),
     enabled: !!id,
     refetchInterval: (query) =>
-      IN_PROGRESS_STATUSES.includes(query.state.data?.status ?? '') ? 3000 : false,
+      IN_PROGRESS_STATUSES.includes(query.state.data?.status ?? '') ? IN_PROGRESS_POLL_MS : false,
   })
 }
 
@@ -141,17 +151,14 @@ export function useSubmitBlocklySolution() {
       problemSlug: string
       pythonCode: string
       workspaceXml: string
-      svgBlob: Blob
     }) =>
       submitBlocklySolution(
         params.problemSlug,
         params.pythonCode,
         params.workspaceXml,
-        params.svgBlob,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
-      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
     },
   })
 }
@@ -165,7 +172,6 @@ export function useSubmitBlocklyContestSolution() {
       problemSlug: string
       pythonCode: string
       workspaceXml: string
-      svgBlob: Blob
     }) =>
       submitBlocklyContestSolution(
         params.groupId,
@@ -173,11 +179,9 @@ export function useSubmitBlocklyContestSolution() {
         params.problemSlug,
         params.pythonCode,
         params.workspaceXml,
-        params.svgBlob,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['submissions'] })
-      queryClient.invalidateQueries({ queryKey: ['my-submissions'] })
     },
   })
 }

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,24 +11,34 @@ import { useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/ap
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
+import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
-import type { ParticipationMode } from '@/types/contest'
+import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
+import { formatDuration } from '@/lib/utils'
 
 function formatDurationFromDates(start: string, end: string): string {
   if (!start || !end) return '—'
   const ms = new Date(end).getTime() - new Date(start).getTime()
   if (ms <= 0) return 'Inválido'
-  const hours = Math.floor(ms / 3600000)
-  const minutes = Math.floor((ms % 3600000) / 60000)
-  return `${hours}h ${minutes}m`
+  return formatDuration(Math.floor(ms / 1000))
 }
+
+// datetime-local reads its value as local time, so an ISO string in UTC can't just be sliced —
+// that shifts the contest by the UTC offset every time it's edited and saved.
+function toDateTimeLocalValue(iso: string): string {
+  const date = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const FREEZE_DEFAULT_MIN_DURATION_MS = 4 * 60 * 60 * 1000
 
 export function ContestFormPage() {
   const { groupId, id } = useParams<{ groupId: string; id?: string }>()
   const navigate = useNavigate()
-  const { toast } = useToast()
+  const { toast } = useToastContext()
   const { user } = useAuth()
   const isEditing = !!id
 
@@ -45,7 +55,7 @@ export function ContestFormPage() {
       startTime: '',
       endTime: '',
       penalty: 20,
-      freezeMinutes: 60,
+      freezeMinutes: 0,
       enablePostContest: false,
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
@@ -54,8 +64,8 @@ export function ContestFormPage() {
       ? {
           name: existing.name,
           description: existing.description || '',
-          startTime: existing.startTime.slice(0, 16),
-          endTime: existing.endTime.slice(0, 16),
+          startTime: toDateTimeLocalValue(existing.startTime),
+          endTime: toDateTimeLocalValue(existing.endTime),
           penalty: existing.penalty,
           freezeMinutes: existing.freezeMinutes,
           enablePostContest: existing.enablePostContest,
@@ -67,13 +77,29 @@ export function ContestFormPage() {
       : undefined,
   })
 
-  const { register, handleSubmit, formState: { errors }, setValue, control } = form
+  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, control } = form
   const enablePostContest = useWatch({ control, name: 'enablePostContest' })
   const startTime = useWatch({ control, name: 'startTime' })
   const endTime = useWatch({ control, name: 'endTime' })
   const participationMode = useWatch({ control, name: 'participationMode' })
   const showTeamMembers = useWatch({ control, name: 'showTeamMembers' })
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
+  // The backend rejects a start (or end) time in the past, and moving either one after the fact
+  // would shift every submission's time and penalty — so once started, only the end can move
+  // (e.g. extending a running contest), and once finished, neither.
+  const startLocked = isEditing && !!existing && existing.status !== 'SCHEDULED'
+  const endLocked = isEditing && existing?.status === 'FINISHED'
+
+  // Same default the backend applies when freeze is omitted (create_contest.go): 60 min for
+  // contests of 4 h or more, none for shorter ones. Follows the dates until the user edits it,
+  // so a 90-min class practice isn't frozen for two thirds of its duration by default.
+  const freezeTouched = !!dirtyFields.freezeMinutes
+  useEffect(() => {
+    if (isEditing || freezeTouched || !startTime || !endTime) return
+    const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime()
+    if (!(durationMs > 0)) return
+    setValue('freezeMinutes', durationMs >= FREEZE_DEFAULT_MIN_DURATION_MS ? 60 : 0, { shouldValidate: true })
+  }, [isEditing, freezeTouched, startTime, endTime, setValue])
 
   const onSubmit = (data: CreateContestFormData) => {
     const payload = {
@@ -84,7 +110,27 @@ export function ContestFormPage() {
     }
 
     if (isEditing && groupId && id) {
-      const { problems: _unusedProblems, ...updatePayload } = payload
+      // Only send what the user changed: the backend re-validates every field it receives, so
+      // resending an untouched startTime breaks editing a contest that already started
+      // (START_TIME_IN_PAST), and an untouched participationMode breaks it once teams registered.
+      const updatePayload: UpdateContestRequest = {}
+      if (dirtyFields.name) updatePayload.name = payload.name
+      if (dirtyFields.description) updatePayload.description = data.description || null
+      if (dirtyFields.startTime) updatePayload.startTime = payload.startTime
+      if (dirtyFields.endTime) updatePayload.endTime = payload.endTime
+      if (dirtyFields.penalty) updatePayload.penalty = payload.penalty
+      if (dirtyFields.freezeMinutes) updatePayload.freezeMinutes = payload.freezeMinutes
+      if (dirtyFields.enablePostContest) updatePayload.enablePostContest = payload.enablePostContest
+      if (dirtyFields.participationMode) updatePayload.participationMode = payload.participationMode
+      if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
+      if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
+      if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
+
+      if (Object.keys(updatePayload).length === 0) {
+        navigate(PATHS.contest(groupId, id))
+        return
+      }
+
       updateMutation.mutate(
         { groupId, contestId: id, data: updatePayload },
         {
@@ -96,7 +142,7 @@ export function ContestFormPage() {
             if (err instanceof ApiClientError && err.code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
               toast({ variant: 'error', title: 'No se puede cambiar la modalidad', description: 'Ya hay equipos registrados en esta competencia.' })
             } else {
-              toast({ variant: 'error', title: 'Error', description: 'No se pudo actualizar' })
+              toast({ variant: 'error', title: 'No se pudo actualizar', description: getErrorMessage(err) })
             }
           },
         },
@@ -109,7 +155,7 @@ export function ContestFormPage() {
             toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
             navigate(PATHS.contest(groupId, created.id))
           },
-          onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo crear' }),
+          onError: (err) => toast({ variant: 'error', title: 'No se pudo crear', description: getErrorMessage(err) }),
         },
       )
     }
@@ -164,7 +210,13 @@ export function ContestFormPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(isEditing && groupId && id ? PATHS.contest(groupId, id) : `/groups/${groupId}`)}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" variant="primary" isLoading={isSubmitting}>
               {isEditing ? 'Guardar cambios' : 'Crear competencia'}
             </Button>
@@ -193,19 +245,32 @@ export function ContestFormPage() {
           <FormSection icon={<Calendar className="h-4 w-4" />} title="Horario">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* readOnly, not disabled: react-hook-form drops disabled values from the submit data,
+                    which the freeze-vs-duration check still needs. */}
                 <Input
                   label="Fecha y hora de inicio"
                   type="datetime-local"
                   {...register('startTime')}
+                  readOnly={startLocked}
+                  className={startLocked ? 'bg-neutral-background text-neutral-text-muted cursor-not-allowed' : undefined}
                   error={errors.startTime?.message}
                 />
                 <Input
                   label="Fecha y hora de fin"
                   type="datetime-local"
                   {...register('endTime')}
+                  readOnly={endLocked}
+                  className={endLocked ? 'bg-neutral-background text-neutral-text-muted cursor-not-allowed' : undefined}
                   error={errors.endTime?.message}
                 />
               </div>
+              {startLocked && (
+                <p className="text-xs text-neutral-text-muted">
+                  {endLocked
+                    ? 'La competencia ya finalizó: sus fechas no se pueden modificar.'
+                    : 'La competencia ya comenzó: la fecha de inicio no se puede modificar, pero puedes extender o adelantar la hora de fin (siempre a un momento futuro).'}
+                </p>
+              )}
               {startTime && endTime && (
                 <div className="flex items-center gap-2 text-sm text-neutral-text-muted bg-neutral-surface rounded-lg px-4 py-2">
                   <Clock className="h-4 w-4" />
@@ -221,7 +286,7 @@ export function ContestFormPage() {
                 <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Participación</label>
                 <Select
                   value={participationMode}
-                  onValueChange={(v) => setValue('participationMode', v as ParticipationMode, { shouldValidate: true })}
+                  onValueChange={(v) => setValue('participationMode', v as ParticipationMode, { shouldValidate: true, shouldDirty: true })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -252,10 +317,10 @@ export function ContestFormPage() {
                   <div className="flex items-center gap-2">
                     <Checkbox
                       checked={showTeamMembers || false}
-                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked)}
+                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked, { shouldDirty: true })}
                     />
                     <label className="text-sm text-neutral-text-primary">
-                      Mostrar los miembros del equipo en standings y envíos
+                      Mostrar los miembros del equipo en la tabla de posiciones y en los envíos
                     </label>
                   </div>
                 </>
@@ -278,18 +343,25 @@ export function ContestFormPage() {
                   error={errors.penalty?.message}
                   placeholder="20"
                 />
-                <Input
-                  label="Freeze (minutos antes del fin)"
-                  type="number"
-                  {...register('freezeMinutes')}
-                  error={errors.freezeMinutes?.message}
-                  placeholder="60"
-                />
+                <div>
+                  <Input
+                    label="Freeze (minutos antes del fin)"
+                    type="number"
+                    {...register('freezeMinutes')}
+                    error={errors.freezeMinutes?.message}
+                    placeholder="0"
+                  />
+                  {!isEditing && (
+                    <p className="text-xs text-neutral-text-muted mt-1">
+                      Por defecto: 60 min si la competencia dura 4 h o más; sin freeze si dura menos.
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={enablePostContest || false}
-                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked)}
+                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked, { shouldDirty: true })}
                 />
                 <label className="text-sm text-neutral-text-primary">
                   Habilitar post-competencia (submissions después del fin no afectan standings)

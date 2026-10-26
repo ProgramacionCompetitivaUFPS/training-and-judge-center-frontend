@@ -79,6 +79,7 @@ export function ProblemDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
+  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
@@ -150,13 +151,17 @@ export function ProblemDetailPage() {
   function handleUnpublish() {
     if (!problem) return
     unpublishMutation.mutate(problem.slug, {
-      onSuccess: () => toast({ variant: 'success', title: 'Problema despublicado' }),
+      onSuccess: () => {
+        toast({ variant: 'success', title: 'Problema despublicado' })
+        setUnpublishDialogOpen(false)
+      },
       onError: (err) => {
         if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
           toast({ variant: 'error', title: 'No se puede despublicar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
         } else {
-          toast({ variant: 'error', title: 'Error al despublicar' })
+          toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
         }
+        setUnpublishDialogOpen(false)
       },
     })
   }
@@ -187,7 +192,7 @@ export function ProblemDetailPage() {
       { slug: problem.slug },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
-        onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
       },
     )
     setAdminRejudgeDialogOpen(false)
@@ -197,7 +202,7 @@ export function ProblemDetailPage() {
     if (!problem || !groupId || !contestId) return
     const onSettled = {
       onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
-      onError: () => toast({ variant: 'error', title: 'Error al rejuzgar' }),
+      onError: (err: unknown) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
     }
     // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
     // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
@@ -212,7 +217,8 @@ export function ProblemDetailPage() {
 
   const breadcrumbs = contestId
     ? [
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: `Problema ${letter?.toUpperCase() || ''}` },
       ]
@@ -351,7 +357,7 @@ export function ProblemDetailPage() {
                   }}
                 >
                   <BarChart3 className="h-4 w-4" />
-                  Ver submissions
+                  Ver envíos
                 </Button>
               </CardContent>
             </Card>
@@ -443,7 +449,7 @@ export function ProblemDetailPage() {
                               <div
                                 className={`h-full rounded-full ${
                                   v.verdict === 'ACCEPTED' ? 'bg-status-success' :
-                                  v.verdict === 'WRONG_ANSWER' || v.verdict === 'RUNTIME_EXCEPTION' ? 'bg-status-error' :
+                                  v.verdict === 'WRONG_ANSWER' || v.verdict === 'RUNTIME_ERROR' ? 'bg-status-error' :
                                   'bg-status-warning'
                                 }`}
                                 style={{ width: `${pct}%` }}
@@ -511,7 +517,7 @@ export function ProblemDetailPage() {
                   )
                 )}
                 {problem.status === 'PUBLISHED' && (
-                  <Button variant="outline" className="w-full gap-2" onClick={handleUnpublish} isLoading={unpublishMutation.isPending}>
+                  <Button variant="outline" className="w-full gap-2" onClick={() => setUnpublishDialogOpen(true)} isLoading={unpublishMutation.isPending}>
                     <ArrowDownCircle className="h-4 w-4" />
                     Despublicar
                   </Button>
@@ -558,6 +564,20 @@ export function ProblemDetailPage() {
           )}
         </aside>
       </div>
+
+      {/* Unpublish confirm. Caveat for maintainers: the backend only blocks unpublishing during an
+          ACTIVE contest (unpublish_problem.go), so a scheduled one could start with a draft problem
+          (PROBLEM_NOT_PUBLISHED). The real fix is listing the contests that use it (PRB-M04). */}
+      <ConfirmDialog
+        open={unpublishDialogOpen}
+        onOpenChange={setUnpublishDialogOpen}
+        title="Despublicar problema"
+        description="El problema volverá a borrador y nadie podrá enviarle soluciones hasta que lo publiques de nuevo."
+        variant="warning"
+        confirmLabel="Despublicar"
+        onConfirm={handleUnpublish}
+        isLoading={unpublishMutation.isPending}
+      />
 
       {/* Admin rejudge (global) confirm dialog */}
       <ConfirmDialog
@@ -972,7 +992,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
           toast({ variant: 'success', title: 'Colaborador agregado' })
           setUserQuery('')
         },
-        onError: () => toast({ variant: 'error', title: 'Error al agregar colaborador' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al agregar colaborador', description: getErrorMessage(err) }),
       },
     )
   }
@@ -983,7 +1003,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
       { slug: problem.slug, nickname: removeTarget },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Colaborador removido' }),
-        onError: () => toast({ variant: 'error', title: 'Error al remover colaborador' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al remover colaborador', description: getErrorMessage(err) }),
       },
     )
     setRemoveTarget(null)

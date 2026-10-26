@@ -21,7 +21,14 @@ export function LoginPage() {
   const googleLoginMutation = useGoogleLogin()
   const { toast } = useToastContext()
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || ROUTES.DASHBOARD
+  const redirectState = location.state as { from?: { pathname: string }; fromNickname?: string | null } | null
+  const redirectTarget = (nickname: string) => {
+    const from = redirectState?.from?.pathname
+    if (!from) return ROUTES.DASHBOARD
+    // `from` left by a different user's session — don't reopen their last page.
+    if (redirectState?.fromNickname && redirectState.fromNickname !== nickname) return ROUTES.DASHBOARD
+    return from
+  }
 
   const {
     register,
@@ -36,8 +43,8 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await loginMutation.mutateAsync(data)
-      navigate(from, { replace: true })
+      const { user } = await loginMutation.mutateAsync(data)
+      navigate(redirectTarget(user.nickname), { replace: true })
     } catch (error) {
       if (error instanceof ApiClientError) {
         toast({
@@ -53,15 +60,15 @@ export function LoginPage() {
 
   const handleGoogleCredential = async (idToken: string) => {
     try {
-      await googleLoginMutation.mutateAsync({ id_token: idToken, rememberSession: getValues('rememberSession') })
-      navigate(from, { replace: true })
+      const { user } = await googleLoginMutation.mutateAsync({ id_token: idToken, rememberSession: getValues('rememberSession') })
+      navigate(redirectTarget(user.nickname), { replace: true })
     } catch (error) {
       if (error instanceof ApiClientError) {
         if (error.code === 'GOOGLE_ACCOUNT_LINK_REQUIRED') {
           toast({
             variant: 'error',
             title: 'Ya existe una cuenta con este correo',
-            description: 'Iniciá sesión con tu contraseña y vinculá Google desde tu perfil.',
+            description: 'Inicia sesión con tu contraseña y vincula Google desde tu perfil.',
           })
         } else {
           toast({

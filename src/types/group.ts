@@ -227,10 +227,11 @@ export interface InvitationListItem {
 
 export interface InvitationListResponse {
   invitations: InvitationListItem[]
+  // Same shape as every other paginated list in the backend (list_group_invitations handler).
   pagination: {
     page: number
-    size: number
-    totalItems: number
+    limit: number
+    total: number
     totalPages: number
   }
 }

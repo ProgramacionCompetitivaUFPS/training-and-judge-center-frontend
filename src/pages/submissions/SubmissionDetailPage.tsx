@@ -1,24 +1,30 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import React, { Suspense, useState } from 'react'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
-import { BlocklySvgViewer } from '@/components/features/BlocklySvgViewer'
+import { CodeViewer } from '@/components/features/CodeViewer'
+import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
 import { useSubmissionDetail, useUpdateSubmissionVisibility, useRejudgeSubmission, useAdminRejudgeSubmission } from '@/hooks/api/useSubmissions'
 import { downloadSubmissionBlob } from '@/api/submissions'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
-import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS, judgeLanguage } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import type { SubmissionOrigin } from '@/types/submission'
+import { getErrorMessage } from '@/lib/errorMessages'
+
+const BlocklyWorkspaceViewer = React.lazy(() => import('@/components/features/BlocklyWorkspaceViewer'))
 
 const SOURCE_CODE_UNAVAILABLE = 'Código fuente no disponible: el archivo de este envío ya no existe.'
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { toast } = useToastContext()
 
@@ -29,9 +35,18 @@ export function SubmissionDetailPage() {
   const ownRejudgeMutation = useRejudgeSubmission()
   const adminRejudgeMutation = useAdminRejudgeSubmission()
 
+  // Where the user actually came from (a contest's/problem's submissions list, the
+  // dashboard) — passed as router state by the page that linked here. Falls back to the
+  // global "Mis Envíos" list for a direct URL visit, a refresh, or a shared link, where
+  // there's no real origin to go back to.
+  const origin = location.state as SubmissionOrigin | null | undefined
+  const backTo = origin?.backTo ?? '/submissions'
+  const backLabel = origin?.backLabel ?? 'Envíos'
+  const breadcrumbPrefix = origin?.breadcrumbPrefix ?? []
+
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[...breadcrumbPrefix, { label: backLabel, href: backTo }, { label: '...' }]}>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-6 w-1/4" />
@@ -45,7 +60,7 @@ export function SubmissionDetailPage() {
 
   if (error || !submission) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Envíos', href: '/submissions' }, { label: 'Error' }]}>
+      <AppLayout breadcrumbs={[...breadcrumbPrefix, { label: backLabel, href: backTo }, { label: 'Error' }]}>
         <div className="text-center py-12 text-neutral-text-muted">
           Envío no encontrado
         </div>
@@ -64,14 +79,15 @@ export function SubmissionDetailPage() {
       { id: submission.id, data: { visibility: newVisibility } },
       {
         onSuccess: () => toast({ variant: 'success', title: `Visibilidad cambiada a ${newVisibility === 'PUBLIC' ? 'Pública' : 'Privada'}` }),
-        onError: () => toast({ variant: 'error', title: 'Error al cambiar visibilidad' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al cambiar visibilidad', description: getErrorMessage(err) }),
       },
     )
   }
 
   function handleDownload() {
     if (!submission || submission.sourceCode === null) return
-    const ext = submission.language === 'cpp20' ? 'cpp' : submission.language === 'java17' ? 'java' : 'py'
+    // Blockly submissions are stored as their generated Python.
+    const ext = judgeLanguage(submission.language)?.fileExtension ?? 'py'
     const filename = `${submission.submittedBy.nickname}_${submission.id.slice(0, 8)}.${ext}`
     downloadSubmissionBlob(submission.sourceCode, filename)
   }
@@ -94,7 +110,8 @@ export function SubmissionDetailPage() {
   }
 
   const breadcrumbs = [
-    { label: 'Envíos', href: '/submissions' },
+    ...breadcrumbPrefix,
+    { label: backLabel, href: backTo },
     { label: `#${submission.id.slice(0, 8)}` },
   ]
 
@@ -155,7 +172,7 @@ export function SubmissionDetailPage() {
               <Download className="h-4 w-4 mr-2" />
               Descargar
             </Button>
-            <Button variant="ghost" onClick={() => navigate('/submissions')}>
+            <Button variant="ghost" onClick={() => navigate(backTo)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Button>
@@ -173,7 +190,7 @@ export function SubmissionDetailPage() {
           <MetaItem
             icon={HardDrive}
             label="Memoria"
-            value={submission.memoryUsed != null ? `${submission.memoryUsed} MiB` : '—'}
+            value={submission.memoryKb != null ? `${(submission.memoryKb / 1024).toFixed(1)} MiB` : '—'}
           />
           <MetaItem
             icon={Calendar}
@@ -189,11 +206,9 @@ export function SubmissionDetailPage() {
           </div>
         </div>
 
-        {/* Source Code / Blockly SVG */}
+        {/* Source Code / Blockly blocks */}
         {(() => {
-          const isBlocklySubmission = submission.language === 'blockly' && submission.blocksSvgUrl
-
-          if (isBlocklySubmission) {
+          if (submission.isBlocklySubmission && submission.workspaceXml !== null) {
             return (
               <Card>
                 <CardHeader>
@@ -221,11 +236,27 @@ export function SubmissionDetailPage() {
                 </CardHeader>
                 <CardContent>
                   {showBlocklyCode ? (
-                    <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                      <code>{submission.sourceCode ?? SOURCE_CODE_UNAVAILABLE}</code>
-                    </pre>
+                    submission.sourceCode === null ? (
+                      <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                    ) : (
+                      <CodeViewer code={submission.sourceCode} language={submission.language} />
+                    )
                   ) : (
-                    <BlocklySvgViewer svgUrl={submission.blocksSvgUrl!} alt="Bloques de la solución" />
+                    // If the viewer's chunk can't load, the generated Python is still readable.
+                    <LoadErrorBoundary
+                      fallback={
+                        submission.sourceCode === null ? (
+                          <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+                        ) : (
+                          <CodeViewer code={submission.sourceCode} language={submission.language} />
+                        )
+                      }
+                    >
+                      <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                        {/* Keyed by submission so moving to another one starts the viewer fresh. */}
+                        <BlocklyWorkspaceViewer key={submission.id} workspaceXml={submission.workspaceXml} />
+                      </Suspense>
+                    </LoadErrorBoundary>
                   )}
                 </CardContent>
               </Card>
@@ -244,9 +275,7 @@ export function SubmissionDetailPage() {
                 {submission.sourceCode === null ? (
                   <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
                 ) : (
-                  <pre className="bg-neutral-surface rounded-lg p-4 overflow-x-auto text-sm font-mono text-neutral-text-primary leading-relaxed">
-                    <code>{submission.sourceCode}</code>
-                  </pre>
+                  <CodeViewer code={submission.sourceCode} language={submission.language} />
                 )}
               </CardContent>
             </Card>

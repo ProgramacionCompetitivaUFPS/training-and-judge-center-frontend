@@ -12,18 +12,20 @@ import { PaginationControls, PaginationSummary } from '@/components/ui/Paginatio
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { EmptyState } from '@/components/patterns'
 import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
-import { useProblemDetail } from '@/hooks/api/useProblems'
+import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import type { ProblemSubmissionsParams, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
+import type { ProblemSubmissionsParams, SubmissionOrigin, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Todos' },
   { value: 'ACCEPTED', label: 'Aceptado' },
   { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
   { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memoria Límite Excedida' },
+  { value: 'OUTPUT_LIMIT_EXCEEDED', label: 'Salida Límite Excedida' },
+  { value: 'RUNTIME_ERROR', label: 'Error en Tiempo de Ejecución' },
   { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
   { value: 'PENDING', label: 'Pendiente' },
 ]
@@ -38,9 +40,11 @@ export function ProblemSubmissionsPage() {
   const navigate = useNavigate()
 
   const { data: problem } = useProblemDetail(slug || '')
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
 
   const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 5 })
   const [mineOnly, setMineOnly] = useState(false)
+  const hasActiveFilters = !!filters.verdict || !!filters.language || mineOnly
 
   const queryParams: ProblemSubmissionsParams = {
     ...filters,
@@ -52,6 +56,17 @@ export function ProblemSubmissionsPage() {
   const pagination = data?.pagination
 
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setFilters)
+
+  // Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back to this problem's
+  // submissions list instead of the unrelated global "Mis Envíos" list.
+  const submissionOrigin: SubmissionOrigin = {
+    backTo: PATHS.problemSubmissions(slug || ''),
+    backLabel: 'Envíos',
+    breadcrumbPrefix: [
+      { label: 'Problemas', href: '/problems' },
+      { label: problem?.title ?? slug ?? '...', href: PATHS.problem(slug || '') },
+    ],
+  }
 
   const breadcrumbs = [
     { label: 'Problemas', href: '/problems' },
@@ -130,7 +145,7 @@ export function ProblemSubmissionsPage() {
               onCheckedChange={(checked) => { setMineOnly(checked === true); setFilters((prev) => ({ ...prev, page: 1 })) }}
             />
             <label htmlFor="mineOnly" className="text-sm text-neutral-text-primary whitespace-nowrap cursor-pointer">
-              Solo mis submissions
+              Solo mis envíos
             </label>
           </div>
         </div>
@@ -148,18 +163,44 @@ export function ProblemSubmissionsPage() {
         )}
 
         {/* Table */}
-        {isLoading ? (
+        {isLoading || (submissions.length === 0 && !hasActiveFilters && statsLoading) ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))}
           </div>
         ) : submissions.length === 0 ? (
-          <EmptyState
-            icon={FileCode2}
-            title="No hay envíos"
-            description="Aún no se han enviado soluciones para este problema con los filtros seleccionados."
-          />
+          hasActiveFilters ? (
+            <EmptyState
+              icon={FileCode2}
+              title="No hay envíos"
+              description="Ningún envío coincide con los filtros seleccionados."
+            />
+          ) : statsError && !stats ? (
+            // Sin estadísticas no se puede saber si hay historial dentro de competencias,
+            // así que no se afirma que nadie haya enviado.
+            <EmptyState
+              icon={FileCode2}
+              title="Sin envíos de práctica"
+              description="Este problema no tiene envíos públicos fuera de competencia."
+            />
+          ) : stats && stats.totalSubmissions > 0 ? (
+            // Esta lista excluye a propósito los envíos hechos dentro de una competencia
+            // (list_problem_submissions.go: ExcludeContest) — las estadísticas de arriba sí
+            // los cuentan, así que un problema puede mostrar envíos ahí y aun así salir vacío
+            // aquí si todo su historial ocurrió dentro de competencias.
+            <EmptyState
+              icon={FileCode2}
+              title="Sin envíos de práctica"
+              description="Este problema no tiene envíos públicos fuera de competencia — todo su historial registrado ocurrió dentro de una o más competencias. Revísalos desde la competencia correspondiente."
+            />
+          ) : (
+            <EmptyState
+              icon={FileCode2}
+              title="No hay envíos"
+              description="Todavía nadie ha enviado una solución para este problema."
+            />
+          )
         ) : (
           <Card>
             <CardContent className="p-0">
@@ -179,7 +220,7 @@ export function ProblemSubmissionsPage() {
                     <TableRow
                       key={sub.id}
                       className="cursor-pointer hover:bg-neutral-bg/50"
-                      onClick={() => navigate(`/submissions/${sub.id}`)}
+                      onClick={() => navigate(`/submissions/${sub.id}`, { state: submissionOrigin })}
                     >
                       <TableCell>
                         <SubmissionStatusBadge status={sub.status} />
@@ -196,7 +237,7 @@ export function ProblemSubmissionsPage() {
                         {sub.executionTime != null ? `${sub.executionTime} ms` : '—'}
                       </TableCell>
                       <TableCell className="text-right text-sm text-neutral-text-muted">
-                        {sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '—'}
+                        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
                       </TableCell>
                       <TableCell className="text-right text-xs text-neutral-text-muted">
                         {new Date(sub.submittedAt).toLocaleString('es')}

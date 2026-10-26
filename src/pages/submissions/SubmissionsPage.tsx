@@ -5,13 +5,14 @@ import { AppLayout } from '@/components/layout'
 import { DataTable, EmptyState } from '@/components/patterns'
 import type { Column } from '@/components/patterns/DataTable'
 import { Input } from '@/components/ui/Input'
+import { Alert } from '@/components/ui/Alert'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { cn, localDayStartIso } from '@/lib/utils'
 import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
 const VERDICT_OPTIONS: { value: string; label: string }[] = [
@@ -20,7 +21,8 @@ const VERDICT_OPTIONS: { value: string; label: string }[] = [
   { value: 'WRONG_ANSWER', label: 'Respuesta Incorrecta' },
   { value: 'TIME_LIMIT_EXCEEDED', label: 'Tiempo Límite Excedido' },
   { value: 'MEMORY_LIMIT_EXCEEDED', label: 'Memoria Límite Excedida' },
-  { value: 'RUNTIME_EXCEPTION', label: 'Error en Tiempo de Ejecución' },
+  { value: 'OUTPUT_LIMIT_EXCEEDED', label: 'Salida Límite Excedida' },
+  { value: 'RUNTIME_ERROR', label: 'Error en Tiempo de Ejecución' },
   { value: 'COMPILATION_ERROR', label: 'Error de Compilación' },
   { value: 'PENDING', label: 'Pendiente' },
   { value: 'RUNNING', label: 'Ejecutando' },
@@ -69,13 +71,13 @@ const columns: Column<SubmissionListItem>[] = [
     ),
   },
   {
-    key: 'memoryUsed',
+    key: 'memoryKb',
     label: 'Memoria',
     width: '100px',
     align: 'right',
     render: (sub) => (
       <span className="text-sm text-neutral-text-muted">
-        {sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '—'}
+        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
       </span>
     ),
   },
@@ -98,12 +100,17 @@ export function SubmissionsPage() {
   const [problemInput, setProblemInput] = useState('')
   const debouncedProblem = useDebounce(problemInput)
 
+  // The date inputs hold local YYYY-MM-DD; the backend wants RFC3339 and filters with
+  // `submitted_at < to`, so "Hasta" becomes the start of the next local day (inclusive end).
   const queryParams: MySubmissionsParams = {
     ...filters,
+    from: filters.from ? localDayStartIso(filters.from) : undefined,
+    to: filters.to ? localDayStartIso(filters.to, 1) : undefined,
     problemSlug: debouncedProblem || undefined,
   }
+  const hasActiveFilters = !!(filters.from || filters.to || filters.verdict || filters.language || debouncedProblem)
 
-  const { data, isLoading } = useMySubmissions(queryParams)
+  const { data, isLoading, isError } = useMySubmissions(queryParams)
   const submissions = data?.submissions ?? []
   const pagination = data?.pagination
 
@@ -238,11 +245,17 @@ export function SubmissionsPage() {
         )}
 
         {/* Table */}
-        {!isLoading && submissions.length === 0 ? (
+        {/* A failed background poll keeps the previous data (isError + data): don't replace a
+            populated table with the alert, only show it when there's nothing to show. */}
+        {isError && !data ? (
+          <Alert variant="error">No se pudieron cargar tus envíos. Revisa los filtros o inténtalo de nuevo.</Alert>
+        ) : !isLoading && submissions.length === 0 ? (
           <EmptyState
             icon={FileCode2}
             title="No hay envíos"
-            description="Aún no has enviado ninguna solución. Ve a un problema y envía tu código."
+            description={hasActiveFilters
+              ? 'Ningún envío coincide con los filtros seleccionados.'
+              : 'Aún no has enviado ninguna solución. Ve a un problema y envía tu código.'}
           />
         ) : (
           <DataTable<SubmissionListItem>

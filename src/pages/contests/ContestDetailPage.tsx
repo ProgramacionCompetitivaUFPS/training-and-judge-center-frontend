@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
@@ -17,9 +17,10 @@ import { useProblemSearch } from '@/hooks/api/useProblems'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, useUpdateTeamRegistration, useUnregisterTeamFromContest, useContestTeamRegistrations } from '@/hooks/api/useTeams'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
+import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
-import { formatDateTz, formatDuration, participationModeLabel, problemLabel } from '@/lib/utils'
+import { PATHS } from '@/lib/constants'
+import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 
@@ -58,9 +59,11 @@ export function ContestDetailPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { toast } = useToastContext()
 
-  const { data: contest, isLoading, error } = useContestDetail(groupId || '', id || '')
+  const { data: contest, isLoading, error, refetch: refetchContest } = useContestDetail(groupId || '', id || '')
+  // Flip to the next state (problems visible / results) as soon as the countdown hits zero.
+  const handleCountdownEnd = useCallback(() => { void refetchContest() }, [refetchContest])
   const { data: ownerGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
@@ -112,7 +115,11 @@ export function ContestDetailPage() {
 
   if (isLoading) {
     return (
-      <AppLayout breadcrumbs={[{ label: 'Competencias', href: '/contests' }, { label: '...' }]}>
+      <AppLayout breadcrumbs={[
+        { label: 'Grupos', href: '/groups' },
+        { label: ownerGroup?.name ?? '...', href: groupId ? PATHS.group(groupId) : undefined },
+        { label: '...' },
+      ]}>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
         </div>
@@ -130,8 +137,16 @@ export function ContestDetailPage() {
   // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
   // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
   const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
-  const canRegisterIndividual = contest.status === 'SCHEDULED' && !contest.isRegistered &&
+  // Same rules as register_to_contest.go: admins and group leads organize, they can't compete,
+  // and only group members can register. Without this they'd see "Registrarse" and get a 403.
+  const registrationBlock: 'admin' | 'lead' | 'nonmember' | null =
+    user?.role === 'ADMIN' ? 'admin'
+      : ownerGroup?.userMembership.role === 'LEAD' ? 'lead'
+        : ownerGroup && !ownerGroup.userMembership.isMember ? 'nonmember'
+          : null
+  const offersIndividualRegistration = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
+  const canRegisterIndividual = offersIndividualRegistration && !registrationBlock
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
@@ -140,7 +155,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Registrado', description: 'Te has registrado a la competencia' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo registrar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -150,7 +165,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Desregistrado', description: 'Has cancelado tu registro' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo cancelar el registro' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -161,9 +176,9 @@ export function ContestDetailPage() {
       {
         onSuccess: () => {
           toast({ variant: 'success', title: 'Eliminado', description: 'Competencia eliminada' })
-          navigate('/contests')
+          navigate(PATHS.group(groupId))
         },
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo eliminar' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -183,10 +198,10 @@ export function ContestDetailPage() {
           title: newLocked ? 'Bloqueado' : 'Desbloqueado',
           description: newLocked ? 'La competencia fue bloqueada' : 'La competencia fue desbloqueada',
         }),
-        onError: () => toast({
+        onError: (err) => toast({
           variant: 'error',
-          title: 'Error',
-          description: newLocked ? 'No se pudo bloquear' : 'No se pudo desbloquear',
+          title: newLocked ? 'No se pudo bloquear' : 'No se pudo desbloquear',
+          description: getErrorMessage(err),
         }),
       },
     )
@@ -217,7 +232,7 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, teamId },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Equipo desregistrado', description: 'Tu equipo fue removido de la competencia' }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo desregistrar el equipo' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -235,7 +250,7 @@ export function ContestDetailPage() {
           toast({ variant: 'success', title: 'Problema agregado', description: `Se agregó "${slug}" a la competencia` })
           setProblemSearchQuery('')
         },
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo agregar el problema' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
@@ -248,13 +263,14 @@ export function ContestDetailPage() {
       { groupId, contestId: contest.id, data: { problems: remaining } },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" de la competencia` }),
-        onError: () => toast({ variant: 'error', title: 'Error', description: 'No se pudo remover el problema' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
   }
 
   const breadcrumbs = [
-    { label: 'Competencias', href: '/contests' },
+    { label: 'Grupos', href: '/groups' },
+    { label: contest.group.name, href: PATHS.group(groupId) },
     { label: contest.name },
   ]
 
@@ -306,7 +322,7 @@ export function ContestDetailPage() {
                 <Clock className="h-4 w-4 text-brand-primary flex-shrink-0" />
                 <div>
                   <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Tiempo restante</p>
-                  <ContestCountdown targetTime={contest.endTime} />
+                  <ContestCountdown targetTime={contest.endTime} onComplete={handleCountdownEnd} />
                 </div>
               </div>
               <div className="h-8 w-px bg-neutral-border" />
@@ -373,6 +389,12 @@ export function ContestDetailPage() {
               <ContestInfoSidebar contest={contest} />
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
 
+              {/* Edit only, no delete: lets a lead extend the end time or fix details mid-contest
+                  (HU-COM-11 "antes o durante su ejecución"); the form keeps the start time read-only. */}
+              {isLead && !contest.locked && (
+                <ContestAdminActions contestId={contest.id} groupId={groupId} />
+              )}
+
               {contest.description && (
                 <Card>
                   <CardContent className="pt-5">
@@ -408,6 +430,7 @@ export function ContestDetailPage() {
                 targetTime={contest.startTime}
                 label="Comienza en"
                 variant="hero"
+                onComplete={handleCountdownEnd}
               />
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 {canRegisterIndividual && (
@@ -415,6 +438,22 @@ export function ContestDetailPage() {
                     <User className="h-4 w-4 mr-2" />
                     Registrarse
                   </Button>
+                )}
+                {offersIndividualRegistration && registrationBlock === 'nonmember' && (
+                  <p className="text-sm text-neutral-text-muted self-center">
+                    Para registrarte, primero únete al grupo{' '}
+                    <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+                      {ownerGroup?.name}
+                    </Link>
+                    .
+                  </p>
+                )}
+                {offersIndividualRegistration && (registrationBlock === 'admin' || registrationBlock === 'lead') && (
+                  <p className="text-sm text-neutral-text-muted self-center">
+                    {registrationBlock === 'admin'
+                      ? 'Los administradores no participan en competencias.'
+                      : 'Como líder del grupo organizas esta competencia, así que no puedes registrarte.'}
+                  </p>
                 )}
                 {showTeamRegistration && (
                   <TeamContestRegistration
@@ -440,7 +479,7 @@ export function ContestDetailPage() {
                     isRegistering={registerTeamMutation.isPending}
                     isUpdating={updateTeamRegistrationMutation.isPending}
                     isUnregistering={unregisterTeamMutation.isPending}
-                    registrationError={registerTeamMutation.error?.message}
+                    registrationError={registerTeamMutation.error ? getErrorMessage(registerTeamMutation.error) : undefined}
                     onTeamSelect={setSelectedTeamId}
                   />
                 )}
@@ -492,7 +531,7 @@ export function ContestDetailPage() {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Participantes</p>
-                        <p className="text-sm font-semibold text-neutral-text-primary">{contest.participantCount} inscritos</p>
+                        <p className="text-sm font-semibold text-neutral-text-primary">{pluralize(contest.participantCount, 'inscrito')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -518,20 +557,35 @@ export function ContestDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Problems: locked or visible */}
+              {/* Problems: hidden pre-start for regular members, or genuinely empty (the
+                  backend only hides problems from non-Lead/Admin while SCHEDULED — get_contest.go:123
+                  — so for a Lead/Admin, an empty list here means nobody has added any yet, not
+                  that they're locked). */}
               <Card className={contest.problems.length === 0 ? 'border-dashed border-neutral-border' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     Problemas
-                    {contest.problems.length === 0 && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+                    {contest.problems.length === 0 && !isLead && <Lock className="h-4 w-4 text-neutral-text-muted" />}
                   </CardTitle>
-                  {contest.problems.length === 0 && (
+                  {contest.problems.length === 0 && !isLead && (
                     <Badge variant="default">Acceso restringido</Badge>
                   )}
                 </CardHeader>
                 <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                   {contest.problems.length === 0 ? (
-                    <LockedProblemsPlaceholder />
+                    isLead ? (
+                      <LockedProblemsPlaceholder
+                        title={contest.locked ? 'Competencia bloqueada' : 'Todavía no hay problemas'}
+                        description={
+                          contest.locked
+                            ? 'No se pueden agregar problemas mientras la competencia esté bloqueada. Desbloquéala primero.'
+                            : 'Agrégalos desde "Gestión de problemas", más abajo.'
+                        }
+                        showSkeleton={false}
+                      />
+                    ) : (
+                      <LockedProblemsPlaceholder />
+                    )
                   ) : (
                     <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
                   )}
@@ -626,7 +680,7 @@ export function ContestDetailPage() {
               </Card>
 
               <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-              <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+              <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
               {isContestOwner && (
                 <Card>
@@ -701,7 +755,7 @@ export function ContestDetailPage() {
               <CardHeader>
                 <CardTitle>Problemas del concurso</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
                 <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
               </CardContent>
             </Card>
@@ -720,7 +774,7 @@ export function ContestDetailPage() {
           <aside className="lg:col-span-4 space-y-4">
             <ContestInfoSidebar contest={contest} />
             <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-            <ContestOrganizerCard groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+            <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
 
             {isContestOwner && (
               <Card>

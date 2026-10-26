@@ -99,6 +99,13 @@ export interface ProblemListResponse {
   }
 }
 
+// El vocabulario cerrado de tags del backend (config/virtual_object.json) — CreateProblem/
+// UpdateProblem rechazan cualquier tag fuera de esta lista, a diferencia de los tags de
+// materiales (que son libres). La UI debe ofrecer estos como opciones, no un arreglo fijo propio.
+export interface ProblemTagsResponse {
+  tags: string[]
+}
+
 // === Create / Update ===
 
 export interface CreateProblemRequest {

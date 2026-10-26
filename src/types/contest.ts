@@ -104,7 +104,8 @@ export interface CreateContestRequest {
 
 export interface UpdateContestRequest {
   name?: string
-  description?: string
+  /** null clears the description */
+  description?: string | null
   startTime?: string
   endTime?: string
   penalty?: number
@@ -220,6 +221,16 @@ export interface StandingsParams extends PaginationParams {
   realtime?: boolean
 }
 
+// Distinct, non-empty country/city/institution values actually in use among a
+// contest's participants (GET .../standings/filters) — backs the standings
+// filter so it offers real values instead of free text with an unknown exact
+// spelling. Same shape as AdminUserFilterOptions.
+export interface StandingsFilterOptions {
+  countries: string[]
+  cities: string[]
+  institutions: string[]
+}
+
 // === Contest Submissions ===
 
 export interface ContestSubmissionItem {
@@ -233,11 +244,12 @@ export interface ContestSubmissionItem {
     | { type: 'INDIVIDUAL'; nickname: string; name: string }
     | { type: 'TEAM'; teamId: string; teamName: string; members?: string[] }
   language: string
+  isBlocklySubmission: boolean
   submittedAt: string
   judgedAt?: string
   status: string // includes '?' during freeze
-  executionTime?: number
-  memoryUsed?: number
+  timeMs?: number
+  memoryKb?: number
   phase?: 'competition' | 'postcompetition'
   /** Own or team submission, Lead/Admin, or one its author made public. */
   canViewDetail: boolean

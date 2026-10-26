@@ -266,13 +266,13 @@ export const groupsHandlers = [
     const { groupId } = params as { groupId: string }
     const sp = new URL(request.url).searchParams
     const page = Number(sp.get('page')) || 1
-    const size = Number(sp.get('size')) || 20
+    const limit = Number(sp.get('limit')) || 20
     const invitations = mockInvitations[groupId] || []
-    const totalItems = invitations.length
-    const totalPages = totalItems > 0 ? Math.max(1, Math.ceil(totalItems / size)) : 0
+    const total = invitations.length
+    const totalPages = total > 0 ? Math.max(1, Math.ceil(total / limit)) : 0
     return HttpResponse.json({
-      invitations: invitations.slice((page - 1) * size, page * size),
-      pagination: { page, size, totalItems, totalPages },
+      invitations: invitations.slice((page - 1) * limit, page * limit),
+      pagination: { page, limit, total, totalPages },
     })
   }),
 

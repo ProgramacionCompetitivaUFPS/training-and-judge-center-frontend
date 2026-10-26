@@ -24,6 +24,8 @@ export const contestKeys = {
     ['contests', 'registrations', groupId, contestId, params] as const,
   standings: (groupId: string, contestId: string, params?: StandingsParams) =>
     ['contests', 'standings', groupId, contestId, params] as const,
+  standingsFilterOptions: (groupId: string, contestId: string) =>
+    ['contests', 'standings-filter-options', groupId, contestId] as const,
   submissions: (groupId: string, contestId: string, params?: ContestSubmissionsParams) =>
     ['contests', 'submissions', groupId, contestId, params] as const,
 }
@@ -46,11 +48,24 @@ export function useContests(groupId: string, params?: ContestListParams) {
   })
 }
 
+// Poll while the cached status is behind the clock (a start or end time already passed but the
+// backend still said SCHEDULED/ACTIVE), so the page flips on its own instead of staying on
+// "Comienza en 00:00:00". Also covers a client clock slightly ahead of the server's.
+const STATUS_CATCH_UP_INTERVAL_MS = 3000
+
 export function useContestDetail(groupId: string, contestId: string) {
   return useQuery({
     queryKey: contestKeys.detail(groupId, contestId),
     queryFn: () => contestsApi.getContest(groupId, contestId),
     enabled: !!groupId && !!contestId,
+    refetchInterval: (query) => {
+      const contest = query.state.data
+      if (!contest) return false
+      const now = Date.now()
+      const startPassed = contest.status === 'SCHEDULED' && now >= Date.parse(contest.startTime)
+      const endPassed = contest.status === 'ACTIVE' && now >= Date.parse(contest.endTime)
+      return startPassed || endPassed ? STATUS_CATCH_UP_INTERVAL_MS : false
+    },
   })
 }
 
@@ -88,6 +103,14 @@ export function useStandings(
       const status = query.state.data?.contest?.status
       return status === 'ACTIVE' ? 30_000 : false
     },
+  })
+}
+
+export function useStandingsFilterOptions(groupId: string, contestId: string) {
+  return useQuery({
+    queryKey: contestKeys.standingsFilterOptions(groupId, contestId),
+    queryFn: () => contestsApi.getStandingsFilterOptions(groupId, contestId),
+    enabled: !!groupId && !!contestId,
   })
 }
 
@@ -163,6 +186,11 @@ export function useRegisterToContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: contestKeys.registrationStatus(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      // Literal prefix, not contestKeys.registrations(groupId, contestId) — that appends a
+      // trailing `params: undefined`, which only matches a cached query whose params are
+      // ALSO exactly undefined. ContestParticipantsPage always passes a params object, so
+      // that call would silently never match it.
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }
@@ -175,6 +203,7 @@ export function useUnregisterFromContest() {
     onSuccess: (_, { groupId, contestId }) => {
       queryClient.invalidateQueries({ queryKey: contestKeys.registrationStatus(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
     },
   })
 }

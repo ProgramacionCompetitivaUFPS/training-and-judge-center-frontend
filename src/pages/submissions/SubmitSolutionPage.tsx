@@ -4,35 +4,30 @@ import { Send, Upload, FileText, Clock, HardDrive, Lightbulb, UploadIcon, X } fr
 import { AppLayout } from '@/components/layout'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
-import { Textarea } from '@/components/ui/Textarea'
 import { SearchSelect } from '@/components/ui/SearchSelect'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { RecoveryBanner } from '@/components/features/RecoveryBanner'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { LoadErrorBoundary } from '@/components/ui/LoadErrorBoundary'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useProblemDetail, useProblemSearch } from '@/hooks/api/useProblems'
+import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useMySubmissions, useSubmitSolution, useSubmitContestSolution, useSubmitBlocklySolution, useSubmitBlocklyContestSolution } from '@/hooks/api/useSubmissions'
 import { useSubmissionRecovery } from '@/hooks/useSubmissionRecovery'
 import { useDebounce } from '@/hooks/useDebounce'
-import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS, JUDGE_LANGUAGES, judgeLanguage, languageForFilename, isLanguageTemplate } from '@/lib/constants'
 import { problemLabel } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/errorMessages'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
 const BlocklyEditor = React.lazy(() => import('@/components/features/BlocklyEditor'))
+// CodeMirror only loads on this page, so the rest of the app doesn't carry it.
+const CodeEditor = React.lazy(() => import('@/components/features/CodeEditor'))
 
-const LANGUAGE_COMPILER_MAP: Record<string, string> = {
-  cpp20: 'g++',
-  java17: 'javac',
-  python310: 'python3',
-}
-
-const LANGUAGE_EXTENSIONS: Record<string, { ext: string; accept: string[] }> = {
-  cpp20: { ext: 'cpp', accept: ['.cpp', '.cc', '.cxx'] },
-  java17: { ext: 'java', accept: ['.java'] },
-  python310: { ext: 'py', accept: ['.py'] },
-}
+// Every extension the judge accepts, for the file picker.
+const ACCEPTED_EXTENSIONS = Object.values(JUDGE_LANGUAGES).flatMap((cfg) => cfg.accept).join(',')
 
 export function SubmitSolutionPage() {
   const { groupId, contestId } = useParams<{ groupId?: string; contestId?: string }>()
@@ -42,6 +37,7 @@ export function SubmitSolutionPage() {
 
   const isContestContext = !!contestId
   const problemParam = searchParams.get('problem') || ''
+  const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
 
   // State
   const [selectedProblem, setSelectedProblem] = useState(problemParam)
@@ -53,6 +49,10 @@ export function SubmitSolutionPage() {
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const blocklyRef = useRef<BlocklyEditorHandle>(null)
+  // Workspace of a loaded submission that arrived while the block editor was still mounting
+  // (loading a Blockly submission from another language switches to Blockly first). Tied to its
+  // problem so a stale one never lands in another problem's workspace.
+  const pendingBlocklyXmlRef = useRef<{ xml: string; problemSlug: string } | null>(null)
   const [isBlocklyEmpty, setIsBlocklyEmpty] = useState(true)
 
   // Resolve problem slug in contest context (letter → slug)
@@ -75,6 +75,11 @@ export function SubmitSolutionPage() {
 
   // Submission recovery
   const isBlockly = language === 'blockly'
+  // Name of a public top-level class other than Solution, if the Java code declares one.
+  const javaWrongPublicClass = language === 'java17'
+    ? code.match(/^\s*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m)?.[1]
+    : undefined
+  const javaClassMismatch = javaWrongPublicClass && javaWrongPublicClass !== 'Solution' ? javaWrongPublicClass : undefined
 
   const {
     recoverableSubmission,
@@ -96,9 +101,14 @@ export function SubmitSolutionPage() {
     setLoadedSubmissionId(null)
   }, [resolvedSlug, language])
 
+  // A workspace waiting for the block editor is abandoned once the page leaves Blockly mode.
+  useEffect(() => {
+    if (!isBlockly) pendingBlocklyXmlRef.current = null
+  }, [isBlockly])
+
   const hasEditorChanges = useCallback((): boolean => {
     if (isBlockly) return true // Blockly always has content (default or user blocks)
-    return code.trim().length > 0
+    return code.trim().length > 0 && !isLanguageTemplate(code)
   }, [isBlockly, code])
 
   const applySubmissionToEditor = useCallback((detail: typeof submissionDetail) => {
@@ -108,7 +118,8 @@ export function SubmitSolutionPage() {
 
     if (subIsBlockly) {
       if (detail.workspaceXml) {
-        blocklyRef.current?.loadXml(detail.workspaceXml)
+        if (blocklyRef.current) blocklyRef.current.loadXml(detail.workspaceXml)
+        else pendingBlocklyXmlRef.current = { xml: detail.workspaceXml, problemSlug: detail.problem.slug }
       } else {
         toast({
           variant: 'warning',
@@ -207,16 +218,10 @@ export function SubmitSolutionPage() {
       return
     }
     setUploadedFile({ name: file.name, size: file.size })
-    // Auto-detect language
-    if (!language) {
-      const ext = '.' + file.name.split('.').pop()?.toLowerCase()
-      for (const [lang, config] of Object.entries(LANGUAGE_EXTENSIONS)) {
-        if (config.accept.includes(ext)) {
-          setLanguage(lang)
-          break
-        }
-      }
-    }
+    // The extension decides the language, even over a previous pick: a .py file sent as C++ is
+    // always a Compilation Error.
+    const detected = languageForFilename(file.name)
+    if (detected) setLanguage(detected)
     // Read file content into textarea
     const reader = new FileReader()
     reader.onload = (ev) => {
@@ -232,23 +237,22 @@ export function SubmitSolutionPage() {
 
       const pythonCode = editor.getCode()
       const workspaceXml = editor.getXml()
-      const svgBlob = editor.getSvg()
 
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
       }
-      const onError = () => {
-        toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+      const onError = (err: unknown) => {
+        toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
       }
 
       if (isContestContext && activeContest) {
         blocklyContestSubmitMutation.mutate(
-          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { groupId: activeContest.group.id, contestId: contestId!, problemSlug: resolvedSlug, pythonCode, workspaceXml },
           { onSuccess, onError },
         )
       } else {
         blocklySubmitMutation.mutate(
-          { problemSlug: resolvedSlug, pythonCode, workspaceXml, svgBlob },
+          { problemSlug: resolvedSlug, pythonCode, workspaceXml },
           { onSuccess, onError },
         )
       }
@@ -257,18 +261,19 @@ export function SubmitSolutionPage() {
 
     if (!resolvedSlug || !language || !code.trim()) return
 
-    const ext = LANGUAGE_EXTENSIONS[language]?.ext || 'txt'
-    const file = new File([code], `solution.${ext}`, { type: 'text/plain' })
-    const compiler = LANGUAGE_COMPILER_MAP[language] || language
+    const config = judgeLanguage(language)
+    const file = new File([code], `solution.${config?.fileExtension ?? 'txt'}`, { type: 'text/plain' })
+    const compiler = config?.compiler ?? language
 
     const onSuccess = (res: { id: string }) => {
       toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
-      setCode('')
+      // Back to the starting point, so the next attempt doesn't begin from an empty editor.
+      setCode(config?.template ?? '')
       setUploadedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    const onError = () => {
-      toast({ variant: 'error', title: 'Error', description: 'No se pudo enviar la solución' })
+    const onError = (err: unknown) => {
+      toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
     }
 
     if (isContestContext && activeContest) {
@@ -284,13 +289,22 @@ export function SubmitSolutionPage() {
     }
   }
 
+  const handleLanguageSelect = (value: string) => {
+    setLanguage(value)
+    if (!code.trim() || isLanguageTemplate(code)) {
+      setCode(judgeLanguage(value)?.template ?? '')
+      setUploadedFile(null)
+    }
+  }
+
   const canSubmit = isBlockly
     ? (!!resolvedSlug && !isBlocklyEmpty && !isSubmitting)
-    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isSubmitting)
+    : (!!resolvedSlug && !!language && code.trim().length > 0 && !isLanguageTemplate(code) && !isSubmitting)
 
   const breadcrumbs = isContestContext
     ? [
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
         { label: 'Enviar solución' },
       ]
@@ -378,7 +392,7 @@ export function SubmitSolutionPage() {
                 {/* Language selector */}
                 <div>
                   <label className="block text-sm font-medium text-neutral-text-primary mb-2">Lenguaje</label>
-                  <Select value={language} onValueChange={setLanguage}>
+                  <Select value={language} onValueChange={handleLanguageSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar lenguaje" />
                     </SelectTrigger>
@@ -388,6 +402,15 @@ export function SubmitSolutionPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* The judge compiles every Java source as Solution.java and runs `java Solution`
+                      (judge_config.yaml), so `public class Main` is a Compilation Error. */}
+                  {language === 'java17' && (
+                    <p className={`text-xs mt-2 ${javaClassMismatch ? 'text-status-error font-medium' : 'text-neutral-text-muted'}`}>
+                      {javaClassMismatch
+                        ? `Tu clase pública se llama "${javaClassMismatch}": el juez la compila como Solution.java, así que dará Error de Compilación. Renómbrala a Solution.`
+                        : <>En Java, la clase principal debe llamarse <code className="font-mono">Solution</code> (<code className="font-mono">public class Solution</code>).</>}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit button */}
@@ -410,8 +433,10 @@ export function SubmitSolutionPage() {
                 <CardContent className="pt-5 space-y-3">
                   <p className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Límites del problema</p>
                   {(() => {
-                    const override = language
-                      ? problemDetail.languageOverrides.find((lo) => lo.language === language)
+                    // Blockly is judged as Python 3.10, so it gets Python's limits.
+                    const judgedAs = isBlockly ? 'python310' : language
+                    const override = judgedAs
+                      ? problemDetail.languageOverrides.find((lo) => lo.language === judgedAs)
                       : undefined
                     const effectiveTime = override?.timeLimit ?? problemDetail.timeLimit
                     const effectiveMemory = override?.memoryLimit ?? problemDetail.memoryLimit
@@ -490,19 +515,32 @@ export function SubmitSolutionPage() {
                         Reiniciar bloques
                       </Button>
                     </div>
-                    <Suspense fallback={
+                    <LoadErrorBoundary fallback={
                       <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
                         <CardContent>
-                          <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                          <p className="text-neutral-text-muted">No se pudo cargar el editor de bloques. Recarga la página.</p>
                         </CardContent>
                       </Card>
                     }>
-                      <BlocklyEditor
-                        ref={blocklyRef}
-                        problemSlug={resolvedSlug}
-                        onEmptyChange={setIsBlocklyEmpty}
-                      />
-                    </Suspense>
+                      <Suspense fallback={
+                        <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
+                          <CardContent>
+                            <p className="text-neutral-text-muted">Cargando editor de bloques...</p>
+                          </CardContent>
+                        </Card>
+                      }>
+                        <BlocklyEditor
+                          ref={blocklyRef}
+                          problemSlug={resolvedSlug}
+                          onEmptyChange={setIsBlocklyEmpty}
+                          onReady={() => {
+                            const pending = pendingBlocklyXmlRef.current
+                            pendingBlocklyXmlRef.current = null
+                            if (pending && pending.problemSlug === resolvedSlug) blocklyRef.current?.loadXml(pending.xml)
+                          }}
+                        />
+                      </Suspense>
+                    </LoadErrorBoundary>
                   </>
                 ) : (
                   <Card className="flex items-center justify-center" style={{ minHeight: 480 }}>
@@ -539,21 +577,40 @@ export function SubmitSolutionPage() {
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept=".cpp,.cc,.cxx,.java,.py"
+                      accept={ACCEPTED_EXTENSIONS}
                       onChange={handleFileUpload}
                     />
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 pt-0">
-                  <Textarea
-                    value={code}
-                    onChange={(e) => {
-                      setCode(e.target.value)
-                      setUploadedFile(null)
-                    }}
-                    placeholder="Pega tu código aquí..."
-                    className="font-mono text-sm min-h-[400px] resize-y bg-neutral-background"
-                  />
+                  {/* If the editor's chunk can't load, a plain textarea still lets the user submit. */}
+                  <LoadErrorBoundary
+                    fallback={
+                      <textarea
+                        value={code}
+                        onChange={(e) => {
+                          setCode(e.target.value)
+                          setUploadedFile(null)
+                        }}
+                        placeholder="Elige un lenguaje o pega tu código aquí…"
+                        spellCheck={false}
+                        aria-label="Editor de código"
+                        className="w-full min-h-[400px] rounded-md border border-neutral-border bg-neutral-background p-3 font-mono text-sm"
+                      />
+                    }
+                  >
+                    <Suspense fallback={<div className="min-h-[400px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+                      <CodeEditor
+                        value={code}
+                        onChange={(value) => {
+                          setCode(value)
+                          setUploadedFile(null)
+                        }}
+                        language={language}
+                        placeholder="Elige un lenguaje o pega tu código aquí…"
+                      />
+                    </Suspense>
+                  </LoadErrorBoundary>
                 </CardContent>
               </Card>
             )}
@@ -599,7 +656,7 @@ export function SubmitSolutionPage() {
                         <SubmissionStatusBadge status={sub.status} />
                       </td>
                       <td className="py-2 px-4 text-right text-neutral-text-muted">
-                        {sub.memoryUsed != null ? `${sub.memoryUsed} KB` : '—'}
+                        {sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '—'}
                       </td>
                       <td className="py-2 px-4 text-right">
                         <Button

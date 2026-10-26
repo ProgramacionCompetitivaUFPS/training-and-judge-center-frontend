@@ -85,16 +85,14 @@ export const usersHandlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // User search/autocomplete — Coach/Admin only. Registered before ':nickname' below, since
-  // MSW matches handlers in array order and ':nickname' would otherwise also match 'search'.
+  // User search/autocomplete — any authenticated role (team invites need it from Contestants
+  // too, not just Coach/Admin). Registered before ':nickname' below, since MSW matches
+  // handlers in array order and ':nickname' would otherwise also match 'search'.
   http.get(url('/users/search'), async ({ request }) => {
     await delay(200)
     const auth = request.headers.get('Authorization')
-    const token = auth?.replace('Bearer ', '') || ''
-    const viewerNickname = token.replace('mock-jwt-token-', '')
-    const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
-    if (viewer?.role !== 'ADMIN' && viewer?.role !== 'COACH') {
-      return HttpResponse.json({ error: 'FORBIDDEN', message: 'Requiere rol Coach o Administrador' }, { status: 403 })
+    if (!auth) {
+      return HttpResponse.json({ error: 'UNAUTHORIZED', message: 'Se requiere autenticación' }, { status: 401 })
     }
 
     const sp = new URL(request.url).searchParams

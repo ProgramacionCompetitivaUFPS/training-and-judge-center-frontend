@@ -16,7 +16,7 @@ import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
 import { cn, problemLabel } from '@/lib/utils'
 import type { ContestSubmissionsParams } from '@/types/contest'
-import type { SubmissionStatus } from '@/types/submission'
+import type { SubmissionOrigin, SubmissionStatus } from '@/types/submission'
 
 const PHASE_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Todas' },
@@ -61,10 +61,26 @@ export function ContestSubmissionsPage() {
 
   const { data, isLoading } = useContestSubmissions(groupId || '', id || '', params)
 
+  // Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back here — including
+  // the current filters (?problem=...) — instead of the unrelated global "Mis Envíos" list.
+  const submissionOrigin: SubmissionOrigin = {
+    backTo: `${PATHS.contestSubmissions(groupId || '', id || '')}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+    backLabel: 'Envíos',
+    breadcrumbPrefix: [
+      { label: 'Grupos', href: '/groups' },
+      { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
+      { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
+      ...(filteredProblemLetter
+        ? [{ label: `Problema ${filteredProblemLetter}`, href: PATHS.contestProblem(groupId || '', id || '', filteredProblemLetter) }]
+        : []),
+    ],
+  }
+
   return (
     <AppLayout
       breadcrumbs={[
-        { label: 'Competencias', href: '/contests' },
+        { label: 'Grupos', href: '/groups' },
+        { label: contest?.group.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
         { label: contest?.name || '...', href: PATHS.contest(groupId || '', id || '') },
         // Filtered by one problem: show it like the problem page does (Problema A), so the
         // trail matches the general Problemas › problema › Envíos view.
@@ -163,12 +179,15 @@ export function ContestSubmissionsPage() {
 
         {data?.contest.inFreeze && (
           <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
-            El contest está en periodo de freeze. Algunas submissions muestran estado pendiente.
+            La competencia está en periodo de congelamiento (freeze): algunos envíos muestran su veredicto como pendiente.
           </div>
         )}
 
         {isLoading ? (
           <div className="space-y-2">
+            {/* Reserve space for the table's header row, which doesn't exist until data
+                arrives — same CLS fix as ContestStandingsPage. */}
+            <Skeleton className="h-10 w-full" />
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
@@ -185,12 +204,8 @@ export function ContestSubmissionsPage() {
                   <TableHead>Problema</TableHead>
                   <TableHead>Lenguaje</TableHead>
                   <TableHead>Veredicto</TableHead>
-                  {data.contest.status === 'FINISHED' && (
-                    <>
-                      <TableHead>Tiempo</TableHead>
-                      <TableHead>Memoria</TableHead>
-                    </>
-                  )}
+                  <TableHead>Tiempo</TableHead>
+                  <TableHead>Memoria</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,7 +219,11 @@ export function ContestSubmissionsPage() {
                     <TableRow key={sub.id}>
                       <TableCell className="font-mono text-sm">
                         {sub.canViewDetail ? (
-                          <Link to={`/submissions/${sub.id}`} className="text-brand-primary hover:underline">
+                          <Link
+                            to={`/submissions/${sub.id}`}
+                            state={submissionOrigin}
+                            className="text-brand-primary hover:underline"
+                          >
                             {formatTime(sub.submittedAt)}
                           </Link>
                         ) : formatTime(sub.submittedAt)}
@@ -237,12 +256,11 @@ export function ContestSubmissionsPage() {
                           <SubmissionStatusBadge status={sub.status as SubmissionStatus} />
                         )}
                       </TableCell>
-                      {data.contest.status === 'FINISHED' && (
-                        <>
-                          <TableCell>{sub.executionTime != null ? `${sub.executionTime}ms` : '-'}</TableCell>
-                          <TableCell>{sub.memoryUsed != null ? `${sub.memoryUsed} MiB` : '-'}</TableCell>
-                        </>
-                      )}
+                      {/* The backend already decides who gets to see these (FINISHED, or Lead/Admin
+                          regardless of status) — timeMs/memoryKb are simply absent otherwise
+                          (omitempty), so no extra client-side gating by contest status is needed. */}
+                      <TableCell>{sub.timeMs != null ? `${sub.timeMs}ms` : '-'}</TableCell>
+                      <TableCell>{sub.memoryKb != null ? `${(sub.memoryKb / 1024).toFixed(1)} MiB` : '-'}</TableCell>
                     </TableRow>
                   )
                 })}
@@ -253,7 +271,7 @@ export function ContestSubmissionsPage() {
           </Card>
         ) : (
           <div className="text-center py-12 text-neutral-text-muted">
-            No hay submissions en este contest.
+            Aún no hay envíos en esta competencia.
           </div>
         )}
 

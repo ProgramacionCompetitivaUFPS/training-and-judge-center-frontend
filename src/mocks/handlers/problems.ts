@@ -26,6 +26,22 @@ export const problemsHandlers = [
     return HttpResponse.json(result)
   }),
 
+  // Allowed tags (mirrors config/virtual_object.json's closed vocabulary)
+  http.get(url('/problems/tags'), async () => {
+    await delay(100)
+    return HttpResponse.json({
+      tags: [
+        '2-sat', 'arrays', 'beginner', 'bfs', 'binary-search', 'bitmasks', 'brute-force',
+        'chinese-remainder-theorem', 'combinatorics', 'constructive-algorithms', 'data-structures',
+        'dfs', 'divide-and-conquer', 'dp', 'dsu', 'fft', 'flows', 'games', 'geometry',
+        'graph-matchings', 'graphs', 'greedy', 'hash-table', 'implementation', 'interactive',
+        'math', 'matrices', 'meet-in-the-middle', 'number-theory', 'probabilities',
+        'shortest-paths', 'sorting', 'strings', 'string-suffix-structures', 'ternary-search',
+        'trees', 'two-pointers',
+      ],
+    })
+  }),
+
   // Problem detail
   http.get(url('/problems/p/:slug'), async ({ params, request }) => {
     await delay(200)

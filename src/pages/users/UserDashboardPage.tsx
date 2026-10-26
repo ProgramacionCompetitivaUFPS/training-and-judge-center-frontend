@@ -9,8 +9,8 @@ import { StatCard } from '@/components/features/StatCard'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserDashboard } from '@/hooks/api/useUsers'
 import { SUBMISSION_STATUS_CONFIG, ROUTES, PATHS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
-import type { SubmissionStatus } from '@/types'
+import { cn, pluralize } from '@/lib/utils'
+import type { SubmissionStatus, SubmissionOrigin } from '@/types'
 import type { DashboardContest } from '@/types/user'
 
 function getGreeting(): string {
@@ -51,6 +51,10 @@ function getCountdown(startDate: string): string {
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
   return `${hours}h ${minutes}m`
 }
+
+// Passed to SubmissionDetailPage so its breadcrumb/"Volver" point back to the dashboard
+// instead of the unrelated global "Mis Envíos" list.
+const SUBMISSION_ORIGIN: SubmissionOrigin = { backTo: ROUTES.DASHBOARD, backLabel: 'Panel de actividad' }
 
 export function UserDashboardPage() {
   const { user } = useAuth()
@@ -176,7 +180,7 @@ export function UserDashboardPage() {
                   icon={<Trophy className="h-5 w-5 text-brand-accent" />}
                   label="Último Resultado"
                   value={lastResult ? `#${lastResult.position}` : '—'}
-                  sub={lastResult ? `${lastResult.contestName} · ${lastResult.problemsSolved} resueltos` : 'sin competencias finalizadas'}
+                  sub={lastResult ? `${lastResult.contestName} · ${pluralize(lastResult.problemsSolved, 'resuelto')}` : 'sin competencias finalizadas'}
                   accentBorder="border-t-brand-accent"
                   valueSize="text-3xl"
                 />
@@ -231,7 +235,7 @@ export function UserDashboardPage() {
                               </p>
                             </div>
                             {statusConfig && (
-                              <Link to={PATHS.submission(sub.id)}>
+                              <Link to={PATHS.submission(sub.id)} state={SUBMISSION_ORIGIN}>
                                 <Badge
                                   variant={statusConfig.color === 'success' ? 'default' : 'outline'}
                                   className="hover:opacity-80 transition-opacity"
@@ -274,7 +278,7 @@ export function UserDashboardPage() {
                 {myContests.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <Trophy className="h-8 w-8 text-neutral-border" />
-                    <p className="text-sm text-neutral-text-muted">No hay contests en tus grupos.</p>
+                    <p className="text-sm text-neutral-text-muted">No hay competencias en tus grupos.</p>
                     <Link
                       to={ROUTES.GROUPS}
                       className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline"

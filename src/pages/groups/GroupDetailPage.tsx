@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { EntityDetailPage } from '@/components/patterns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { StatCard } from '@/components/features/StatCard'
@@ -59,7 +59,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
-import { cn } from '@/lib/utils'
+import { cn, pluralize } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
@@ -80,6 +80,7 @@ import {
   Calendar,
 } from 'lucide-react'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 // Deterministic color from name initial
 const INITIAL_COLORS = [
@@ -100,6 +101,7 @@ function getInitialColor(name: string) {
 export function GroupDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToastContext()
   const { user } = useAuth()
 
@@ -110,15 +112,18 @@ export function GroupDetailPage() {
   const isMember = group?.userMembership.isMember ?? false
   const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
   const [requestsPageQuery, setRequestsPageQuery] = useState({ page: 1, limit: 10 })
+  // Only leads/admins can list requests (the backend answers 403 to anyone else).
   const { data: requestsData } = useJoinRequests(id!, {
     status: requestsStatus === 'all' ? undefined : requestsStatus,
     page: requestsPageQuery.page,
     limit: requestsPageQuery.limit,
-  })
+  }, { enabled: canManage })
+  // Unfiltered count, so whether the tab exists doesn't depend on the status filter picked in it.
+  const { data: allRequestsData } = useJoinRequests(id!, { limit: 1 }, { enabled: canManage })
   const { data: myJoinRequest } = useMyJoinRequest(id!, {
     enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
-  const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, size: 10 })
+  const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, limit: 10 })
   const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
@@ -162,14 +167,12 @@ export function GroupDetailPage() {
   const [requestOpen, setRequestOpen] = useState(false)
   const [requestMessage, setRequestMessage] = useState('')
 
-  // GET /users/search is Coach/Admin-only. canManage below is domain-scoped (group lead or
-  // platform Admin) and doesn't guarantee platform role Coach, so gate the search itself
-  // separately — otherwise a lead who isn't a Coach would trigger a 403 from the backend.
-  const canSearchUsers = user?.role === 'ADMIN' || user?.role === 'COACH'
+  // GET /users/search allows any authenticated role — these dialogs are already only reachable
+  // when canManage is true (group lead or platform Admin), so no extra gate is needed here.
   const debouncedAddNickname = useDebounce(addNickname)
-  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname, undefined, canSearchUsers)
+  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname)
   const debouncedInviteNickname = useDebounce(inviteNickname)
-  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname, undefined, canSearchUsers)
+  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname)
 
   const { handlePageChange: handleRequestsPageChange, handleLimitChange: handleRequestsLimitChange } = usePaginationHandlers(setRequestsPageQuery)
   const handleRequestsStatusChange = (value: string) => {
@@ -177,7 +180,7 @@ export function GroupDetailPage() {
     setRequestsPageQuery((p) => ({ ...p, page: 1 }))
   }
   const handleInvitationsPageChange = (page: number) => setInvitationsPageQuery((p) => ({ ...p, page }))
-  const handleInvitationsSizeChange = (size: number) => setInvitationsPageQuery({ page: 1, size })
+  const handleInvitationsSizeChange = (limit: number) => setInvitationsPageQuery({ page: 1, limit })
   const { handlePageChange: handleContestsPageChange, handleLimitChange: handleContestsLimitChange } = usePaginationHandlers(setContestsPageQuery)
   const handleContestsStatusChange = (value: string) => {
     setContestsStatus(value as ContestStatus | 'all')
@@ -191,8 +194,8 @@ export function GroupDetailPage() {
     try {
       await joinMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Te has unido al grupo' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al unirse al grupo' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al unirse al grupo', description: getErrorMessage(err) })
     }
   }
 
@@ -202,8 +205,8 @@ export function GroupDetailPage() {
       toast({ variant: 'success', title: 'Solicitud enviada' })
       setRequestOpen(false)
       setRequestMessage('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al enviar la solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al enviar la solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -211,8 +214,8 @@ export function GroupDetailPage() {
     try {
       await cancelRequestMutation.mutateAsync(id)
       toast({ variant: 'success', title: 'Solicitud cancelada' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al cancelar solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cancelar solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -238,8 +241,8 @@ export function GroupDetailPage() {
       await deleteMutation.mutateAsync({ id, data: { confirmationName: deleteConfirm } })
       toast({ variant: 'success', title: 'Grupo eliminado' })
       navigate(ROUTES.GROUPS)
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar grupo' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar grupo', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
     setDeleteConfirm('')
@@ -249,8 +252,8 @@ export function GroupDetailPage() {
     try {
       await processRequestMutation.mutateAsync({ groupId: id, requestId, data: { status } })
       toast({ variant: 'success', title: status === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al procesar solicitud' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al procesar solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -259,8 +262,8 @@ export function GroupDetailPage() {
     try {
       await removeMemberMutation.mutateAsync({ groupId: id, nickname: removeMemberTarget })
       toast({ variant: 'success', title: 'Miembro eliminado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al eliminar miembro' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al eliminar miembro', description: getErrorMessage(err) })
     } finally {
       setRemoveMemberTarget(null)
     }
@@ -270,8 +273,8 @@ export function GroupDetailPage() {
     try {
       await changeRoleMutation.mutateAsync({ groupId: id, nickname, data: { role } })
       toast({ variant: 'success', title: 'Rol actualizado' })
-    } catch {
-      toast({ variant: 'error', title: 'Error al cambiar rol' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al cambiar rol', description: getErrorMessage(err) })
     }
   }
 
@@ -282,8 +285,8 @@ export function GroupDetailPage() {
       toast({ variant: 'success', title: 'Miembro agregado' })
       setAddMemberOpen(false)
       setAddNickname('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al agregar miembro' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al agregar miembro', description: getErrorMessage(err) })
     }
   }
 
@@ -300,8 +303,13 @@ export function GroupDetailPage() {
       setGeneratedInviteUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(id, response.id)}`)
       setInviteNickname('')
       setInviteEmail('')
-    } catch {
-      toast({ variant: 'error', title: 'Error al enviar invitación' })
+    } catch (err) {
+      // ALREADY_MEMBER's generic text ("Ya eres miembro…") is written for the person joining;
+      // here the lead is inviting someone else.
+      const description = err instanceof ApiClientError && err.code === 'ALREADY_MEMBER'
+        ? 'Ese usuario ya es miembro del grupo.'
+        : getErrorMessage(err)
+      toast({ variant: 'error', title: 'Error al enviar invitación', description })
     }
   }
 
@@ -382,7 +390,7 @@ export function GroupDetailPage() {
                 <TableCell>
                   <Badge variant={m.role === 'LEAD' ? 'warning' : 'outline'}>{m.role === 'LEAD' ? 'Líder' : 'Miembro'}</Badge>
                 </TableCell>
-                <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString()}</TableCell>
+                <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString('es')}</TableCell>
                 {canManage && (
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -485,7 +493,7 @@ export function GroupDetailPage() {
                       {r.status === 'PENDING' ? 'Pendiente' : r.status === 'APPROVED' ? 'Aprobada' : 'Rechazada'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(r.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{new Date(r.createdAt).toLocaleDateString('es')}</TableCell>
                   <TableCell className="text-right">
                     {r.status === 'PENDING' && (
                       <div className="flex items-center justify-end gap-1">
@@ -521,11 +529,11 @@ export function GroupDetailPage() {
     <div className="space-y-4">
       {invitationsData && (
         <PaginationSummary
-          total={invitationsData.pagination.totalItems}
+          total={invitationsData.pagination.total}
           totalLabel="invitaciones"
           currentPage={invitationsData.pagination.page}
           totalPages={invitationsData.pagination.totalPages}
-          limit={invitationsPageQuery.size}
+          limit={invitationsPageQuery.limit}
           onLimitChange={handleInvitationsSizeChange}
         />
       )}
@@ -551,7 +559,7 @@ export function GroupDetailPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-neutral-text-muted">{inv.invitee?.email ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString('es')}</TableCell>
                 </TableRow>
               ))}
               {(!invitationsData || invitationsData.invitations.length === 0) && (
@@ -759,7 +767,7 @@ export function GroupDetailPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Trophy className="h-3.5 w-3.5" />
-                    {c.problemCount} problemas
+                    {pluralize(c.problemCount, 'problema')}
                   </span>
                 </div>
               </CardContent>
@@ -792,9 +800,26 @@ export function GroupDetailPage() {
     { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
     { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
     { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
-    ...(canManage ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }] : []),
-    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.totalItems }] : []),
+    // Join requests only exist under the REQUEST policy; keep the tab if the group still has any
+    // (e.g. the policy changed afterwards) so they can still be processed.
+    ...(canManage && (group?.joinPolicy === 'REQUEST' || (allRequestsData?.pagination.total ?? 0) > 0)
+      ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }]
+      : []),
+    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.total }] : []),
   ]
+
+  // Kept in the URL (?tab=...) so navigating away (e.g. to create a contest) and back
+  // returns to the tab you were on, instead of always resetting to "Información".
+  const requestedTab = searchParams.get('tab')
+  const activeTab = requestedTab && tabs.some((t) => t.id === requestedTab) ? requestedTab : 'info'
+  const handleTabChange = (tabId: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (tabId === 'info') next.delete('tab')
+      else next.set('tab', tabId)
+      return next
+    }, { replace: true })
+  }
 
   return (
     <>
@@ -807,6 +832,8 @@ export function GroupDetailPage() {
         metadata={metadata}
         tabs={tabs}
         defaultTab="info"
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
         onEdit={canManage && !group?.isGlobal ? () => navigate(`/groups/${id}/edit`) : undefined}
         onDelete={canManage && !group?.isGlobal ? () => setDeleteOpen(true) : undefined}
         primaryAction={buildPrimaryAction()}
@@ -834,7 +861,7 @@ export function GroupDetailPage() {
         open={leaveOpen}
         onOpenChange={setLeaveOpen}
         title="Salir del grupo"
-        description="¿Seguro que deseas salir del grupo?"
+        description="¿Seguro que deseas salir del grupo? También se cancelarán tus inscripciones individuales a las competencias programadas de este grupo."
         confirmLabel="Salir"
         variant="warning"
         onConfirm={handleLeave}
@@ -937,7 +964,10 @@ export function GroupDetailPage() {
                   <SearchSelect
                     query={inviteNickname}
                     onQueryChange={setInviteNickname}
-                    results={inviteSearchData?.users ?? []}
+                    results={(inviteSearchData?.users ?? []).filter(
+                      (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
+                    )}
+                    emptyLabel="Sin resultados (o ya es miembro)"
                     isSearching={isSearchingInvite}
                     placeholder="Buscar usuario por nombre o nickname..."
                     hintLabel="Escribe al menos 2 caracteres"

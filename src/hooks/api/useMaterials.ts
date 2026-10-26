@@ -14,6 +14,10 @@ export const materialKeys = {
     ['materials', 'list', groupId, params] as const,
   detail: (groupId: string, materialId: string) =>
     ['materials', 'detail', groupId, materialId] as const,
+  tags: (groupId: string) =>
+    ['materials', 'tags', groupId] as const,
+  authors: (groupId: string) =>
+    ['materials', 'authors', groupId] as const,
 }
 
 // === Queries ===
@@ -22,6 +26,22 @@ export function useMaterials(groupId: string, params?: MaterialListParams) {
   return useQuery({
     queryKey: materialKeys.list(groupId, params),
     queryFn: () => materialsApi.getMaterials(groupId, params),
+    enabled: !!groupId,
+  })
+}
+
+export function useMaterialTags(groupId: string) {
+  return useQuery({
+    queryKey: materialKeys.tags(groupId),
+    queryFn: () => materialsApi.getMaterialTags(groupId),
+    enabled: !!groupId,
+  })
+}
+
+export function useMaterialAuthors(groupId: string) {
+  return useQuery({
+    queryKey: materialKeys.authors(groupId),
+    queryFn: () => materialsApi.getMaterialAuthors(groupId),
     enabled: !!groupId,
   })
 }
@@ -43,6 +63,8 @@ export function useCreateMaterial() {
       materialsApi.createMaterial(groupId, data),
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }
@@ -57,6 +79,8 @@ export function useUpdateMaterial() {
     onSuccess: (_, { groupId, materialId }) => {
       queryClient.invalidateQueries({ queryKey: materialKeys.detail(groupId, materialId) })
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }
@@ -68,6 +92,8 @@ export function useDeleteMaterial() {
       materialsApi.deleteMaterial(groupId, materialId),
     onSuccess: (_, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: materialKeys.list(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.tags(groupId) })
+      queryClient.invalidateQueries({ queryKey: materialKeys.authors(groupId) })
     },
   })
 }
