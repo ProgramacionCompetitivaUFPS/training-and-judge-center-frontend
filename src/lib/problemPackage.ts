@@ -100,7 +100,8 @@ export async function reviewProblemPackage(file: File): Promise<PackageReview> {
         size: (f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize,
         read: () => f.async('string'),
       }))
-      .filter((e) => !e.path.includes('__MACOSX') && !e.path.endsWith('.DS_Store'))
+      // macOS leftovers the importer ignores too: __MACOSX, .DS_Store and AppleDouble files (._name)
+      .filter((e) => !e.path.includes('__MACOSX') && !e.path.endsWith('.DS_Store') && !base(e.path).startsWith('._'))
   } catch {
     error('El archivo no se pudo leer como un ZIP.', 'Comprueba que no esté corrupto y que sea un .zip (no .rar ni .7z).')
     return finish()

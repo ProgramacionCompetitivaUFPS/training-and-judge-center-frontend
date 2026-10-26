@@ -386,7 +386,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
             <li>
               <code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de
               prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code>, opcional (se
-              pueden subir después); hasta ${PACKAGE_LIMITS.maxTotalBytes / 1024 / 1024} MB en total (una entrada, hasta ${PACKAGE_LIMITS.maxInputBytes / 1024 / 1024} MB), y como máximo ${PACKAGE_LIMITS.maxSampleFiles} archivos de ejemplo (${PACKAGE_LIMITS.maxSampleFiles / 2} casos)
+              pueden subir después); hasta {PACKAGE_LIMITS.maxTotalBytes / 1024 / 1024} MB en total (una entrada, hasta {PACKAGE_LIMITS.maxInputBytes / 1024 / 1024} MB), y como máximo {PACKAGE_LIMITS.maxSampleFiles} archivos de ejemplo ({PACKAGE_LIMITS.maxSampleFiles / 2} casos)
             </li>
             <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional (máx. 2 MB)</li>
             <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional (máx. 2 MB cada una)</li>
