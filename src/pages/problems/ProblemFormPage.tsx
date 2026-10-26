@@ -289,7 +289,8 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
   const [showZipHelp, setShowZipHelp] = useState(false)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
   // The package the author picked, reviewed and waiting for their go-ahead
-  const [pendingImport, setPendingImport] = useState<{ file: File; review: PackageReview } | null>(null)
+  // (review is null when the ZIP is too big to read in the browser)
+  const [pendingImport, setPendingImport] = useState<{ file: File; review: PackageReview | null } | null>(null)
 
   function handleImportClick() {
     fileInputRef.current?.click()
@@ -307,19 +308,26 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     }
 
     const slugValid = await trigger('slug')
-    if (!slugValid) return
+    if (!slugValid) {
+      toast({ variant: 'error', title: 'Falta el slug', description: 'Escribe primero el slug con el que se creará el problema y vuelve a elegir el ZIP.' })
+      return
+    }
 
     if (exceedsZipStructureCheckSize(file)) {
       // Reading a very large ZIP in the browser would spike its memory: the server validates it alone.
-      toast({ variant: 'warning', title: 'Paquete grande', description: 'Es demasiado grande para revisarlo aquí; el servidor lo validará al importar.' })
-      onImport(file, getValues('slug'))
+      // The author still gets to see that nothing was checked and to confirm, instead of it being sent straight away.
+      setPendingImport({ file, review: null })
       return
     }
 
     setIsCheckingZip(true)
-    const review = await reviewProblemPackage(file)
-    setIsCheckingZip(false)
-    setPendingImport({ file, review })
+    try {
+      setPendingImport({ file, review: await reviewProblemPackage(file) })
+    } catch {
+      toast({ variant: 'error', title: 'No se pudo revisar el paquete', description: 'El archivo no se pudo leer. Comprueba que sea un ZIP válido.' })
+    } finally {
+      setIsCheckingZip(false)
+    }
   }
 
   async function handleDownloadTemplate() {
@@ -356,6 +364,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         fileName={pendingImport?.file.name ?? ''}
         slug={getValues('slug')}
         review={pendingImport?.review ?? null}
+        unreviewed={!!pendingImport && !pendingImport.review}
         isImporting={isImporting}
         onCancel={() => setPendingImport(null)}
         onConfirm={() => {

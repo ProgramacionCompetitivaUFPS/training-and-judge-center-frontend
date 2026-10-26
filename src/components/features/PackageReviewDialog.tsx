@@ -9,6 +9,8 @@ interface PackageReviewDialogProps {
   /** The slug the problem will be created with. */
   slug: string
   review: PackageReview | null
+  /** The ZIP was too big to read in the browser: nothing was checked, the server will validate it. */
+  unreviewed?: boolean
   isImporting: boolean
   onCancel: () => void
   onConfirm: () => void
@@ -20,7 +22,7 @@ interface PackageReviewDialogProps {
  * what it would accept but probably not what the author meant (the statement not being read, files
  * silently ignored).
  */
-export function PackageReviewDialog({ open, fileName, slug, review, isImporting, onCancel, onConfirm }: PackageReviewDialogProps) {
+export function PackageReviewDialog({ open, fileName, slug, review, unreviewed = false, isImporting, onCancel, onConfirm }: PackageReviewDialogProps) {
   const errors = review?.findings.filter((f) => f.level === 'error') ?? []
   const warnings = review?.findings.filter((f) => f.level === 'warning') ?? []
   const s = review?.summary
@@ -34,6 +36,16 @@ export function PackageReviewDialog({ open, fileName, slug, review, isImporting,
             <span className="font-mono">{fileName}</span> · se creará como <span className="font-mono">{slug}</span>
           </DialogDescription>
         </DialogHeader>
+
+        {unreviewed && (
+          <p className="flex items-start gap-2 rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm text-neutral-text-primary" role="status">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-status-warning" />
+            <span>
+              Este ZIP es demasiado grande para revisarlo aquí, así que no sé qué contiene. Si no es un paquete de problema,
+              el servidor lo rechazará al importar.
+            </span>
+          </p>
+        )}
 
         {review && s && (
           <div className="space-y-4">
@@ -85,7 +97,7 @@ export function PackageReviewDialog({ open, fileName, slug, review, isImporting,
           <Button variant="outline" onClick={onCancel} disabled={isImporting}>
             {errors.length > 0 ? 'Elegir otro ZIP' : 'Cancelar'}
           </Button>
-          <Button variant="primary" onClick={onConfirm} isLoading={isImporting} disabled={!review?.canImport}>
+          <Button variant="primary" onClick={onConfirm} isLoading={isImporting} disabled={review ? !review.canImport : !unreviewed}>
             Importar
           </Button>
         </DialogFooter>
