@@ -17,6 +17,8 @@ import {
   useProblemDetail,
   useProblemStatistics,
   usePublishProblem,
+  useValidateProblem,
+  useLatestValidation,
   useUnpublishProblem,
   useDeleteProblem,
   useUploadProblemFile,
@@ -81,6 +83,11 @@ export function ProblemDetailPage() {
   const { data: stats } = useProblemStatistics(resolvedSlug || '')
   const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
   const publishMutation = usePublishProblem()
+  const validateMutation = useValidateProblem()
+  // Only an editor of a draft needs it: the checklist's last step and the Publicar button depend on it.
+  const mayValidate =
+    !isContestContext && problem?.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
+  const { data: validation } = useLatestValidation(resolvedSlug || '', { enabled: mayValidate })
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
@@ -153,6 +160,31 @@ export function ProblemDetailPage() {
     { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles },
     { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: goToFiles },
   ]
+  const requirementsMet = missingPublishRequirements.length === 0
+  const validationRunning = validateMutation.isPending || publishMutation.isPending || (!!validation?.found && !validation.terminal)
+  const validationFailed = !!validation?.found && validation.terminal && !validation.passed
+  // A pass only counts while the problem is as it was when it ran; the server says when it is not.
+  const validationStale = !!validation?.found && validation.terminal && validation.passed && !!validation.stale
+  const validationPassed = !!validation?.found && validation.terminal && validation.passed && !validation.stale
+  checklistSteps.push({
+    key: 'validate',
+    label: 'Validación',
+    met: validationPassed,
+    hint: !requirementsMet
+      ? 'Antes completa los pasos de arriba'
+      : validationRunning
+        ? 'Validando… puede tardar unos minutos'
+        : validationFailed
+          ? 'La última validación falló.'
+          : validationStale
+            ? 'Cambiaste el problema después de validarlo.'
+            : 'Compila todo y lo prueba con tus soluciones.',
+    actionLabel: validationFailed ? 'Reintentar' : 'Validar',
+    onAction: handleValidate,
+    disabled: !requirementsMet,
+    loading: validationRunning,
+    onDetail: validationFailed ? goToFiles : undefined,
+  })
   const showChecklist = showManagementTabs && problem.status === 'DRAFT'
   const optionalMissing = [
     ...(problem.files && !problem.files.checker ? ['checker'] : []),
@@ -167,13 +199,13 @@ export function ProblemDetailPage() {
   // would make a new author hunt for it (the tooltip says what's still missing). Everything else
   // lives in the menu so this doesn't grow with every new feature.
   const publishChecklist = (className?: string) => (
-    <PublishChecklist slug={problem.slug} steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} onSeeValidation={goToFiles} className={className} />
+    <PublishChecklist steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} className={className} />
   )
 
   const managementActions = (
     <div className="flex items-center gap-2 shrink-0">
       {problem.status === 'DRAFT' &&
-        (missingPublishRequirements.length > 0 ? (
+        (!requirementsMet || !validationPassed ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span tabIndex={0} className="block">
@@ -187,6 +219,7 @@ export function ProblemDetailPage() {
               <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
               <ul className="mt-1 list-disc list-inside">
                 {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+                {requirementsMet && <li>{validationStale ? 'Validar de nuevo el problema' : 'Validar el problema'}</li>}
               </ul>
             </TooltipContent>
           </Tooltip>
@@ -305,12 +338,19 @@ export function ProblemDetailPage() {
       {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
 
       {/* What happened with the last publish attempt: persists, follows a running validation */}
-      <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending} />
+      <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending || validateMutation.isPending} />
 
       {/* Modifiers (only for modifiers) */}
       <ModifiersManager problem={problem} canAdd={!!canEdit} canRemove={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
     </>
   )
+
+  function handleValidate() {
+    if (!problem) return
+    validateMutation.mutate(problem.slug, {
+      onError: (err) => toast({ variant: 'error', title: 'No se pudo validar', description: getErrorMessage(err) }),
+    })
+  }
 
   function handlePublish() {
     if (!problem) return

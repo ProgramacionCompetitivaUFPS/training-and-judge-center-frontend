@@ -93,6 +93,7 @@ export function useUpdateProblem() {
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -139,6 +140,17 @@ export function usePublishProblem() {
   })
 }
 
+/** "Validar": runs the validation on a draft and leaves it a draft; the result comes through useLatestValidation. */
+export function useValidateProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => problemsApi.validateProblem(slug),
+    onSettled: (_data, _error, slug) => {
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
+    },
+  })
+}
+
 export function useUnpublishProblem() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -157,6 +169,7 @@ export function useUploadProblemFile() {
       problemsApi.uploadProblemFile(slug, fileType, file),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
@@ -170,6 +183,7 @@ export function useDeleteProblemFile() {
       problemsApi.deleteProblemFile(slug, fileType, fileName),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
@@ -229,6 +243,7 @@ export function useAddModifier() {
       problemsApi.addModifier(slug, userNickname),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -240,6 +255,7 @@ export function useRemoveModifier() {
       problemsApi.removeModifier(slug, nickname),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -265,6 +281,7 @@ export function useUpdateAccessibility() {
       problemsApi.updateAccessibility(slug, accessibility),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },
   })

@@ -37,6 +37,8 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
   const running = isPublishing || (!!data?.found && !data.terminal)
   const finished = !running && !!data?.found && data.terminal
   const failed = finished && !data.passed
+  // A pass leaves the problem a draft when it came from "Validar": publishing is a separate step.
+  const awaitingPublish = finished && data.passed && data.status === 'DRAFT'
   // The worker reports an infrastructure failure as a failed attempt with only this message and no detail.
   const systemError =
     failed &&
@@ -102,9 +104,9 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
 
         {!running && data && !data.found && (
           <p className="text-neutral-text-muted">
-            Este problema todavía no se ha validado. Al pulsar «Publicar», el sistema compila el checker y el validador, corre
-            cada solución de referencia contra todos los casos y comprueba que den la respuesta esperada; aquí quedará el
-            resultado.
+            Este problema todavía no se ha validado. Al pulsar «Validar» (en «Antes de publicar»), el sistema compila el checker
+            y el validador, corre cada solución de referencia contra todos los casos y comprueba que den la respuesta
+            esperada, sin publicar el problema; aquí quedará el resultado.
           </p>
         )}
 
@@ -112,7 +114,11 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           <div className="space-y-2">
             <p className="flex items-center gap-2 text-status-success">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              La última validación pasó.
+              {awaitingPublish
+                ? data.stale
+                  ? 'La última validación pasó, pero cambiaste el problema después: vuelve a validarlo antes de publicar.'
+                  : 'La última validación pasó. El problema sigue en borrador: ya puedes publicarlo.'
+                : 'La última validación pasó.'}
             </p>
             {data.validationSummary && (
               <ul className="list-disc list-inside text-neutral-text-primary">
@@ -128,7 +134,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           <div className="space-y-3">
             <p className="flex items-center gap-2 text-status-error">
               <XCircle className="h-4 w-4 shrink-0" />
-              La última validación falló; el problema no se publicó. Corrige lo que sigue y vuelve a pulsar «Publicar».
+              La última validación falló; el problema no se publicó. Corrige lo que sigue y vuelve a pulsar «Validar».
             </p>
             <ValidationReportView
               compilationErrors={data.compilationErrors}
@@ -143,7 +149,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           <div className="space-y-2">
             <p className="flex items-start gap-2 text-neutral-text-primary">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-              La validación no pudo terminar por un error del sistema, no por el problema. Vuelve a pulsar «Publicar»; si se
+              La validación no pudo terminar por un error del sistema, no por el problema. Vuelve a pulsar «Validar»; si se
               repite, avisa a un administrador.
             </p>
             <ValidationReportView validationLogs={data.validationLogs} />

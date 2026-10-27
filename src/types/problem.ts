@@ -143,6 +143,12 @@ export interface ValidationSummary {
   allPassed: boolean
 }
 
+export interface ValidateResponse {
+  slug: string
+  validationId: string
+  message: string
+}
+
 export interface PublishResponse {
   slug: string
   status: ProblemStatus
@@ -193,6 +199,9 @@ export interface LatestValidation {
   passed: boolean
   /** The problem's current status (not the attempt's): only meaningful once terminal. */
   status?: ProblemStatus
+  /** The problem was modified after the attempt was requested: a pass no longer says anything about it. */
+  stale?: boolean
+  completedAt?: string
   validationLogs?: string[]
   validationSummary?: ValidationSummary
   failedTestCases?: FailedTestCase[]
