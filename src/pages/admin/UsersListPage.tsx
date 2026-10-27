@@ -39,7 +39,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Alert } from '@/components/ui/Alert'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
-import { useAdminUsers, useAdminUserFilterOptions, useAdminDeactivateUser, useAdminUpdateUser } from '@/hooks/api/useUsers'
+import { useAdminUsers, useAdminUserFilterOptions, useAdminDeactivateUser, useAdminUpdateUser, useSoleLeadGroups } from '@/hooks/api/useUsers'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
@@ -66,14 +66,18 @@ type PendingAction = {
   kind: 'promote' | 'demote' | 'deactivate'
 }
 
-function getConfirmDialogProps(action: PendingAction | null) {
+function getConfirmDialogProps(action: PendingAction | null, soleLeadGroups: string[] = []) {
   if (!action) return null
   const { user, kind } = action
 
   if (kind === 'deactivate') {
     return {
       title: 'Desactivar usuario',
-      description: `¿Desactivar al usuario @${user.nickname}? Esta acción es permanente y no se puede deshacer: su correo y nickname quedan anonimizados.`,
+      description:
+        `¿Desactivar al usuario @${user.nickname}? Esta acción es permanente y no se puede deshacer: su correo y nickname quedan anonimizados.` +
+        (soleLeadGroups.length > 0
+          ? ` Ojo: es el único líder de ${soleLeadGroups.map((n) => `«${n}»`).join(', ')}; ${soleLeadGroups.length === 1 ? 'ese grupo quedará' : 'esos grupos quedarán'} sin líder y solo un Administrador podrá gestionarlo${soleLeadGroups.length === 1 ? '' : 's'}. Considera nombrar antes a otro líder.`
+          : ''),
     }
   }
 
@@ -212,7 +216,9 @@ export function UsersListPage() {
     setPendingAction(null)
   }
 
-  const confirmDialogProps = getConfirmDialogProps(pendingAction)
+  const deactivating = pendingAction?.kind === 'deactivate'
+  const { data: soleLead, isLoading: isLoadingSoleLead } = useSoleLeadGroups(pendingAction?.user.id, deactivating)
+  const confirmDialogProps = getConfirmDialogProps(pendingAction, soleLead?.groups.map((g) => g.name))
 
   const totalPages = Math.max(data?.pagination.totalPages ?? 1, 1)
   const currentPage = data?.pagination.page ?? 1
@@ -435,7 +441,7 @@ export function UsersListPage() {
           description={confirmDialogProps.description}
           variant="warning"
           onConfirm={handleConfirmAction}
-          isLoading={activeMutation.isPending}
+          isLoading={activeMutation.isPending || (deactivating && isLoadingSoleLead)}
         />
       )}
 

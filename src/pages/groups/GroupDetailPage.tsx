@@ -55,6 +55,7 @@ import { useContests } from '@/hooks/api/useContests'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { GroupDeletionDialog } from '@/components/features/GroupDeletionDialog'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -153,7 +154,6 @@ export function GroupDetailPage() {
   const inviteMutation = useCreateInvitation()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState('')
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
@@ -235,17 +235,16 @@ export function GroupDetailPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!group || deleteConfirm !== group.name) return
+  const handleDelete = async (confirmationName: string) => {
+    if (!group || confirmationName !== group.name) return
     try {
-      await deleteMutation.mutateAsync({ id, data: { confirmationName: deleteConfirm } })
+      await deleteMutation.mutateAsync({ id, data: { confirmationName } })
       toast({ variant: 'success', title: 'Grupo eliminado' })
       navigate(ROUTES.GROUPS)
     } catch (err) {
       toast({ variant: 'error', title: 'Error al eliminar grupo', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
-    setDeleteConfirm('')
   }
 
   const handleProcessRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
@@ -840,22 +839,17 @@ export function GroupDetailPage() {
         additionalActions={buildAdditionalActions()}
       />
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar grupo</DialogTitle>
-            <DialogDescription>
-              Escribe <span className="font-bold">{group?.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="Nombre del grupo" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button variant="danger" onClick={handleDelete} disabled={deleteConfirm !== group?.name}>Eliminar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete confirmation: shows what is lost and asks for the confirmation in steps */}
+      {group && (
+        <GroupDeletionDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          groupId={id}
+          groupName={group.name}
+          isDeleting={deleteMutation.isPending}
+          onConfirm={handleDelete}
+        />
+      )}
 
       <ConfirmDialog
         open={leaveOpen}

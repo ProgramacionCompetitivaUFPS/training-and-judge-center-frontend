@@ -30,6 +30,7 @@ export const userKeys = {
   adminList: (params?: AdminUserListParams) => ['users', 'admin', params] as const,
   adminFilterOptions: ['users', 'admin', 'filters'] as const,
   search: (q: string) => ['users', 'search', q] as const,
+  soleLeadGroups: (userId: string) => ['users', 'sole-lead-groups', userId] as const,
 }
 
 // === Queries ===
@@ -248,6 +249,18 @@ export function useAdminUpdateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userKeys.all })
     },
+  })
+}
+
+/** Groups where the given user (or me, when userId is omitted) is the only lead. Always fresh. */
+export function useSoleLeadGroups(userId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: userKeys.soleLeadGroups(userId ?? 'me'),
+    queryFn: () => (userId ? usersApi.getUserSoleLeadGroups(userId) : usersApi.getMySoleLeadGroups()),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
   })
 }
 

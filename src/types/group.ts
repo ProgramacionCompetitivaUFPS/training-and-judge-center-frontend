@@ -235,3 +235,24 @@ export interface InvitationListResponse {
     totalPages: number
   }
 }
+
+/** What deleting a group would take with it (GET /groups/:id/deletion-impact). */
+export interface GroupDeletionImpact {
+  contests: number
+  /** Contests running right now: they are deleted with the group. */
+  activeContests: number
+  materials: number
+  members: number
+  /** Submissions made in the group's contests: they stay, without a contest. */
+  submissions: number
+}
+
+/** A group whose only lead is a given user: deactivating them leaves it without a lead. */
+export interface SoleLeadGroup {
+  id: string
+  name: string
+}
+
+export interface SoleLeadGroupsResponse {
+  groups: SoleLeadGroup[]
+}
