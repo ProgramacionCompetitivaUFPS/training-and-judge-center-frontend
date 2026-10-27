@@ -167,7 +167,7 @@ export function ProblemDetailPage() {
   // would make a new author hunt for it (the tooltip says what's still missing). Everything else
   // lives in the menu so this doesn't grow with every new feature.
   const publishChecklist = (className?: string) => (
-    <PublishChecklist steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} className={className} />
+    <PublishChecklist slug={problem.slug} steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} onSeeValidation={goToFiles} className={className} />
   )
 
   const managementActions = (

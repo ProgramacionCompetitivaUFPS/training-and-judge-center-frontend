@@ -1,5 +1,6 @@
 import { ArrowRight, Check, CircleDashed } from 'lucide-react'
-import { Button, Card, CardContent } from '@/components/ui'
+import { Badge, Button, Card, CardContent } from '@/components/ui'
+import { useLatestValidation } from '@/hooks/api/useProblems'
 import { cn } from '@/lib/utils'
 
 export interface PublishChecklistStep {
@@ -14,17 +15,48 @@ export interface PublishChecklistStep {
 }
 
 interface PublishChecklistProps {
+  slug: string
   steps: PublishChecklistStep[]
   /** The optional pieces (checker, validator) that are not uploaded yet */
   optionalMissing: string[]
   onOptionalAction: () => void
+  /** Leads to where the full report of the last validation is */
+  onSeeValidation: () => void
   className?: string
+}
+
+// Same query as the "Última validación" card, so it costs no extra request.
+function LastValidationLine({ slug, onSeeDetail }: { slug: string; onSeeDetail: () => void }) {
+  const { data } = useLatestValidation(slug)
+  if (!data) return null
+  const running = data.found && !data.terminal
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <span className="flex items-center gap-2 text-neutral-text-muted">
+        Última validación:
+        {!data.found ? (
+          'aún no se ha validado'
+        ) : running ? (
+          <Badge variant="warning">Validando</Badge>
+        ) : data.passed ? (
+          <Badge variant="success">Pasó</Badge>
+        ) : (
+          <Badge variant="error">Falló</Badge>
+        )}
+      </span>
+      {data.found && (
+        <button type="button" className="shrink-0 underline underline-offset-2 text-neutral-text-muted hover:text-neutral-text-primary" onClick={onSeeDetail}>
+          Ver detalle
+        </button>
+      )}
+    </div>
+  )
 }
 
 // Shown on a draft to the people who can edit it: what is still missing before Publicar
 // works, and a button on each missing step that leads to where it gets fixed. Having every
 // step done only means the backend will start validating, not that the validation will pass.
-export function PublishChecklist({ steps, optionalMissing, onOptionalAction, className }: PublishChecklistProps) {
+export function PublishChecklist({ slug, steps, optionalMissing, onOptionalAction, onSeeValidation, className }: PublishChecklistProps) {
   const done = steps.filter((s) => s.met).length
   const ready = done === steps.length
 
@@ -69,10 +101,13 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
           </p>
         )}
 
-        <p className="text-xs text-neutral-text-muted border-t border-neutral-border pt-3">
-          {ready ? 'Tiene todo lo necesario. ' : ''}
-          Al publicar se compila y se prueba todo; si algo falla, se muestra el detalle.
-        </p>
+        <div className="space-y-2 border-t border-neutral-border pt-3">
+          <p className="text-xs text-neutral-text-muted">
+            {ready ? 'Tiene todo lo necesario. ' : ''}
+            Al publicar se compila y se prueba todo; el resultado queda en «Última validación».
+          </p>
+          <LastValidationLine slug={slug} onSeeDetail={onSeeValidation} />
+        </div>
       </CardContent>
     </Card>
   )
