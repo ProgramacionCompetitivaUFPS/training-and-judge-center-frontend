@@ -1,27 +1,28 @@
 import { Badge } from '@/components/ui/Badge'
+import { RowLink } from '@/components/ui/RowLink'
 import { Pin, User, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Material } from '@/types/material'
 
 interface MaterialListItemProps {
   material: Material
-  onClick: () => void
+  /** Where the item leads: it renders as a real link. */
+  href: string
   showPreview?: boolean
 }
 
-export function MaterialListItem({ material, onClick, showPreview = false }: MaterialListItemProps) {
+export function MaterialListItem({ material, href, showPreview = false }: MaterialListItemProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-4 py-4 px-5 cursor-pointer hover:bg-neutral-surface-hover transition-colors',
+        'relative flex items-center gap-4 py-4 px-5 cursor-pointer hover:bg-neutral-surface-hover transition-colors',
         material.pinned && 'bg-brand-primary-muted'
       )}
-      onClick={onClick}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {material.pinned && <Pin className="h-4 w-4 text-brand-primary shrink-0" />}
-          <span className="font-medium truncate">{material.title}</span>
+          <RowLink to={href} className="min-w-0 truncate font-medium">{material.title}</RowLink>
           {material.status === 'DRAFT' && <Badge variant="default">Borrador</Badge>}
         </div>
         {showPreview && (

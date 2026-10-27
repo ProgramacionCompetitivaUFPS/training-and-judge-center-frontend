@@ -55,6 +55,7 @@ import { useContests } from '@/hooks/api/useContests'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { RowLink } from '@/components/ui/RowLink'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -629,8 +630,7 @@ export function GroupDetailPage() {
               {group.leads.map((l) => (
                 <div
                   key={l.userId}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-neutral-bg/50 rounded-lg p-2 -mx-2 transition-colors"
-                  onClick={() => navigate(`/users/${l.nickname}`)}
+                  className="relative flex items-center gap-3 cursor-pointer hover:bg-neutral-background/50 rounded-lg p-2 -mx-2 transition-colors"
                 >
                   <div className={cn(
                     'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
@@ -638,10 +638,10 @@ export function GroupDetailPage() {
                   )}>
                     {l.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
+                  <RowLink to={`/users/${l.nickname}`}>
                     <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
                     <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
-                  </div>
+                  </RowLink>
                   <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
                 </div>
               ))}
@@ -677,7 +677,7 @@ export function GroupDetailPage() {
                 <MaterialListItem
                   key={m.id}
                   material={m}
-                  onClick={() => navigate(`/groups/${id}/materials/${m.id}`)}
+                  href={`/groups/${id}/materials/${m.id}`}
                 />
               ))}
             </div>
@@ -747,15 +747,14 @@ export function GroupDetailPage() {
           {contestsData.items.map((c) => (
             <Card
               key={c.id}
-              className="cursor-pointer hover:border-brand-primary/40 transition-colors"
-              onClick={() => navigate(PATHS.contest(id, c.id))}
+              className="relative cursor-pointer hover:border-brand-primary/40 transition-colors"
             >
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <ContestStatusBadge status={c.status} />
                   <span className="text-xs text-neutral-text-muted">{formatDuration(c.duration)}</span>
                 </div>
-                <h3 className="font-semibold text-neutral-text-primary leading-tight">{c.name}</h3>
+                <h3 className="font-semibold text-neutral-text-primary leading-tight"><RowLink to={PATHS.contest(id, c.id)}>{c.name}</RowLink></h3>
                 <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
