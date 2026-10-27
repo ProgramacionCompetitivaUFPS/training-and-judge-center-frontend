@@ -22,13 +22,14 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * running right now is deleted with the group, and that needs an explicit acknowledgement.
  */
 export function GroupDeletionDialog({ open, onOpenChange, groupId, groupName, isDeleting, onConfirm }: GroupDeletionDialogProps) {
-  const { data: impact, isLoading, isError } = useGroupDeletionImpact(groupId, open)
+  const { data: impact, isLoading, isError, isFetching } = useGroupDeletionImpact(groupId, open)
   const [understood, setUnderstood] = useState(false)
   const [typedName, setTypedName] = useState('')
 
   // When the impact could not be read, assume the worst: ask for the acknowledgement too.
   const needsAcknowledgement = isError || (!!impact && impact.activeContests > 0)
-  const ready = (!!impact || isError) && (!needsAcknowledgement || understood) && typedName === groupName
+  // not while the impact is being fetched again: what is on screen could be outdated (a contest may have started)
+  const ready = !isFetching && (!!impact || isError) && (!needsAcknowledgement || understood) && typedName === groupName
 
   function handleOpenChange(next: boolean) {
     if (isDeleting) return

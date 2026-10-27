@@ -842,6 +842,8 @@ export function GroupDetailPage() {
       {/* Delete confirmation: shows what is lost and asks for the confirmation in steps */}
       {group && (
         <GroupDeletionDialog
+          // remounted on every open/close, so nothing typed or ticked survives a failed deletion
+          key={deleteOpen ? 'open' : 'closed'}
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           groupId={id}

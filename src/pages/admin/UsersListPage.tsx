@@ -66,7 +66,7 @@ type PendingAction = {
   kind: 'promote' | 'demote' | 'deactivate'
 }
 
-function getConfirmDialogProps(action: PendingAction | null, soleLeadGroups: string[] = []) {
+function getConfirmDialogProps(action: PendingAction | null, soleLeadGroups: string[] = [], soleLeadLookupFailed = false) {
   if (!action) return null
   const { user, kind } = action
 
@@ -77,6 +77,9 @@ function getConfirmDialogProps(action: PendingAction | null, soleLeadGroups: str
         `¿Desactivar al usuario @${user.nickname}? Esta acción es permanente y no se puede deshacer: su correo y nickname quedan anonimizados.` +
         (soleLeadGroups.length > 0
           ? ` Ojo: es el único líder de ${soleLeadGroups.map((n) => `«${n}»`).join(', ')}; ${soleLeadGroups.length === 1 ? 'ese grupo quedará' : 'esos grupos quedarán'} sin líder y solo un Administrador podrá gestionarlo${soleLeadGroups.length === 1 ? '' : 's'}. Considera nombrar antes a otro líder.`
+          : '') +
+        (soleLeadLookupFailed
+          ? ' No se pudo comprobar si es el único líder de algún grupo: si lo es, ese grupo quedaría sin líder y solo un Administrador podría gestionarlo.'
           : ''),
     }
   }
@@ -217,8 +220,8 @@ export function UsersListPage() {
   }
 
   const deactivating = pendingAction?.kind === 'deactivate'
-  const { data: soleLead, isLoading: isLoadingSoleLead } = useSoleLeadGroups(pendingAction?.user.id, deactivating)
-  const confirmDialogProps = getConfirmDialogProps(pendingAction, soleLead?.groups.map((g) => g.name))
+  const { data: soleLead, isLoading: isLoadingSoleLead, isError: soleLeadFailed } = useSoleLeadGroups(pendingAction?.user.id, deactivating)
+  const confirmDialogProps = getConfirmDialogProps(pendingAction, soleLead?.groups.map((g) => g.name), deactivating && soleLeadFailed)
 
   const totalPages = Math.max(data?.pagination.totalPages ?? 1, 1)
   const currentPage = data?.pagination.page ?? 1
