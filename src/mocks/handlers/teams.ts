@@ -96,6 +96,16 @@ export const teamsHandlers = [
     })
   }),
 
+  // What leaving would cancel: the mock keeps no contest size limits, so nothing
+  http.get(url('/teams/:teamId/leave-impact'), async ({ params }) => {
+    await delay(150)
+    const { teamId } = params as { teamId: string }
+    if (!mockTeamDetails[teamId]) {
+      return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'No eres miembro de este equipo' }, { status: 404 })
+    }
+    return HttpResponse.json({ registrationsToCancel: [] })
+  }),
+
   // Leave team
   http.delete(url('/teams/:teamId/members/me'), async ({ params }) => {
     await delay(300)

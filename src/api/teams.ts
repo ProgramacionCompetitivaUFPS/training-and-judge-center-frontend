@@ -13,6 +13,7 @@ import type {
   UpdateTeamRegistrationRequest,
   ContestTeamRegistrationsResponse,
   TeamRegistrationEligibility,
+  TeamLeaveImpact,
 } from '@/types/team'
 
 // === Teams CRUD ===
@@ -33,6 +34,10 @@ export function createTeam(data: CreateTeamRequest): Promise<CreateTeamResponse>
 
 export function inviteTeamMember(teamId: string, data: InviteTeamMemberRequest): Promise<TeamInvitationResponse> {
   return apiClient.post(`/teams/${teamId}/invitations`, data)
+}
+
+export function getTeamLeaveImpact(teamId: string): Promise<TeamLeaveImpact> {
+  return apiClient.get(`/teams/${teamId}/leave-impact`)
 }
 
 export function leaveTeam(teamId: string): Promise<void> {
