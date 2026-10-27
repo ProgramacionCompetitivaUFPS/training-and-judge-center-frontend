@@ -6,7 +6,10 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   ProblemAccessibility,
+  TestCaseKind,
+  ProblemSourceFileType,
 } from '@/types/problem'
+import { saveBlobAs } from '@/lib/download'
 
 // === Query Keys ===
 
@@ -16,6 +19,11 @@ export const problemKeys = {
   detail: (slug: string) => ['problems', 'detail', slug] as const,
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
+  testCases: (slug: string) => ['problems', 'testCases', slug] as const,
+  sourceFiles: (slug: string) => ['problems', 'sourceFiles', slug] as const,
+  sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false) =>
+    ['problems', 'sourceFiles', slug, fileType, fileName ?? '', full ? 'full' : 'preview'] as const,
+  testCasePart: (slug: string, kind: TestCaseKind, name: string, part: string) => ['problems', 'testCases', slug, kind, name, part] as const,
   tags: ['problems', 'tags'] as const,
 }
 
@@ -128,6 +136,8 @@ export function useUploadProblemFile() {
       problemsApi.uploadProblemFile(slug, fileType, file),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
   })
 }
@@ -139,6 +149,54 @@ export function useDeleteProblemFile() {
       problemsApi.deleteProblemFile(slug, fileType, fileName),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
+    },
+  })
+}
+
+// === Lectura y descarga de archivos (autor, colaboradores y Admin) ===
+
+// `enabled` lets the caller hold the request until the list is actually opened: the backend
+// reads the whole test cases ZIP from storage to answer it.
+export function useProblemTestCases(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCases(slug),
+    queryFn: () => problemsApi.getProblemTestCases(slug),
+    enabled,
+  })
+}
+
+export function useProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName: string | undefined, enabled: boolean, full = false) {
+  return useQuery({
+    queryKey: problemKeys.sourceFile(slug, fileType, fileName, full),
+    queryFn: () => problemsApi.getProblemSourceFile(slug, fileType, fileName, full),
+    enabled,
+  })
+}
+
+// A whole test file can be tens of MB: don't keep it in memory once the page is left.
+export function useProblemTestCasePart(slug: string, kind: TestCaseKind, name: string, part: 'input' | 'answer', enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCasePart(slug, kind, name, part),
+    queryFn: () => problemsApi.getProblemTestCasePart(slug, kind, name, part),
+    enabled,
+    gcTime: 30_000,
+  })
+}
+
+export function useDownloadTestCases() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.downloadProblemTestCases(slug), `${slug}-testcases.zip`)
+    },
+  })
+}
+
+export function useExportProblem() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.exportProblem(slug), `${slug}.zip`)
     },
   })
 }

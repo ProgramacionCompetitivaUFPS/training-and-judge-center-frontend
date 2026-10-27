@@ -209,3 +209,38 @@ export interface ProblemStatistics {
     count: number
   }>
 }
+
+// === Casos de prueba (lectura; solo autor, colaboradores y Admin) ===
+
+export type TestCaseKind = 'sample' | 'secret'
+
+export interface TestCaseSummary {
+  kind: TestCaseKind
+  name: string
+  /** Tamaño del .in en bytes; null si el ZIP no trae ese archivo */
+  inputBytes: number | null
+  /** Tamaño del .ans en bytes; null si el ZIP no trae ese archivo */
+  answerBytes: number | null
+}
+
+export interface TestCasesResponse {
+  hasTestCases: boolean
+  sampleCount: number
+  secretCount: number
+  cases: TestCaseSummary[]
+}
+
+// === Código de soluciones, checker y validador (lectura; solo autor, colaboradores y Admin) ===
+
+export type ProblemSourceFileType = 'solution' | 'checker' | 'validator'
+
+export interface ProblemSourceFile {
+  fileType: ProblemSourceFileType
+  /** Nombre con el que el autor subió el archivo */
+  filename: string
+  language: string
+  content: string
+  /** El backend corta el contenido a 256 KiB; sizeBytes sigue siendo el tamaño real */
+  truncated: boolean
+  sizeBytes: number
+}

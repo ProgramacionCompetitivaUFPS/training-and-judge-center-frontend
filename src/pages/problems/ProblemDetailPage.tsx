@@ -1,7 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle } from 'lucide-react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui'
+import {
+  Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useContestSession } from '@/hooks/useContestSession'
@@ -17,6 +21,7 @@ import {
   useAddModifier,
   useRemoveModifier,
   useAdminRejudgeProblem,
+  useExportProblem,
 } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { useRejudgeContestProblem } from '@/hooks/api/useContests'
@@ -55,6 +60,8 @@ function publishRequirementLabel(fieldKey: string): string {
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
   const navigate = useNavigate()
+  // Which tab is open lives in the URL, so a file page's "Volver" and the browser's back button land on it
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
   const { toast } = useToastContext()
@@ -74,6 +81,7 @@ export function ProblemDetailPage() {
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
+  const exportMutation = useExportProblem()
   const rejudgeContestMutation = useRejudgeContestProblem()
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -127,6 +135,153 @@ export function ProblemDetailPage() {
     contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
   const isContestLead = isAdmin || isContestOwnerOrLead
   const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
+  const showManagementTabs = canEdit && !isContestContext
+  // A draft can't be published without test cases and a solution, and those live in the other
+  // tab now, so say so on the tab instead of leaving a new author to look for them.
+  const missingFiles =
+    problem.status === 'DRAFT' && (!problem.files?.testCases || (problem.files?.solutions.length ?? 0) === 0)
+
+  // Only Publicar stays in view, and only on a draft: it's the last step of the flow, so hiding it
+  // would make a new author hunt for it (the tooltip says what's still missing). Everything else
+  // lives in the menu so this doesn't grow with every new feature.
+  const managementActions = (
+    <div className="flex items-center gap-2 shrink-0">
+      {problem.status === 'DRAFT' &&
+        (missingPublishRequirements.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="block">
+                <Button variant="primary" className="gap-2" disabled>
+                  <ArrowUpCircle className="h-4 w-4" />
+                  Publicar
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
+              <ul className="mt-1 list-disc list-inside">
+                {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button variant="primary" className="gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+            <ArrowUpCircle className="h-4 w-4" />
+            Publicar
+          </Button>
+        ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" aria-label="Más acciones" title="Más acciones">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          {/* The edit form refuses a published problem, so say why here instead of leading to a dead end */}
+          <DropdownMenuItem onClick={() => navigate(PATHS.problemEdit(problem.slug))} disabled={problem.status === 'PUBLISHED'}>
+            <Pencil className="mr-2 h-4 w-4 shrink-0" />
+            <span>
+              Editar
+              {problem.status === 'PUBLISHED' && (
+                <span className="block text-xs text-neutral-text-muted">Despublica el problema para editarlo</span>
+              )}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
+            <Download className="mr-2 h-4 w-4 shrink-0" />
+            <span>
+              {exportMutation.isPending ? 'Exportando…' : 'Exportar ZIP'}
+              <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
+            </span>
+          </DropdownMenuItem>
+          {problem.status === 'PUBLISHED' && (
+            <DropdownMenuItem onClick={() => setUnpublishDialogOpen(true)} disabled={unpublishMutation.isPending}>
+              <ArrowDownCircle className="mr-2 h-4 w-4 shrink-0" />
+              Despublicar
+            </DropdownMenuItem>
+          )}
+          {isAdmin && (
+            <DropdownMenuItem onClick={() => setAdminRejudgeDialogOpen(true)} disabled={adminRejudgeMutation.isPending}>
+              <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
+              Rejuzgar (global)
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
+                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+
+  const problemContent = (
+    <>
+      {/* Statement — the "Enunciado" label is only useful while reviewing a draft
+          alongside the Archivos/Gestión cards; once published, this is the only thing
+          on the page and a contestant is just here to read the problem, so the label
+          would be redundant chrome. */}
+      <Card>
+        {problem.status !== 'PUBLISHED' && (
+          <CardHeader>
+            <CardTitle>Enunciado</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
+          {problem.statement ? (
+            <MarkdownRenderer content={problem.statement} variant="statement" />
+          ) : (
+            <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
+          `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
+      {!!problem.samples?.length && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ejemplos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {problem.samples.map((sample, index) => (
+              <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
+                <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+                  <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+                  <div className="p-4">
+                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
+                  </div>
+                  <div className="p-4">
+                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </>
+  )
+
+  const managementContent = (
+    <>
+      {/* Files: always readable; uploading and deleting only while it's a draft — the backend
+          rejects changes to a published problem */}
+      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
+
+      {/* Modifiers (only for modifiers) */}
+      <ModifiersManager problem={problem} canAdd={!!canEdit} canRemove={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+    </>
+  )
 
   function handlePublish() {
     if (!problem) return
@@ -178,12 +333,25 @@ export function ProblemDetailPage() {
         onError: (err) => {
           if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
             toast({ variant: 'error', title: 'No se puede eliminar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
+          } else if (err instanceof ApiClientError && err.code === 'PROBLEM_HAS_CONTEST_HISTORY') {
+            toast({
+              variant: 'error',
+              title: 'No se puede eliminar',
+              description: 'Tiene envíos hechos en una competencia: borrarlo cambiaría sus resultados. Despublícalo en su lugar.',
+            })
           } else {
             toast({ variant: 'error', title: 'Error al eliminar' })
           }
         },
       },
     )
+  }
+
+  function handleExport() {
+    if (!problem) return
+    exportMutation.mutate(problem.slug, {
+      onError: (err) => toast({ variant: 'error', title: 'No se pudo exportar el problema', description: getErrorMessage(err) }),
+    })
   }
 
   function handleAdminRejudge() {
@@ -242,86 +410,68 @@ export function ProblemDetailPage() {
             </div>
           )}
 
-          {/* Title + badges */}
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-extrabold text-neutral-text-primary">
-                {isContestContext && letter && `${letter.toUpperCase()}. `}{problem.title}
-              </h1>
-              {!isContestContext && canSeeManagement && (
-                <>
-                  <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-                    {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-                  </Badge>
-                  <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-                    {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-                  </Badge>
-                </>
+          {/* Title + badges, with the management actions on the right (up here so an author
+              doesn't have to scroll the sidebar to find them) */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
+                <h1 className="text-2xl font-extrabold text-neutral-text-primary">
+                  {isContestContext && letter && `${letter.toUpperCase()}. `}{problem.title}
+                </h1>
+                {!isContestContext && canSeeManagement && (
+                  <>
+                    <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+                      {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+                    </Badge>
+                    <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+                      {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+                    </Badge>
+                  </>
+                )}
+                {/* Letter badge removed — letter is now prefixed in the title */}
+              </div>
+              {!isContestContext && (
+                <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
               )}
-              {/* Letter badge removed — letter is now prefixed in the title */}
             </div>
-            {!isContestContext && (
-              <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
-            )}
+            {canEdit && !isContestContext && managementActions}
           </div>
 
-          {/* Statement — the "Enunciado" label is only useful while reviewing a draft
-              alongside the Archivos/Gestión cards; once published, this is the only thing
-              on the page and a contestant is just here to read the problem, so the label
-              would be redundant chrome. */}
-          <Card>
-            {problem.status !== 'PUBLISHED' && (
-              <CardHeader>
-                <CardTitle>Enunciado</CardTitle>
-              </CardHeader>
-            )}
-            <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
-              {problem.statement ? (
-                <MarkdownRenderer content={problem.statement} />
-              ) : (
-                <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
-              `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
-          {!!problem.samples?.length && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ejemplos</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {problem.samples.map((sample, index) => (
-                  <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
-                    <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
-                      <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
-                      <div className="p-4">
-                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
-                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
-                      </div>
-                      <div className="p-4">
-                        <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
-                        <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Files (only for modifiers, and only while the problem is still a draft — the
-              backend rejects uploads to a published problem) */}
-          {canEdit && problem.files && problem.status !== 'PUBLISHED' && (
-            <FilesManager problem={problem} />
-          )}
-
-          {/* Modifiers (only for modifiers) */}
-          {canEdit && (
-            <ModifiersManager problem={problem} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+          {showManagementTabs ? (
+            // Whoever edits the problem gets the reader's view (statement and examples, as a
+            // contestant sees it) apart from the management cards, instead of one long page.
+            <Tabs
+              value={searchParams.get('tab') === 'files' ? 'files' : 'problem'}
+              onValueChange={(tab) => setSearchParams(tab === 'files' ? { tab: 'files' } : {}, { replace: true })}
+              className="space-y-4"
+            >
+              <TabsList>
+                <TabsTrigger value="problem">Problema</TabsTrigger>
+                <TabsTrigger value="files" className="gap-1.5">
+                  Archivos y colaboradores
+                  {missingFiles && (
+                    <span
+                      className="h-2 w-2 rounded-full bg-status-warning"
+                      role="img"
+                      aria-label="Faltan archivos por subir"
+                      title="Faltan archivos por subir"
+                    />
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="problem" className="mt-0 space-y-6">
+                {problemContent}
+              </TabsContent>
+              <TabsContent value="files" className="mt-0 space-y-6">
+                {managementContent}
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <>
+              {problemContent}
+              {/* Inside a contest only an Admin can reach this, and no tabs there */}
+              {canEdit && managementContent}
+            </>
           )}
         </div>
 
@@ -479,64 +629,6 @@ export function ProblemDetailPage() {
                       })}
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Management actions (only for editors) */}
-          {canEdit && !isContestContext && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Gestión</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {problem.status === 'DRAFT' && (
-                  missingPublishRequirements.length > 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="block">
-                          <Button variant="primary" className="w-full gap-2" disabled>
-                            <ArrowUpCircle className="h-4 w-4" />
-                            Publicar
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
-                        <ul className="mt-1 list-disc list-inside">
-                          {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
-                        </ul>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button variant="primary" className="w-full gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
-                      <ArrowUpCircle className="h-4 w-4" />
-                      Publicar
-                    </Button>
-                  )
-                )}
-                {problem.status === 'PUBLISHED' && (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => setUnpublishDialogOpen(true)} isLoading={unpublishMutation.isPending}>
-                    <ArrowDownCircle className="h-4 w-4" />
-                    Despublicar
-                  </Button>
-                )}
-                <Button variant="outline" className="w-full gap-2" onClick={() => navigate(PATHS.problemEdit(problem.slug))}>
-                  <Pencil className="h-4 w-4" />
-                  Editar
-                </Button>
-                {isAdmin && (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => setAdminRejudgeDialogOpen(true)} isLoading={adminRejudgeMutation.isPending}>
-                    <RefreshCw className="h-4 w-4" />
-                    Rejuzgar (global)
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button variant="danger" className="w-full gap-2" onClick={() => setDeleteDialogOpen(true)}>
-                    <Trash2 className="h-4 w-4" />
-                    Eliminar
-                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -707,7 +799,13 @@ export function ProblemDetailPage() {
       </Dialog>
 
       {/* Delete dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open)
+          if (!open) setConfirmSlug('')
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar problema</DialogTitle>
@@ -715,6 +813,28 @@ export function ProblemDetailPage() {
               Esta acción es irreversible. Escribe <span className="font-mono font-semibold">{problem.slug}</span> para confirmar.
             </DialogDescription>
           </DialogHeader>
+          {problem.status === 'PUBLISHED' && (
+            <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm space-y-1" role="status">
+              <p className="font-semibold text-neutral-text-primary">Este problema está publicado.</p>
+              <p className="text-neutral-text-muted">
+                Si eliminas, se borran sus archivos y se quita de las competencias donde esté. Si solo quieres que nadie más
+                lo use, despublícalo: vuelve a borrador y conserva todo, y lo puedes publicar de nuevo cuando quieras.
+                Si ya recibió envíos dentro de una competencia, no se puede eliminar: sus resultados dependen de él.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                className="mt-2"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setConfirmSlug('')
+                  setUnpublishDialogOpen(true)
+                }}
+              >
+                Despublicar en vez de eliminar
+              </Button>
+            </div>
+          )}
           <Input
             label="Confirmar slug"
             value={confirmSlug}
@@ -722,14 +842,14 @@ export function ProblemDetailPage() {
             placeholder={problem.slug}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setConfirmSlug('') }}>Cancelar</Button>
             <Button
               variant="danger"
               onClick={handleDelete}
               isLoading={deleteMutation.isPending}
               disabled={confirmSlug !== problem.slug}
             >
-              Eliminar
+              {problem.status === 'PUBLISHED' ? 'Eliminar de todos modos' : 'Eliminar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -772,9 +892,9 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
   return null
 }
 
-interface FilesManagerProps { problem: ProblemDetail }
+interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
 
-function FilesManager({ problem }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -874,16 +994,29 @@ function FilesManager({ problem }: FilesManagerProps) {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => triggerUpload(fileType)}
-                isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
-              >
-                <Upload className="h-3.5 w-3.5 mr-1" />
-                {files[fileType] ? 'Reemplazar' : 'Subir'}
-              </Button>
               {files[fileType] && (
+                <LinkButton
+                  to={fileType === 'testCases' ? PATHS.problemTestCases(problem.slug) : PATHS.problemJudgingFile(problem.slug, fileType)}
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Ver ${PROBLEM_FILE_TYPE_INFO[fileType].label}`}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  Ver
+                </LinkButton>
+              )}
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => triggerUpload(fileType)}
+                  isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1" />
+                  {files[fileType] ? 'Reemplazar' : 'Subir'}
+                </Button>
+              )}
+              {!readOnly && files[fileType] && (
                 <button
                   type="button"
                   onClick={() => setDeleteTarget({ fileType, label: PROBLEM_FILE_TYPE_INFO[fileType].label })}
@@ -903,15 +1036,17 @@ function FilesManager({ problem }: FilesManagerProps) {
               Soluciones
               <FileFormatHint fileType="solution" />
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => triggerUpload('solution')}
-              isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
-            >
-              <Upload className="h-3.5 w-3.5 mr-1" />
-              Agregar
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => triggerUpload('solution')}
+                isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                Agregar
+              </Button>
+            )}
           </div>
           {files.solutions.length === 0 ? (
             <p className="text-xs text-neutral-text-muted">Sin soluciones cargadas.</p>
@@ -920,20 +1055,39 @@ function FilesManager({ problem }: FilesManagerProps) {
               {files.solutions.map((sol) => (
                 <li key={sol.filename} className="flex items-center justify-between text-sm">
                   <span className="text-neutral-text-muted font-mono text-xs">{sol.filename}</span>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
-                    className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                    aria-label={`Eliminar ${sol.filename}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <LinkButton
+                      to={PATHS.problemSolutionFile(problem.slug, sol.filename)}
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Ver ${sol.filename}`}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Ver
+                    </LinkButton>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ fileType: 'solution', fileName: sol.filename, label: sol.filename })}
+                        className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                        aria-label={`Eliminar ${sol.filename}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+        {readOnly && (
+          <p className="pt-2 border-t border-neutral-border text-xs text-neutral-text-muted">
+            Para subir o eliminar archivos, despublica el problema primero.
+          </p>
+        )}
       </CardContent>
+
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -971,15 +1125,22 @@ function FileFormatHint({ fileType }: { fileType: ProblemFileType }) {
   )
 }
 
-interface ModifiersManagerProps { problem: ProblemDetail; canSearchUsers: boolean }
+interface ModifiersManagerProps {
+  problem: ProblemDetail
+  /** Whoever can edit the problem can bring in more collaborators; the backend answers 403 to anyone else */
+  canAdd: boolean
+  /** Removing a collaborator stays with the author and Admin */
+  canRemove: boolean
+  canSearchUsers: boolean
+}
 
-function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
+function ModifiersManager({ problem, canAdd, canRemove, canSearchUsers }: ModifiersManagerProps) {
   const addMutation = useAddModifier()
   const removeMutation = useRemoveModifier()
   const { toast } = useToastContext()
   const [userQuery, setUserQuery] = useState('')
   const debouncedUserQuery = useDebounce(userQuery)
-  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers)
+  const { data: userSearchData, isFetching: isSearchingUsers } = useSearchUsers(debouncedUserQuery, undefined, canSearchUsers && canAdd)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
 
   const modifiers = problem.modifiers ?? []
@@ -1015,6 +1176,7 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
         <CardTitle>Modificadores</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {canAdd ? (
         <SearchSelect
           query={userQuery}
           onQueryChange={setUserQuery}
@@ -1032,23 +1194,32 @@ function ModifiersManager({ problem, canSearchUsers }: ModifiersManagerProps) {
           )}
           onSelect={(u) => handleAdd(u.nickname)}
         />
+        ) : (
+          <p className="text-xs text-neutral-text-muted">Solo quien puede editar este problema puede agregar colaboradores.</p>
+        )}
         {addMutation.isPending && <p className="text-xs text-neutral-text-muted">Agregando...</p>}
         {modifiers.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {modifiers.map((m) => (
               <Badge key={m.nickname} variant="outline" className="gap-1 pr-1">
                 {m.name} (@{m.nickname})
-                <button
-                  type="button"
-                  onClick={() => setRemoveTarget(m.nickname)}
-                  className="ml-1 p-0.5 rounded-full hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
-                  aria-label={`Quitar a ${m.nickname}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
+                {/* The author keeps editing rights whatever the list says, so a "×" on them does nothing useful */}
+                {canRemove && m.nickname !== problem.author.nickname && (
+                  <button
+                    type="button"
+                    onClick={() => setRemoveTarget(m.nickname)}
+                    className="ml-1 p-0.5 rounded-full hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
+                    aria-label={`Quitar a ${m.nickname}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </Badge>
             ))}
           </div>
+        )}
+        {canAdd && !canRemove && (
+          <p className="text-xs text-neutral-text-muted">Solo el autor y los administradores pueden quitar colaboradores.</p>
         )}
       </CardContent>
 

@@ -4,6 +4,24 @@ import type { ProblemDetail } from '@/types/problem'
 import { url } from './utils'
 import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS, PROBLEM_LANGUAGE_BY_EXTENSION } from '@/lib/constants'
 
+function mockTestCases(slug: string) {
+  const problem = mockProblems.find((p) => p.slug === slug)
+  if (!problem) return null
+  if (!problem.files?.testCases) return []
+  const samples = (problem.samples ?? []).map((sm) => ({ kind: 'sample', name: sm.name, input: sm.input, answer: sm.output }))
+  const secrets = [
+    { kind: 'secret', name: '1', input: '10 20\n', answer: '30\n' },
+    { kind: 'secret', name: '2', input: '1000000000 1000000000\n', answer: '2000000000\n' },
+  ]
+  return [...samples, ...secrets]
+}
+
+function mockZip(filename: string) {
+  return new HttpResponse(new TextEncoder().encode(`Mock ZIP: ${filename}`), {
+    headers: { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${filename}"` },
+  })
+}
+
 export const problemsHandlers = [
   // List problems
   http.get(url('/problems'), async ({ request }) => {
@@ -338,6 +356,56 @@ export const problemsHandlers = [
     }
 
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Test cases: the samples the problem already has, plus two made-up secret cases.
+  http.get(url('/problems/p/:slug/testcases'), async ({ params }) => {
+    await delay(300)
+    const cases = mockTestCases((params as { slug: string }).slug)
+    if (!cases) return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    return HttpResponse.json({
+      hasTestCases: cases.length > 0,
+      sampleCount: cases.filter((c) => c.kind === 'sample').length,
+      secretCount: cases.filter((c) => c.kind === 'secret').length,
+      cases: cases.map((c) => ({ kind: c.kind, name: c.name, inputBytes: c.input.length, answerBytes: c.answer.length })),
+    })
+  }),
+
+  // One whole file of a case, as plain text
+  http.get(url('/problems/p/:slug/testcases/:kind/:name/:part'), async ({ params }) => {
+    await delay(200)
+    const { slug, kind, name, part } = params as { slug: string; kind: string; name: string; part: string }
+    const found = mockTestCases(slug)?.find((c) => c.kind === kind && c.name === name)
+    if (!found || (part !== 'input' && part !== 'answer')) {
+      return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'Test case not found' }, { status: 404 })
+    }
+    return new HttpResponse(part === 'input' ? found.input : found.answer, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }),
+
+  // The ZIPs are placeholders: enough to exercise the download flow, not real packages.
+  http.get(url('/problems/p/:slug/files/testcases'), async ({ params }) => {
+    await delay(300)
+    return mockZip(`${(params as { slug: string }).slug}-testcases.zip`)
+  }),
+
+  // Source of a solution / checker / validator: placeholder code, enough to exercise the viewer.
+  http.get(url('/problems/p/:slug/files/:fileType'), async ({ params, request }) => {
+    await delay(200)
+    const { slug, fileType } = params as { slug: string; fileType: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const fileName = new URL(request.url).searchParams.get('fileName')
+    const solution = problem?.files?.solutions.find((s) => s.filename === fileName)
+    const hasFile = fileType === 'solution' ? !!solution : fileType === 'checker' || fileType === 'validator' ? !!problem?.files?.[fileType] : false
+    if (!hasFile) return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'The problem has no such file' }, { status: 404 })
+    const filename = solution?.filename ?? `${fileType}.py`
+    const language = solution?.language ?? 'python310'
+    const content = language === 'python310' ? `# ${filename}\nprint("mock")\n` : `// ${filename}\n#include <iostream>\nint main() {}\n`
+    return HttpResponse.json({ fileType, filename, language, content, truncated: false, sizeBytes: content.length })
+  }),
+
+  http.get(url('/problems/p/:slug/export'), async ({ params }) => {
+    await delay(400)
+    return mockZip(`${(params as { slug: string }).slug}.zip`)
   }),
 
   // Get modifiers
