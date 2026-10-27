@@ -247,6 +247,12 @@ export const problemsHandlers = [
   }),
 
   // Unpublish
+  // Last publish attempt: never validated, in mock mode
+  http.get(url('/problems/p/:slug/validation'), async () => {
+    await delay(150)
+    return HttpResponse.json({ found: false, terminal: false, passed: false })
+  }),
+
   http.post(url('/problems/p/:slug/unpublish'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }
