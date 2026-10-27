@@ -8,6 +8,7 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   PublishResponse,
+  LatestValidation,
   UnpublishResponse,
   ProblemStatistics,
   ProblemModifier,
@@ -50,6 +51,10 @@ export function deleteProblem(slug: string, data: DeleteProblemRequest): Promise
 
 export function publishProblem(slug: string): Promise<PublishResponse> {
   return apiClient.post(`/problems/p/${slug}/publish`)
+}
+
+export function getLatestValidation(slug: string): Promise<LatestValidation> {
+  return apiClient.get(`/problems/p/${slug}/validation`)
 }
 
 export function unpublishProblem(slug: string): Promise<UnpublishResponse> {

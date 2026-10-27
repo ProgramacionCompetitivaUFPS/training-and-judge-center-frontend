@@ -8,6 +8,8 @@ import {
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
+import { ValidationPanel } from '@/components/features/ValidationPanel'
+import { ValidationReportView } from '@/components/features/ValidationReportView'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -277,6 +279,9 @@ export function ProblemDetailPage() {
       {/* Files: always readable; uploading and deleting only while it's a draft — the backend
           rejects changes to a published problem */}
       {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
+
+      {/* What happened with the last publish attempt: persists, follows a running validation */}
+      <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending} />
 
       {/* Modifiers (only for modifiers) */}
       <ModifiersManager problem={problem} canAdd={!!canEdit} canRemove={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
@@ -738,57 +743,12 @@ export function ProblemDetailPage() {
                 </div>
               )}
 
-              {publishResult.data.compilationErrors && (
-                <div>
-                  <p className="text-sm font-semibold text-neutral-text-primary">
-                    Error de compilación en <span className="font-mono">{publishResult.data.compilationErrors.file}</span>:
-                  </p>
-                  <pre className="mt-1 whitespace-pre-wrap rounded bg-neutral-background p-2 font-mono text-xs text-neutral-text-primary">
-                    {publishResult.data.compilationErrors.errors.join('\n')}
-                  </pre>
-                </div>
-              )}
-
-              {!!publishResult.data.failedTestCases?.length && (
-                <div>
-                  <p className="text-sm font-semibold text-neutral-text-primary">Casos de prueba fallidos:</p>
-                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
-                    {publishResult.data.failedTestCases.map((tc) => (
-                      <li key={tc.case}>
-                        <span className="font-mono">{tc.case}</span>
-                        {(tc.status || tc.verdict) && (
-                          <span className="text-neutral-text-muted">
-                            {' '}— {SUBMISSION_STATUS_CONFIG[(tc.status || tc.verdict) as keyof typeof SUBMISSION_STATUS_CONFIG]?.label ?? (tc.status || tc.verdict)}
-                          </span>
-                        )}
-                        {tc.details && <span className="block text-xs text-neutral-text-muted">{tc.details}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {!!publishResult.data.failedInputs?.length && (
-                <div>
-                  <p className="text-sm font-semibold text-neutral-text-primary">Entradas rechazadas por el validator:</p>
-                  <ul className="mt-1 space-y-1 text-sm text-neutral-text-primary">
-                    {publishResult.data.failedInputs.map((fi) => (
-                      <li key={fi.file}><span className="font-mono">{fi.file}</span>: {fi.reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {!!publishResult.data.validationLogs?.length && (
-                <details>
-                  <summary className="cursor-pointer text-sm font-semibold text-neutral-text-primary">Ver logs completos</summary>
-                  <ul className="mt-2 space-y-1">
-                    {publishResult.data.validationLogs.map((log, i) => (
-                      <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
+              <ValidationReportView
+                compilationErrors={publishResult.data.compilationErrors}
+                failedTestCases={publishResult.data.failedTestCases}
+                failedInputs={publishResult.data.failedInputs}
+                validationLogs={publishResult.data.validationLogs}
+              />
             </div>
           )}
 

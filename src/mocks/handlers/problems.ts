@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
-import type { ProblemDetail } from '@/types/problem'
+import type { LatestValidation, ProblemDetail } from '@/types/problem'
 import { url } from './utils'
 import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS, PROBLEM_LANGUAGE_BY_EXTENSION } from '@/lib/constants'
 
@@ -20,6 +20,17 @@ function mockZip(filename: string) {
   return new HttpResponse(new TextEncoder().encode(`Mock ZIP: ${filename}`), {
     headers: { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${filename}"` },
   })
+}
+
+// The latest publish attempt of each problem, so the "Última validación" card has something to show
+// after a mock publish (the real backend keeps this in problem_validations).
+const latestValidations = new Map<string, LatestValidation>()
+
+// A publish attempt that got as far as validating and failed; `body` is the failure response itself.
+function rejectValidation(slug: string, body: Record<string, unknown>) {
+  const { error: _error, message: _message, ...detail } = body
+  latestValidations.set(slug, { found: true, terminal: true, passed: false, ...detail })
+  return HttpResponse.json(body, { status: 400 })
 }
 
 export const problemsHandlers = [
@@ -203,50 +214,50 @@ export const problemsHandlers = [
     // the UI: name a solution file "brokencompile.*" / "brokentest.*" / "brokeninput.*".
     const solutionNames = problem.files?.solutions.map((s) => s.filename.toLowerCase()) ?? []
     if (solutionNames.some((f) => f.includes('brokencompile'))) {
-      return HttpResponse.json(
-        {
+      return rejectValidation(slug, {
           error: 'VALIDATION_FAILED',
           message: 'La compilación falló',
           validationLogs: [],
           compilationErrors: { file: 'solution.cpp', errors: ["error: 'cout' was not declared in this scope", "note: 'std::cout' is defined in header '<iostream>'"] },
-        },
-        { status: 400 },
-      )
+        })
     }
     if (solutionNames.some((f) => f.includes('brokentest'))) {
-      return HttpResponse.json(
-        {
+      return rejectValidation(slug, {
           error: 'VALIDATION_FAILED',
           message: 'La solución falló en casos de prueba',
           validationLogs: [],
           failedTestCases: [{ case: 'secret/3', status: 'WRONG_ANSWER', details: 'Expected "42", got "41"' }],
-        },
-        { status: 400 },
-      )
+        })
     }
     if (solutionNames.some((f) => f.includes('brokeninput'))) {
-      return HttpResponse.json(
-        {
+      return rejectValidation(slug, {
           error: 'VALIDATION_FAILED',
           message: 'El validator rechazó las entradas de prueba',
           validationLogs: [],
           failedInputs: [{ file: 'secret/2.in', reason: 'expected exactly 2 integers on line 1, got 3' }],
-        },
-        { status: 400 },
-      )
+        })
     }
 
     problem.status = 'PUBLISHED'
     problem.updatedAt = new Date().toISOString()
+    const validationLogs = ['✓ Campos requeridos validados', '✓ Casos de prueba válidos', '✓ Solución compilada', '✓ Solución pasó todos los casos']
+    latestValidations.set(slug, { found: true, terminal: true, passed: true, status: 'PUBLISHED', validationLogs })
     return HttpResponse.json({
       slug: problem.slug,
       status: 'PUBLISHED',
       message: 'Problema publicado exitosamente',
-      validationLogs: ['✓ Campos requeridos validados', '✓ Casos de prueba válidos', '✓ Solución compilada', '✓ Solución pasó todos los casos'],
+      validationLogs,
     })
   }),
 
   // Unpublish
+  // Last publish attempt of the problem
+  http.get(url('/problems/p/:slug/validation'), async ({ params }) => {
+    await delay(150)
+    const { slug } = params as { slug: string }
+    return HttpResponse.json(latestValidations.get(slug) ?? { found: false, terminal: false, passed: false })
+  }),
+
   http.post(url('/problems/p/:slug/unpublish'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }

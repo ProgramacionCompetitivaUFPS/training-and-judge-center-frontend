@@ -25,6 +25,7 @@ export const problemKeys = {
     ['problems', 'sourceFiles', slug, fileType, fileName ?? '', full ? 'full' : 'preview'] as const,
   testCasePart: (slug: string, kind: TestCaseKind, name: string, part: string) => ['problems', 'testCases', slug, kind, name, part] as const,
   tags: ['problems', 'tags'] as const,
+  validation: (slug: string) => ['problems', 'validation', slug] as const,
 }
 
 // === Queries ===
@@ -107,6 +108,22 @@ export function useDeleteProblem() {
   })
 }
 
+/**
+ * The last publish attempt of a problem, even one started before this page was opened. It polls while
+ * the validation is still running, or while a publish request of this page is in flight (the request
+ * blocks until the validation ends, so without this nothing shows its progress).
+ */
+export function useLatestValidation(slug: string, options: { enabled?: boolean; polling?: boolean } = {}) {
+  const { enabled = true, polling = false } = options
+  return useQuery({
+    queryKey: problemKeys.validation(slug),
+    queryFn: () => problemsApi.getLatestValidation(slug),
+    enabled: enabled && !!slug,
+    staleTime: 0,
+    refetchInterval: (query) => (polling || (query.state.data?.found && !query.state.data.terminal) ? 2500 : false),
+  })
+}
+
 export function usePublishProblem() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -114,6 +131,10 @@ export function usePublishProblem() {
     onSuccess: (_, slug) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
+    },
+    // a failed publish has a result too: the panel shows it
+    onSettled: (_data, _error, slug) => {
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }

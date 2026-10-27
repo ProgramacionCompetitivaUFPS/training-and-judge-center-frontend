@@ -184,6 +184,22 @@ export interface PublishFailureResponse {
   failedInputs?: FailedInput[]
 }
 
+/** GET /problems/p/:slug/validation: the last publish attempt, wherever it stands. */
+export interface LatestValidation {
+  /** false: this problem has never had a publish attempt */
+  found: boolean
+  /** false while the worker is still validating */
+  terminal: boolean
+  passed: boolean
+  /** The problem's current status (not the attempt's): only meaningful once terminal. */
+  status?: ProblemStatus
+  validationLogs?: string[]
+  validationSummary?: ValidationSummary
+  failedTestCases?: FailedTestCase[]
+  compilationErrors?: CompilationErrors
+  failedInputs?: FailedInput[]
+}
+
 export interface UnpublishResponse {
   slug: string
   status: ProblemStatus
