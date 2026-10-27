@@ -220,6 +220,17 @@ export const usersHandlers = [
 
   // === Admin ===
 
+  // Groups where the user is the only lead (deactivation warning)
+  http.get(url('/users/me/sole-lead-groups'), async () => {
+    await delay(150)
+    return HttpResponse.json({ groups: [] })
+  }),
+
+  http.get(url('/admin/users/:id/sole-lead-groups'), async () => {
+    await delay(150)
+    return HttpResponse.json({ groups: [{ id: 'g-mock-1', name: 'Grupo de prueba' }] })
+  }),
+
   http.get(url('/admin/users'), async ({ request }) => {
     await delay(300)
     const searchParams = new URL(request.url).searchParams

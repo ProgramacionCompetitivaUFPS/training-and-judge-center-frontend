@@ -81,6 +81,12 @@ export const groupsHandlers = [
   }),
 
   // Delete group
+  // What deleting the group would take with it
+  http.get(url('/groups/:id/deletion-impact'), async () => {
+    await delay(200)
+    return HttpResponse.json({ contests: 2, activeContests: 1, materials: 3, members: 8, submissions: 23 })
+  }),
+
   http.delete(url('/groups/:id'), async ({ request }) => {
     await delay(300)
     const body = (await request.json()) as { confirmationName?: string }
