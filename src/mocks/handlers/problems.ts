@@ -394,6 +394,7 @@ export const problemsHandlers = [
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = true
     }
+    problem.updatedAt = new Date().toISOString()
 
     return HttpResponse.json({
       message: 'Archivo subido exitosamente',
@@ -420,6 +421,7 @@ export const problemsHandlers = [
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = false
     }
+    problem.updatedAt = new Date().toISOString()
 
     return new HttpResponse(null, { status: 204 })
   }),
@@ -502,6 +504,7 @@ export const problemsHandlers = [
     if (!problem.modifiers.some((m) => m.nickname === user.nickname)) {
       problem.modifiers = [...problem.modifiers, { nickname: user.nickname, name: user.name }]
     }
+    problem.updatedAt = new Date().toISOString()
     return HttpResponse.json({ message: 'Colaborador agregado', modifiers: problem.modifiers })
   }),
 
@@ -514,6 +517,7 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
     }
     problem.modifiers = problem.modifiers.filter((m) => m.nickname !== nickname)
+    problem.updatedAt = new Date().toISOString()
     return new HttpResponse(null, { status: 204 })
   }),
 

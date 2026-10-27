@@ -145,9 +145,8 @@ export function useValidateProblem() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (slug: string) => problemsApi.validateProblem(slug),
-    onSettled: (_data, _error, slug) => {
-      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
-    },
+    // returned, so the mutation stays pending until the refetch shows the validation that was just started
+    onSettled: (_data, _error, slug) => queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) }),
   })
 }
 
