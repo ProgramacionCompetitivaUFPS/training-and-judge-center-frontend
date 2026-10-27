@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { ValidationPanel } from '@/components/features/ValidationPanel'
 import { ValidationReportView } from '@/components/features/ValidationReportView'
+import { PublishChecklist, type PublishChecklistStep } from '@/components/features/PublishChecklist'
 import { useContestSession } from '@/hooks/useContestSession'
 import { useToastContext } from '@/hooks/useToastContext'
 import {
@@ -138,6 +139,25 @@ export function ProblemDetailPage() {
   const isContestLead = isAdmin || isContestOwnerOrLead
   const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
   const showManagementTabs = canEdit && !isContestContext
+  const goToFiles = () => setSearchParams({ tab: 'files' }, { replace: true })
+  const goToEdit = () => navigate(PATHS.problemEdit(problem.slug))
+  // The five backend requirements as the author thinks of them: both limits are set in the same
+  // form, so they're one step. A step is done when every requirement it covers is met.
+  const metKeys = new Set(PUBLISH_REQUIREMENTS.filter((r) => r.met(problem)).map((r) => r.key))
+  const checklistSteps: PublishChecklistStep[] = [
+    { key: 'statement', label: 'Enunciado', met: metKeys.has('statement'), hint: 'Aún no tiene enunciado', actionLabel: 'Editar', onAction: goToEdit },
+    {
+      key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
+      hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
+    },
+    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles },
+    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: goToFiles },
+  ]
+  const showChecklist = showManagementTabs && problem.status === 'DRAFT'
+  const optionalMissing = [
+    ...(problem.files && !problem.files.checker ? ['checker'] : []),
+    ...(problem.files && !problem.files.validator ? ['validador'] : []),
+  ]
   // A draft can't be published without test cases and a solution, and those live in the other
   // tab now, so say so on the tab instead of leaving a new author to look for them.
   const missingFiles =
@@ -146,6 +166,10 @@ export function ProblemDetailPage() {
   // Only Publicar stays in view, and only on a draft: it's the last step of the flow, so hiding it
   // would make a new author hunt for it (the tooltip says what's still missing). Everything else
   // lives in the menu so this doesn't grow with every new feature.
+  const publishChecklist = (className?: string) => (
+    <PublishChecklist steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} className={className} />
+  )
+
   const managementActions = (
     <div className="flex items-center gap-2 shrink-0">
       {problem.status === 'DRAFT' &&
@@ -442,6 +466,9 @@ export function ProblemDetailPage() {
             {canEdit && !isContestContext && managementActions}
           </div>
 
+          {/* On a phone the sidebar ends up at the bottom of the page, where nobody would see it */}
+          {showChecklist && publishChecklist('lg:hidden')}
+
           {showManagementTabs ? (
             // Whoever edits the problem gets the reader's view (statement and examples, as a
             // contestant sees it) apart from the management cards, instead of one long page.
@@ -545,6 +572,8 @@ export function ProblemDetailPage() {
               <MetadataRow icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
             </CardContent>
           </Card>
+
+          {showChecklist && publishChecklist('hidden lg:block')}
 
           {/* Statistics — hidden during active contest */}
           {!isContestActive && stats && stats.totalSubmissions > 0 && stats.uniqueUsers && (
