@@ -21,14 +21,18 @@ export function explainPythonError(stderr: string): string | null {
   const [, type, message = ''] = match
 
   if (type === 'ValueError') {
-    const number = /invalid literal for int\(\) with base 10: '(.*)'/.exec(message) ?? /could not convert string to float: '(.*)'/.exec(message)
+    // int() rejects «1.5» as well, so the sentence has to say which kind of number the block wanted
+    const integer = /invalid literal for int\(\) with base 10: '(.*)'/.exec(message)
+    const decimal = /could not convert string to float: '(.*)'/.exec(message)
+    const number = integer ?? decimal
     if (number) {
       const value = number[1]
+      const noun = integer ? 'número entero' : 'número'
       if (/\s/.test(value.trim())) {
-        return `Se esperaba un solo número, pero la línea trae varios valores («${value}»). Si los valores vienen juntos en una línea, usa «leer línea de…» en vez de «leer».`
+        return `Se esperaba un solo ${noun}, pero la línea trae varios valores («${value}»). Si los valores vienen juntos en una línea, usa «leer línea de…» en vez de «leer».`
       }
-      if (value.trim() === '') return 'Se esperaba un número, pero la línea de la entrada está vacía. Revisa que la entrada tenga todos los datos.'
-      return `Se esperaba un número, pero llegó «${value}».`
+      if (value.trim() === '') return `Se esperaba un ${noun}, pero la línea de la entrada está vacía. Revisa que la entrada tenga todos los datos.`
+      return `Se esperaba un ${noun}, pero llegó «${value}».`
     }
   }
   if (type === 'EOFError') {
