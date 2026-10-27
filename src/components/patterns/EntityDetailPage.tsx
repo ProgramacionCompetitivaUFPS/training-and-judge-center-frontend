@@ -39,8 +39,8 @@ interface DetailHeaderProps {
 
 function DetailHeader({ title, subtitle, badges }: DetailHeaderProps) {
   return (
-    <div className="flex-1">
-      <div className="flex items-center gap-3 mb-2">
+    <div className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">
           {title}
         </h1>
@@ -303,7 +303,7 @@ export function EntityDetailPage({
       maxWidth={maxWidth}
     >
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <DetailHeader title={title} subtitle={subtitle} badges={badges} />
           <DetailActions
             onEdit={onEdit}

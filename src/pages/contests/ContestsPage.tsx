@@ -298,13 +298,13 @@ export function ContestsPage() {
               className="pl-10"
             />
           </div>
-          <div className="flex items-center gap-1 bg-neutral-surface border border-neutral-border p-1 rounded-lg">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto bg-neutral-surface border border-neutral-border p-1 rounded-lg">
             {STATUS_FILTERS.map((f) => (
               <button
                 key={f.value}
                 onClick={() => { setStatusFilter(f.value); setPage(1) }}
                 className={cn(
-                  'px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors',
+                  'shrink-0 px-3 sm:px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors',
                   statusFilter === f.value
                     ? 'bg-white shadow-sm text-brand-primary'
                     : 'text-neutral-text-muted hover:text-neutral-text-primary',
