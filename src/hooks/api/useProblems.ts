@@ -6,7 +6,10 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   ProblemAccessibility,
+  TestCaseKind,
+  ProblemSourceFileType,
 } from '@/types/problem'
+import { saveBlobAs } from '@/lib/download'
 
 // === Query Keys ===
 
@@ -16,7 +19,13 @@ export const problemKeys = {
   detail: (slug: string) => ['problems', 'detail', slug] as const,
   statistics: (slug: string) => ['problems', 'statistics', slug] as const,
   modifiers: (slug: string) => ['problems', 'modifiers', slug] as const,
+  testCases: (slug: string) => ['problems', 'testCases', slug] as const,
+  sourceFiles: (slug: string) => ['problems', 'sourceFiles', slug] as const,
+  sourceFile: (slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false) =>
+    ['problems', 'sourceFiles', slug, fileType, fileName ?? '', full ? 'full' : 'preview'] as const,
+  testCasePart: (slug: string, kind: TestCaseKind, name: string, part: string) => ['problems', 'testCases', slug, kind, name, part] as const,
   tags: ['problems', 'tags'] as const,
+  validation: (slug: string) => ['problems', 'validation', slug] as const,
 }
 
 // === Queries ===
@@ -84,6 +93,7 @@ export function useUpdateProblem() {
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -99,6 +109,22 @@ export function useDeleteProblem() {
   })
 }
 
+/**
+ * The last publish attempt of a problem, even one started before this page was opened. It polls while
+ * the validation is still running, or while a publish request of this page is in flight (the request
+ * blocks until the validation ends, so without this nothing shows its progress).
+ */
+export function useLatestValidation(slug: string, options: { enabled?: boolean; polling?: boolean } = {}) {
+  const { enabled = true, polling = false } = options
+  return useQuery({
+    queryKey: problemKeys.validation(slug),
+    queryFn: () => problemsApi.getLatestValidation(slug),
+    enabled: enabled && !!slug,
+    staleTime: 0,
+    refetchInterval: (query) => (polling || (query.state.data?.found && !query.state.data.terminal) ? 2500 : false),
+  })
+}
+
 export function usePublishProblem() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -107,6 +133,20 @@ export function usePublishProblem() {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },
+    // a failed publish has a result too: the panel shows it
+    onSettled: (_data, _error, slug) => {
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
+    },
+  })
+}
+
+/** "Validar": runs the validation on a draft and leaves it a draft; the result comes through useLatestValidation. */
+export function useValidateProblem() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => problemsApi.validateProblem(slug),
+    // returned, so the mutation stays pending until the refetch shows the validation that was just started
+    onSettled: (_data, _error, slug) => queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) }),
   })
 }
 
@@ -128,6 +168,9 @@ export function useUploadProblemFile() {
       problemsApi.uploadProblemFile(slug, fileType, file),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
     },
   })
 }
@@ -139,6 +182,55 @@ export function useDeleteProblemFile() {
       problemsApi.deleteProblemFile(slug, fileType, fileName),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
+    },
+  })
+}
+
+// === Lectura y descarga de archivos (autor, colaboradores y Admin) ===
+
+// `enabled` lets the caller hold the request until the list is actually opened: the backend
+// reads the whole test cases ZIP from storage to answer it.
+export function useProblemTestCases(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCases(slug),
+    queryFn: () => problemsApi.getProblemTestCases(slug),
+    enabled,
+  })
+}
+
+export function useProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName: string | undefined, enabled: boolean, full = false) {
+  return useQuery({
+    queryKey: problemKeys.sourceFile(slug, fileType, fileName, full),
+    queryFn: () => problemsApi.getProblemSourceFile(slug, fileType, fileName, full),
+    enabled,
+  })
+}
+
+// A whole test file can be tens of MB: don't keep it in memory once the page is left.
+export function useProblemTestCasePart(slug: string, kind: TestCaseKind, name: string, part: 'input' | 'answer', enabled: boolean) {
+  return useQuery({
+    queryKey: problemKeys.testCasePart(slug, kind, name, part),
+    queryFn: () => problemsApi.getProblemTestCasePart(slug, kind, name, part),
+    enabled,
+    gcTime: 30_000,
+  })
+}
+
+export function useDownloadTestCases() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.downloadProblemTestCases(slug), `${slug}-testcases.zip`)
+    },
+  })
+}
+
+export function useExportProblem() {
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      saveBlobAs(await problemsApi.exportProblem(slug), `${slug}.zip`)
     },
   })
 }
@@ -150,6 +242,7 @@ export function useAddModifier() {
       problemsApi.addModifier(slug, userNickname),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -161,6 +254,7 @@ export function useRemoveModifier() {
       problemsApi.removeModifier(slug, nickname),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
     },
   })
 }
@@ -186,6 +280,7 @@ export function useUpdateAccessibility() {
       problemsApi.updateAccessibility(slug, accessibility),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
+      queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },
   })

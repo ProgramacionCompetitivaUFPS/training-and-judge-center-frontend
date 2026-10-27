@@ -1,13 +1,12 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { FileText, Info, Timer, Tags, Settings, X, Upload, Plus, Trash2, Languages, HelpCircle } from 'lucide-react'
+import { FileText, Info, Timer, Tags, Settings, Upload, Plus, Trash2, Languages, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { Badge } from '@/components/ui/Badge'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem, useProblemTags } from '@/hooks/api/useProblems'
@@ -17,7 +16,11 @@ import { getErrorMessage } from '@/lib/errorMessages'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
 import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
-import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
+import { exceedsZipStructureCheckSize } from '@/lib/zipPeek'
+import { reviewProblemPackage, buildPackageTemplate, PACKAGE_LIMITS, type PackageReview } from '@/lib/problemPackage'
+import { saveBlobAs } from '@/lib/download'
+import { PackageReviewDialog } from '@/components/features/PackageReviewDialog'
+import { TagPicker } from '@/components/features/TagPicker'
 
 export function ProblemFormPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -167,83 +170,9 @@ function FormSection({ icon, title, children }: FormSectionProps) {
   )
 }
 
-// === Tag chips input ===
-
-interface TagChipsProps {
-  value: string
-  onChange: (value: string) => void
-  error?: string
-  suggestions: string[]
-}
-
-function TagChips({ value, onChange, error, suggestions }: TagChipsProps) {
-  const [inputValue, setInputValue] = useState('')
-  const tags = value ? value.split(',').map((t) => t.trim()).filter(Boolean) : []
-
-  function addTag(tag: string) {
-    const normalized = tag.trim().toLowerCase()
-    if (!normalized || tags.includes(normalized) || !suggestions.includes(normalized)) return
-    onChange([...tags, normalized].join(', '))
-    setInputValue('')
-  }
-
-  function removeTag(tag: string) {
-    onChange(tags.filter((t) => t !== tag).join(', '))
-  }
-
-  const availableSuggestions = suggestions.filter((t) => !tags.includes(t))
-
-  return (
-    <div className="space-y-3">
-      {/* Selected tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="primary" className="gap-1 pr-1">
-              {tag}
-              <button
-                type="button"
-                onClick={() => removeTag(tag)}
-                className="ml-1 p-0.5 rounded-full hover:bg-white/20 transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Input for custom tags */}
-      <Input
-        placeholder="Escribe un tag y presiona Enter..."
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            addTag(inputValue)
-          }
-        }}
-        error={error}
-      />
-
-      {/* Suggestions */}
-      {availableSuggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {availableSuggestions.slice(0, 8).map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => addTag(tag)}
-              className="px-2.5 py-1 rounded-pill text-[10px] font-bold bg-neutral-border/40 text-neutral-text-primary hover:bg-neutral-border transition-colors"
-            >
-              + {tag}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+// The form keeps its tags as one comma-separated string.
+function splitTags(value: string | undefined): string[] {
+  return value ? value.split(',').map((t) => t.trim()).filter(Boolean) : []
 }
 
 // === Language Overrides Editor ===
@@ -329,20 +258,6 @@ function LanguageOverridesEditor({ value, onChange }: LanguageOverridesEditorPro
 
 // === Create Form ===
 
-// Cheap sanity check, not a replacement for the backend's real parser (icpc_parser.go):
-// only confirms problem.yaml exists somewhere in the archive, without validating its
-// fields, the data/checker/validator rules, or file size/count limits — that stays the
-// backend's job so the two don't drift out of sync.
-async function checkPackageZipStructure(file: File): Promise<string | null> {
-  const paths = await peekZipEntryPaths(file)
-  if (!paths) return 'El archivo no se pudo leer como un ZIP válido.'
-  const hasYaml = paths.some((p) => p === 'problem.yaml' || p.endsWith('/problem.yaml'))
-  if (!hasYaml) {
-    return 'El ZIP debe contener un archivo problem.yaml en la raíz del problema.'
-  }
-  return null
-}
-
 interface CreateFormProps {
   onSubmit: (data: CreateProblemFormData) => void
   onImport: (file: File, slug: string) => void
@@ -369,10 +284,13 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
   const statement = useWatch({ control, name: 'statement' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
-  const { data: tagsData } = useProblemTags()
+  const { data: tagsData, isLoading: isLoadingTags } = useProblemTags()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showZipHelp, setShowZipHelp] = useState(false)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
+  // The package the author picked, reviewed and waiting for their go-ahead
+  // (review is null when the ZIP is too big to read in the browser)
+  const [pendingImport, setPendingImport] = useState<{ file: File; review: PackageReview | null } | null>(null)
 
   function handleImportClick() {
     fileInputRef.current?.click()
@@ -390,26 +308,37 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     }
 
     const slugValid = await trigger('slug')
-    if (!slugValid) return
-
-    if (!exceedsZipStructureCheckSize(file)) {
-      setIsCheckingZip(true)
-      const structureError = await checkPackageZipStructure(file)
-      setIsCheckingZip(false)
-      if (structureError) {
-        toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
-        return
-      }
+    if (!slugValid) {
+      toast({ variant: 'error', title: 'Falta el slug', description: 'Escribe primero el slug con el que se creará el problema y vuelve a elegir el ZIP.' })
+      return
     }
 
-    onImport(file, getValues('slug'))
+    if (exceedsZipStructureCheckSize(file)) {
+      // Reading a very large ZIP in the browser would spike its memory: the server validates it alone.
+      // The author still gets to see that nothing was checked and to confirm, instead of it being sent straight away.
+      setPendingImport({ file, review: null })
+      return
+    }
+
+    setIsCheckingZip(true)
+    try {
+      setPendingImport({ file, review: await reviewProblemPackage(file) })
+    } catch {
+      toast({ variant: 'error', title: 'No se pudo revisar el paquete', description: 'El archivo no se pudo leer. Comprueba que sea un ZIP válido.' })
+    } finally {
+      setIsCheckingZip(false)
+    }
+  }
+
+  async function handleDownloadTemplate() {
+    saveBlobAs(await buildPackageTemplate(DEFAULT_PROBLEM_STATEMENT_MARKDOWN), 'plantilla-problema.zip')
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h1 className="text-2xl font-extrabold text-neutral-text-primary">Crear problema</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input ref={fileInputRef} type="file" accept=".zip" className="hidden" onChange={handleFileChange} />
           <Button
             type="button"
@@ -430,6 +359,21 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         </div>
       </div>
 
+      <PackageReviewDialog
+        open={!!pendingImport}
+        fileName={pendingImport?.file.name ?? ''}
+        slug={getValues('slug')}
+        review={pendingImport?.review ?? null}
+        unreviewed={!!pendingImport && !pendingImport.review}
+        isImporting={isImporting}
+        onCancel={() => setPendingImport(null)}
+        onConfirm={() => {
+          if (!pendingImport) return
+          onImport(pendingImport.file, getValues('slug'))
+          setPendingImport(null)
+        }}
+      />
+
       {showZipHelp && (
         <div className="mb-4 rounded-md border border-neutral-border bg-neutral-surface p-4 text-sm text-neutral-text-muted space-y-2">
           <p className="font-semibold text-neutral-text-primary">Estructura esperada del ZIP (formato ICPC):</p>
@@ -442,7 +386,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
             <li>
               <code className="font-mono">data/sample/</code> y <code className="font-mono">data/secret/</code> — casos de
               prueba como pares <code className="font-mono">.in</code>/<code className="font-mono">.ans</code>, opcional (se
-              pueden subir después); hasta 200 MB en total, máx. 10 casos de ejemplo
+              pueden subir después); hasta {PACKAGE_LIMITS.maxTotalBytes / 1024 / 1024} MB en total (una entrada, hasta {PACKAGE_LIMITS.maxInputBytes / 1024 / 1024} MB), y como máximo {PACKAGE_LIMITS.maxSampleFiles} archivos de ejemplo ({PACKAGE_LIMITS.maxSampleFiles / 2} casos)
             </li>
             <li><code className="font-mono">problem_statement/problem.en.tex</code> — enunciado, opcional (máx. 2 MB)</li>
             <li><code className="font-mono">solutions/</code> — soluciones de referencia, opcional (máx. 2 MB cada una)</li>
@@ -451,6 +395,13 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
               (máx. 2 MB); a lo sumo uno de cada uno, si hay más de un archivo que coincida se rechaza todo el import
             </li>
           </ul>
+          <p>
+            Antes de subir, el paquete se revisa aquí y se te dice qué falta o qué se ignoraría.{' '}
+            <button type="button" onClick={handleDownloadTemplate} className="text-brand-primary hover:underline font-medium">
+              Descargar un paquete de ejemplo
+            </button>{' '}
+            para partir de la estructura correcta.
+          </p>
           <p>
             Extensiones de código soportadas: <code className="font-mono">{PROBLEM_SOURCE_FILE_EXTENSIONS.join(', ')}</code>.
             El ZIP debe contener un único directorio raíz, identificado por incluir <code className="font-mono">problem.yaml</code>.
@@ -494,11 +445,12 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
           </FormSection>
 
           <FormSection icon={<Tags className="h-4 w-4" />} title="Tags">
-            <TagChips
-              value={tags || ''}
-              onChange={(v) => setValue('tags', v)}
+            <TagPicker
+              value={splitTags(tags)}
+              onChange={(list) => setValue('tags', list.join(', '))}
               error={errors.tags?.message}
-              suggestions={tagsData?.tags ?? []}
+              options={tagsData?.tags ?? []}
+              isLoading={isLoadingTags}
             />
           </FormSection>
         </div>
@@ -513,7 +465,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
               </div>
               <div className="min-h-[200px] max-h-[60vh] overflow-y-auto">
                 {statement ? (
-                  <MarkdownRenderer content={statement} className="text-sm" />
+                  <MarkdownRenderer content={statement} variant="statement" />
                 ) : (
                   <p className="text-sm text-neutral-text-muted italic">El preview del enunciado aparecerá aquí...</p>
                 )}
@@ -553,7 +505,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
   const accessibility = useWatch({ control, name: 'accessibility' })
   const tags = useWatch({ control, name: 'tags' })
   const languageOverrides = useWatch({ control, name: 'languageOverrides' }) || []
-  const { data: tagsData } = useProblemTags()
+  const { data: tagsData, isLoading: isLoadingTags } = useProblemTags()
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -605,11 +557,12 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
 
           <FormSection icon={<Settings className="h-4 w-4" />} title="Configuración">
             <div className="space-y-4">
-              <TagChips
-                value={tags || ''}
-                onChange={(v) => setValue('tags', v)}
+              <TagPicker
+                value={splitTags(tags)}
+                onChange={(list) => setValue('tags', list.join(', '))}
                 error={errors.tags?.message}
-                suggestions={tagsData?.tags ?? []}
+                options={tagsData?.tags ?? []}
+                isLoading={isLoadingTags}
               />
               <div>
                 <label className="block text-sm font-medium text-neutral-text-primary mb-1">Accesibilidad</label>
@@ -637,7 +590,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
               </div>
               <div className="min-h-[200px] max-h-[60vh] overflow-y-auto">
                 {statement ? (
-                  <MarkdownRenderer content={statement} className="text-sm" />
+                  <MarkdownRenderer content={statement} variant="statement" />
                 ) : (
                   <p className="text-sm text-neutral-text-muted italic">El preview del enunciado aparecerá aquí...</p>
                 )}

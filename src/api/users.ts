@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import type { SoleLeadGroupsResponse } from '@/types/group'
 import type {
   User,
   LoginRequest,
@@ -147,4 +148,16 @@ export function getDashboard(): Promise<UserDashboard> {
 
 export function getProfileStats(): Promise<UserProfileStats> {
   return apiClient.get('/users/me/stats')
+}
+
+// === Deactivation impact ===
+
+/** Groups where I am the only lead (deactivating my account would leave them without one). */
+export function getMySoleLeadGroups(): Promise<SoleLeadGroupsResponse> {
+  return apiClient.get('/users/me/sole-lead-groups')
+}
+
+/** Admin: groups where the given user is the only lead. */
+export function getUserSoleLeadGroups(userId: string): Promise<SoleLeadGroupsResponse> {
+  return apiClient.get(`/admin/users/${userId}/sole-lead-groups`)
 }

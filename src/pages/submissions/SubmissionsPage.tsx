@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { FileCode2, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { DataTable, EmptyState } from '@/components/patterns'
@@ -11,7 +10,7 @@ import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBad
 import { useMySubmissions } from '@/hooks/api/useSubmissions'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
-import { PROGRAMMING_LANGUAGES } from '@/lib/constants'
+import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { cn, localDayStartIso } from '@/lib/utils'
 import type { MySubmissionsParams, SubmissionListItem, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -43,10 +42,13 @@ const columns: Column<SubmissionListItem>[] = [
   {
     key: 'problem',
     label: 'Problema',
+    isRowLink: true,
     render: (sub) => (
       <div>
         <span className="font-medium text-neutral-text-primary">{sub.problem.title}</span>
         <span className="block text-xs text-neutral-text-muted font-mono">{sub.problem.slug}</span>
+        {/* The same problem can be submitted many times: the link needs to say which submission it opens */}
+        <span className="sr-only">, envío del {new Date(sub.submittedAt).toLocaleString('es')}</span>
       </div>
     ),
   },
@@ -95,7 +97,6 @@ const columns: Column<SubmissionListItem>[] = [
 ]
 
 export function SubmissionsPage() {
-  const navigate = useNavigate()
   const [filters, setFilters] = useState<MySubmissionsParams>({ page: 1, limit: 5 })
   const [problemInput, setProblemInput] = useState('')
   const debouncedProblem = useDebounce(problemInput)
@@ -262,7 +263,7 @@ export function SubmissionsPage() {
             columns={columns}
             data={submissions}
             isLoading={isLoading}
-            onRowClick={(sub) => navigate(`/submissions/${sub.id}`)}
+            getRowHref={(sub) => PATHS.submission(sub.id)}
             emptyMessage="No hay envíos con los filtros seleccionados"
           />
         )}

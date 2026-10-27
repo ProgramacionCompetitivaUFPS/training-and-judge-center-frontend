@@ -283,6 +283,10 @@ export function ContestDetailPage() {
             Escribe <span className="font-bold">{contest.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
           </DialogDescription>
         </DialogHeader>
+        <p className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm text-neutral-text-primary" role="status">
+          {contest.status === 'FINISHED' && <strong>Esta competencia ya terminó: al eliminarla se pierde su tabla de posiciones, el resultado oficial. </strong>}
+          Se eliminan también sus inscripciones y su lista de problemas. Los envíos ya hechos se conservan, pero quedan sin competencia.
+        </p>
         <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nombre de la competencia" />
         <DialogFooter>
           <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>

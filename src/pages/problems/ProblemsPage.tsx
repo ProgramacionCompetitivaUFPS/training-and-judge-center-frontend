@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileCode2, Filter, Plus, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge } from '@/components/ui'
+import { Badge, RowLink } from '@/components/ui'
 import { EmptyState } from '@/components/patterns'
 import { TagFilterChips } from '@/components/features/TagFilterChips'
 import { Button } from '@/components/ui/Button'
@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
+import { PATHS } from '@/lib/constants'
 import type { ProblemListParams, ProblemListItem } from '@/types/problem'
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -235,7 +236,6 @@ export function ProblemsPage() {
           <ProblemsTable
             problems={problems}
             showManagementColumns={canCreate}
-            onRowClick={(p) => navigate(`/problems/${p.slug}`)}
           />
         )}
 
@@ -257,10 +257,9 @@ export function ProblemsPage() {
 interface ProblemsTableProps {
   problems: ProblemListItem[]
   showManagementColumns: boolean
-  onRowClick: (problem: ProblemListItem) => void
 }
 
-function ProblemsTable({ problems, showManagementColumns, onRowClick }: ProblemsTableProps) {
+function ProblemsTable({ problems, showManagementColumns }: ProblemsTableProps) {
   return (
     <Card>
       <CardContent className="p-0">
@@ -279,14 +278,13 @@ function ProblemsTable({ problems, showManagementColumns, onRowClick }: Problems
             {problems.map((problem) => (
               <TableRow
                 key={problem.slug}
-                className="cursor-pointer hover:bg-neutral-bg/50"
-                onClick={() => onRowClick(problem)}
+                className="relative cursor-pointer"
               >
                 <TableCell>
-                  <div className="flex flex-col">
+                  <RowLink to={PATHS.problem(problem.slug)} className="flex flex-col">
                     <span className="font-medium text-neutral-text-primary">{problem.title}</span>
                     <span className="text-xs font-mono text-neutral-text-muted">{problem.slug}</span>
-                  </div>
+                  </RowLink>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

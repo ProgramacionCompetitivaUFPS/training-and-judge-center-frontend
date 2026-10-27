@@ -143,6 +143,12 @@ export interface ValidationSummary {
   allPassed: boolean
 }
 
+export interface ValidateResponse {
+  slug: string
+  validationId: string
+  message: string
+}
+
 export interface PublishResponse {
   slug: string
   status: ProblemStatus
@@ -184,6 +190,25 @@ export interface PublishFailureResponse {
   failedInputs?: FailedInput[]
 }
 
+/** GET /problems/p/:slug/validation: the last publish attempt, wherever it stands. */
+export interface LatestValidation {
+  /** false: this problem has never had a publish attempt */
+  found: boolean
+  /** false while the worker is still validating */
+  terminal: boolean
+  passed: boolean
+  /** The problem's current status (not the attempt's): only meaningful once terminal. */
+  status?: ProblemStatus
+  /** The problem was modified after the attempt was requested: a pass no longer says anything about it. */
+  stale?: boolean
+  completedAt?: string
+  validationLogs?: string[]
+  validationSummary?: ValidationSummary
+  failedTestCases?: FailedTestCase[]
+  compilationErrors?: CompilationErrors
+  failedInputs?: FailedInput[]
+}
+
 export interface UnpublishResponse {
   slug: string
   status: ProblemStatus
@@ -208,4 +233,39 @@ export interface ProblemStatistics {
     verdict: string
     count: number
   }>
+}
+
+// === Casos de prueba (lectura; solo autor, colaboradores y Admin) ===
+
+export type TestCaseKind = 'sample' | 'secret'
+
+export interface TestCaseSummary {
+  kind: TestCaseKind
+  name: string
+  /** Tamaño del .in en bytes; null si el ZIP no trae ese archivo */
+  inputBytes: number | null
+  /** Tamaño del .ans en bytes; null si el ZIP no trae ese archivo */
+  answerBytes: number | null
+}
+
+export interface TestCasesResponse {
+  hasTestCases: boolean
+  sampleCount: number
+  secretCount: number
+  cases: TestCaseSummary[]
+}
+
+// === Código de soluciones, checker y validador (lectura; solo autor, colaboradores y Admin) ===
+
+export type ProblemSourceFileType = 'solution' | 'checker' | 'validator'
+
+export interface ProblemSourceFile {
+  fileType: ProblemSourceFileType
+  /** Nombre con el que el autor subió el archivo */
+  filename: string
+  language: string
+  content: string
+  /** El backend corta el contenido a 256 KiB; sizeBytes sigue siendo el tamaño real */
+  truncated: boolean
+  sizeBytes: number
 }

@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
+import { RowLink } from '@/components/ui/RowLink'
 import { Button } from '@/components/ui/Button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import {
@@ -21,7 +22,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
-import { ROUTES } from '@/lib/constants'
+import { ROUTES, PATHS } from '@/lib/constants'
 import type { GroupListParams, GroupListItem, MyGroupItem, MyGroupsParams } from '@/types/group'
 
 const JOIN_POLICY_LABELS: Record<string, string> = {
@@ -249,7 +250,6 @@ export function GroupsPage() {
             ) : (
               <GroupsTable
                 groups={allGroups.data?.groups ?? []}
-                onRowClick={(g) => navigate(`/groups/${g.id}`)}
               />
             )}
 
@@ -331,10 +331,7 @@ export function GroupsPage() {
             ) : myGroups.data?.groups.length === 0 ? (
               <Card><CardContent className="py-12 text-center"><p className="text-neutral-text-muted">Aún no perteneces a ningún grupo</p></CardContent></Card>
             ) : (
-              <MyGroupsTable
-                groups={myGroups.data?.groups ?? []}
-                onRowClick={(g) => navigate(`/groups/${g.id}`)}
-              />
+              <MyGroupsTable groups={myGroups.data?.groups ?? []} />
             )}
 
             {myPagination && (
@@ -355,10 +352,9 @@ export function GroupsPage() {
 
 interface GroupsTableProps {
   groups: GroupListItem[]
-  onRowClick: (group: GroupListItem) => void
 }
 
-function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
+function GroupsTable({ groups }: GroupsTableProps) {
   return (
     <Card>
       <CardContent className="p-0">
@@ -376,11 +372,10 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
             {groups.map((group) => (
               <TableRow
                 key={group.id}
-                className="cursor-pointer hover:bg-neutral-bg/50"
-                onClick={() => onRowClick(group)}
+                className="relative cursor-pointer"
               >
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <RowLink to={PATHS.group(group.id)} className="flex items-center gap-3">
                     <div className={cn(
                       'w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs shrink-0',
                       getInitialColor(group.name)
@@ -396,7 +391,7 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
                         <p className="text-xs text-neutral-text-muted truncate max-w-xs">{group.description}</p>
                       )}
                     </div>
-                  </div>
+                  </RowLink>
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center gap-1.5 text-xs text-neutral-text-muted">
@@ -432,10 +427,9 @@ function GroupsTable({ groups, onRowClick }: GroupsTableProps) {
 
 interface MyGroupsTableProps {
   groups: MyGroupItem[]
-  onRowClick: (group: MyGroupItem) => void
 }
 
-function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
+function MyGroupsTable({ groups }: MyGroupsTableProps) {
   return (
     <Card>
       <CardContent className="p-0">
@@ -451,11 +445,10 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
             {groups.map((group) => (
               <TableRow
                 key={group.id}
-                className="cursor-pointer hover:bg-neutral-bg/50"
-                onClick={() => onRowClick(group)}
+                className="relative cursor-pointer"
               >
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <RowLink to={PATHS.group(group.id)} className="flex items-center gap-3">
                     <div className={cn(
                       'w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs shrink-0',
                       getInitialColor(group.name)
@@ -468,7 +461,7 @@ function MyGroupsTable({ groups, onRowClick }: MyGroupsTableProps) {
                         <p className="text-xs text-neutral-text-muted truncate max-w-xs">{group.description}</p>
                       )}
                     </div>
-                  </div>
+                  </RowLink>
                 </TableCell>
                 <TableCell>
                   <Badge variant={group.myRole === 'LEAD' ? 'warning' : 'default'} className="text-[10px]">

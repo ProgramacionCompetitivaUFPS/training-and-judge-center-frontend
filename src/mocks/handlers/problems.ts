@@ -1,8 +1,82 @@
 import { http, HttpResponse, delay } from 'msw'
 import { mockProblems, buildProblemList, mockProblemStatistics, mockUsers, mockCurrentUser, mockContests } from '../data'
-import type { ProblemDetail } from '@/types/problem'
+import type { LatestValidation, ProblemDetail } from '@/types/problem'
 import { url } from './utils'
 import { PROBLEM_FILE_TYPE_INFO, PROBLEM_SOURCE_FILE_EXTENSIONS, PROBLEM_LANGUAGE_BY_EXTENSION } from '@/lib/constants'
+
+function mockTestCases(slug: string) {
+  const problem = mockProblems.find((p) => p.slug === slug)
+  if (!problem) return null
+  if (!problem.files?.testCases) return []
+  const samples = (problem.samples ?? []).map((sm) => ({ kind: 'sample', name: sm.name, input: sm.input, answer: sm.output }))
+  const secrets = [
+    { kind: 'secret', name: '1', input: '10 20\n', answer: '30\n' },
+    { kind: 'secret', name: '2', input: '1000000000 1000000000\n', answer: '2000000000\n' },
+  ]
+  return [...samples, ...secrets]
+}
+
+function mockZip(filename: string) {
+  return new HttpResponse(new TextEncoder().encode(`Mock ZIP: ${filename}`), {
+    headers: { 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="${filename}"` },
+  })
+}
+
+// The latest validation attempt of each problem (publish or "Validar"), so the "Última validación" card
+// has something to show (the real backend keeps this in problem_validations), and when it was requested,
+// to tell whether the problem changed after it.
+const latestValidations = new Map<string, LatestValidation>()
+const validationRequestedAt = new Map<string, number>()
+
+function recordValidation(slug: string, result: LatestValidation) {
+  latestValidations.set(slug, result)
+  validationRequestedAt.set(slug, Date.now())
+}
+
+// What the real validation would find on this problem. Dev-only convention (no backend equivalent) to
+// exercise the deeper failure shapes from the UI: name a solution file "brokencompile.*" /
+// "brokentest.*" / "brokeninput.*". Returns the failure body, or null when it passes.
+function mockValidationFailure(problem: ProblemDetail): Record<string, unknown> | null {
+  const solutionNames = problem.files?.solutions.map((s) => s.filename.toLowerCase()) ?? []
+  if (solutionNames.some((f) => f.includes('brokencompile'))) {
+    return {
+      error: 'VALIDATION_FAILED',
+      message: 'La compilación falló',
+      validationLogs: [],
+      compilationErrors: { file: 'solution.cpp', errors: ["error: 'cout' was not declared in this scope", "note: 'std::cout' is defined in header '<iostream>'"] },
+    }
+  }
+  if (solutionNames.some((f) => f.includes('brokentest'))) {
+    return {
+      error: 'VALIDATION_FAILED',
+      message: 'La solución falló en casos de prueba',
+      validationLogs: [],
+      failedTestCases: [{ case: 'secret/3', status: 'WRONG_ANSWER', details: 'Expected "42", got "41"' }],
+    }
+  }
+  if (solutionNames.some((f) => f.includes('brokeninput'))) {
+    return {
+      error: 'VALIDATION_FAILED',
+      message: 'El validator rechazó las entradas de prueba',
+      validationLogs: [],
+      failedInputs: [{ file: 'secret/2.in', reason: 'expected exactly 2 integers on line 1, got 3' }],
+    }
+  }
+  return null
+}
+
+const MOCK_PASS_LOGS = ['✓ Campos requeridos validados', '✓ Casos de prueba válidos', '✓ Solución compilada', '✓ Solución pasó todos los casos']
+
+// Mirrors requiredFieldsForPublish on the real backend.
+function missingPublishFields(problem: ProblemDetail): string[] {
+  const missingFields: string[] = []
+  if (!problem.statement) missingFields.push('statement')
+  if (problem.timeLimit == null) missingFields.push('timeLimit')
+  if (problem.memoryLimit == null) missingFields.push('memoryLimit')
+  if (!problem.files?.testCases) missingFields.push('testCases')
+  if (!problem.files?.solutions.length) missingFields.push('solution')
+  return missingFields
+}
 
 export const problemsHandlers = [
   // List problems
@@ -167,13 +241,7 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'ALREADY_PUBLISHED', message: 'El problema ya está publicado' }, { status: 409 })
     }
 
-    // Mirrors requiredFieldsForPublish on the real backend.
-    const missingFields: string[] = []
-    if (!problem.statement) missingFields.push('statement')
-    if (problem.timeLimit == null) missingFields.push('timeLimit')
-    if (problem.memoryLimit == null) missingFields.push('memoryLimit')
-    if (!problem.files?.testCases) missingFields.push('testCases')
-    if (!problem.files?.solutions.length) missingFields.push('solution')
+    const missingFields = missingPublishFields(problem)
     if (missingFields.length > 0) {
       return HttpResponse.json(
         { error: 'VALIDATION_FAILED', message: 'La validación del problema falló', validationLogs: [], missingFields },
@@ -181,54 +249,70 @@ export const problemsHandlers = [
       )
     }
 
-    // Dev-only convention (no backend equivalent) to exercise the deeper failure shapes from
-    // the UI: name a solution file "brokencompile.*" / "brokentest.*" / "brokeninput.*".
-    const solutionNames = problem.files?.solutions.map((s) => s.filename.toLowerCase()) ?? []
-    if (solutionNames.some((f) => f.includes('brokencompile'))) {
-      return HttpResponse.json(
-        {
-          error: 'VALIDATION_FAILED',
-          message: 'La compilación falló',
-          validationLogs: [],
-          compilationErrors: { file: 'solution.cpp', errors: ["error: 'cout' was not declared in this scope", "note: 'std::cout' is defined in header '<iostream>'"] },
-        },
-        { status: 400 },
-      )
-    }
-    if (solutionNames.some((f) => f.includes('brokentest'))) {
-      return HttpResponse.json(
-        {
-          error: 'VALIDATION_FAILED',
-          message: 'La solución falló en casos de prueba',
-          validationLogs: [],
-          failedTestCases: [{ case: 'secret/3', status: 'WRONG_ANSWER', details: 'Expected "42", got "41"' }],
-        },
-        { status: 400 },
-      )
-    }
-    if (solutionNames.some((f) => f.includes('brokeninput'))) {
-      return HttpResponse.json(
-        {
-          error: 'VALIDATION_FAILED',
-          message: 'El validator rechazó las entradas de prueba',
-          validationLogs: [],
-          failedInputs: [{ file: 'secret/2.in', reason: 'expected exactly 2 integers on line 1, got 3' }],
-        },
-        { status: 400 },
-      )
+    // A passing "Validar" that the problem has not outlived makes publishing immediate, as on the real backend.
+    const previous = latestValidations.get(slug)
+    const reusesValidation =
+      !!previous?.passed && previous.terminal && Date.parse(problem.updatedAt) <= (validationRequestedAt.get(slug) ?? 0)
+    if (!reusesValidation) {
+      const failure = mockValidationFailure(problem)
+      if (failure) {
+        recordValidation(slug, { found: true, terminal: true, passed: false, status: 'DRAFT', ...failure })
+        return HttpResponse.json(failure, { status: 400 })
+      }
     }
 
     problem.status = 'PUBLISHED'
     problem.updatedAt = new Date().toISOString()
+    const validationLogs = reusesValidation && previous?.validationLogs ? previous.validationLogs : MOCK_PASS_LOGS
+    recordValidation(slug, { found: true, terminal: true, passed: true, status: 'PUBLISHED', validationLogs })
     return HttpResponse.json({
       slug: problem.slug,
       status: 'PUBLISHED',
       message: 'Problema publicado exitosamente',
-      validationLogs: ['✓ Campos requeridos validados', '✓ Casos de prueba válidos', '✓ Solución compilada', '✓ Solución pasó todos los casos'],
+      validationLogs,
     })
   }),
 
+  // Validate a draft without publishing it: answers 202 and the result is read from /validation
+  http.post(url('/problems/p/:slug/validate'), async ({ params }) => {
+    await delay(300)
+    const { slug } = params as { slug: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    if (problem.status === 'PUBLISHED') {
+      return HttpResponse.json({ error: 'ALREADY_PUBLISHED', message: 'El problema ya está publicado' }, { status: 409 })
+    }
+    const missingFields = missingPublishFields(problem)
+    if (missingFields.length > 0) {
+      return HttpResponse.json(
+        { error: 'VALIDATION_FAILED', message: 'La validación del problema falló', validationLogs: [], missingFields },
+        { status: 400 },
+      )
+    }
+    const failure = mockValidationFailure(problem)
+    recordValidation(
+      slug,
+      failure
+        ? { found: true, terminal: true, passed: false, status: 'DRAFT', ...failure }
+        : { found: true, terminal: true, passed: true, status: 'DRAFT', validationLogs: MOCK_PASS_LOGS },
+    )
+    return HttpResponse.json({ slug, validationId: `mock-${slug}`, message: 'Validation started' }, { status: 202 })
+  }),
+
   // Unpublish
+  // Last publish attempt of the problem
+  http.get(url('/problems/p/:slug/validation'), async ({ params }) => {
+    await delay(150)
+    const { slug } = params as { slug: string }
+    const latest = latestValidations.get(slug)
+    if (!latest) return HttpResponse.json({ found: false, terminal: false, passed: false })
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const stale = !!problem && Date.parse(problem.updatedAt) > (validationRequestedAt.get(slug) ?? 0)
+    return HttpResponse.json({ ...latest, stale })
+  }),
+
   http.post(url('/problems/p/:slug/unpublish'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }
@@ -310,6 +394,7 @@ export const problemsHandlers = [
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = true
     }
+    problem.updatedAt = new Date().toISOString()
 
     return HttpResponse.json({
       message: 'Archivo subido exitosamente',
@@ -336,8 +421,59 @@ export const problemsHandlers = [
     } else if (fileType === 'testCases' || fileType === 'checker' || fileType === 'validator') {
       problem.files[fileType] = false
     }
+    problem.updatedAt = new Date().toISOString()
 
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Test cases: the samples the problem already has, plus two made-up secret cases.
+  http.get(url('/problems/p/:slug/testcases'), async ({ params }) => {
+    await delay(300)
+    const cases = mockTestCases((params as { slug: string }).slug)
+    if (!cases) return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    return HttpResponse.json({
+      hasTestCases: cases.length > 0,
+      sampleCount: cases.filter((c) => c.kind === 'sample').length,
+      secretCount: cases.filter((c) => c.kind === 'secret').length,
+      cases: cases.map((c) => ({ kind: c.kind, name: c.name, inputBytes: c.input.length, answerBytes: c.answer.length })),
+    })
+  }),
+
+  // One whole file of a case, as plain text
+  http.get(url('/problems/p/:slug/testcases/:kind/:name/:part'), async ({ params }) => {
+    await delay(200)
+    const { slug, kind, name, part } = params as { slug: string; kind: string; name: string; part: string }
+    const found = mockTestCases(slug)?.find((c) => c.kind === kind && c.name === name)
+    if (!found || (part !== 'input' && part !== 'answer')) {
+      return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'Test case not found' }, { status: 404 })
+    }
+    return new HttpResponse(part === 'input' ? found.input : found.answer, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  }),
+
+  // The ZIPs are placeholders: enough to exercise the download flow, not real packages.
+  http.get(url('/problems/p/:slug/files/testcases'), async ({ params }) => {
+    await delay(300)
+    return mockZip(`${(params as { slug: string }).slug}-testcases.zip`)
+  }),
+
+  // Source of a solution / checker / validator: placeholder code, enough to exercise the viewer.
+  http.get(url('/problems/p/:slug/files/:fileType'), async ({ params, request }) => {
+    await delay(200)
+    const { slug, fileType } = params as { slug: string; fileType: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    const fileName = new URL(request.url).searchParams.get('fileName')
+    const solution = problem?.files?.solutions.find((s) => s.filename === fileName)
+    const hasFile = fileType === 'solution' ? !!solution : fileType === 'checker' || fileType === 'validator' ? !!problem?.files?.[fileType] : false
+    if (!hasFile) return HttpResponse.json({ error: 'PROBLEM_FILE_NOT_FOUND', message: 'The problem has no such file' }, { status: 404 })
+    const filename = solution?.filename ?? `${fileType}.py`
+    const language = solution?.language ?? 'python310'
+    const content = language === 'python310' ? `# ${filename}\nprint("mock")\n` : `// ${filename}\n#include <iostream>\nint main() {}\n`
+    return HttpResponse.json({ fileType, filename, language, content, truncated: false, sizeBytes: content.length })
+  }),
+
+  http.get(url('/problems/p/:slug/export'), async ({ params }) => {
+    await delay(400)
+    return mockZip(`${(params as { slug: string }).slug}.zip`)
   }),
 
   // Get modifiers
@@ -368,6 +504,7 @@ export const problemsHandlers = [
     if (!problem.modifiers.some((m) => m.nickname === user.nickname)) {
       problem.modifiers = [...problem.modifiers, { nickname: user.nickname, name: user.name }]
     }
+    problem.updatedAt = new Date().toISOString()
     return HttpResponse.json({ message: 'Colaborador agregado', modifiers: problem.modifiers })
   }),
 
@@ -380,6 +517,7 @@ export const problemsHandlers = [
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
     }
     problem.modifiers = problem.modifiers.filter((m) => m.nickname !== nickname)
+    problem.updatedAt = new Date().toISOString()
     return new HttpResponse(null, { status: 204 })
   }),
 

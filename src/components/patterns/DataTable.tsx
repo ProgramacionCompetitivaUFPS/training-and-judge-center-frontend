@@ -10,6 +10,7 @@ import {
   Card,
   CardContent,
   Checkbox,
+  RowLink,
 } from '@/components/ui'
 
 export interface Column<T> {
@@ -19,6 +20,8 @@ export interface Column<T> {
   render?: (item: T) => ReactNode
   width?: string
   align?: 'left' | 'center' | 'right'
+  /** The cell whose content becomes the row's link (default: the first column). */
+  isRowLink?: boolean
 }
 
 interface DataTableHeaderProps<T> {
@@ -93,7 +96,8 @@ interface DataTableRowProps<T> {
   selectable: boolean
   isSelected: boolean
   onSelectItem: (itemId: string) => void
-  onRowClick?: (item: T) => void
+  /** Where the row leads: it renders as a real link (middle click, Ctrl+click, URL on hover). */
+  getRowHref?: (item: T) => string
 }
 
 function DataTableRowItem<T>({
@@ -103,20 +107,19 @@ function DataTableRowItem<T>({
   selectable,
   isSelected,
   onSelectItem,
-  onRowClick,
+  getRowHref,
 }: DataTableRowProps<T>) {
+  const href = getRowHref?.(item)
+  const linkColumn = columns.find((c) => c.isRowLink) ?? columns[0]
   return (
-    <TableRow
-      onClick={() => onRowClick?.(item)}
-      className={`${onRowClick ? 'cursor-pointer' : ''} ${isSelected ? 'bg-brand-primary-muted' : ''}`}
-    >
+    <TableRow className={`${href ? 'relative cursor-pointer' : ''} ${isSelected ? 'bg-brand-primary-muted' : ''}`}>
       {selectable && (
         <TableCell>
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => onSelectItem(itemId)}
             aria-label={`Seleccionar elemento ${itemId}`}
-            onClick={(e) => e.stopPropagation()}
+            className="relative z-10"
           />
         </TableCell>
       )}
@@ -125,7 +128,15 @@ function DataTableRowItem<T>({
           key={column.key}
           className={`${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
         >
-          {column.render ? column.render(item) : ((item as Record<string, unknown>)[column.key] as ReactNode)}
+          {href && column === linkColumn ? (
+            <RowLink to={href}>
+              {column.render ? column.render(item) : ((item as Record<string, unknown>)[column.key] as ReactNode)}
+            </RowLink>
+          ) : column.render ? (
+            column.render(item)
+          ) : (
+            ((item as Record<string, unknown>)[column.key] as ReactNode)
+          )}
         </TableCell>
       ))}
     </TableRow>
@@ -148,7 +159,7 @@ interface DataTableProps<T extends object> {
   onSort?: (key: string) => void
 
   // Row Actions
-  onRowClick?: (item: T) => void
+  getRowHref?: (item: T) => string
 
   // Empty State
   emptyMessage?: string
@@ -167,7 +178,7 @@ export function DataTable<T extends object>({
   sortBy,
   sortDirection,
   onSort,
-  onRowClick,
+  getRowHref,
   emptyMessage = 'No hay datos disponibles',
   isLoading = false,
 }: DataTableProps<T>) {
@@ -249,7 +260,7 @@ export function DataTable<T extends object>({
                   selectable={selectable}
                   isSelected={selectedItems.has(itemId)}
                   onSelectItem={handleSelectItem}
-                  onRowClick={onRowClick}
+                  getRowHref={getRowHref}
                 />
               )
             })}

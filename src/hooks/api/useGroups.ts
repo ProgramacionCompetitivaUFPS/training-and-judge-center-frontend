@@ -23,6 +23,7 @@ export const groupKeys = {
   members: (groupId: string) => ['groups', groupId, 'members'] as const,
   joinRequests: (groupId: string) => ['groups', groupId, 'requests'] as const,
   invitations: (groupId: string) => ['groups', groupId, 'invitations'] as const,
+  deletionImpact: (groupId: string) => ['groups', groupId, 'deletion-impact'] as const,
 }
 
 // === Queries ===
@@ -31,6 +32,18 @@ export function useGroups(params?: GroupListParams) {
   return useQuery({
     queryKey: groupKeys.list(params),
     queryFn: () => groupsApi.getGroups(params),
+  })
+}
+
+/** What deleting the group would take with it. Always fresh: it decides how careful the dialog is. */
+export function useGroupDeletionImpact(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: groupKeys.deletionImpact(id),
+    queryFn: () => groupsApi.getGroupDeletionImpact(id),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
   })
 }
 

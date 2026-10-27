@@ -8,11 +8,17 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   PublishResponse,
+  ValidateResponse,
+  LatestValidation,
   UnpublishResponse,
   ProblemStatistics,
   ProblemModifier,
   ProblemAccessibility,
   ProblemFiles,
+  TestCasesResponse,
+  TestCaseKind,
+  ProblemSourceFile,
+  ProblemSourceFileType,
 } from '@/types/problem'
 
 // === CRUD ===
@@ -48,6 +54,15 @@ export function publishProblem(slug: string): Promise<PublishResponse> {
   return apiClient.post(`/problems/p/${slug}/publish`)
 }
 
+// Starts the publication validation on a draft without publishing it; answers right away (202).
+export function validateProblem(slug: string): Promise<ValidateResponse> {
+  return apiClient.post(`/problems/p/${slug}/validate`)
+}
+
+export function getLatestValidation(slug: string): Promise<LatestValidation> {
+  return apiClient.get(`/problems/p/${slug}/validation`)
+}
+
 export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
   return apiClient.post(`/problems/p/${slug}/unpublish`)
 }
@@ -64,6 +79,38 @@ export function uploadProblemFile(slug: string, fileType: string, file: File): P
 export function deleteProblemFile(slug: string, fileType: string, fileName?: string): Promise<void> {
   const params = fileName ? { fileName } : undefined
   return apiClient.delete(`/problems/p/${slug}/files/${fileType}`, { params })
+}
+
+// === Lectura de archivos (autor, colaboradores y Admin) ===
+
+export function getProblemTestCases(slug: string): Promise<TestCasesResponse> {
+  return apiClient.get(`/problems/p/${slug}/testcases`)
+}
+
+// Código de una solución (fileName obligatorio: puede haber varias), del checker o del validador.
+// `full` asks for the whole file; without it the backend cuts it at 256 KiB.
+export function getProblemSourceFile(slug: string, fileType: ProblemSourceFileType, fileName?: string, full = false): Promise<ProblemSourceFile> {
+  const params: Record<string, string | boolean> = {}
+  if (fileName) params.fileName = fileName
+  if (full) params.full = true
+  return apiClient.get(`/problems/p/${slug}/files/${fileType}`, { params })
+}
+
+// One file of a case in full, as plain text (a test input can weigh tens of MB, so it doesn't go
+// through JSON like the preview does).
+export async function getProblemTestCasePart(slug: string, kind: TestCaseKind, name: string, part: 'input' | 'answer'): Promise<string> {
+  const blob = await apiClient.getBlob(`/problems/p/${slug}/testcases/${kind}/${encodeURIComponent(name)}/${part}`)
+  return blob.text()
+}
+
+// El ZIP de casos de prueba tal como se subió.
+export function downloadProblemTestCases(slug: string): Promise<Blob> {
+  return apiClient.getBlob(`/problems/p/${slug}/files/testcases`)
+}
+
+// Paquete ICPC completo (el inverso de "Importar ZIP").
+export function exportProblem(slug: string): Promise<Blob> {
+  return apiClient.getBlob(`/problems/p/${slug}/export`)
 }
 
 // === Modifiers ===

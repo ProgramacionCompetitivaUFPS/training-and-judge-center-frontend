@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Trophy, Users, Clock, Code2, Search, ArrowRight, BarChart3, CheckCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { EmptyState } from '@/components/patterns'
@@ -8,6 +8,7 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ParticipationModeTag } from '@/components/features/ParticipationModeTag'
 import { useMyContests } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
+import { RowLink } from '@/components/ui/RowLink'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDuration, pluralize } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -40,11 +41,11 @@ const STATUS_FILTERS = [
   { value: 'FINISHED' as const, label: 'Finalizados' },
 ]
 
-function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: () => void }) {
+function ContestRow({ contest, href }: { contest: ContestListItem; href: string }) {
   const isFinished = contest.status === 'FINISHED'
   return (
-    <button
-      onClick={onClick}
+    <Link
+      to={href}
       className="w-full flex items-center justify-between gap-4 px-4 py-3 bg-neutral-surface border border-neutral-border rounded-lg hover:border-brand-primary/40 hover:shadow-elevation-1 transition-all text-left"
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -67,7 +68,7 @@ function ContestRow({ contest, onClick }: { contest: ContestListItem; onClick: (
         )}
         <span className="font-mono whitespace-nowrap">{isFinished ? relativeTime(contest.endTime) : formatDate(contest.startTime)}</span>
       </div>
-    </button>
+    </Link>
   )
 }
 
@@ -75,12 +76,12 @@ interface ContestSectionProps {
   title: string
   items: ContestListItem[]
   isLoading: boolean
-  onContestClick: (contest: ContestListItem) => void
+  getContestHref: (contest: ContestListItem) => string
   variant?: 'cards' | 'rows'
   accent?: boolean
 }
 
-function ContestSection({ title, items, isLoading, onContestClick, variant = 'cards', accent = false }: ContestSectionProps) {
+function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false }: ContestSectionProps) {
   if (!isLoading && items.length === 0) return null
   return (
     <div>
@@ -108,13 +109,13 @@ function ContestSection({ title, items, isLoading, onContestClick, variant = 'ca
       ) : variant === 'rows' ? (
         <div className="space-y-2">
           {items.map((contest) => (
-            <ContestRow key={contest.id} contest={contest} onClick={() => onContestClick(contest)} />
+            <ContestRow key={contest.id} contest={contest} href={getContestHref(contest)} />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {items.map((contest) => (
-            <ContestCard key={contest.id} contest={contest} onClick={() => onContestClick(contest)} />
+            <ContestCard key={contest.id} contest={contest} href={getContestHref(contest)} />
           ))}
         </div>
       )}
@@ -124,25 +125,24 @@ function ContestSection({ title, items, isLoading, onContestClick, variant = 'ca
 
 interface ContestCardProps {
   contest: ContestListItem
-  onClick: () => void
+  href: string
   // Solo cuando la lista mezcla estados (Todas + búsqueda); en las secciones y con
   // filtro de estado el estado ya está implícito.
   showStatus?: boolean
 }
 
-function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps) {
+function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
   const isActive = contest.status === 'ACTIVE'
   const isFinished = contest.status === 'FINISHED'
 
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all duration-200 flex flex-col',
+        'group/card relative cursor-pointer transition-all duration-200 flex flex-col',
         isActive && 'border-status-success/30 hover:shadow-elevation-2',
         isFinished && 'opacity-80 hover:opacity-100',
         !isActive && !isFinished && 'hover:shadow-elevation-2',
       )}
-      onClick={onClick}
     >
       <CardContent className="p-5 flex flex-col flex-1">
         {/* Top: badges + date */}
@@ -168,7 +168,7 @@ function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps)
 
         {/* Title + description */}
         <h3 className="text-lg font-bold text-neutral-text-primary mb-1.5 group-hover:text-brand-primary transition-colors line-clamp-1">
-          {contest.name}
+          <RowLink to={href}>{contest.name}</RowLink>
         </h3>
         {contest.description && (
           <p className="text-sm text-neutral-text-muted line-clamp-2 mb-4">
@@ -196,32 +196,32 @@ function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps)
         {/* CTA */}
         <div className="mt-auto">
           {isActive && contest.isRegistered && (
-            <button className="w-full bg-brand-primary text-white py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-brand-primary/90 transition-colors">
+            <span className="w-full bg-brand-primary text-white py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-brand-primary/90 transition-colors">
               Continuar competencia
               <ArrowRight className="h-4 w-4" />
-            </button>
+            </span>
           )}
           {isActive && !contest.isRegistered && (
-            <button className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-neutral-background transition-colors">
+            <span className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-neutral-background transition-colors">
               Ver competencia
               <ArrowRight className="h-4 w-4" />
-            </button>
+            </span>
           )}
           {contest.status === 'SCHEDULED' && contest.isRegistered && (
-            <button className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-muted py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-neutral-background transition-colors">
+            <span className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-muted py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-neutral-background transition-colors">
               Gestionar inscripción
-            </button>
+            </span>
           )}
           {contest.status === 'SCHEDULED' && !contest.isRegistered && (
-            <button className="w-full bg-neutral-surface border-2 border-brand-primary/20 text-brand-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-brand-primary-muted transition-colors">
+            <span className="w-full bg-neutral-surface border-2 border-brand-primary/20 text-brand-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-brand-primary-muted transition-colors">
               Registrarse
-            </button>
+            </span>
           )}
           {isFinished && (
-            <button className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-neutral-background transition-colors">
+            <span className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-neutral-background transition-colors">
               Ver resultados
               <BarChart3 className="h-4 w-4" />
-            </button>
+            </span>
           )}
         </div>
       </CardContent>
@@ -230,8 +230,6 @@ function ContestCard({ contest, onClick, showStatus = false }: ContestCardProps)
 }
 
 export function ContestsPage() {
-  const navigate = useNavigate()
-
   const [statusFilter, setStatusFilter] = useState<ContestStatus | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -266,7 +264,7 @@ export function ContestsPage() {
   )
 
   const filteredItems = data?.items || []
-  const goToContest = (contest: ContestListItem) => navigate(PATHS.contest(contest.group.id, contest.id))
+  const contestHref = (contest: ContestListItem) => PATHS.contest(contest.group.id, contest.id)
 
   return (
     <AppLayout
@@ -298,13 +296,13 @@ export function ContestsPage() {
               className="pl-10"
             />
           </div>
-          <div className="flex items-center gap-1 bg-neutral-surface border border-neutral-border p-1 rounded-lg">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto bg-neutral-surface border border-neutral-border p-1 rounded-lg">
             {STATUS_FILTERS.map((f) => (
               <button
                 key={f.value}
                 onClick={() => { setStatusFilter(f.value); setPage(1) }}
                 className={cn(
-                  'px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors',
+                  'shrink-0 px-3 sm:px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors',
                   statusFilter === f.value
                     ? 'bg-white shadow-sm text-brand-primary'
                     : 'text-neutral-text-muted hover:text-neutral-text-primary',
@@ -334,9 +332,9 @@ export function ContestsPage() {
             }
             return (
               <div className="space-y-8">
-                <ContestSection title="En curso" items={activeData?.items ?? []} isLoading={isLoadingActive} onContestClick={goToContest} accent />
-                <ContestSection title="Próximas" items={scheduledData?.items ?? []} isLoading={isLoadingScheduled} onContestClick={goToContest} variant="rows" />
-                <ContestSection title="Finalizadas" items={finishedData?.items ?? []} isLoading={isLoadingFinished} onContestClick={goToContest} variant="rows" />
+                <ContestSection title="En curso" items={activeData?.items ?? []} isLoading={isLoadingActive} getContestHref={contestHref} accent />
+                <ContestSection title="Próximas" items={scheduledData?.items ?? []} isLoading={isLoadingScheduled} getContestHref={contestHref} variant="rows" />
+                <ContestSection title="Finalizadas" items={finishedData?.items ?? []} isLoading={isLoadingFinished} getContestHref={contestHref} variant="rows" />
               </div>
             )
           })()
@@ -372,7 +370,7 @@ export function ContestsPage() {
                 key={contest.id}
                 contest={contest}
                 showStatus={statusFilter === 'ALL'}
-                onClick={() => goToContest(contest)}
+                href={contestHref(contest)}
               />
             ))}
           </div>

@@ -8,6 +8,7 @@ import type {
   CreateGroupRequest,
   UpdateGroupRequest,
   DeleteGroupRequest,
+  GroupDeletionImpact,
   Group,
   AddMemberRequest,
   GroupMember,
@@ -52,6 +53,10 @@ export function updateGroup(id: string, data: UpdateGroupRequest): Promise<Group
 
 export function deleteGroup(id: string, data: DeleteGroupRequest): Promise<void> {
   return apiClient.delete(`/groups/${id}`, { body: data })
+}
+
+export function getGroupDeletionImpact(id: string): Promise<GroupDeletionImpact> {
+  return apiClient.get(`/groups/${id}/deletion-impact`)
 }
 
 // === Members ===

@@ -55,6 +55,8 @@ import { useContests } from '@/hooks/api/useContests'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { MaterialListItem } from '@/components/features/MaterialListItem'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
+import { RowLink } from '@/components/ui/RowLink'
+import { GroupDeletionDialog } from '@/components/features/GroupDeletionDialog'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -153,7 +155,6 @@ export function GroupDetailPage() {
   const inviteMutation = useCreateInvitation()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState('')
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
   const [addMemberOpen, setAddMemberOpen] = useState(false)
@@ -235,17 +236,16 @@ export function GroupDetailPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!group || deleteConfirm !== group.name) return
+  const handleDelete = async (confirmationName: string) => {
+    if (!group || confirmationName !== group.name) return
     try {
-      await deleteMutation.mutateAsync({ id, data: { confirmationName: deleteConfirm } })
+      await deleteMutation.mutateAsync({ id, data: { confirmationName } })
       toast({ variant: 'success', title: 'Grupo eliminado' })
       navigate(ROUTES.GROUPS)
     } catch (err) {
       toast({ variant: 'error', title: 'Error al eliminar grupo', description: getErrorMessage(err) })
     }
     setDeleteOpen(false)
-    setDeleteConfirm('')
   }
 
   const handleProcessRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
@@ -629,8 +629,7 @@ export function GroupDetailPage() {
               {group.leads.map((l) => (
                 <div
                   key={l.userId}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-neutral-bg/50 rounded-lg p-2 -mx-2 transition-colors"
-                  onClick={() => navigate(`/users/${l.nickname}`)}
+                  className="relative flex items-center gap-3 cursor-pointer hover:bg-neutral-background/50 rounded-lg p-2 -mx-2 transition-colors"
                 >
                   <div className={cn(
                     'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
@@ -638,10 +637,10 @@ export function GroupDetailPage() {
                   )}>
                     {l.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
+                  <RowLink to={`/users/${l.nickname}`}>
                     <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
                     <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
-                  </div>
+                  </RowLink>
                   <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
                 </div>
               ))}
@@ -677,7 +676,7 @@ export function GroupDetailPage() {
                 <MaterialListItem
                   key={m.id}
                   material={m}
-                  onClick={() => navigate(`/groups/${id}/materials/${m.id}`)}
+                  href={`/groups/${id}/materials/${m.id}`}
                 />
               ))}
             </div>
@@ -747,15 +746,14 @@ export function GroupDetailPage() {
           {contestsData.items.map((c) => (
             <Card
               key={c.id}
-              className="cursor-pointer hover:border-brand-primary/40 transition-colors"
-              onClick={() => navigate(PATHS.contest(id, c.id))}
+              className="relative cursor-pointer hover:border-brand-primary/40 transition-colors"
             >
               <CardContent className="pt-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <ContestStatusBadge status={c.status} />
                   <span className="text-xs text-neutral-text-muted">{formatDuration(c.duration)}</span>
                 </div>
-                <h3 className="font-semibold text-neutral-text-primary leading-tight">{c.name}</h3>
+                <h3 className="font-semibold text-neutral-text-primary leading-tight"><RowLink to={PATHS.contest(id, c.id)}>{c.name}</RowLink></h3>
                 <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
@@ -840,22 +838,19 @@ export function GroupDetailPage() {
         additionalActions={buildAdditionalActions()}
       />
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar grupo</DialogTitle>
-            <DialogDescription>
-              Escribe <span className="font-bold">{group?.name}</span> para confirmar la eliminación. Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <Input value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)} placeholder="Nombre del grupo" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
-            <Button variant="danger" onClick={handleDelete} disabled={deleteConfirm !== group?.name}>Eliminar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete confirmation: shows what is lost and asks for the confirmation in steps */}
+      {group && (
+        <GroupDeletionDialog
+          // remounted on every open/close, so nothing typed or ticked survives a failed deletion
+          key={deleteOpen ? 'open' : 'closed'}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          groupId={id}
+          groupName={group.name}
+          isDeleting={deleteMutation.isPending}
+          onConfirm={handleDelete}
+        />
+      )}
 
       <ConfirmDialog
         open={leaveOpen}
