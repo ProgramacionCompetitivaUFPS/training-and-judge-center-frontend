@@ -47,6 +47,8 @@ const columns: Column<SubmissionListItem>[] = [
       <div>
         <span className="font-medium text-neutral-text-primary">{sub.problem.title}</span>
         <span className="block text-xs text-neutral-text-muted font-mono">{sub.problem.slug}</span>
+        {/* The same problem can be submitted many times: the link needs to say which submission it opens */}
+        <span className="sr-only">, envío del {new Date(sub.submittedAt).toLocaleString('es')}</span>
       </div>
     ),
   },
