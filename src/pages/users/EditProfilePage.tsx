@@ -20,6 +20,7 @@ import {
   useConfirmEmailChange,
   useRequestDeactivation,
   useConfirmDeactivation,
+  useSoleLeadGroups,
   useLinkGoogle,
   useUnlinkGoogle,
 } from '@/hooks/api/useUsers'
@@ -600,6 +601,9 @@ function DeactivateSection({ hasPassword }: { hasPassword?: boolean }) {
   const isAdmin = user?.role === 'ADMIN'
   // Google-only accounts have no password to type; the emailed code is the real confirmation.
   const needsPassword = hasPassword !== false
+  // Groups this deactivation would leave without a lead
+  const { data: soleLead, isLoading: isLoadingSoleLead, isError: soleLeadFailed } = useSoleLeadGroups(undefined, !isAdmin)
+  const soleLeadGroups = soleLead?.groups ?? []
 
   const {
     register: registerConfirm,
@@ -656,6 +660,19 @@ function DeactivateSection({ hasPassword }: { hasPassword?: boolean }) {
       <p className="text-sm text-neutral-text-muted">
         Esta acción desactivará tu cuenta de forma permanente e irreversible: no podrás volver a iniciar sesión y tu correo y nickname quedarán anonimizados. No existe reactivación.
       </p>
+      {isLoadingSoleLead && !isAdmin && (
+        <p className="text-sm text-neutral-text-muted" role="status">Comprobando si eres el único líder de algún grupo…</p>
+      )}
+      {soleLeadFailed && !isAdmin && (
+        <p className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm text-neutral-text-primary" role="status">
+          No se pudo comprobar si eres el único líder de algún grupo. Si lo eres, ese grupo quedaría sin líder y solo un Administrador podría gestionarlo; puedes revisarlo en tus grupos antes de continuar.
+        </p>
+      )}
+      {soleLeadGroups.length > 0 && (
+        <p className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm text-neutral-text-primary" role="status">
+          Eres el único líder de {soleLeadGroups.map((g) => `«${g.name}»`).join(', ')}. Si desactivas tu cuenta, {soleLeadGroups.length === 1 ? 'ese grupo quedará' : 'esos grupos quedarán'} sin líder y solo un Administrador podrá gestionarlo{soleLeadGroups.length === 1 ? '' : 's'}. Antes de continuar, considera nombrar a otro líder en {soleLeadGroups.length === 1 ? 'él' : 'cada uno'}.
+        </p>
+      )}
       {isAdmin && (
         <p className="text-sm text-status-error">
           Como Administrador no puedes desactivar tu propia cuenta desde aquí, para evitar quedarte sin
