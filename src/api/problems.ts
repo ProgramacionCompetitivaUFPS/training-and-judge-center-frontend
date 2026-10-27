@@ -8,6 +8,7 @@ import type {
   UpdateProblemRequest,
   DeleteProblemRequest,
   PublishResponse,
+  ValidateResponse,
   LatestValidation,
   UnpublishResponse,
   ProblemStatistics,
@@ -51,6 +52,11 @@ export function deleteProblem(slug: string, data: DeleteProblemRequest): Promise
 
 export function publishProblem(slug: string): Promise<PublishResponse> {
   return apiClient.post(`/problems/p/${slug}/publish`)
+}
+
+// Starts the publication validation on a draft without publishing it; answers right away (202).
+export function validateProblem(slug: string): Promise<ValidateResponse> {
+  return apiClient.post(`/problems/p/${slug}/validate`)
 }
 
 export function getLatestValidation(slug: string): Promise<LatestValidation> {
