@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, ClipboardCheck, Loader2, TriangleAlert, XCircle } from 'lucide-react'
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { ValidationReportView } from '@/components/features/ValidationReportView'
 import { problemKeys, useLatestValidation } from '@/hooks/api/useProblems'
 
@@ -11,13 +11,18 @@ interface ValidationPanelProps {
   isPublishing: boolean
 }
 
-/** mm:ss since it was mounted: it only exists while a validation runs, so it starts at zero each time. */
+/**
+ * mm:ss since it was mounted: it only exists while a validation runs, so it starts at zero each time.
+ * Computed from the start time, not by counting ticks: a background tab throttles the interval.
+ */
 function Elapsed() {
-  const [seconds, setSeconds] = useState(0)
+  const [start] = useState(() => Date.now())
+  const [now, setNow] = useState(start)
   useEffect(() => {
-    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000)
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(id)
   }, [])
+  const seconds = Math.max(0, Math.floor((now - start) / 1000))
   return <>{`${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`}</>
 }
 
@@ -28,7 +33,7 @@ function Elapsed() {
  */
 export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useLatestValidation(slug, { polling: isPublishing })
+  const { data, isLoading, isError, refetch, isRefetching } = useLatestValidation(slug, { polling: isPublishing })
   const running = isPublishing || (!!data?.found && !data.terminal)
   const finished = !running && !!data?.found && data.terminal
   const failed = finished && !data.passed
@@ -69,6 +74,15 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {isLoading && !running && <p className="text-neutral-text-muted">Cargando…</p>}
+
+        {isError && !data && !running && (
+          <div className="space-y-2">
+            <p className="text-status-error">No se pudo consultar la última validación.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} isLoading={isRefetching}>
+              Reintentar
+            </Button>
+          </div>
+        )}
 
         {running && (
           <div className="space-y-1" role="status">

@@ -8,10 +8,11 @@ interface ValidationReportViewProps {
   validationLogs?: string[]
 }
 
-const verdictLabel = (value: string) => SUBMISSION_STATUS_CONFIG[value as keyof typeof SUBMISSION_STATUS_CONFIG]?.label ?? value
+// Collapsed behind a <details> and scrollable, so a long output neither buries the report nor gets cut:
+// a mismatch can sit past any fixed number of characters.
+const OUTPUT_CLASS = 'max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-background p-2 font-mono text-xs'
 
-/** Long outputs would bury the rest of the report; the whole text stays one click away. */
-const excerpt = (text: string, max = 600) => (text.length > max ? `${text.slice(0, max)}…` : text)
+const verdictLabel = (value: string) => SUBMISSION_STATUS_CONFIG[value as keyof typeof SUBMISSION_STATUS_CONFIG]?.label ?? value
 
 /**
  * What a failed validation found, step by step: what did not compile, which test cases failed and
@@ -49,11 +50,11 @@ export function ValidationReportView({ compilationErrors, failedTestCases, faile
                       <div className="mt-1 grid gap-2 sm:grid-cols-2">
                         <div>
                           <p className="text-xs font-semibold text-neutral-text-muted">Esperada</p>
-                          <pre className="whitespace-pre-wrap break-words rounded bg-neutral-background p-2 font-mono text-xs">{excerpt(tc.expected ?? '')}</pre>
+                          <pre className={OUTPUT_CLASS}>{tc.expected ?? ''}</pre>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-neutral-text-muted">Obtenida</p>
-                          <pre className="whitespace-pre-wrap break-words rounded bg-neutral-background p-2 font-mono text-xs">{excerpt(tc.actual ?? '')}</pre>
+                          <pre className={OUTPUT_CLASS}>{tc.actual ?? ''}</pre>
                         </div>
                       </div>
                     </details>
