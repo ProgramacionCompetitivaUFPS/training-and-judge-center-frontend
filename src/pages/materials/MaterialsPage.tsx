@@ -369,7 +369,7 @@ export function MaterialsPage() {
                   <MaterialListItem
                     key={material.id}
                     material={material}
-                    onClick={() => navigate(`/groups/${groupId}/materials/${material.id}`)}
+                    href={`/groups/${groupId}/materials/${material.id}`}
                     showPreview
                   />
                 ))}

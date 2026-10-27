@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { RowLink } from '@/components/ui/RowLink'
 import { UsersRound, Plus, Mail, Check, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -176,11 +177,10 @@ export function TeamsPage() {
             {teams.map((team) => (
               <Card
                 key={team.id}
-                className="cursor-pointer hover:border-brand-primary transition-colors"
-                onClick={() => navigate(`/teams/${team.id}`)}
+                className="relative cursor-pointer hover:border-brand-primary transition-colors"
               >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{team.name}</CardTitle>
+                  <CardTitle className="text-base"><RowLink to={`/teams/${team.id}`}>{team.name}</RowLink></CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex items-center justify-between text-sm text-neutral-text-muted">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { FileCode2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -15,6 +15,7 @@ import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
 import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
+import { RowLink } from '@/components/ui/RowLink'
 import { cn } from '@/lib/utils'
 import type { ProblemSubmissionsParams, SubmissionOrigin, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -37,7 +38,6 @@ const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
 
 export function ProblemSubmissionsPage() {
   const { slug } = useParams<{ slug: string }>()
-  const navigate = useNavigate()
 
   const { data: problem } = useProblemDetail(slug || '')
   const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
@@ -219,11 +219,12 @@ export function ProblemSubmissionsPage() {
                   {submissions.map((sub) => (
                     <TableRow
                       key={sub.id}
-                      className="cursor-pointer hover:bg-neutral-bg/50"
-                      onClick={() => navigate(`/submissions/${sub.id}`, { state: submissionOrigin })}
+                      className="relative cursor-pointer"
                     >
                       <TableCell>
-                        <SubmissionStatusBadge status={sub.status} />
+                        <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin}>
+                          <SubmissionStatusBadge status={sub.status} />
+                        </RowLink>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm font-mono text-neutral-text-muted">@{sub.submittedBy.nickname}</span>
