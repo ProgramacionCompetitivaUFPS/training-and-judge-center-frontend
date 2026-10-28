@@ -82,10 +82,12 @@ interface ContestSectionProps {
   variant?: 'cards' | 'rows'
   accent?: boolean
   footer?: ReactNode
+  /** Said when the section has no rows but still has a footer: the rows hidden by a filter are not "none". */
+  emptyNote?: string
 }
 
-function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false, footer }: ContestSectionProps) {
-  if (!isLoading && items.length === 0) return null
+function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false, footer, emptyNote }: ContestSectionProps) {
+  if (!isLoading && items.length === 0 && !footer) return null
   return (
     <div>
       <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider mb-3">
@@ -109,6 +111,8 @@ function ContestSection({ title, items, isLoading, getContestHref, variant = 'ca
             </Card>
           ))}
         </div>
+      ) : items.length === 0 ? (
+        emptyNote ? <p className="text-sm text-neutral-text-muted">{emptyNote}</p> : null
       ) : variant === 'rows' ? (
         <div className="space-y-2">
           {items.map((contest) => (
@@ -340,6 +344,7 @@ export function ContestsPage() {
               && activeItems.length === 0
               && scheduledItems.length === 0
               && finishedItems.length === 0
+              && !moreFinished
             if (allEmpty) {
               return (
                 <EmptyState
@@ -359,6 +364,7 @@ export function ContestsPage() {
                   isLoading={isLoadingFinished}
                   getContestHref={contestHref}
                   variant="rows"
+                  emptyNote={onlyMine ? 'Ninguna de las finalizadas más recientes es tuya.' : undefined}
                   footer={moreFinished && (
                     <button
                       type="button"
@@ -391,7 +397,7 @@ export function ContestsPage() {
               </Card>
             ))}
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : (data?.pagination.total ?? 0) === 0 ? (
           <EmptyState
             icon={Trophy}
             title="No hay competencias"
@@ -399,16 +405,24 @@ export function ContestsPage() {
           />
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredItems.map((contest) => (
-                <ContestCard
-                  key={contest.id}
-                  contest={contest}
-                  showStatus={statusFilter === 'ALL'}
-                  href={contestHref(contest)}
-                />
-              ))}
-            </div>
+            {filteredItems.length === 0 ? (
+              <EmptyState
+                icon={Trophy}
+                title="No hay competencias en esta página"
+                description="Ninguna de las competencias de esta página es tuya; prueba en la siguiente"
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredItems.map((contest) => (
+                  <ContestCard
+                    key={contest.id}
+                    contest={contest}
+                    showStatus={statusFilter === 'ALL'}
+                    href={contestHref(contest)}
+                  />
+                ))}
+              </div>
+            )}
             {data && (
               <>
                 <PaginationSummary
