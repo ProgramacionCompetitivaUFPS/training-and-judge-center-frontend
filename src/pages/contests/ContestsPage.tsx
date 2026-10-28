@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Trophy, Users, Clock, Code2, Search, ArrowRight, BarChart3, CheckCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { EmptyState } from '@/components/patterns'
 import { Card, CardContent, Input } from '@/components/ui'
+import { Checkbox } from '@/components/ui/Checkbox'
+import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ParticipationModeTag } from '@/components/features/ParticipationModeTag'
 import { useMyContests } from '@/hooks/api/useContests'
@@ -79,9 +81,10 @@ interface ContestSectionProps {
   getContestHref: (contest: ContestListItem) => string
   variant?: 'cards' | 'rows'
   accent?: boolean
+  footer?: ReactNode
 }
 
-function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false }: ContestSectionProps) {
+function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false, footer }: ContestSectionProps) {
   if (!isLoading && items.length === 0) return null
   return (
     <div>
@@ -119,6 +122,7 @@ function ContestSection({ title, items, isLoading, getContestHref, variant = 'ca
           ))}
         </div>
       )}
+      {footer}
     </div>
   )
 }
@@ -146,12 +150,14 @@ function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
     >
       <CardContent className="p-5 flex flex-col flex-1">
         {/* Top: badges + date */}
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2">
+        {/* In a narrow card the two groups used to squeeze each other (the date broke in two lines and
+            "Participando" touched the mode tag): now each group keeps its own line when they do not fit. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 mb-3">
+          <div className="flex items-center gap-2 whitespace-nowrap">
             {showStatus && <ContestStatusBadge status={contest.status} />}
             <ParticipationModeTag mode={contest.participationMode} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 whitespace-nowrap">
             {contest.isRegistered && (
               <span className="flex items-center gap-1 text-brand-primary">
                 <CheckCircle className="h-3.5 w-3.5" />
@@ -178,7 +184,7 @@ function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
         {!contest.description && <div className="mb-4" />}
 
         {/* Metadata grid */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mb-6 whitespace-nowrap">
           <div className="flex items-center gap-2 text-neutral-text-muted">
             <Clock className="h-4 w-4" />
             <span className="text-xs font-medium">{formatDuration(contest.duration)}</span>
@@ -234,6 +240,10 @@ export function ContestsPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(20)
+  // The server does not know which contests the user is in, so this filters what was loaded
+  // (the first 20 of each section, or the current page): enough for a person's own contests.
+  const [onlyMine, setOnlyMine] = useState(false)
 
   // Sin filtro de estado ni búsqueda, agrupamos por estado (como Codeforces) en vez
   // de una sola lista ordenada por start_time DESC, donde una competencia Programada
@@ -243,7 +253,7 @@ export function ContestsPage() {
   const { data, isLoading } = useMyContests(
     {
       page,
-      limit: 20,
+      limit,
       status: statusFilter !== 'ALL' ? statusFilter : undefined,
       search: debouncedSearch || undefined,
     },
@@ -263,7 +273,12 @@ export function ContestsPage() {
     { enabled: isGroupedView },
   )
 
-  const filteredItems = data?.items || []
+  const mine = (items: ContestListItem[] = []) => (onlyMine ? items.filter((c) => c.isRegistered) : items)
+  const filteredItems = mine(data?.items)
+  const activeItems = mine(activeData?.items)
+  const scheduledItems = mine(scheduledData?.items)
+  const finishedItems = mine(finishedData?.items)
+  const moreFinished = (finishedData?.pagination.total ?? 0) > (finishedData?.items.length ?? 0)
   const contestHref = (contest: ContestListItem) => PATHS.contest(contest.group.id, contest.id)
 
   return (
@@ -286,8 +301,8 @@ export function ContestsPage() {
         </div>
 
         {/* Search + pill filters */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3">
+          <div className="relative flex-1 min-w-[14rem] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-text-muted" />
             <Input
               placeholder="Buscar competencias..."
@@ -312,29 +327,48 @@ export function ContestsPage() {
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-2 text-sm text-neutral-text-primary cursor-pointer select-none">
+            <Checkbox checked={onlyMine} onCheckedChange={(v) => { setOnlyMine(v === true); setPage(1) }} />
+            Solo en las que participé
+          </label>
         </div>
 
         {/* Grid */}
         {isGroupedView ? (
           (() => {
             const allEmpty = !isLoadingActive && !isLoadingScheduled && !isLoadingFinished
-              && (activeData?.items.length ?? 0) === 0
-              && (scheduledData?.items.length ?? 0) === 0
-              && (finishedData?.items.length ?? 0) === 0
+              && activeItems.length === 0
+              && scheduledItems.length === 0
+              && finishedItems.length === 0
             if (allEmpty) {
               return (
                 <EmptyState
                   icon={Trophy}
                   title="No hay competencias"
-                  description="No tienes competencias en ninguno de tus grupos"
+                  description={onlyMine ? 'No participas en ninguna de las competencias cargadas' : 'No tienes competencias en ninguno de tus grupos'}
                 />
               )
             }
             return (
               <div className="space-y-8">
-                <ContestSection title="En curso" items={activeData?.items ?? []} isLoading={isLoadingActive} getContestHref={contestHref} accent />
-                <ContestSection title="Próximas" items={scheduledData?.items ?? []} isLoading={isLoadingScheduled} getContestHref={contestHref} variant="rows" />
-                <ContestSection title="Finalizadas" items={finishedData?.items ?? []} isLoading={isLoadingFinished} getContestHref={contestHref} variant="rows" />
+                <ContestSection title="En curso" items={activeItems} isLoading={isLoadingActive} getContestHref={contestHref} accent />
+                <ContestSection title="Próximas" items={scheduledItems} isLoading={isLoadingScheduled} getContestHref={contestHref} variant="rows" />
+                <ContestSection
+                  title="Finalizadas"
+                  items={finishedItems}
+                  isLoading={isLoadingFinished}
+                  getContestHref={contestHref}
+                  variant="rows"
+                  footer={moreFinished && (
+                    <button
+                      type="button"
+                      className="mt-3 text-sm font-medium text-brand-primary hover:underline"
+                      onClick={() => { setStatusFilter('FINISHED'); setPage(1) }}
+                    >
+                      Ver todas las finalizadas ({finishedData?.pagination.total})
+                    </button>
+                  )}
+                />
               </div>
             )
           })()
@@ -364,15 +398,30 @@ export function ContestsPage() {
             description="No hay competencias con esos filtros"
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredItems.map((contest) => (
-              <ContestCard
-                key={contest.id}
-                contest={contest}
-                showStatus={statusFilter === 'ALL'}
-                href={contestHref(contest)}
-              />
-            ))}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredItems.map((contest) => (
+                <ContestCard
+                  key={contest.id}
+                  contest={contest}
+                  showStatus={statusFilter === 'ALL'}
+                  href={contestHref(contest)}
+                />
+              ))}
+            </div>
+            {data && (
+              <>
+                <PaginationSummary
+                  total={data.pagination.total}
+                  totalLabel="competencias"
+                  currentPage={data.pagination.page}
+                  totalPages={data.pagination.totalPages}
+                  limit={limit}
+                  onLimitChange={(n) => { setLimit(n); setPage(1) }}
+                />
+                <PaginationControls currentPage={data.pagination.page} totalPages={data.pagination.totalPages} onPageChange={setPage} />
+              </>
+            )}
           </div>
         )}
       </div>
