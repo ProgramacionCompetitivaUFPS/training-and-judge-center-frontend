@@ -44,8 +44,10 @@ export function TeamDetailPage() {
   const { data: team, isLoading, error } = useTeamDetail(teamId || '')
   const inviteMember = useInviteTeamMember()
   const leaveTeam = useLeaveTeam()
-  const { data: leaveImpact, isLoading: isCheckingLeave, isError: leaveImpactFailed } = useTeamLeaveImpact(teamId ?? '', showLeaveDialog)
-  const registrationsToCancel = leaveImpact?.registrationsToCancel ?? []
+  const { data: leaveImpact, isFetching: isCheckingLeave, isError: leaveImpactFailed } = useTeamLeaveImpact(teamId ?? '', showLeaveDialog)
+  // The query keeps the answer of the last time the dialog was open while it asks again (and after a failed
+  // ask): only an answer that has just been fetched is shown, never an old one.
+  const registrationsToCancel = !isCheckingLeave && !leaveImpactFailed ? (leaveImpact?.registrationsToCancel ?? []) : []
 
   const form = useForm<InviteTeamMemberFormData>({
     resolver: zodResolver(inviteTeamMemberSchema),
@@ -76,8 +78,9 @@ export function TeamDetailPage() {
       toast({
         variant: 'success',
         title: 'Has salido del equipo',
+        // What the warning said, not a report of what the server did: the leave answers with no detail
         description: registrationsToCancel.length
-          ? `Se canceló la inscripción del equipo en: ${registrationsToCancel.map((r) => r.contestName).join(', ')}.`
+          ? `Según el aviso, la inscripción del equipo en ${registrationsToCancel.slice(0, 3).map((r) => r.contestName).join(', ')}${registrationsToCancel.length > 3 ? ` y ${registrationsToCancel.length - 3} más` : ''} debía cancelarse.`
           : undefined,
       })
       navigate('/teams')
@@ -271,7 +274,7 @@ export function TeamDetailPage() {
 
       {/* Leave Dialog */}
       <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Salir del equipo</DialogTitle>
             <DialogDescription>
