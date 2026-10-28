@@ -17,6 +17,7 @@ export const teamKeys = {
   myInvitations: ['teams', 'invitations'] as const,
   contestRegistrations: (groupId: string, contestId: string) =>
     ['teams', 'contest-registrations', groupId, contestId] as const,
+  leaveImpact: (teamId: string) => ['teams', 'leave-impact', teamId] as const,
   registrationEligibility: (groupId: string, contestId: string, teamId: string) =>
     ['teams', 'registration-eligibility', groupId, contestId, teamId] as const,
 }
@@ -35,6 +36,17 @@ export function useTeamDetail(teamId: string) {
     queryKey: teamKeys.detail(teamId),
     queryFn: () => teamsApi.getTeamDetail(teamId),
     enabled: !!teamId,
+  })
+}
+
+/** What leaving would cancel, for the confirmation; only asked for while it is open. */
+export function useTeamLeaveImpact(teamId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: teamKeys.leaveImpact(teamId),
+    queryFn: () => teamsApi.getTeamLeaveImpact(teamId),
+    enabled: enabled && !!teamId,
+    // other members' registrations change it: always ask again when the dialog opens
+    staleTime: 0,
   })
 }
 

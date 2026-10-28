@@ -100,8 +100,9 @@ export function usePyodide(): UsePyodideReturn {
             resolve({ stdout: msg.stdout, stderr: msg.stderr })
           } else if (msg.type === 'execError') {
             if (execTimeoutId !== null) { clearTimeout(execTimeoutId); execTimeoutId = null }
-            // Execution error — terminate so the next run starts with a clean Python state
-            terminateWorker()
+            // A Python error does not damage the runtime (each run gets fresh globals), so the worker stays:
+            // making a mistake, the usual thing, must not cost another load of Pyodide. Only a run that
+            // does not finish (below) can leave it stuck, and that one is terminated.
             resolve({ stdout: msg.stdout, stderr: msg.message })
           }
         }

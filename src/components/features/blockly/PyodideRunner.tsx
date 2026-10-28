@@ -3,6 +3,7 @@ import { Play, Trash2, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui'
 import { Textarea } from '@/components/ui/Textarea'
 import { usePyodide } from '@/hooks/usePyodide'
+import { explainPythonError } from '@/lib/pythonErrors'
 
 interface PyodideRunnerProps {
   getCode: () => string
@@ -20,6 +21,8 @@ export function PyodideRunner({ getCode }: PyodideRunnerProps) {
     setStdout(result.stdout)
     setStderr(result.stderr)
   }
+
+  const explanation = stderr ? explainPythonError(stderr) : null
 
   const handleClear = () => {
     setStdout('')
@@ -69,12 +72,27 @@ export function PyodideRunner({ getCode }: PyodideRunnerProps) {
         )}
 
         {(stdout || stderr) && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-text-primary mb-2">Salida</label>
-            <pre className="rounded-md border border-neutral-border bg-neutral-background p-3 text-sm font-mono whitespace-pre-wrap overflow-auto max-h-[300px]">
-              {stdout && <code>{stdout}</code>}
-              {stderr && <code className="text-status-error">{stderr}</code>}
-            </pre>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-neutral-text-primary">Salida</label>
+            {stdout && (
+              <pre className="rounded-md border border-neutral-border bg-neutral-background p-3 text-sm font-mono whitespace-pre-wrap overflow-auto max-h-[300px]">
+                <code>{stdout}</code>
+              </pre>
+            )}
+            {stderr && explanation && (
+              <div className="rounded-md border border-status-error/40 bg-status-error/5 p-3 text-sm text-neutral-text-primary space-y-1">
+                <p>{explanation}</p>
+                <details>
+                  <summary className="cursor-pointer text-xs text-neutral-text-muted">Ver el mensaje de Python</summary>
+                  <pre className="mt-1 whitespace-pre-wrap overflow-auto max-h-[200px] font-mono text-xs text-status-error">{stderr}</pre>
+                </details>
+              </div>
+            )}
+            {stderr && !explanation && (
+              <pre className="rounded-md border border-neutral-border bg-neutral-background p-3 text-sm font-mono whitespace-pre-wrap overflow-auto max-h-[300px]">
+                <code className="text-status-error">{stderr}</code>
+              </pre>
+            )}
           </div>
         )}
       </CardContent>

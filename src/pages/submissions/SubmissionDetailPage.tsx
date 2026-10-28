@@ -119,15 +119,15 @@ export function SubmissionDetailPage() {
     <AppLayout breadcrumbs={breadcrumbs}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-3 mb-2">
               <SubmissionStatusBadge status={submission.status} />
               <h1 className="text-2xl font-semibold text-neutral-text-primary">
                 Envío #{submission.id.slice(0, 8)}
               </h1>
             </div>
-            <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
+            <div className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-text-muted">
               <span>Problema:</span>
               <Link
                 to={PATHS.problem(submission.problem.slug)}
@@ -144,7 +144,7 @@ export function SubmissionDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 [&_button]:whitespace-nowrap">
             {isOwner && (
               <Button
                 variant="outline"
