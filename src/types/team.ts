@@ -128,6 +128,11 @@ export interface UpdateTeamRegistrationRequest {
 /** Why a roster member can't be selected: the error code registration would fail with. */
 export type MemberIneligibilityReason = 'MEMBER_NOT_IN_GROUP' | 'MEMBER_ALREADY_REGISTERED' | 'MEMBER_IN_ANOTHER_TEAM'
 
+/** What leaving a team would cost it: registrations in contests that have not started that would be cancelled. */
+export interface TeamLeaveImpact {
+  registrationsToCancel: Array<{ contestId: string; contestName: string; groupId: string }>
+}
+
 export interface TeamRegistrationEligibility {
   /** The team already has a registration for this contest; it can't be registered again. */
   teamAlreadyRegistered: boolean

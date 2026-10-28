@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { UsersRound, UserPlus, LogOut, Clock, Mail } from 'lucide-react'
@@ -23,7 +23,7 @@ import {
   TableCell,
 } from '@/components/ui/Table'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useTeamDetail, useInviteTeamMember, useLeaveTeam } from '@/hooks/api/useTeams'
+import { useTeamDetail, useInviteTeamMember, useLeaveTeam, useTeamLeaveImpact } from '@/hooks/api/useTeams'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -31,6 +31,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { PATHS } from '@/lib/constants'
 
 export function TeamDetailPage() {
   const { teamId } = useParams<{ teamId: string }>()
@@ -43,6 +44,10 @@ export function TeamDetailPage() {
   const { data: team, isLoading, error } = useTeamDetail(teamId || '')
   const inviteMember = useInviteTeamMember()
   const leaveTeam = useLeaveTeam()
+  const { data: leaveImpact, isFetching: isCheckingLeave, isError: leaveImpactFailed } = useTeamLeaveImpact(teamId ?? '', showLeaveDialog)
+  // The query keeps the answer of the last time the dialog was open while it asks again (and after a failed
+  // ask): only an answer that has just been fetched is shown, never an old one.
+  const registrationsToCancel = !isCheckingLeave && !leaveImpactFailed ? (leaveImpact?.registrationsToCancel ?? []) : []
 
   const form = useForm<InviteTeamMemberFormData>({
     resolver: zodResolver(inviteTeamMemberSchema),
@@ -70,7 +75,14 @@ export function TeamDetailPage() {
     if (!teamId) return
     try {
       await leaveTeam.mutateAsync(teamId)
-      toast({ variant: 'success', title: 'Has salido del equipo' })
+      toast({
+        variant: 'success',
+        title: 'Has salido del equipo',
+        // What the warning said, not a report of what the server did: the leave answers with no detail
+        description: registrationsToCancel.length
+          ? `Según el aviso, la inscripción del equipo en ${registrationsToCancel.slice(0, 3).map((r) => r.contestName).join(', ')}${registrationsToCancel.length > 3 ? ` y ${registrationsToCancel.length - 3} más` : ''} debía cancelarse.`
+          : undefined,
+      })
       navigate('/teams')
     } catch (err) {
       if (err instanceof ApiClientError && err.code === 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST') {
@@ -262,13 +274,37 @@ export function TeamDetailPage() {
 
       {/* Leave Dialog */}
       <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Salir del equipo</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para una competencia programada, serás removido automáticamente.
+              ¿Estás seguro de que deseas salir de "{team.name}"? Si estás seleccionado para una competencia programada, serás removido de su alineación.
             </DialogDescription>
           </DialogHeader>
+          {isCheckingLeave && (
+            <p className="text-sm text-neutral-text-muted">Comprobando si tu salida afecta las inscripciones del equipo…</p>
+          )}
+          {leaveImpactFailed && (
+            <p className="text-sm text-neutral-text-muted">
+              No pudimos comprobar si tu salida afecta las inscripciones del equipo en competencias programadas.
+            </p>
+          )}
+          {registrationsToCancel.length > 0 && (
+            <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm text-neutral-text-primary space-y-2">
+              <p>
+                Si sales, el equipo se quedaría con menos integrantes de los que piden estas competencias, y su inscripción se cancelará:
+              </p>
+              <ul className="list-disc list-inside">
+                {registrationsToCancel.map((r) => (
+                  <li key={r.contestId}>
+                    <Link className="underline underline-offset-2" to={PATHS.contest(r.groupId, r.contestId)}>
+                      {r.contestName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
               Cancelar
