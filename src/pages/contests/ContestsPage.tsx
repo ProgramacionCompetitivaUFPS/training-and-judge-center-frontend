@@ -98,19 +98,29 @@ function ContestSection({ title, items, isLoading, getContestHref, variant = 'ca
         <span className={accent ? 'text-status-success' : 'text-neutral-text-muted'}>{title}</span>
       </h2>
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-5">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-5 bg-neutral-border rounded w-20" />
-                  <div className="h-5 bg-neutral-border rounded w-3/4" />
-                  <div className="h-4 bg-neutral-border rounded w-full" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        variant === 'rows' ? (
+          // Mismo alto/forma que ContestRow (fix de RNF-4/CLS: el grid de tarjetas
+          // de abajo tiene otra forma y causaba layout shift al llegar los datos).
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[60px] w-full rounded-lg bg-neutral-surface border border-neutral-border animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-5">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-5 bg-neutral-border rounded w-20" />
+                    <div className="h-5 bg-neutral-border rounded w-3/4" />
+                    <div className="h-4 bg-neutral-border rounded w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       ) : items.length === 0 ? (
         emptyNote ? <p className="text-sm text-neutral-text-muted">{emptyNote}</p> : null
       ) : variant === 'rows' ? (
