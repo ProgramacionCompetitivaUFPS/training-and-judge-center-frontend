@@ -39,3 +39,6 @@ docs/superpowers/
 
 # Git worktrees
 .worktrees/
+
+# Figma scripts (local only)
+scripts/
