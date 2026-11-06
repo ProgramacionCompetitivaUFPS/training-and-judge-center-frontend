@@ -1187,6 +1187,8 @@ export function buildProblemSubmissionsList(params: {
     const own = forProblem.filter((s) => s.submittedBy.nickname === params.userNickname)
     const seen = new Set<string>()
     filtered = [...own, ...publicOthers].filter((s) => (seen.has(s.id) ? false : seen.add(s.id) && true))
+  } else if (params.mine) {
+    filtered = []
   } else {
     filtered = forProblem.filter((s) => s.visibility === 'PUBLIC')
   }

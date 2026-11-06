@@ -227,7 +227,7 @@ export function ProblemSubmissionsPage() {
                         <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin}>
                           <div className="flex items-center gap-2">
                             <SubmissionStatusBadge status={sub.status} />
-                            {sub.submittedBy.nickname === user?.nickname && sub.visibility === 'PRIVATE' && (
+                            {sub.submittedBy.id === user?.id && sub.visibility === 'PRIVATE' && (
                               <span className="px-2 py-0.5 text-xs font-semibold rounded-pill bg-neutral-border text-neutral-text-primary">
                                 Privado
                               </span>
