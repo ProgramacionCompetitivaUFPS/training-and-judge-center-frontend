@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, formatDuration, pluralize, problemLabel, formatBytes, participationModeLabel } from './utils'
+import { cn, formatDuration, pluralize, problemLabel, formatBytes, participationModeLabel, formatDateTz, localDayStartIso } from './utils'
 
 describe('cn', () => {
   it('merges class names', () => expect(cn('a', 'b')).toBe('a b'))
@@ -35,6 +35,8 @@ describe('problemLabel', () => {
 
 describe('formatBytes', () => {
   it('formats bytes', () => expect(formatBytes(500)).toBe('500 B'))
+  it('boundary: 1023 bytes stays as B', () => expect(formatBytes(1023)).toBe('1023 B'))
+  it('boundary: 1024 bytes is 1.0 KB', () => expect(formatBytes(1024)).toBe('1.0 KB'))
   it('formats kilobytes', () => expect(formatBytes(1536)).toBe('1.5 KB'))
   it('formats megabytes', () => expect(formatBytes(2097152)).toBe('2.0 MB'))
 })
@@ -44,4 +46,54 @@ describe('participationModeLabel', () => {
   it('maps TEAM', () => expect(participationModeLabel('TEAM')).toBe('Por equipos'))
   it('maps MIXED', () => expect(participationModeLabel('MIXED')).toBe('Mixto'))
   it('returns unknown mode as-is', () => expect(participationModeLabel('UNKNOWN')).toBe('UNKNOWN'))
+})
+
+describe('formatDateTz', () => {
+  const ISO = '2026-03-15T12:00:00Z'
+
+  it('returns a non-empty string', () => {
+    expect(formatDateTz(ISO, { timeZone: 'UTC' })).toBeTruthy()
+  })
+
+  it('includes UTC timezone abbreviation when timeZone is UTC', () => {
+    expect(formatDateTz(ISO, { timeZone: 'UTC' })).toMatch(/UTC/)
+  })
+
+  it('includes the year in the output', () => {
+    expect(formatDateTz(ISO, { timeZone: 'UTC' })).toMatch(/2026/)
+  })
+
+  it('short format is shorter than long format', () => {
+    const long = formatDateTz(ISO, { timeZone: 'UTC' })
+    const short = formatDateTz(ISO, { short: true, timeZone: 'UTC' })
+    expect(short.length).toBeLessThan(long.length)
+  })
+
+  it('short format includes the timezone abbreviation', () => {
+    const result = formatDateTz(ISO, { short: true, timeZone: 'UTC' })
+    expect(result).toMatch(/UTC/)
+  })
+})
+
+describe('localDayStartIso', () => {
+  it('returns local midnight for a date string', () => {
+    const result = localDayStartIso('2026-10-21')
+    const d = new Date(result)
+    expect(d.getFullYear()).toBe(2026)
+    expect(d.getMonth()).toBe(9) // October = 9 (0-indexed)
+    expect(d.getDate()).toBe(21)
+    expect(d.getHours()).toBe(0)
+    expect(d.getMinutes()).toBe(0)
+    expect(d.getSeconds()).toBe(0)
+  })
+
+  it('shifts forward by addDays', () => {
+    const base = new Date(localDayStartIso('2026-10-21'))
+    const next = new Date(localDayStartIso('2026-10-21', 1))
+    expect(next.getDate()).toBe(base.getDate() + 1)
+  })
+
+  it('returns a valid ISO string without milliseconds', () => {
+    expect(localDayStartIso('2026-10-21')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
+  })
 })

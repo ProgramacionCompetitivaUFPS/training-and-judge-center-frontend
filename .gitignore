@@ -42,3 +42,6 @@ docs/superpowers/
 
 # Figma scripts (local only)
 scripts/
+
+# Coverage reports
+coverage/
