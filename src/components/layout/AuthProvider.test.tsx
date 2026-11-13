@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { server } from '@/mocks/server'
 import { clearAccessToken, setAccessToken, notifySessionExpired, resetSessionExpiredNotified } from '@/lib/tokenStore'
+import type { UserRole } from '@/types/user'
 
 // Stable reference so tests can assert on specific calls
 const mockToast = vi.fn()
@@ -36,10 +37,9 @@ function AuthConsumer() {
   return <div data-testid="state">{isLoading ? 'loading' : isAuthenticated ? 'authenticated' : 'guest'}</div>
 }
 
-function HasRoleConsumer({ role }: { role: string | string[] }) {
+function HasRoleConsumer({ role }: { role: UserRole | UserRole[] }) {
   const { hasRole } = useAuth()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <div data-testid="has-role">{hasRole(role as any) ? 'yes' : 'no'}</div>
+  return <div data-testid="has-role">{hasRole(role) ? 'yes' : 'no'}</div>
 }
 
 describe('AuthProvider', () => {
