@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { ProtectedRoute } from './ProtectedRoute'
 import { ROUTES } from '@/lib/constants'
 import { mockCurrentUser } from '@/mocks/data'
+import type { UserRole } from '@/types/user'
 
 vi.mock('@/hooks/useAuth')
 vi.mock('@/pages/errors/NotFoundPage', () => ({
@@ -19,16 +20,13 @@ function LoginSpy() {
   return <div data-testid="login-state">{JSON.stringify(location.state)}</div>
 }
 
-function renderProtected(children = <div>Protected Content</div>, roles?: string[]) {
+function renderProtected(children = <div>Protected Content</div>, roles?: UserRole[]) {
   return render(
     <MemoryRouter initialEntries={['/protected']}>
       <Routes>
         <Route
           path="/protected"
-          element={
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <ProtectedRoute roles={roles as any}>{children}</ProtectedRoute>
-          }
+          element={<ProtectedRoute roles={roles}>{children}</ProtectedRoute>}
         />
         <Route path={ROUTES.LOGIN} element={<LoginSpy />} />
       </Routes>
