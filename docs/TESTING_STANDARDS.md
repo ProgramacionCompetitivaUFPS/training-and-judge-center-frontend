@@ -645,17 +645,17 @@ it('muestra error si el título está vacío', async () => {
 
 **3. Queries para mensajes de error de Zod**
 
-Los mensajes de error de RHF tienen `role="alert"` implícito cuando usan `<p>` asociado al campo. Preferir:
+Los mensajes de error de RHF se renderizan típicamente en un `<p>`, cuyo rol implícito es `paragraph`, **no** `alert`. Para que `getByRole('alert')` funcione, el componente debe declarar `role="alert"` explícitamente. Si no lo hace, localizar por texto es la opción segura:
 
 ```ts
-// ✅ — más semántico
+// ✅ — solo si el componente declara role="alert" explícitamente
 expect(screen.getByRole('alert')).toHaveTextContent(/requerido/i)
 
-// ✅ — si hay múltiples errores visibles
-expect(screen.getAllByRole('alert')).toHaveLength(2)
-
-// ✅ — alternativa por texto
+// ✅ — alternativa siempre válida (no depende de ARIA implícito)
 expect(screen.getByText(/el slug solo puede contener/i)).toBeInTheDocument()
+
+// ✅ — si hay múltiples errores y el componente declara role="alert"
+expect(screen.getAllByRole('alert')).toHaveLength(2)
 ```
 
 **Ejemplo completo:**

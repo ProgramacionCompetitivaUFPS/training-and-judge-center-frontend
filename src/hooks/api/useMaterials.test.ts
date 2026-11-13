@@ -149,7 +149,7 @@ describe('useCreateMaterial', () => {
 describe('useUpdateMaterial', () => {
   beforeEach(() => {
     server.use(
-      http.put('http://localhost:8080/api/groups/:groupId/materials/:materialId', () =>
+      http.patch('http://localhost:8080/api/groups/:groupId/materials/:materialId', () =>
         HttpResponse.json({ id: MATERIAL_ID, title: 'Actualizado' }),
       ),
     )

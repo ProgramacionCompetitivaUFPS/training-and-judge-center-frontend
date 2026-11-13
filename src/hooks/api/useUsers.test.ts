@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
-import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
+import { setAccessToken, clearAccessToken, getAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockUsers } from '@/mocks/data'
 import type { LoginRequest, UpdateProfileRequest } from '@/types/user'
 import {
@@ -107,8 +107,8 @@ describe('useLogin', () => {
     result.current.mutate(baseLogin)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — token establecido y cache de usuario actualizado
-    expect(result.current.data?.token).toContain('mock-jwt-token-')
+    // Assert — token guardado en tokenStore y cache de usuario actualizado
+    expect(getAccessToken()).toBe(result.current.data?.token)
     expect(queryClient.getQueryData(userKeys.me)).toBeDefined()
   })
 
@@ -129,7 +129,7 @@ describe('useLogin', () => {
 })
 
 describe('useLogout', () => {
-  it('limpia el cache completo y el token al hacer logout', async () => {
+  it('limpia el cache completo y borra el token al hacer logout', async () => {
     // Arrange
     const { wrapper, queryClient } = makeWrapper()
     const clearSpy = vi.spyOn(queryClient, 'clear')
@@ -139,27 +139,39 @@ describe('useLogout', () => {
     result.current.mutate()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert
+    // Assert — cache limpiado y token borrado de tokenStore
     expect(clearSpy).toHaveBeenCalledOnce()
+    expect(getAccessToken()).toBeNull()
   })
 })
 
 describe('useUpdateProfile', () => {
-  it('hace merge sobre userKeys.me e invalida el perfil público', async () => {
-    // Arrange
+  it('hace merge sobre userKeys.me conservando campos no devueltos por el PUT', async () => {
+    // Arrange — handler devuelve perfil sin hasPassword ni googleLinked (como el PUT real)
+    server.use(
+      http.put('http://localhost:8080/api/users', () =>
+        HttpResponse.json({
+          ...mockCurrentUser,
+          name: 'Luis Admin Actualizado',
+          hasPassword: undefined,
+          googleLinked: undefined,
+        }),
+      ),
+    )
     const { wrapper, queryClient } = makeWrapper()
-    // Pre-populate cache so setQueryData merges onto it
-    queryClient.setQueryData(userKeys.me, mockCurrentUser)
+    queryClient.setQueryData(userKeys.me, { ...mockCurrentUser, hasPassword: true, googleLinked: false })
     const spy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useUpdateProfile(), { wrapper })
 
     // Act
-    result.current.mutate(baseUpdateProfile)
+    result.current.mutate({ ...baseUpdateProfile, name: 'Luis Admin Actualizado' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — cache mergeado (el nombre del mock handler devuelve el mismo nickname)
+    // Assert — nombre actualizado y campos previos conservados (merge, no reemplazo)
     const cached = queryClient.getQueryData<typeof mockCurrentUser>(userKeys.me)
-    expect(cached?.nickname).toBe(mockCurrentUser.nickname)
+    expect(cached?.name).toBe('Luis Admin Actualizado')
+    expect(cached?.hasPassword).toBe(true)
+    expect(cached?.googleLinked).toBe(false)
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: userKeys.profile(mockCurrentUser.nickname) }),
     )
@@ -188,7 +200,7 @@ describe('useRegister', () => {
 })
 
 describe('useConfirmDeactivation', () => {
-  it('llama clearAccessToken en onSuccess', async () => {
+  it('borra el token de tokenStore en onSuccess', async () => {
     // Arrange
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useConfirmDeactivation(), { wrapper })
@@ -197,18 +209,15 @@ describe('useConfirmDeactivation', () => {
     result.current.mutate({ code: 'deact-code-123' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — el token fue borrado (el hook llama clearAccessToken en onSuccess)
-    // Verificamos indirectamente: si hubiera token, useCurrentUser lo usaría;
-    // la siguiente petición sin header devolvería 401.
-    // La única aserción segura sin inspeccionar tokenStore internals es que el hook no falla.
-    expect(result.current.isSuccess).toBe(true)
+    // Assert — token borrado de tokenStore
+    expect(getAccessToken()).toBeNull()
   })
 })
 
 describe('useAdminUpdateUser', () => {
   beforeEach(() => {
     server.use(
-      http.patch('http://localhost:8080/api/admin/users/:id', () =>
+      http.put('http://localhost:8080/api/admin/users/:id', () =>
         HttpResponse.json({ ...mockUsers[1], role: 'ADMIN' }),
       ),
     )

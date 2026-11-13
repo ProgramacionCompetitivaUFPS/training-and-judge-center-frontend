@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
@@ -136,16 +136,27 @@ describe('useJoinRequests', () => {
 })
 
 describe('useMyJoinRequest', () => {
-  it('no reintenta en 404 (retry: false)', async () => {
-    const { wrapper, queryClient } = makeWrapper()
+  it('no reintenta en 404 aunque el QueryClient tenga retry habilitado', async () => {
+    // Arrange — cliente con retry: 2 para que el hook sea quien corte los reintentos
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 2, staleTime: 0 }, mutations: { retry: false } },
+    })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    server.use(
+      http.get('http://localhost:8080/api/groups/:groupId/requests/me', () =>
+        HttpResponse.json({ error: 'NOT_FOUND', message: 'Sin solicitud' }, { status: 404 }),
+      ),
+    )
+
+    // Act
     const { result } = renderHook(() => useMyJoinRequest('group-3'), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
 
-    await waitFor(() => expect(result.current.isFetching).toBe(false))
-
-    // retry: false — sólo un intento: si falla con 404, el hook no reintenta
+    // Assert — exactamente 1 intento: retry: false del hook no reintenta
     expect(queryClient.getQueryState(
       [...groupKeys.joinRequests('group-3'), 'me']
-    )?.fetchFailureCount).toBeLessThanOrEqual(1)
+    )?.fetchFailureCount).toBe(1)
   })
 })
 
@@ -176,7 +187,7 @@ describe('useCreateGroup', () => {
 describe('useUpdateGroup', () => {
   beforeEach(() => {
     server.use(
-      http.put('http://localhost:8080/api/groups/:id', () =>
+      http.patch('http://localhost:8080/api/groups/:id', () =>
         HttpResponse.json({ id: 'group-1', ...baseUpdate }),
       ),
     )
@@ -225,7 +236,7 @@ describe('useDeleteGroup', () => {
 describe('useJoinGroup', () => {
   beforeEach(() => {
     server.use(
-      http.post('http://localhost:8080/api/groups/:id/members/me', () =>
+      http.post('http://localhost:8080/api/groups/:id/join', () =>
         new HttpResponse(null, { status: 204 }),
       ),
     )
@@ -249,7 +260,7 @@ describe('useJoinGroup', () => {
 describe('useProcessJoinRequest', () => {
   beforeEach(() => {
     server.use(
-      http.patch('http://localhost:8080/api/groups/:groupId/join-requests/:requestId', () =>
+      http.patch('http://localhost:8080/api/groups/:groupId/requests/:requestId', () =>
         new HttpResponse(null, { status: 204 }),
       ),
     )

@@ -42,8 +42,12 @@ describe('useDebounce', () => {
     rerender({ value: 'b' })
     act(() => vi.advanceTimersByTime(200))
     rerender({ value: 'c' })
-    act(() => vi.advanceTimersByTime(300))
+    // Avanza hasta donde vencería el timer de 'b' — sin clearTimeout se actualizaría a 'b'
+    act(() => vi.advanceTimersByTime(100))
+    expect(result.current).toBe('a')
 
+    // Ahora vence el timer de 'c'
+    act(() => vi.advanceTimersByTime(200))
     expect(result.current).toBe('c')
   })
 
