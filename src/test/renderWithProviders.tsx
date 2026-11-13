@@ -18,20 +18,22 @@ interface Options extends Omit<RenderOptions, 'wrapper'> {
 }
 
 export function renderWithRouter(ui: ReactElement, { initialEntries = ['/'], ...rest }: Options = {}) {
-  return render(
-    <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>,
-    rest,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>,
+    ...rest,
+  })
 }
 
 export function renderWithProviders(ui: ReactElement, { initialEntries = ['/'], queryClient, ...rest }: Options = {}) {
   const client = queryClient ?? createTestQueryClient()
-  return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-    rest,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+      </QueryClientProvider>
+    ),
+    ...rest,
+  })
 }
 
 export { createTestQueryClient }

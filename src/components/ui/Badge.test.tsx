@@ -8,11 +8,6 @@ describe('Badge', () => {
     expect(screen.getByText('ACCEPTED')).toBeInTheDocument()
   })
 
-  it('renders without crashing with default variant', () => {
-    const { container } = render(<Badge>label</Badge>)
-    expect(container.firstChild).toBeInTheDocument()
-  })
-
   it('applies extra className', () => {
     const { container } = render(<Badge className="custom-class">label</Badge>)
     expect(container.firstChild).toHaveClass('custom-class')
