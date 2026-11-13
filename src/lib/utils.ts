@@ -10,15 +10,16 @@ export function cn(...inputs: ClassValue[]) {
  * Format a date string showing the user's local timezone abbreviation.
  * e.g. "21 mar 2026, 15:00 VET"
  */
-export function formatDateTz(iso: string, options?: { short?: boolean }): string {
+export function formatDateTz(iso: string, options?: { short?: boolean; timeZone?: string }): string {
   const date = new Date(iso)
-  const tz = Intl.DateTimeFormat('es', { timeZoneName: 'short' })
+  const tz = Intl.DateTimeFormat('es', { timeZoneName: 'short', timeZone: options?.timeZone })
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName')?.value || ''
 
   if (options?.short) {
     const formatted = date.toLocaleDateString('es', {
       day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      timeZone: options?.timeZone,
     })
     return `${formatted} ${tz}`
   }
@@ -26,6 +27,7 @@ export function formatDateTz(iso: string, options?: { short?: boolean }): string
   const formatted = date.toLocaleDateString('es', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
+    timeZone: options?.timeZone,
   })
   return `${formatted} ${tz}`
 }
