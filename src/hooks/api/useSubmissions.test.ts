@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockProblems } from '@/mocks/data'
+import { mockProblems, mockSubmissions } from '@/mocks/data'
 import {
   submissionKeys,
   useMySubmissions,
@@ -76,12 +76,13 @@ describe('useUpdateSubmissionVisibility', () => {
     const { result } = renderHook(() => useUpdateSubmissionVisibility(), { wrapper })
 
     // Act
-    result.current.mutate({ id: 'sub-006', data: { visibility: 'PUBLIC' } })
+    const subId = mockSubmissions[5].id
+    result.current.mutate({ id: subId, data: { visibility: 'PUBLIC' } })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
     expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: submissionKeys.detail('sub-006') }),
+      expect.objectContaining({ queryKey: submissionKeys.detail(subId) }),
     )
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: submissionKeys.all }),
