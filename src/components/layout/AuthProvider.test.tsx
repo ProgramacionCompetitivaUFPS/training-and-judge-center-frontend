@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { createTestQueryClient } from '@/test/renderWithProviders'
