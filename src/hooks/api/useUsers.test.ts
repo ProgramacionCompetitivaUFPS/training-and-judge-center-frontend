@@ -58,6 +58,23 @@ describe('useCurrentUser', () => {
 
     expect(result.current.isFetching).toBe(false)
   })
+
+  it('propaga error 401 cuando el servidor rechaza el token', async () => {
+    // Arrange
+    server.use(
+      http.get('http://localhost:8080/api/users/me', () =>
+        HttpResponse.json({ error: 'UNAUTHORIZED', message: 'Token inválido' }, { status: 401 }),
+      ),
+    )
+    const { wrapper } = makeWrapper()
+
+    // Act
+    const { result } = renderHook(() => useCurrentUser(), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.error).toBeDefined()
+  })
 })
 
 describe('useUserProfile', () => {
@@ -109,7 +126,8 @@ describe('useLogin', () => {
 
     // Assert — token guardado en tokenStore y cache de usuario actualizado
     expect(getAccessToken()).toBe(result.current.data?.token)
-    expect(queryClient.getQueryData(userKeys.me)).toBeDefined()
+    const cached = queryClient.getQueryData<typeof mockCurrentUser>(userKeys.me)
+    expect(cached?.nickname).toBe(mockCurrentUser.nickname)
   })
 
   it('invalida userKeys.me después del login', async () => {
@@ -180,10 +198,12 @@ describe('useUpdateProfile', () => {
 
 describe('useRegister', () => {
   it('crea un usuario nuevo sin invalidaciones adicionales', async () => {
+    // Arrange
     const { wrapper, queryClient } = makeWrapper()
     const spy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useRegister(), { wrapper })
 
+    // Act
     result.current.mutate({
       email: 'nuevo@test.com',
       password: 'Password1!',
@@ -195,6 +215,7 @@ describe('useRegister', () => {
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
+    // Assert
     expect(spy).not.toHaveBeenCalled()
   })
 })

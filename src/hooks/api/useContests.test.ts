@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
+import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockContests } from '@/mocks/data'
 import type { CreateContestRequest } from '@/types/contest'
 import {
@@ -28,6 +29,9 @@ const baseContest: CreateContestRequest = {
   startTime: '2026-12-01T10:00:00Z',
   endTime: '2026-12-01T14:00:00Z',
 }
+
+beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+afterEach(() => clearAccessToken())
 
 describe('useMyContests', () => {
   it('retorna lista paginada de concursos accesibles', async () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockMyTeams, mockTeamDetails } from '@/mocks/data'
+import { mockMyTeams, mockTeamDetails, mockTeamInvitations, mockTeamRegistrations } from '@/mocks/data'
 import type { CreateTeamRequest } from '@/types/team'
 import { contestKeys } from './useContests'
 import {
@@ -73,18 +73,22 @@ describe('useMyTeamInvitations', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(Array.isArray(result.current.data?.invitations)).toBe(true)
+    const invitations = result.current.data?.invitations ?? []
+    expect(invitations.length).toBeGreaterThan(0)
+    expect(invitations[0].id).toBe(mockTeamInvitations[0].id)
   })
 })
 
 describe('useContestTeamRegistrations', () => {
   it('retorna registros para IDs válidos', async () => {
     const { wrapper } = makeWrapper()
-    const { result } = renderHook(() => useContestTeamRegistrations('group-1', 'contest-1'), { wrapper })
+    const { result } = renderHook(() => useContestTeamRegistrations('group-1', 'contest-2'), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(Array.isArray(result.current.data?.teams)).toBe(true)
+    const teams = result.current.data?.teams ?? []
+    expect(teams.length).toBeGreaterThan(0)
+    expect(teams[0].team.id).toBe(mockTeamRegistrations['contest-2'][0].team.id)
   })
 
   it('no hace fetch cuando algún ID está vacío', () => {

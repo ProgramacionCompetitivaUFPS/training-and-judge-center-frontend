@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockGroups, mockGroupDetails } from '@/mocks/data'
+import { mockGroups, mockGroupDetails, mockMyGroups } from '@/mocks/data'
 import type { CreateGroupRequest, UpdateGroupRequest } from '@/types/group'
 import {
   groupKeys,
@@ -96,6 +96,7 @@ describe('useMyGroups', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.pagination.total).toBeGreaterThan(0)
+    expect(result.current.data?.groups.some((g) => g.id === mockMyGroups[0].id)).toBe(true)
   })
 })
 
@@ -124,7 +125,9 @@ describe('useJoinRequests', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(Array.isArray(result.current.data?.requests)).toBe(true)
+    const requests = result.current.data?.requests ?? []
+    expect(requests.length).toBeGreaterThan(0)
+    expect(requests[0].groupId).toBe('group-1')
   })
 
   it('no hace fetch cuando groupId está vacío', () => {

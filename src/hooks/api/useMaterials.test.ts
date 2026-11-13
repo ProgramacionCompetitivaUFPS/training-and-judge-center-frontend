@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -78,8 +78,8 @@ describe('useMaterialTags', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(Array.isArray(result.current.data?.tags)).toBe(true)
     expect(result.current.data!.tags.length).toBeGreaterThan(0)
+    expect(result.current.data!.tags).toContain(mockMaterials[0].tags[0])
   })
 
   it('no hace fetch cuando groupId está vacío', () => {
@@ -97,7 +97,9 @@ describe('useMaterialAuthors', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(Array.isArray(result.current.data?.authors)).toBe(true)
+    const authors = result.current.data?.authors ?? []
+    expect(authors.length).toBeGreaterThan(0)
+    expect(authors.some((a) => a.nickname === mockMaterials[0].author.nickname)).toBe(true)
   })
 })
 
