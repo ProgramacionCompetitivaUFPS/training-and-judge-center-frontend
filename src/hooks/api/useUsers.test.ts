@@ -255,6 +255,7 @@ describe('useAdminUpdateUser', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.role).toBe('ADMIN')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: userKeys.all }))
   })
 })

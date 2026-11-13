@@ -108,6 +108,7 @@ describe('useGroupMembers', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.members.length).toBeGreaterThan(0)
+    expect(result.current.data?.members.some((m) => m.nickname === 'luisadmin')).toBe(true)
   })
 
   it('no hace fetch cuando groupId está vacío', () => {
@@ -183,6 +184,7 @@ describe('useCreateGroup', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.name).toBe('Nuevo Grupo')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.all }))
   })
 })
@@ -207,6 +209,7 @@ describe('useUpdateGroup', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.name).toBe('Grupo Actualizado')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.all }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.detail('group-1') }))
   })

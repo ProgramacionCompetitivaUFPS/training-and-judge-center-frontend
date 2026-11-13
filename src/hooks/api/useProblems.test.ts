@@ -93,6 +93,7 @@ describe('useCreateProblem', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.slug).toBe('test-problem')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.all }))
   })
 })

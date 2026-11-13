@@ -168,6 +168,7 @@ describe('useUpdateMaterial', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.title).toBe('Actualizado')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.detail(GROUP_ID, MATERIAL_ID) }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.list(GROUP_ID) }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.tags(GROUP_ID) }))
@@ -221,6 +222,7 @@ describe('usePublishMaterial', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.status).toBe('PUBLISHED')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.detail(GROUP_ID, MATERIAL_ID) }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.list(GROUP_ID) }))
   })

@@ -119,6 +119,7 @@ describe('useCreateTeam', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.name).toBe('Nuevo Equipo Test')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.all }))
   })
 })
@@ -155,10 +156,11 @@ describe('useAcceptTeamInvitation', () => {
     const { result } = renderHook(() => useAcceptTeamInvitation(), { wrapper })
 
     // Act
-    result.current.mutate('tinv-1')
+    result.current.mutate('tinv-recv-1')
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.team.id).toBe('team-1')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.all }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.myInvitations }))
   })
@@ -172,7 +174,7 @@ describe('useRejectTeamInvitation', () => {
     const { result } = renderHook(() => useRejectTeamInvitation(), { wrapper })
 
     // Act
-    result.current.mutate('tinv-1')
+    result.current.mutate('tinv-recv-1')
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert

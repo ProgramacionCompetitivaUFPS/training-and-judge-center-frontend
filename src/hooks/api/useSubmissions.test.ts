@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockProblems, mockSubmissions } from '@/mocks/data'
+import { mockProblems } from '@/mocks/data'
 import {
   submissionKeys,
   useMySubmissions,
@@ -32,7 +32,7 @@ describe('useMySubmissions', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.pagination.total).toBeGreaterThan(0)
-    expect(result.current.data?.submissions.length).toBeGreaterThan(0)
+    expect(result.current.data?.submissions.some((s) => s.id === 'sub-008-aaaa-bbbb-cccc-ddddeeee0008')).toBe(true)
   })
 
   it('propaga error cuando el servidor responde 500', async () => {
@@ -56,7 +56,7 @@ describe('useProblemSubmissions', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.pagination.total).toBeGreaterThan(0)
-    expect(result.current.data?.submissions.length).toBeGreaterThan(0)
+    expect(result.current.data?.submissions.some((s) => s.id === 'sub-001-aaaa-bbbb-cccc-ddddeeee0001')).toBe(true)
   })
 
   it('no hace fetch cuando el slug está vacío', () => {
@@ -76,13 +76,13 @@ describe('useUpdateSubmissionVisibility', () => {
     const { result } = renderHook(() => useUpdateSubmissionVisibility(), { wrapper })
 
     // Act
-    const subId = mockSubmissions[5].id
-    result.current.mutate({ id: subId, data: { visibility: 'PUBLIC' } })
+    result.current.mutate({ id: 'sub-006-aaaa-bbbb-cccc-ddddeeee0006', data: { visibility: 'PUBLIC' } })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert
+    // Assert — visibilidad actualizada y claves invalidadas
+    expect(result.current.data?.visibility).toBe('PUBLIC')
     expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: submissionKeys.detail(subId) }),
+      expect.objectContaining({ queryKey: submissionKeys.detail('sub-006-aaaa-bbbb-cccc-ddddeeee0006') }),
     )
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: submissionKeys.all }),

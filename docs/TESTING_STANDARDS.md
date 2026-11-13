@@ -406,6 +406,36 @@ Tests cortos (3–4 líneas) no necesitan los comentarios — la separación es 
 
 ---
 
+### Valores en assertions: literales vs referencias a mocks
+
+Los valores esperados en assertions son **literales explícitos**, no referencias dinámicas al array de mocks.
+
+```ts
+// ❌ — se acopla al índice del array; si se reordena el mock, el test cambia de comportamiento silenciosamente
+expect(result.current.data?.id).toBe(mockProblems[0].slug)
+result.current.mutate({ id: mockSubmissions[5].id, ... })
+
+// ✅ — literal intencional; quien lo escribe eligió ese valor conscientemente
+expect(result.current.data?.slug).toBe('two-sum')
+result.current.mutate({ id: 'sub-006-aaaa-bbbb-cccc-ddddeeee0006', ... })
+```
+
+**Reglas:**
+
+1. Los literales son intencionales: el autor eligió ese valor porque quiere probar ese caso concreto. Un lector entiende el test sin abrir el archivo de mocks.
+2. Las referencias dinámicas (`mockX[i].campo`, `mockX.find(...)`) acoplan el test a la estructura interna de los datos de prueba — un mock reordenado rompe el test por razones ajenas al comportamiento del sistema.
+3. Las mutaciones que devuelven un cuerpo **siempre** deben verificar al menos un campo de `result.current.data`, además de los spies de invalidación.
+4. Los tests de query deben verificar al menos un item concreto de la lista, no solo `length > 0` o `isSuccess`.
+
+**Excepción aceptable:** referenciar el mock para campos de identidad en assertions de *presencia* dentro de una lista, cuando el ID es un UUID largo cuya escritura manual sería propensa a errores:
+
+```ts
+// Aceptable — la referencia es legible y el acoplamiento es intencional
+expect(result.current.data?.groups.some((g) => g.id === mockGroups[0].id)).toBe(true)
+```
+
+---
+
 ### Factory Function
 
 Función que crea el entorno de test (wrapper + clientes) y retorna todo lo necesario. Evita repetir la misma inicialización en cada `it`.

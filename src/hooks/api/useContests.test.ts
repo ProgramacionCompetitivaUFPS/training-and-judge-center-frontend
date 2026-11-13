@@ -41,7 +41,7 @@ describe('useMyContests', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.pagination.total).toBeGreaterThan(0)
-    expect(result.current.data?.items.length).toBeGreaterThan(0)
+    expect(result.current.data?.items.some((c) => c.id === 'contest-1')).toBe(true)
   })
 
   it('propaga error cuando el servidor responde 500', async () => {
@@ -129,6 +129,7 @@ describe('useCreateContest', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Assert
+    expect(result.current.data?.name).toBe('Nuevo Concurso')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
   })
 })
