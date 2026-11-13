@@ -76,10 +76,10 @@ describe('ProtectedRoute', () => {
       logout: vi.fn(),
       lastNickname: null,
     })
-    const { container } = renderProtected()
+    renderProtected()
     expect(screen.queryByTestId('login-state')).not.toBeInTheDocument()
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument()
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
+    expect(screen.getAllByRole('status')).not.toHaveLength(0)
   })
 
   it('renders children when authenticated with no role restriction', () => {
