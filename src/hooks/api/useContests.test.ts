@@ -132,3 +132,28 @@ describe('useCreateContest', () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
   })
 })
+
+describe('useMyContests pagination', () => {
+  it('keeps the previous page visible while the next one loads', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result, rerender } = renderHook(
+      ({ page }) => useMyContests({ page, limit: 1 }),
+      { wrapper, initialProps: { page: 1 } },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const firstPageId = result.current.data?.items[0].id
+
+    // Act
+    rerender({ page: 2 })
+
+    // Assert: the list is not replaced by a loading state in between
+    expect(result.current.isPlaceholderData).toBe(true)
+    expect(result.current.data?.pagination.page).toBe(1)
+    expect(result.current.data?.items[0].id).toBe(firstPageId)
+
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.data?.pagination.page).toBe(2)
+    expect(result.current.data?.items[0].id).not.toBe(firstPageId)
+  })
+})

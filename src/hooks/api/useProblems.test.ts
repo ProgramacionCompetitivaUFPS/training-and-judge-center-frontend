@@ -96,3 +96,28 @@ describe('useCreateProblem', () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.all }))
   })
 })
+
+describe('useProblems pagination', () => {
+  it('keeps the previous page visible while the next one loads', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result, rerender } = renderHook(
+      ({ page }) => useProblems({ page, limit: 1 }),
+      { wrapper, initialProps: { page: 1 } },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const firstPageSlug = result.current.data?.problems[0].slug
+
+    // Act
+    rerender({ page: 2 })
+
+    // Assert: the list is not replaced by a loading state in between
+    expect(result.current.isPlaceholderData).toBe(true)
+    expect(result.current.data?.pagination.page).toBe(1)
+    expect(result.current.data?.problems[0].slug).toBe(firstPageSlug)
+
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.data?.pagination.page).toBe(2)
+    expect(result.current.data?.problems[0].slug).not.toBe(firstPageSlug)
+  })
+})
