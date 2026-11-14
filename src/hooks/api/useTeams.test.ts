@@ -207,7 +207,7 @@ describe('useRegisterTeamToContest', () => {
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — cross-resource invalidation
+    // Assert — cross-resource invalidations
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: teamKeys.contestRegistrations('group-1', 'contest-1') }),
     )

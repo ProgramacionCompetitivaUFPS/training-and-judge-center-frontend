@@ -165,7 +165,7 @@ describe('useLogout', () => {
 
 describe('useUpdateProfile', () => {
   it('hace merge sobre userKeys.me conservando campos no devueltos por el PUT', async () => {
-    // Arrange — handler devuelve perfil sin hasPassword ni googleLinked (como el PUT real)
+    // Arrange — handler omits hasPassword and googleLinked (matches the real PUT response)
     server.use(
       http.put('http://localhost:8080/api/users', () =>
         HttpResponse.json({

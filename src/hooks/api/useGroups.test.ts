@@ -141,7 +141,7 @@ describe('useJoinRequests', () => {
 
 describe('useMyJoinRequest', () => {
   it('no reintenta en 404 aunque el QueryClient tenga retry habilitado', async () => {
-    // Arrange — cliente con retry: 2 para que el hook sea quien corte los reintentos
+    // Arrange — custom client with retry: 2 so the hook's own retry: false is what stops retries
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: 2, staleTime: 0 }, mutations: { retry: false } },
     })
@@ -157,7 +157,7 @@ describe('useMyJoinRequest', () => {
     const { result } = renderHook(() => useMyJoinRequest('group-3'), { wrapper })
     await waitFor(() => expect(result.current.isError).toBe(true))
 
-    // Assert — exactamente 1 intento: retry: false del hook no reintenta
+    // Assert — exactly 1 attempt: hook's retry: false overrides the client's retry: 2
     expect(queryClient.getQueryState(
       [...groupKeys.joinRequests('group-3'), 'me']
     )?.fetchFailureCount).toBe(1)
