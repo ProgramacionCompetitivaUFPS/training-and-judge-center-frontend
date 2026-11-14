@@ -28,8 +28,6 @@ export default defineConfig({
       ],
       reporter: ['text', 'html'],
       thresholds: {
-        // Only enforce on production logic — mock builders in data.ts are infrastructure,
-        // not all of them are exercised by unit tests in this PR.
         'src/lib/**': {
           lines: 80,
           functions: 80,
@@ -37,8 +35,8 @@ export default defineConfig({
           statements: 80,
         },
         'src/hooks/**': {
-          lines: 70,
-          functions: 70,
+          lines: 80,
+          functions: 80,
         },
       },
     },
