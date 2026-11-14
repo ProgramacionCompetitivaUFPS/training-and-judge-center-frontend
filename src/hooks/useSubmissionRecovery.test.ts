@@ -21,7 +21,7 @@ afterEach(() => clearAccessToken())
 
 describe('useSubmissionRecovery', () => {
   it('retorna null cuando no hay envíos que coincidan con el language', async () => {
-    // Respuesta sin envíos
+    // Empty submissions response
     server.use(
       http.get('http://localhost:8080/api/users/me/submissions', () =>
         HttpResponse.json({
@@ -77,7 +77,7 @@ describe('useSubmissionRecovery', () => {
 
     await waitFor(() => expect(result.current.recoverableSubmission).not.toBeNull())
 
-    // Debe devolver el más reciente (sub-rec-2)
+    // Should return the most recent one (sub-rec-2)
     expect(result.current.recoverableSubmission?.id).toBe('sub-rec-2')
     expect(result.current.recoverableSubmission?.language).toBe('python310')
   })
@@ -123,7 +123,7 @@ describe('useSubmissionRecovery', () => {
 
     await waitFor(() => expect(result.current.recoverableSubmission).not.toBeNull())
 
-    // Solo debe devolver el envío del contest-1
+    // Should return only the submission from contest-1
     expect(result.current.recoverableSubmission?.id).toBe('sub-contest')
   })
 

@@ -28,7 +28,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builders
 const baseLogin: LoginRequest = { email: mockCurrentUser.email, password: 'password123', rememberSession: false }
 const baseUpdateProfile: UpdateProfileRequest = {
   name: mockCurrentUser.name,

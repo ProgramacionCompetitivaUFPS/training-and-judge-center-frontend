@@ -29,7 +29,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builder — input mínimo válido para CreateTeamRequest
 const baseTeam: CreateTeamRequest = { name: 'Nuevo Equipo Test' }
 
 beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))

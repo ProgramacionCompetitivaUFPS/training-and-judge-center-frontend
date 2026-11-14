@@ -30,7 +30,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builders — inputs mínimos válidos
 const baseGroup: CreateGroupRequest = { name: 'Nuevo Grupo', visibility: 'VISIBLE', joinPolicy: 'OPEN' }
 const baseUpdate: UpdateGroupRequest = { name: 'Grupo Actualizado' }
 
