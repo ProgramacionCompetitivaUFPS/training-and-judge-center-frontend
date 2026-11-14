@@ -140,11 +140,12 @@ export function UserDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
                 <StatCard
-                  icon={<CheckCircle className="h-5 w-5 text-brand-primary" />}
+                  icon={<CheckCircle className="h-5 w-5 text-status-success" />}
                   label="Problemas Resueltos"
                   value={dashboard.problemsSolved}
                   sub="total histórico"
-                  accentBorder="border-t-brand-primary"
+                  valueColor="text-status-success"
+                  accentBorder="border-t-status-success"
                   valueSize="text-3xl"
                 />
               </div>
@@ -187,11 +188,11 @@ export function UserDashboardPage() {
               </div>
               <Link to={ROUTES.GROUPS} className="animate-fade-in-up block" style={{ animationDelay: '225ms' }}>
                 <StatCard
-                  icon={<FileText className="h-5 w-5 text-status-success" />}
+                  icon={<FileText className="h-5 w-5 text-brand-primary" />}
                   label="Materiales Recientes"
                   value={dashboard.materialsCount}
                   sub="en los últimos 30 días · ver grupos →"
-                  accentBorder="border-t-status-success"
+                  accentBorder="border-t-brand-primary"
                   valueSize="text-3xl"
                 />
               </Link>
