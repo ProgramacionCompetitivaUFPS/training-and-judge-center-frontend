@@ -34,7 +34,7 @@ describe('ContestsPage', () => {
   beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
   afterEach(() => clearAccessToken())
 
-  it('muestra las secciones "En curso", "Próximas" y "Finalizadas" en vista agrupada', async () => {
+  it('shows "En curso", "Próximas" and "Finalizadas" section headings in grouped view', async () => {
     // Arrange
     renderPage()
 
@@ -46,7 +46,7 @@ describe('ContestsPage', () => {
     expect(screen.getByText('Finalizadas')).toBeInTheDocument()
   })
 
-  it('muestra el nombre de una competencia conocida en la sección activa', async () => {
+  it('shows a known contest name in the active section', async () => {
     // Arrange
     renderPage()
 
@@ -56,7 +56,7 @@ describe('ContestsPage', () => {
     })
   })
 
-  it('muestra estado vacío "No hay competencias" cuando no hay resultados', async () => {
+  it('shows empty state when server returns no contests', async () => {
     // Arrange
     server.use(
       http.get('http://localhost:8080/api/contests', () =>
@@ -70,7 +70,7 @@ describe('ContestsPage', () => {
 
     // Assert
     await waitFor(() => {
-      expect(screen.getByText('No hay competencias')).toBeInTheDocument()
+      expect(screen.getAllByText('No hay competencias').length).toBeGreaterThanOrEqual(1)
     })
   })
 })

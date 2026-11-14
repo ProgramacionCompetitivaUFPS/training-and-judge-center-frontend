@@ -35,7 +35,7 @@ function renderLogin() {
 describe('LoginPage', () => {
   beforeEach(() => toastSpy.mockClear())
 
-  it('muestra los campos y el botón del formulario de login', () => {
+  it('renders form fields and submit button', () => {
     // Arrange
     renderLogin()
 
@@ -45,7 +45,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument()
   })
 
-  it('muestra errores de validación al enviar formulario vacío', async () => {
+  it('shows validation errors on empty submit', async () => {
     // Arrange
     const user = userEvent.setup()
     renderLogin()
@@ -60,7 +60,22 @@ describe('LoginPage', () => {
     })
   })
 
-  it('navega a /dashboard tras un login exitoso', async () => {
+  it('shows validation error for invalid email format', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    renderLogin()
+
+    // Act — passes HTML5 type=email validation but fails Zod (TLD too short)
+    await user.type(screen.getByPlaceholderText('tu@correo.com'), 'a@test.c')
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }))
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText('Correo electrónico inválido')).toBeInTheDocument()
+    })
+  })
+
+  it('navigates to /dashboard on successful login', async () => {
     // Arrange
     const user = userEvent.setup()
     renderLogin()
@@ -76,7 +91,7 @@ describe('LoginPage', () => {
     })
   })
 
-  it('muestra toast de credenciales incorrectas cuando el servidor responde 401', async () => {
+  it('shows credentials error toast on 401', async () => {
     // Arrange
     server.use(
       http.post('http://localhost:8080/api/auth/login', () =>

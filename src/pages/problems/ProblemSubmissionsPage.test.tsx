@@ -41,7 +41,7 @@ describe('ProblemSubmissionsPage', () => {
   })
   afterEach(() => clearAccessToken())
 
-  it('renderiza la tabla de envíos del problema', async () => {
+  it('renders the submissions table', async () => {
     // Arrange
     renderPage()
 
@@ -52,20 +52,20 @@ describe('ProblemSubmissionsPage', () => {
     expect(screen.getByRole('columnheader', { name: /usuario/i })).toBeInTheDocument()
   })
 
-  it('muestra la etiqueta "Privado" en los envíos PRIVATE del usuario autenticado', async () => {
+  it('shows "Privado" badge on PRIVATE submissions owned by the authenticated user', async () => {
     // Arrange
     renderPage()
 
-    // Assert
+    // Assert — two-sum has exactly 2 PRIVATE submissions from luisadmin (sub-001, sub-009)
     await waitFor(() => {
-      const badges = screen.getAllByText('Privado')
-      expect(badges.length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Privado')).toHaveLength(2)
     })
   })
 
-  it('no muestra "Privado" para los envíos PRIVATE de otro usuario', async () => {
-    // Arrange
+  it('does not show "Privado" badge for another user\'s submissions', async () => {
+    // Arrange — user-other's token: MSW returns other's own subs + public from rest (no PRIVATE from luisadmin)
     auth.userId = 'user-other'
+    setAccessToken('mock-jwt-token-other')
     renderPage()
 
     // Assert

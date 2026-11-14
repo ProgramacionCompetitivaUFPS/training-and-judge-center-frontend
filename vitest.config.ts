@@ -16,6 +16,7 @@ export default defineConfig({
         'src/lib/schemas/user.ts',
         'src/mocks/data.ts',
         'src/hooks/**/*.ts',
+        'src/pages/**/*.tsx',
       ],
       exclude: [
         'src/hooks/**/*.test.ts',
@@ -35,6 +36,10 @@ export default defineConfig({
           statements: 80,
         },
         'src/hooks/**': {
+          lines: 80,
+          functions: 80,
+        },
+        'src/pages/**': {
           lines: 80,
           functions: 80,
         },
