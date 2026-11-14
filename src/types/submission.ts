@@ -47,6 +47,8 @@ export interface SubmissionDetail {
   compiler: SubmissionCompiler
   executionTime: number | null
   memoryKb: number | null
+  /** Salida del compilador; solo viene con estado COMPILATION_ERROR, null en los demás */
+  compileLog?: string | null
   /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
   sourceCode: string | null
   /** Hecho con el editor de bloques: el backend lo guarda como python310 + el workspace. */

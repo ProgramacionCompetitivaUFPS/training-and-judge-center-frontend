@@ -1022,6 +1022,7 @@ const rawMockSubmissions: MockSubmission[] = [
     compiler: 'g++',
     executionTime: null,
     memoryKb: null,
+    compileLog: "main.cpp: In function 'int main()':\nmain.cpp:11:1: error: expected '}' at end of input\n   11 |         for (int w = 0; w <= W; w++)\n      | ^\n",
     sourceCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n, W;\n    cin >> n >> W;\n    // missing closing brace\n    int dp[n+1][W+1];\n    for (int i = 0; i <= n; i++)\n        for (int w = 0; w <= W; w++)\n            dp[i][w] = 0;\n',
   },
   {
