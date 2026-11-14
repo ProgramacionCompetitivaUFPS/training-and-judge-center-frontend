@@ -8,8 +8,10 @@ import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
 import { GroupsPage } from './GroupsPage'
 
+const toastSpy = vi.fn()
+
 vi.mock('@/hooks/useToastContext', () => ({
-  useToastContext: () => ({ toast: vi.fn() }),
+  useToastContext: () => ({ toast: toastSpy }),
 }))
 
 vi.mock('@/hooks/useContestSession', () => ({
@@ -43,6 +45,7 @@ describe('GroupsPage', () => {
   beforeEach(() => {
     setAccessToken('mock-jwt-token-luisadmin')
     auth.user = mockCurrentUser
+    toastSpy.mockClear()
   })
   afterEach(() => clearAccessToken())
 
@@ -83,13 +86,15 @@ describe('GroupsPage', () => {
     const user = userEvent.setup()
     renderPage()
 
+    await waitFor(() => expect(screen.getByText('Principiantes CP')).toBeInTheDocument())
+
     // Act
-    await waitFor(() => expect(screen.getByRole('tab', { name: /mis grupos/i })).toBeInTheDocument())
     await user.click(screen.getByRole('tab', { name: /mis grupos/i }))
 
-    // Assert — mockMyGroups[0].name = 'ICPC Colombia'
+    // Assert — after switching, 'Principiantes CP' disappears and "Mis Grupos" data loads
     await waitFor(() => {
-      expect(screen.getByText('ICPC Colombia')).toBeInTheDocument()
+      expect(screen.queryByText('Principiantes CP')).not.toBeInTheDocument()
     })
+    expect(screen.getByText('ICPC Colombia')).toBeInTheDocument()
   })
 })

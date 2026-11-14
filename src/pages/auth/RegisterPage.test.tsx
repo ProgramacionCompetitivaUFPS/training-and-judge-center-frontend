@@ -38,9 +38,9 @@ describe('RegisterPage', () => {
   it('renders form fields and submit button', () => {
     renderRegister()
 
-    expect(screen.getByPlaceholderText('tu@correo.com')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Tu nombre completo')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('tu_nick')).toBeInTheDocument()
+    expect(screen.getByLabelText(/correo electrónico/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/nombre completo/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/nickname/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /crear cuenta/i })).toBeInTheDocument()
   })
 
@@ -121,11 +121,28 @@ describe('RegisterPage', () => {
 
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }))
 
-    // Assert
+    // Assert — title distinguishes conflict error from network error ('Error de conexión')
     await waitFor(() => {
       expect(toastSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ variant: 'error' }),
+        expect.objectContaining({ variant: 'error', title: 'Error al crear la cuenta' }),
       )
+    })
+  })
+
+  it('shows validation error when passwords do not match', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    renderRegister()
+
+    // Act — fill required fields but use mismatched passwords
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'test@test.com')
+    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Password1!')
+    await user.type(screen.getAllByPlaceholderText('••••••••')[1], 'OtraPassword1!')
+    await user.click(screen.getByRole('button', { name: /crear cuenta/i }))
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText('Las contraseñas no coinciden')).toBeInTheDocument()
     })
   })
 })

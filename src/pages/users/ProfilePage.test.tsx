@@ -9,8 +9,10 @@ import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
 import { ProfilePage } from './ProfilePage'
 
+const toastSpy = vi.fn()
+
 vi.mock('@/hooks/useToastContext', () => ({
-  useToastContext: () => ({ toast: vi.fn() }),
+  useToastContext: () => ({ toast: toastSpy }),
 }))
 
 vi.mock('@/hooks/useContestSession', () => ({
@@ -41,18 +43,21 @@ function renderPage(nickname = 'luisadmin') {
 }
 
 describe('ProfilePage', () => {
-  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  beforeEach(() => {
+    setAccessToken('mock-jwt-token-luisadmin')
+    toastSpy.mockClear()
+  })
   afterEach(() => clearAccessToken())
 
   it('shows nickname and role badge for a known user', async () => {
     // Arrange
     renderPage('luisadmin')
 
-    // Assert
+    // Assert — both nickname and name come from the same async response
     await waitFor(() => {
       expect(screen.getByText('@luisadmin')).toBeInTheDocument()
+      expect(screen.getByText('Luis Admin')).toBeInTheDocument()
     })
-    expect(screen.getByText('Luis Admin')).toBeInTheDocument()
   })
 
   it('shows stats section when data is available', async () => {

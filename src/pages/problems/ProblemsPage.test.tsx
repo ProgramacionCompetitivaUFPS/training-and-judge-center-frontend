@@ -9,8 +9,10 @@ import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
 import { ProblemsPage } from './ProblemsPage'
 
+const toastSpy = vi.fn()
+
 vi.mock('@/hooks/useToastContext', () => ({
-  useToastContext: () => ({ toast: vi.fn() }),
+  useToastContext: () => ({ toast: toastSpy }),
 }))
 
 vi.mock('@/hooks/useContestSession', () => ({
@@ -44,6 +46,7 @@ describe('ProblemsPage', () => {
   beforeEach(() => {
     setAccessToken('mock-jwt-token-luisadmin')
     auth.user = mockCurrentUser
+    toastSpy.mockClear()
   })
   afterEach(() => clearAccessToken())
 
