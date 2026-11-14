@@ -23,7 +23,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builder — input mínimo válido para CreateContestRequest
 const baseContest: CreateContestRequest = {
   name: 'Nuevo Concurso',
   startTime: '2026-12-01T10:00:00Z',

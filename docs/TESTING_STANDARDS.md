@@ -1,7 +1,5 @@
 # Testing Standards
 
-Convenciones internas del proyecto. Archivo local — no commitear.
-
 ---
 
 ## 1. Archivos y ubicación
@@ -715,3 +713,62 @@ describe('CreateProblemForm', () => {
   })
 })
 ```
+
+---
+
+## Patrones para tests de integración de páginas
+
+### Rutas con parámetros dinámicos
+
+Las páginas que usan `useParams` necesitan que el router provea la ruta exacta con el patrón de parámetros; `MemoryRouter` solo no es suficiente:
+
+```tsx
+// ❌ — useParams() devuelve {} porque MemoryRouter no interpreta el path
+render(
+  <MemoryRouter initialEntries={['/problems/two-sum/submissions']}>
+    <ProblemSubmissionsPage />
+  </MemoryRouter>
+)
+
+// ✅ — el path pattern está declarado y los params se resuelven correctamente
+render(
+  <MemoryRouter initialEntries={['/problems/two-sum/submissions']}>
+    <Routes>
+      <Route path="/problems/:slug/submissions" element={<ProblemSubmissionsPage />} />
+    </Routes>
+  </MemoryRouter>
+)
+```
+
+### Token de autenticación en tests de páginas
+
+Las páginas que usan `AppLayout` y llaman a endpoints autenticados necesitan que el token esté configurado **antes** de que el componente monte:
+
+```tsx
+beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+afterEach(() => clearAccessToken())
+```
+
+El token determina qué devuelve el handler MSW (por ejemplo, qué envíos PRIVATE son visibles). Debe coincidir con la identidad que el test pretende simular.
+
+### Verificar navegación post-acción
+
+Para comprobar que una página navega a otra ruta tras una acción (login exitoso, creación de recurso, etc.), registra un centinela en la ruta destino:
+
+```tsx
+render(
+  <MemoryRouter initialEntries={['/login']}>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/dashboard" element={<div>DASHBOARD_SENTINEL</div>} />
+    </Routes>
+  </MemoryRouter>
+)
+
+// Tras la acción:
+await waitFor(() => {
+  expect(screen.getByText('DASHBOARD_SENTINEL')).toBeInTheDocument()
+})
+```
+
+Usar `window.location` o `history.location` del router es frágil; el centinela es más explícito y robusto.

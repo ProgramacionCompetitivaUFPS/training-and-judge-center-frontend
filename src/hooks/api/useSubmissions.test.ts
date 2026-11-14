@@ -79,7 +79,7 @@ describe('useUpdateSubmissionVisibility', () => {
     result.current.mutate({ id: 'sub-006-aaaa-bbbb-cccc-ddddeeee0006', data: { visibility: 'PUBLIC' } })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — visibilidad actualizada y claves invalidadas
+    // Assert
     expect(result.current.data?.visibility).toBe('PUBLIC')
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: submissionKeys.detail('sub-006-aaaa-bbbb-cccc-ddddeeee0006') }),

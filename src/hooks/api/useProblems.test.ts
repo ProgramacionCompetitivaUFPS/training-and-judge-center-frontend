@@ -16,7 +16,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builder — input mínimo válido para CreateProblemRequest
 const baseProblem: CreateProblemRequest = {
   slug: 'test-problem',
   title: 'Test Problem',

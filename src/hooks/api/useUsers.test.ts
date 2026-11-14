@@ -28,7 +28,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builders
 const baseLogin: LoginRequest = { email: mockCurrentUser.email, password: 'password123', rememberSession: false }
 const baseUpdateProfile: UpdateProfileRequest = {
   name: mockCurrentUser.name,
@@ -124,7 +123,7 @@ describe('useLogin', () => {
     result.current.mutate(baseLogin)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — token guardado en tokenStore y cache de usuario actualizado
+    // Assert
     expect(getAccessToken()).toBe(result.current.data?.token)
     const cached = queryClient.getQueryData<typeof mockCurrentUser>(userKeys.me)
     expect(cached?.nickname).toBe(mockCurrentUser.nickname)
@@ -157,7 +156,7 @@ describe('useLogout', () => {
     result.current.mutate()
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — cache limpiado y token borrado de tokenStore
+    // Assert
     expect(clearSpy).toHaveBeenCalledOnce()
     expect(getAccessToken()).toBeNull()
   })
@@ -165,7 +164,7 @@ describe('useLogout', () => {
 
 describe('useUpdateProfile', () => {
   it('hace merge sobre userKeys.me conservando campos no devueltos por el PUT', async () => {
-    // Arrange — handler devuelve perfil sin hasPassword ni googleLinked (como el PUT real)
+    // Arrange — handler omits hasPassword and googleLinked (matches the real PUT response)
     server.use(
       http.put('http://localhost:8080/api/users', () =>
         HttpResponse.json({
@@ -185,7 +184,7 @@ describe('useUpdateProfile', () => {
     result.current.mutate({ ...baseUpdateProfile, name: 'Luis Admin Actualizado' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — nombre actualizado y campos previos conservados (merge, no reemplazo)
+    // Assert
     const cached = queryClient.getQueryData<typeof mockCurrentUser>(userKeys.me)
     expect(cached?.name).toBe('Luis Admin Actualizado')
     expect(cached?.hasPassword).toBe(true)
@@ -230,7 +229,7 @@ describe('useConfirmDeactivation', () => {
     result.current.mutate({ code: 'deact-code-123' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — token borrado de tokenStore
+    // Assert
     expect(getAccessToken()).toBeNull()
   })
 })

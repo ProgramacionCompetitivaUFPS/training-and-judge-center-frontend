@@ -29,7 +29,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builder — input mínimo válido para CreateTeamRequest
 const baseTeam: CreateTeamRequest = { name: 'Nuevo Equipo Test' }
 
 beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
@@ -207,7 +206,7 @@ describe('useRegisterTeamToContest', () => {
     })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert — cross-resource invalidation
+    // Assert — cross-resource invalidations
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: teamKeys.contestRegistrations('group-1', 'contest-1') }),
     )

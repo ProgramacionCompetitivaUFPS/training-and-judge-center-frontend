@@ -27,7 +27,6 @@ function makeWrapper() {
   return { queryClient, wrapper }
 }
 
-// Builder — input mínimo válido para CreateMaterialRequest
 const baseMaterial: CreateMaterialRequest = {
   title: 'Material de prueba',
   content: '# Test\n\nContenido de prueba.',
