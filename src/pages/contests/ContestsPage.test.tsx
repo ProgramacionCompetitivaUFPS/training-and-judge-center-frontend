@@ -9,7 +9,6 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ContestsPage } from './ContestsPage'
 
-// AppLayout → Navbar → useAuth(): mock para evitar depender de AuthProvider.
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-luisadmin', nickname: 'luisadmin', role: 'ADMIN' },
@@ -37,10 +36,10 @@ describe('ContestsPage', () => {
   afterEach(() => clearAccessToken())
 
   it('muestra las secciones "En curso", "Próximas" y "Finalizadas" en vista agrupada', async () => {
-    // Arrange + Act — sin filtro de estado ni búsqueda → vista agrupada
+    // Arrange
     renderPage()
 
-    // Assert — los tres encabezados de sección visibles tras cargar
+    // Assert
     await waitFor(() => {
       expect(screen.getByText('En curso')).toBeInTheDocument()
     })
@@ -49,17 +48,17 @@ describe('ContestsPage', () => {
   })
 
   it('muestra el nombre de una competencia conocida en la sección activa', async () => {
-    // Arrange — contest-2 "Práctica Grafos" tiene status ACTIVE en los mocks
+    // Arrange
     renderPage()
 
-    // Assert — el nombre de la competencia aparece en la lista
+    // Assert
     await waitFor(() => {
       expect(screen.getByText('Práctica Grafos')).toBeInTheDocument()
     })
   })
 
   it('muestra estado vacío "No hay competencias" cuando no hay resultados', async () => {
-    // Arrange — sobreescribir el handler para devolver listas vacías en las tres secciones
+    // Arrange
     server.use(
       http.get('http://localhost:8080/api/contests', () =>
         HttpResponse.json({
@@ -70,7 +69,7 @@ describe('ContestsPage', () => {
     )
     renderPage()
 
-    // Assert — la página muestra el empty state con el título exacto
+    // Assert
     await waitFor(() => {
       expect(screen.getByText('No hay competencias')).toBeInTheDocument()
     })

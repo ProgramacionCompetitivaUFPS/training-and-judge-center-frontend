@@ -9,15 +9,12 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { LoginPage } from './LoginPage'
 
-// LoginPage usa useToastContext pero no está dentro de ToastProvider → se mockea aquí.
 const toastSpy = vi.fn()
 
 vi.mock('@/hooks/useToastContext', () => ({
   useToastContext: () => ({ toast: toastSpy }),
 }))
 
-// GoogleSignInButton usa el SDK de Google que no existe en test; reemplazamos con un
-// noop que no dispara errores de script externo.
 vi.mock('@/components/features/GoogleSignInButton', () => ({
   GoogleSignInButton: () => null,
 }))
@@ -40,12 +37,10 @@ describe('LoginPage', () => {
   beforeEach(() => toastSpy.mockClear())
 
   it('muestra los campos y el botón del formulario de login', () => {
-    // Arrange + Act
+    // Arrange
     renderLogin()
 
-    // Assert — elementos clave del formulario visibles
-    // Usamos placeholder en vez de getByLabelText porque PasswordInput incluye un
-    // botón "Mostrar contraseña" con aria-label que contiene la misma palabra.
+    // Assert
     expect(screen.getByPlaceholderText('tu@correo.com')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /iniciar sesión/i })).toBeInTheDocument()
@@ -56,10 +51,10 @@ describe('LoginPage', () => {
     const user = userEvent.setup()
     renderLogin()
 
-    // Act — enviar sin rellenar campos
+    // Act
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }))
 
-    // Assert — Zod emite "El correo es requerido" y "La contraseña es requerida"
+    // Assert
     await waitFor(() => {
       expect(screen.getByText('El correo es requerido')).toBeInTheDocument()
       expect(screen.getByText('La contraseña es requerida')).toBeInTheDocument()
@@ -67,7 +62,7 @@ describe('LoginPage', () => {
   })
 
   it('navega a /dashboard tras un login exitoso', async () => {
-    // Arrange — MSW devuelve éxito por defecto con admin@trainingcenter.com
+    // Arrange
     const user = userEvent.setup()
     renderLogin()
 
@@ -76,7 +71,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByPlaceholderText('••••••••'), 'password123')
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }))
 
-    // Assert — centinela en /dashboard visible tras la navegación
+    // Assert
     await waitFor(() => {
       expect(screen.getByText('DASHBOARD_SENTINEL')).toBeInTheDocument()
     })
@@ -97,7 +92,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByPlaceholderText('••••••••'), 'wrongpassword')
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }))
 
-    // Assert — el onSubmit llama a toast con el título exacto del error 401
+    // Assert
     await waitFor(() => {
       expect(toastSpy).toHaveBeenCalledWith(
         expect.objectContaining({ variant: 'error', title: 'Credenciales incorrectas' }),

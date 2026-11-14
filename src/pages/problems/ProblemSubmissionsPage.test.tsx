@@ -7,11 +7,8 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ProblemSubmissionsPage } from './ProblemSubmissionsPage'
 
-// Mutable state referenced by the vi.mock factory below.
-// Each test can change `currentUserId` to simulate a different authenticated user.
 const auth = { userId: 'user-luisadmin' }
 
-// AppLayout → Navbar → useAuth(): mock para evitar depender de AuthProvider.
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: auth.userId, nickname: auth.userId.replace('user-', ''), role: 'ADMIN' },
@@ -23,7 +20,6 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }))
 
-// slug 'two-sum' tiene sub-001-aaaa-bbbb-cccc-ddddeeee0001: PRIVATE, enviado por user-luisadmin.
 const SLUG = 'two-sum'
 
 function renderPage() {
@@ -47,10 +43,10 @@ describe('ProblemSubmissionsPage', () => {
   afterEach(() => clearAccessToken())
 
   it('renderiza la tabla de envíos del problema', async () => {
-    // Arrange + Act
+    // Arrange
     renderPage()
 
-    // Assert — tabla con encabezado "Usuario" presente tras cargar datos
+    // Assert
     await waitFor(() => {
       expect(screen.getByRole('table')).toBeInTheDocument()
     })
@@ -58,12 +54,10 @@ describe('ProblemSubmissionsPage', () => {
   })
 
   it('muestra la etiqueta "Privado" en los envíos PRIVATE del usuario autenticado', async () => {
-    // Arrange — user-luisadmin es dueño de envíos PRIVATE para two-sum
-    // auth.userId ya es 'user-luisadmin' por el beforeEach
+    // Arrange
     renderPage()
 
-    // Assert — la condición sub.submittedBy.id === user.id && visibility === PRIVATE se cumple
-    // para al menos uno de los envíos; usamos getAllByText porque puede haber varios PRIVATE
+    // Assert
     await waitFor(() => {
       const badges = screen.getAllByText('Privado')
       expect(badges.length).toBeGreaterThan(0)
@@ -71,12 +65,11 @@ describe('ProblemSubmissionsPage', () => {
   })
 
   it('no muestra "Privado" para los envíos PRIVATE de otro usuario', async () => {
-    // Arrange — el token sigue siendo luisadmin (MSW devuelve envíos PRIVATE de luisadmin)
-    // pero la UI ve a un usuario diferente → la condición sub.submittedBy.id === user.id falla
+    // Arrange
     auth.userId = 'user-other'
     renderPage()
 
-    // Assert — la tabla carga pero ningún badge "Privado" aparece porque el id no coincide
+    // Assert
     await waitFor(() => {
       expect(screen.getByRole('table')).toBeInTheDocument()
     })
