@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { RowLink } from '@/components/ui/RowLink'
+import { LinkTableRow } from '@/components/ui/LinkTableRow'
 import { Button } from '@/components/ui/Button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import {
@@ -370,12 +371,12 @@ function GroupsTable({ groups }: GroupsTableProps) {
           </TableHeader>
           <TableBody>
             {groups.map((group) => (
-              <TableRow
+              <LinkTableRow
                 key={group.id}
-                className="relative cursor-pointer"
+                to={PATHS.group(group.id)}
               >
                 <TableCell>
-                  <RowLink to={PATHS.group(group.id)} className="flex items-center gap-3">
+                  <RowLink to={PATHS.group(group.id)} overlay={false} className="flex items-center gap-3">
                     <div className={cn(
                       'w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs shrink-0',
                       getInitialColor(group.name)
@@ -416,7 +417,7 @@ function GroupsTable({ groups }: GroupsTableProps) {
                     <span className="text-xs text-neutral-text-muted">—</span>
                   )}
                 </TableCell>
-              </TableRow>
+              </LinkTableRow>
             ))}
           </TableBody>
         </Table>
@@ -443,12 +444,12 @@ function MyGroupsTable({ groups }: MyGroupsTableProps) {
           </TableHeader>
           <TableBody>
             {groups.map((group) => (
-              <TableRow
+              <LinkTableRow
                 key={group.id}
-                className="relative cursor-pointer"
+                to={PATHS.group(group.id)}
               >
                 <TableCell>
-                  <RowLink to={PATHS.group(group.id)} className="flex items-center gap-3">
+                  <RowLink to={PATHS.group(group.id)} overlay={false} className="flex items-center gap-3">
                     <div className={cn(
                       'w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs shrink-0',
                       getInitialColor(group.name)
@@ -471,7 +472,7 @@ function MyGroupsTable({ groups }: MyGroupsTableProps) {
                 <TableCell className="text-center">
                   <span className="text-sm font-mono font-medium">{group.memberCount}</span>
                 </TableCell>
-              </TableRow>
+              </LinkTableRow>
             ))}
           </TableBody>
         </Table>

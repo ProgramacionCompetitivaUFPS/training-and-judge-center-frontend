@@ -11,6 +11,7 @@ import {
   CardContent,
   Checkbox,
   RowLink,
+  LinkTableRow,
 } from '@/components/ui'
 
 export interface Column<T> {
@@ -100,6 +101,10 @@ interface DataTableRowProps<T> {
   getRowHref?: (item: T) => string
 }
 
+function RowShell({ href, className, children }: { href?: string; className?: string; children: ReactNode }) {
+  return href ? <LinkTableRow to={href} className={className}>{children}</LinkTableRow> : <TableRow className={className}>{children}</TableRow>
+}
+
 function DataTableRowItem<T>({
   item,
   itemId,
@@ -112,7 +117,7 @@ function DataTableRowItem<T>({
   const href = getRowHref?.(item)
   const linkColumn = columns.find((c) => c.isRowLink) ?? columns[0]
   return (
-    <TableRow className={`${href ? 'relative cursor-pointer' : ''} ${isSelected ? 'bg-brand-primary-muted' : ''}`}>
+    <RowShell href={href} className={isSelected ? 'bg-brand-primary-muted' : ''}>
       {selectable && (
         <TableCell>
           <Checkbox
@@ -129,7 +134,7 @@ function DataTableRowItem<T>({
           className={`${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
         >
           {href && column === linkColumn ? (
-            <RowLink to={href}>
+            <RowLink to={href} overlay={false}>
               {column.render ? column.render(item) : ((item as Record<string, unknown>)[column.key] as ReactNode)}
             </RowLink>
           ) : column.render ? (
@@ -139,7 +144,7 @@ function DataTableRowItem<T>({
           )}
         </TableCell>
       ))}
-    </TableRow>
+    </RowShell>
   )
 }
 
