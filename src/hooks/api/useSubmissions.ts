@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as submissionsApi from '@/api/submissions'
 import {
   submitBlocklySolution,
@@ -36,6 +36,7 @@ export function useMySubmissions(params?: MySubmissionsParams) {
   return useQuery({
     queryKey: submissionKeys.myList(params),
     queryFn: () => submissionsApi.getMySubmissions(params),
+    placeholderData: keepPreviousData,
     refetchInterval: (query) => pollWhileJudging(query.state.data),
   })
 }
@@ -44,6 +45,7 @@ export function useProblemSubmissions(slug: string, params?: ProblemSubmissionsP
   return useQuery({
     queryKey: submissionKeys.problemList(slug, params),
     queryFn: () => submissionsApi.getProblemSubmissions(slug, params),
+    placeholderData: keepPreviousData,
     enabled: !!slug,
     refetchInterval: (query) => pollWhileJudging(query.state.data),
   })
