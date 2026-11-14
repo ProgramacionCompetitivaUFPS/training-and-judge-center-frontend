@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { server } from '../mocks/server'
+import { resetProblemHandlerState } from '../mocks/handlers/problems'
 
 globalThis.ResizeObserver = class ResizeObserver {
   observe() {}
@@ -8,5 +9,8 @@ globalThis.ResizeObserver = class ResizeObserver {
 }
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
+afterEach(() => {
+  server.resetHandlers()
+  resetProblemHandlerState()
+})
 afterAll(() => server.close())

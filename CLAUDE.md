@@ -11,9 +11,9 @@ npm run lint      # ESLint (0 warnings allowed — CI enforces this)
 npm run preview   # Preview production build locally
 ```
 
-There is no test runner configured yet. No `*.test.ts` or `*.spec.ts` files exist.
+**Test runner**: Vitest 2 + React Testing Library. Run with `npm run test:run` (headless) or `npm run test:ui` (browser UI). Coverage via `npm run test:coverage` (v8 provider, 80% threshold on hooks and pages). Test files live next to their source (`*.test.ts` / `*.test.tsx`). See `docs/TESTING_STANDARDS.md` for conventions.
 
-CI runs on PRs to `develop`: install → lint → build.
+CI runs on PRs to `develop`: install → lint → test → build.
 
 ## Architecture
 

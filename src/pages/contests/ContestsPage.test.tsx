@@ -6,15 +6,16 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
+import { mockCurrentUser } from '@/mocks/data'
 import { ContestsPage } from './ContestsPage'
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'user-luisadmin', nickname: 'luisadmin', role: 'ADMIN' },
+    user: mockCurrentUser,
     isLoading: false,
     isAuthenticated: true,
     hasRole: () => true,
-    lastNickname: 'luisadmin',
+    lastNickname: mockCurrentUser.nickname,
     logout: vi.fn(),
   }),
 }))

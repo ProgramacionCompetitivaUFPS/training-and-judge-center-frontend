@@ -1,7 +1,5 @@
 # Testing Standards
 
-Convenciones internas del proyecto. Archivo local — no commitear.
-
 ---
 
 ## 1. Archivos y ubicación
