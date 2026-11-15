@@ -9,6 +9,7 @@ import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
 import { ContestsPage } from './ContestsPage'
 
+const mockLogout = vi.fn()
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
@@ -16,7 +17,7 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: mockCurrentUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -32,7 +33,10 @@ function renderPage() {
 }
 
 describe('ContestsPage', () => {
-  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  beforeEach(() => {
+    mockLogout.mockClear()
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
   afterEach(() => clearAccessToken())
 
   it('shows "En curso", "Próximas" and "Finalizadas" section headings in grouped view', async () => {

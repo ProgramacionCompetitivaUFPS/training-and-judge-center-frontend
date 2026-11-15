@@ -13,6 +13,7 @@ vi.mock('@/pages/errors/NotFoundPage', () => ({
 
 import { useAuth } from '@/hooks/useAuth'
 const mockUseAuth = vi.mocked(useAuth)
+const mockLogout = vi.fn()
 
 // Renders location.state so tests can assert on it
 function LoginSpy() {
@@ -36,12 +37,13 @@ function renderProtected(children = <div>Protected Content</div>, roles?: UserRo
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     mockUseAuth.mockReturnValue({
       user: undefined,
       isLoading: false,
       isAuthenticated: false,
       hasRole: () => false,
-      logout: vi.fn(),
+      logout: mockLogout,
       lastNickname: null,
     })
   })

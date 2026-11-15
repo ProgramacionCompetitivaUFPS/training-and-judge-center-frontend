@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
+import { ApiClientError } from '@/lib/errors'
 import { setAccessToken, clearAccessToken, getAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockUsers } from '@/mocks/data'
 import type { LoginRequest, UpdateProfileRequest } from '@/types/user'
@@ -47,8 +48,8 @@ describe('useCurrentUser', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data?.nickname).toBe(mockCurrentUser.nickname)
-    expect(result.current.data?.role).toBe(mockCurrentUser.role)
+    expect(result.current.data?.nickname).toBe('luisadmin')
+    expect(result.current.data?.role).toBe('ADMIN')
   })
 
   it('no hace fetch cuando enabled es false', () => {
@@ -72,7 +73,8 @@ describe('useCurrentUser', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     // Assert
-    expect(result.current.error).toBeDefined()
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(401)
   })
 })
 
@@ -83,7 +85,7 @@ describe('useUserProfile', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data?.nickname).toBe(mockCurrentUser.nickname)
+    expect(result.current.data?.nickname).toBe('luisadmin')
   })
 
   it('no hace fetch cuando nickname está vacío', () => {
@@ -126,7 +128,7 @@ describe('useLogin', () => {
     // Assert
     expect(getAccessToken()).toBe(result.current.data?.token)
     const cached = queryClient.getQueryData<typeof mockCurrentUser>(userKeys.me)
-    expect(cached?.nickname).toBe(mockCurrentUser.nickname)
+    expect(cached?.nickname).toBe('luisadmin')
   })
 
   it('invalida userKeys.me después del login', async () => {
@@ -190,7 +192,7 @@ describe('useUpdateProfile', () => {
     expect(cached?.hasPassword).toBe(true)
     expect(cached?.googleLinked).toBe(false)
     expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: userKeys.profile(mockCurrentUser.nickname) }),
+      expect.objectContaining({ queryKey: userKeys.profile('luisadmin') }),
     )
   })
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
@@ -10,6 +10,7 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
@@ -17,9 +18,13 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: mockCurrentUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
+
+beforeEach(() => {
+  mockLogout.mockClear()
+})
 
 function renderPage() {
   render(

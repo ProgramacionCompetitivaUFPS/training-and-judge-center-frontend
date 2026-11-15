@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockGroups, mockGroupDetails, mockMyGroups } from '@/mocks/data'
+import { mockGroups, mockMyGroups } from '@/mocks/data'
 import type { CreateGroupRequest, UpdateGroupRequest } from '@/types/group'
 import {
   groupKeys,
@@ -68,7 +68,7 @@ describe('useGroupDetail', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.id).toBe('group-1')
-    expect(result.current.data?.name).toBe(mockGroupDetails['group-1'].name)
+    expect(result.current.data?.name).toBe('ICPC Colombia')
   })
 
   it('no hace fetch cuando id está vacío', () => {

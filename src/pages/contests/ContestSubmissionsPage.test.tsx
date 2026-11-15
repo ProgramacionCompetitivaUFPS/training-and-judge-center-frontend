@@ -13,6 +13,7 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
@@ -20,7 +21,7 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: mockCurrentUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -37,7 +38,10 @@ function renderPage(groupId = 'group-1', contestId = 'contest-2') {
 }
 
 describe('ContestSubmissionsPage', () => {
-  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  beforeEach(() => {
+    mockLogout.mockClear()
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
   afterEach(() => clearAccessToken())
 
   it('renders submissions list with data', async () => {

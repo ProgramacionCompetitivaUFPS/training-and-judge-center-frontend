@@ -18,12 +18,13 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 const auth = {
   user: mockCurrentUser as typeof mockCurrentUser & { role: string },
   isLoading: false,
   isAuthenticated: true,
   hasRole: (roles: string[]) => roles.includes(auth.user.role),
-  logout: vi.fn(),
+  logout: mockLogout,
 }
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -43,6 +44,7 @@ function renderPage() {
 
 describe('GroupsPage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
     auth.user = mockCurrentUser
     toastSpy.mockClear()

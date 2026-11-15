@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
+import { resetProblemHandlerState } from '@/mocks/handlers/problems'
 import { mockProblems } from '@/mocks/data'
 import type { CreateProblemRequest } from '@/types/problem'
 import { problemKeys, useProblems, useProblemDetail, useCreateProblem } from './useProblems'
@@ -20,6 +21,10 @@ const baseProblem: CreateProblemRequest = {
   slug: 'test-problem',
   title: 'Test Problem',
 }
+
+afterEach(() => {
+  resetProblemHandlerState()
+})
 
 describe('useProblems', () => {
   it('retorna lista paginada con al menos un problema', async () => {
@@ -52,8 +57,8 @@ describe('useProblemDetail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data?.slug).toBe(mockProblems[0].slug)
-    expect(result.current.data?.title).toBe(mockProblems[0].title)
+    expect(result.current.data?.slug).toBe('two-sum')
+    expect(result.current.data?.title).toBe('Two Sum')
   })
 
   it('no hace fetch cuando el slug está vacío', () => {
@@ -112,7 +117,7 @@ describe('useProblems paginación', () => {
     rerender({ page: 2 })
 
     // Assert: the list is not replaced by a loading state in between
-    expect(result.current.isPlaceholderData).toBe(true)
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(true))
     expect(result.current.data?.pagination.page).toBe(1)
     expect(result.current.data?.problems[0].slug).toBe(firstPageSlug)
 

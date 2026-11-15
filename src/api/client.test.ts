@@ -36,8 +36,7 @@ afterEach(() => {
 
 describe('auth headers', () => {
   it('inyecta el header Authorization: Bearer cuando hay token', async () => {
-    const spy = mockFetchSequence({ status: 200, body: { ok: true } })
-    void spy
+    mockFetchSequence({ status: 200, body: { ok: true } })
     await apiClient.get('/test')
     const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer test-token')
@@ -213,10 +212,11 @@ describe('auto-refresh en 401', () => {
     })
 
     const sessionExpiredListener = vi.fn()
-    subscribeSessionExpired(sessionExpiredListener)
+    const unsub = subscribeSessionExpired(sessionExpiredListener)
 
     await expect(apiClient.get('/protected')).rejects.toBeInstanceOf(ApiClientError)
     expect(sessionExpiredListener).toHaveBeenCalledTimes(1)
+    unsub()
   })
 
   it('no reintenta cuando body.error no es UNAUTHORIZED', async () => {
