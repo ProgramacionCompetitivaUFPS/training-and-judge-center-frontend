@@ -83,10 +83,10 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
 
   function submitTyped() {
     if (!normalized) return
-    if (value.includes(normalized)) {
+    if (value.some((t) => t.toLowerCase() === normalized)) {
       setTypedError(`«${normalized}» ya está agregado.`)
-    } else if (options.includes(normalized)) {
-      add(normalized)
+    } else if (options.some((o) => o.toLowerCase() === normalized)) {
+      add(options.find((o) => o.toLowerCase() === normalized)!)
     } else if (matches[active]) {
       add(matches[active])
     } else {

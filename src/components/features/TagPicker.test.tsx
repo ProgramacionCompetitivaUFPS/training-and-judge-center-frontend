@@ -48,6 +48,17 @@ describe('TagPicker', () => {
     expect(onChange).toHaveBeenCalledWith(['graph'])
   })
 
+  it('shows "ya está agregado" error when typing a duplicate case-insensitively and pressing Enter', async () => {
+    const user = userEvent.setup()
+    renderPicker(['Graph', 'DP'], ['Graph'])
+
+    await user.click(screen.getByRole('combobox'))
+    await user.type(screen.getByRole('combobox'), 'graph')
+    await user.keyboard('{Enter}')
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/ya está agregado/i)
+  })
+
   it('shows already-selected tags with remove button', () => {
     renderPicker(['graph', 'dp'], ['graph'])
 
