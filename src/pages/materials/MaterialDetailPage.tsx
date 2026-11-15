@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { ErrorPage } from '@/pages/errors/ErrorPage'
 import { getErrorMessage } from '@/lib/errorMessages'
 
 export function MaterialDetailPage() {
@@ -113,6 +114,7 @@ export function MaterialDetailPage() {
   }
 
   if (isNotFoundError(error)) return <NotFoundPage />
+  if (error) return <ErrorPage />
   if (!material) return null
 
   return (

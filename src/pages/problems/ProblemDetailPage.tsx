@@ -44,6 +44,7 @@ import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
 import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { ErrorPage } from '@/pages/errors/ErrorPage'
 
 interface PublishRequirement { key: string; label: string; met: (problem: ProblemDetail) => boolean }
 
@@ -121,15 +122,7 @@ export function ProblemDetailPage() {
     )
   }
 
-  if (error || !problem) {
-    return (
-      <AppLayout breadcrumbs={[{ label: 'Problemas', href: '/problems' }, { label: 'Error' }]}>
-        <div className="text-center py-12 text-neutral-text-muted">
-          Problema no encontrado
-        </div>
-      </AppLayout>
-    )
-  }
+  if (error || !problem) return <ErrorPage />
 
   const isAdmin = user?.role === 'ADMIN'
   const isModifier = problem.modifiers?.some((m) => m.nickname === user?.nickname)

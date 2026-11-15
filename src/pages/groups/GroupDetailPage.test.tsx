@@ -88,6 +88,19 @@ describe('GroupDetailPage', () => {
     })
   })
 
+  it('renders error page on server error', async () => {
+    server.use(
+      http.get('http://localhost:8080/api/groups/:id', () =>
+        HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+      ),
+    )
+    renderPage('group-1')
+
+    await waitFor(() => {
+      expect(screen.getByText('Algo salió mal')).toBeInTheDocument()
+    })
+  })
+
   it('renders 404 page when group does not exist', async () => {
     // Arrange — override handler to return 404 for any group id
     server.use(
