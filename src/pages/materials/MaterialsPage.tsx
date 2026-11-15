@@ -324,7 +324,7 @@ export function MaterialsPage() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-neutral-text-muted">Ordenar por</span>
               <Select value={sort} onValueChange={(v) => { setSort(v as MaterialListParams['sort']); setPageQuery((p) => ({ ...p, page: 1 })) }}>
-                <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Ordenar por criterio" className="w-[220px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="relevance">Relevancia</SelectItem>
                   <SelectItem value="publishedAt">Fecha de publicación</SelectItem>

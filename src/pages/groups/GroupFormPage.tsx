@@ -185,7 +185,7 @@ export function GroupFormPage() {
                       }
                     }}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label="Visibilidad"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="VISIBLE">Visible</SelectItem>
                       <SelectItem value="NOT_VISIBLE">No visible</SelectItem>
@@ -200,7 +200,7 @@ export function GroupFormPage() {
                     onValueChange={(v) => setValue('joinPolicy', v as GroupJoinPolicy, { shouldValidate: true })}
                     disabled={visibility === 'NOT_VISIBLE'}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger aria-label="Política de ingreso"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="OPEN">Abierto</SelectItem>
                       <SelectItem value="REQUEST">Solicitud</SelectItem>

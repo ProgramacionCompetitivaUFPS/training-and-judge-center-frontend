@@ -334,7 +334,7 @@ export function SubmitSolutionPage() {
                   <label className="block text-sm font-medium text-neutral-text-primary mb-2">Problema</label>
                   {isContestContext ? (
                     <Select value={selectedProblem} onValueChange={setSelectedProblem}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Problema">
                         <SelectValue placeholder="Seleccionar problema" />
                       </SelectTrigger>
                       <SelectContent>
@@ -393,7 +393,7 @@ export function SubmitSolutionPage() {
                 <div>
                   <label className="block text-sm font-medium text-neutral-text-primary mb-2">Lenguaje</label>
                   <Select value={language} onValueChange={handleLanguageSelect}>
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Lenguaje">
                       <SelectValue placeholder="Seleccionar lenguaje" />
                     </SelectTrigger>
                     <SelectContent>

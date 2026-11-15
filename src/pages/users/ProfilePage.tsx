@@ -195,7 +195,7 @@ function TopicChart({ stats }: { stats: { tag: string; solved: number }[] }) {
       {stats.length === 0 ? (
         <div className="px-5 py-10 flex flex-col items-center gap-2 text-center">
           <p className="text-sm font-medium text-neutral-text-muted">Sin tópicos resueltos aún</p>
-          <p className="text-xs text-neutral-text-muted opacity-60">
+          <p className="text-xs text-neutral-text-muted">
             Resuelve problemas para ver tus estadísticas aquí
           </p>
         </div>

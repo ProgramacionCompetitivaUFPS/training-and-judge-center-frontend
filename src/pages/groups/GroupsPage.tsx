@@ -232,7 +232,7 @@ export function GroupsPage() {
                   value={allSortValue}
                   onValueChange={(v) => { setAllSortValue(v); setAllParams((p) => ({ ...p, page: 1 })) }}
                 >
-                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Ordenar todos los grupos" className="w-[220px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ALL_SORT_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -317,7 +317,7 @@ export function GroupsPage() {
                   value={mySortValue}
                   onValueChange={(v) => { setMySortValue(v); setMyParams((p) => ({ ...p, page: 1 })) }}
                 >
-                  <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Ordenar mis grupos" className="w-[220px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {MY_SORT_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>

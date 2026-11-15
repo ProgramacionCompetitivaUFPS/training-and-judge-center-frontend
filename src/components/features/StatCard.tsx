@@ -31,7 +31,7 @@ export function StatCard({
         {icon && <div className="flex justify-center mb-2">{icon}</div>}
         <p className={valueClass}>{value}</p>
         <p className="text-sm text-neutral-text-muted mt-1">{label}</p>
-        {sub && <p className="text-xs text-neutral-text-muted opacity-60 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-neutral-text-muted mt-0.5">{sub}</p>}
       </Card>
     )
   }
