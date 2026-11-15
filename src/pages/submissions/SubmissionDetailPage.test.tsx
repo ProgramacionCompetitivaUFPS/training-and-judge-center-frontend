@@ -10,6 +10,7 @@ import { mockCurrentUser } from '@/mocks/data'
 import type { SubmissionDetail } from '@/types/submission'
 import { SubmissionDetailPage } from './SubmissionDetailPage'
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
@@ -17,7 +18,7 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: mockCurrentUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -63,6 +64,7 @@ function renderPage(id: string) {
 
 describe('SubmissionDetailPage compiler output', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
   })

@@ -15,6 +15,7 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
@@ -22,7 +23,7 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: mockCurrentUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -45,6 +46,7 @@ function renderPage(slug = 'two-sum', kind = 'sample', name = '1') {
 
 describe('ProblemTestCasePage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
   })

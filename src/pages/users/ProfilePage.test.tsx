@@ -19,13 +19,14 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,
     isLoading: false,
     isAuthenticated: true,
     hasRole: () => true,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -44,6 +45,7 @@ function renderPage(nickname = 'luisadmin') {
 
 describe('ProfilePage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
     toastSpy.mockClear()
   })

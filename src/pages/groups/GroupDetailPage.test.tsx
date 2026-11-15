@@ -24,6 +24,7 @@ vi.mock('@/hooks/useContestSession', () => ({
 // Mutable so individual tests can switch to a different role
 let _authUser: User = { ...mockCurrentUser }
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: _authUser,
@@ -33,7 +34,7 @@ vi.mock('@/hooks/useAuth', () => ({
       const roles = Array.isArray(role) ? role : [role]
       return roles.includes(_authUser.role)
     },
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -52,6 +53,7 @@ function renderPage(groupId = 'group-1') {
 
 describe('GroupDetailPage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     toastSpy.mockClear()

@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockMyTeams, mockTeamDetails, mockTeamInvitations, mockTeamRegistrations } from '@/mocks/data'
+import { mockMyTeams, mockTeamRegistrations } from '@/mocks/data'
 import type { CreateTeamRequest } from '@/types/team'
 import { contestKeys } from './useContests'
 import {
@@ -54,7 +54,7 @@ describe('useTeamDetail', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data?.id).toBe('team-1')
-    expect(result.current.data?.name).toBe(mockTeamDetails['team-1'].name)
+    expect(result.current.data?.name).toBe('Competitive Coders')
   })
 
   it('no hace fetch cuando teamId está vacío', () => {
@@ -74,7 +74,7 @@ describe('useMyTeamInvitations', () => {
 
     const invitations = result.current.data?.invitations ?? []
     expect(invitations.length).toBeGreaterThan(0)
-    expect(invitations[0].id).toBe(mockTeamInvitations[0].id)
+    expect(invitations.some((inv) => inv.id === 'tinv-recv-1')).toBe(true)
   })
 })
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ErrorPage } from './ErrorPage'
@@ -7,15 +7,20 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: null,
     isLoading: false,
     isAuthenticated: false,
     hasRole: () => false,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
+
+beforeEach(() => {
+  mockLogout.mockClear()
+})
 
 function renderPage(message?: string) {
   render(

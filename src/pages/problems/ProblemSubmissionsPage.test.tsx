@@ -9,6 +9,7 @@ import { ProblemSubmissionsPage } from './ProblemSubmissionsPage'
 
 const auth = { userId: 'user-luisadmin' }
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { ...mockCurrentUser, id: auth.userId, nickname: auth.userId.replace('user-', '') },
@@ -16,7 +17,7 @@ vi.mock('@/hooks/useAuth', () => ({
     isAuthenticated: true,
     hasRole: () => true,
     lastNickname: auth.userId.replace('user-', ''),
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -37,6 +38,7 @@ function renderPage() {
 
 describe('ProblemSubmissionsPage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     auth.userId = 'user-luisadmin'
     setAccessToken('mock-jwt-token-luisadmin')
   })

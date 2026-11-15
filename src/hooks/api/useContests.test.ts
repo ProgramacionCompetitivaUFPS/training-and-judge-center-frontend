@@ -86,8 +86,8 @@ describe('useContestDetail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data?.id).toBe(mockContests[0].id)
-    expect(result.current.data?.name).toBe(mockContests[0].name)
+    expect(result.current.data?.id).toBe('contest-1')
+    expect(result.current.data?.name).toBe('Competencia Semanal #12')
   })
 
   it('no hace fetch cuando groupId está vacío', () => {

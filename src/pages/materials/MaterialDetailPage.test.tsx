@@ -17,6 +17,7 @@ vi.mock('@/hooks/useContestSession', () => ({
 // Mutable so individual tests can switch to a different role
 let _authUser: User = { ...mockCurrentUser }
 
+const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: _authUser,
@@ -27,7 +28,7 @@ vi.mock('@/hooks/useAuth', () => ({
       return roles.includes(_authUser.role)
     },
     lastNickname: _authUser.nickname,
-    logout: vi.fn(),
+    logout: mockLogout,
   }),
 }))
 
@@ -50,6 +51,7 @@ function renderPage(groupId = 'group-1', materialId = 'mat-001') {
 
 describe('MaterialDetailPage', () => {
   beforeEach(() => {
+    mockLogout.mockClear()
     _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
