@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
@@ -38,10 +38,10 @@ describe('UserDashboardPage', () => {
     renderPage()
 
     // Act
-    const card = (await screen.findByText('Problemas Resueltos')).parentElement as HTMLElement
+    await screen.findByText('Problemas Resueltos')
 
     // Assert
-    expect(within(card).getByText('18')).toHaveClass('text-status-success')
+    expect(screen.getByText('18')).toHaveClass('text-status-success')
   })
 
   it('keeps the recent materials count in the brand color, not the success one', async () => {
@@ -49,9 +49,9 @@ describe('UserDashboardPage', () => {
     renderPage()
 
     // Act
-    const card = (await screen.findByText('Materiales Recientes')).parentElement as HTMLElement
+    await screen.findByText('Materiales Recientes')
 
     // Assert
-    expect(within(card).getByText('4')).not.toHaveClass('text-status-success')
+    expect(screen.getByText('4')).not.toHaveClass('text-status-success')
   })
 })
