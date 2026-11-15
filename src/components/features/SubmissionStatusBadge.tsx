@@ -42,7 +42,7 @@ export function SubmissionStatusBadge({ status, variant = 'dot' }: SubmissionSta
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span role="status" className="inline-flex items-center gap-2">
       <span className={cn('h-2 w-2 rounded-full shrink-0', dotColors[config.color])} />
       <span className={cn('text-sm font-medium', textColors[config.color])}>
         {config.label}

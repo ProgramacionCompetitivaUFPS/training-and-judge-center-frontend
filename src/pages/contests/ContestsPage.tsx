@@ -12,8 +12,7 @@ import { useMyContests } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { RowLink } from '@/components/ui/RowLink'
 import { useDebounce } from '@/hooks/useDebounce'
-import { formatDuration, pluralize } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { formatDuration, pluralize, cn } from '@/lib/utils'
 import type { ContestListItem, ContestStatus } from '@/types/contest'
 
 function formatDate(iso: string): string {

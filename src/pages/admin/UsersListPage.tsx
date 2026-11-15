@@ -242,7 +242,7 @@ export function UsersListPage() {
             />
           </div>
           <Select value={roleFilter ?? 'ALL'} onValueChange={handleRoleFilter}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger aria-label="Filtrar por rol" className="w-[160px]">
               <SelectValue placeholder="Rol" />
             </SelectTrigger>
             <SelectContent>
@@ -253,7 +253,7 @@ export function UsersListPage() {
             </SelectContent>
           </Select>
           <Select value={statusFilter ?? 'ALL'} onValueChange={handleStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger aria-label="Filtrar por estado" className="w-[180px]">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
@@ -266,7 +266,7 @@ export function UsersListPage() {
             value={sortValue}
             onValueChange={(v) => { setSortValue(v); setPagination((p) => ({ ...p, page: 1 })) }}
           >
-            <SelectTrigger className="w-[190px]">
+            <SelectTrigger aria-label="Ordenar usuarios por" className="w-[190px]">
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
             <SelectContent>
@@ -279,7 +279,7 @@ export function UsersListPage() {
 
         <div className="flex flex-col sm:flex-row gap-3">
           <Select value={countryFilter ?? 'ALL'} onValueChange={handleCountryFilter}>
-            <SelectTrigger className="flex-1"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por país" className="flex-1"><SelectValue placeholder="País" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los países</SelectItem>
               {filterOptions?.countries.map((c) => (
@@ -288,7 +288,7 @@ export function UsersListPage() {
             </SelectContent>
           </Select>
           <Select value={cityFilter ?? 'ALL'} onValueChange={handleCityFilter}>
-            <SelectTrigger className="flex-1"><SelectValue placeholder="Ciudad" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por ciudad" className="flex-1"><SelectValue placeholder="Ciudad" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las ciudades</SelectItem>
               {filterOptions?.cities.map((c) => (
@@ -297,7 +297,7 @@ export function UsersListPage() {
             </SelectContent>
           </Select>
           <Select value={institutionFilter ?? 'ALL'} onValueChange={handleInstitutionFilter}>
-            <SelectTrigger className="flex-1"><SelectValue placeholder="Institución" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por institución" className="flex-1"><SelectValue placeholder="Institución" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las instituciones</SelectItem>
               {filterOptions?.institutions.map((i) => (
@@ -481,7 +481,7 @@ export function UsersListPage() {
                 value={editRole}
                 onValueChange={(v) => editForm.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Rol del usuario"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
                   <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>

@@ -38,6 +38,9 @@ export interface SubmissionDetail {
   contest: {
     id: string
     name: string
+    groupId: string
+    /** Lugar del problema en la competencia (1 = A); null si el problema ya no forma parte de ella */
+    problemPosition: number | null
   } | null
   submittedBy: {
     id: string
@@ -47,6 +50,8 @@ export interface SubmissionDetail {
   compiler: SubmissionCompiler
   executionTime: number | null
   memoryKb: number | null
+  /** Salida del compilador; solo viene con estado COMPILATION_ERROR, null en los demás */
+  compileLog?: string | null
   /** null cuando el archivo del código fuente ya no existe en el almacenamiento */
   sourceCode: string | null
   /** Hecho con el editor de bloques: el backend lo guarda como python310 + el workspace. */

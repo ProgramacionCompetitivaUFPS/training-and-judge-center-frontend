@@ -11,11 +11,13 @@ import {
 import { PaginationControls, PaginationSummary } from '@/components/ui/Pagination'
 import { SubmissionStatusBadge } from '@/components/features/SubmissionStatusBadge'
 import { EmptyState } from '@/components/patterns'
+import { useAuth } from '@/hooks/useAuth'
 import { useProblemSubmissions } from '@/hooks/api/useSubmissions'
 import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { RowLink } from '@/components/ui/RowLink'
+import { LinkTableRow } from '@/components/ui/LinkTableRow'
 import { cn } from '@/lib/utils'
 import type { ProblemSubmissionsParams, SubmissionOrigin, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -39,6 +41,7 @@ const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
 export function ProblemSubmissionsPage() {
   const { slug } = useParams<{ slug: string }>()
 
+  const { user } = useAuth()
   const { data: problem } = useProblemDetail(slug || '')
   const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
 
@@ -217,13 +220,21 @@ export function ProblemSubmissionsPage() {
                 </TableHeader>
                 <TableBody>
                   {submissions.map((sub) => (
-                    <TableRow
+                    <LinkTableRow
                       key={sub.id}
-                      className="relative cursor-pointer"
+                      to={PATHS.submission(sub.id)}
+                      state={submissionOrigin}
                     >
                       <TableCell>
-                        <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin}>
-                          <SubmissionStatusBadge status={sub.status} />
+                        <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin} overlay={false}>
+                          <div className="flex items-center gap-2">
+                            <SubmissionStatusBadge status={sub.status} />
+                            {sub.submittedBy.id === user?.id && sub.visibility === 'PRIVATE' && (
+                              <span className="px-2 py-0.5 text-xs font-semibold rounded-pill bg-neutral-border text-neutral-text-primary">
+                                Privado
+                              </span>
+                            )}
+                          </div>
                         </RowLink>
                       </TableCell>
                       <TableCell>
@@ -243,7 +254,7 @@ export function ProblemSubmissionsPage() {
                       <TableCell className="text-right text-xs text-neutral-text-muted">
                         {new Date(sub.submittedAt).toLocaleString('es')}
                       </TableCell>
-                    </TableRow>
+                    </LinkTableRow>
                   ))}
                 </TableBody>
               </Table>

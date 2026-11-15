@@ -28,6 +28,11 @@ function mockZip(filename: string) {
 const latestValidations = new Map<string, LatestValidation>()
 const validationRequestedAt = new Map<string, number>()
 
+export function resetProblemHandlerState() {
+  latestValidations.clear()
+  validationRequestedAt.clear()
+}
+
 function recordValidation(slug: string, result: LatestValidation) {
   latestValidations.set(slug, result)
   validationRequestedAt.set(slug, Date.now())

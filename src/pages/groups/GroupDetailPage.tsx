@@ -65,6 +65,7 @@ import { cn, pluralize } from '@/lib/utils'
 import { ROUTES, PATHS } from '@/lib/constants'
 import { formatDuration } from '@/lib/utils'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
+import { ErrorPage } from '@/pages/errors/ErrorPage'
 import type { GroupRole, JoinRequestStatus } from '@/types/group'
 import type { ContestStatus } from '@/types/contest'
 import {
@@ -190,6 +191,7 @@ export function GroupDetailPage() {
 
   if (!id) return null
   if (isNotFoundError(error)) return <NotFoundPage />
+  if (error) return <ErrorPage />
 
   const handleJoinOpen = async () => {
     try {
@@ -904,7 +906,7 @@ export function GroupDetailPage() {
             <div>
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select value={addRole} onValueChange={(v) => setAddRole(v as GroupRole)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Rol del miembro"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MEMBER">Miembro</SelectItem>
                   <SelectItem value="LEAD">Líder</SelectItem>

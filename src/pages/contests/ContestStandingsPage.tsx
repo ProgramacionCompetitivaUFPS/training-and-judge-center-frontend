@@ -95,7 +95,7 @@ export function ContestStandingsPage() {
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={countryFilter ?? 'ALL'} onValueChange={handleCountryFilter}>
-            <SelectTrigger className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="País" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por país" className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="País" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todos los países</SelectItem>
               {filterOptions?.countries.map((c) => (
@@ -104,7 +104,7 @@ export function ContestStandingsPage() {
             </SelectContent>
           </Select>
           <Select value={cityFilter ?? 'ALL'} onValueChange={handleCityFilter}>
-            <SelectTrigger className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Ciudad" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por ciudad" className="w-36 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Ciudad" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las ciudades</SelectItem>
               {filterOptions?.cities.map((c) => (
@@ -113,7 +113,7 @@ export function ContestStandingsPage() {
             </SelectContent>
           </Select>
           <Select value={institutionFilter ?? 'ALL'} onValueChange={handleInstitutionFilter}>
-            <SelectTrigger className="w-40 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Institución" /></SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por institución" className="w-40 h-8 px-2.5 py-1 text-sm"><SelectValue placeholder="Institución" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las instituciones</SelectItem>
               {filterOptions?.institutions.map((i) => (

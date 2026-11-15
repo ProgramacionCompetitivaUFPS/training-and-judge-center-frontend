@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils'
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      role="status"
+      aria-label="Cargando..."
       className={cn('animate-pulse rounded-md bg-neutral-border', className)}
       {...props}
     />

@@ -1,6 +1,6 @@
 import React, { Suspense, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle, Terminal } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { PROGRAMMING_LANGUAGES, PATHS, judgeLanguage } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
+import { problemLabel } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import type { SubmissionOrigin } from '@/types/submission'
 import { getErrorMessage } from '@/lib/errorMessages'
@@ -72,6 +73,15 @@ export function SubmissionDetailPage() {
   const isAdmin = user?.role === 'ADMIN'
   const langLabel = PROGRAMMING_LANGUAGES.find((l) => l.value === submission.language)?.label ?? submission.language
 
+  // A contest submission links to its problem through the contest's own route (the one the
+  // contest's problem table and sidebar use). typeof, not `!== null`: a backend that predates
+  // problemPosition omits the field, and a problem later dropped from the contest sends null —
+  // both fall back to the general problem page.
+  const position = submission.contest?.problemPosition
+  const problemHref = submission.contest && typeof position === 'number'
+    ? PATHS.contestProblem(submission.contest.groupId, submission.contest.id, problemLabel(position))
+    : PATHS.problem(submission.problem.slug)
+
   function handleToggleVisibility() {
     if (!submission) return
     const newVisibility = submission.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'
@@ -130,7 +140,7 @@ export function SubmissionDetailPage() {
             <div className="flex flex-wrap items-center gap-x-2 text-sm text-neutral-text-muted">
               <span>Problema:</span>
               <Link
-                to={PATHS.problem(submission.problem.slug)}
+                to={problemHref}
                 className="text-brand-primary hover:underline"
               >
                 {submission.problem.title}
@@ -205,6 +215,25 @@ export function SubmissionDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Compiler output: only present when the submission failed to compile */}
+        {submission.compileLog && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5" />
+                Salida del compilador
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre
+                className="max-h-80 overflow-auto rounded-md border border-neutral-border bg-neutral-background p-4 font-mono text-xs leading-relaxed text-neutral-text-primary whitespace-pre-wrap break-words"
+              >
+                {submission.compileLog}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Source Code / Blockly blocks */}
         {(() => {

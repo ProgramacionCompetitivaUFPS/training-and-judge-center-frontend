@@ -53,6 +53,10 @@ export function notifySessionExpired(): void {
   sessionExpiredListeners.forEach((listener) => listener())
 }
 
+export function resetSessionExpiredNotified(): void {
+  sessionExpiredNotified = false
+}
+
 export function subscribeSessionExpired(listener: Listener): () => void {
   sessionExpiredListeners.add(listener)
   return () => sessionExpiredListeners.delete(listener)

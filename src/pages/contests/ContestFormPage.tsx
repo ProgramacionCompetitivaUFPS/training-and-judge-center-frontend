@@ -288,7 +288,7 @@ export function ContestFormPage() {
                   value={participationMode}
                   onValueChange={(v) => setValue('participationMode', v as ParticipationMode, { shouldValidate: true, shouldDirty: true })}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Modalidad de participación"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="INDIVIDUAL">Individual</SelectItem>
                     <SelectItem value="TEAM">Por equipos</SelectItem>

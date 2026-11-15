@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileCode2, Filter, Plus, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Badge, RowLink } from '@/components/ui'
+import { Badge, RowLink, LinkTableRow } from '@/components/ui'
 import { EmptyState } from '@/components/patterns'
 import { TagFilterChips } from '@/components/features/TagFilterChips'
 import { Button } from '@/components/ui/Button'
@@ -276,12 +276,12 @@ function ProblemsTable({ problems, showManagementColumns }: ProblemsTableProps) 
           </TableHeader>
           <TableBody>
             {problems.map((problem) => (
-              <TableRow
+              <LinkTableRow
                 key={problem.slug}
-                className="relative cursor-pointer"
+                to={PATHS.problem(problem.slug)}
               >
                 <TableCell>
-                  <RowLink to={PATHS.problem(problem.slug)} className="flex flex-col">
+                  <RowLink to={PATHS.problem(problem.slug)} overlay={false} className="flex flex-col">
                     <span className="font-medium text-neutral-text-primary">{problem.title}</span>
                     <span className="text-xs font-mono text-neutral-text-muted">{problem.slug}</span>
                   </RowLink>
@@ -320,7 +320,7 @@ function ProblemsTable({ problems, showManagementColumns }: ProblemsTableProps) 
                 <TableCell className="text-right text-xs text-neutral-text-muted">
                   {new Date(problem.createdAt).toLocaleDateString('es')}
                 </TableCell>
-              </TableRow>
+              </LinkTableRow>
             ))}
           </TableBody>
         </Table>

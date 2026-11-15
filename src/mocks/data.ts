@@ -957,7 +957,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-14T18:30:05Z',
     problem: { slug: 'two-sum', title: 'Two Sum' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 45,
@@ -972,7 +972,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-13T15:20:08Z',
     problem: { slug: 'binary-search', title: 'Binary Search' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'python310',
     compiler: 'py',
     executionTime: 120,
@@ -987,7 +987,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-12T10:45:12Z',
     problem: { slug: 'merge-sort', title: 'Merge Sort' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'java17',
     compiler: 'javac',
     executionTime: 3000,
@@ -1002,7 +1002,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-11T20:00:03Z',
     problem: { slug: 'graph-bfs', title: 'Graph BFS' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 30,
@@ -1017,11 +1017,12 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-10T09:15:01Z',
     problem: { slug: 'dynamic-knapsack', title: 'Dynamic Knapsack' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
     memoryKb: null,
+    compileLog: "main.cpp: In function 'int main()':\nmain.cpp:11:1: error: expected '}' at end of input\n   11 |         for (int w = 0; w <= W; w++)\n      | ^\n",
     sourceCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n, W;\n    cin >> n >> W;\n    // missing closing brace\n    int dp[n+1][W+1];\n    for (int i = 0; i <= n; i++)\n        for (int w = 0; w <= W; w++)\n            dp[i][w] = 0;\n',
   },
   {
@@ -1047,7 +1048,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-08T11:30:02Z',
     problem: { slug: 'binary-search', title: 'Binary Search' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'cpp20',
     compiler: 'g++',
     executionTime: 5,
@@ -1062,7 +1063,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: null,
     problem: { slug: 'dynamic-knapsack', title: 'Dynamic Knapsack' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'cpp20',
     compiler: 'g++',
     executionTime: null,
@@ -1077,7 +1078,7 @@ const rawMockSubmissions: MockSubmission[] = [
     judgedAt: '2026-03-15T10:00:04Z',
     problem: { slug: 'two-sum', title: 'Two Sum' },
     contest: null,
-    submittedBy: { id: 'u1', nickname: 'luisadmin' },
+    submittedBy: { id: 'user-luisadmin', nickname: 'luisadmin' },
     language: 'python310',
     compiler: 'py',
     executionTime: 200,
@@ -1175,11 +1176,24 @@ export function buildProblemSubmissionsList(params: {
   mine?: boolean
   userNickname?: string
 }) {
-  let filtered = mockSubmissions.filter((s) => s.problem.slug === params.problemSlug)
+  const forProblem = mockSubmissions.filter((s) => s.problem.slug === params.problemSlug)
 
+  let filtered: typeof forProblem
   if (params.mine && params.userNickname) {
-    filtered = filtered.filter((s) => s.submittedBy.nickname === params.userNickname)
+    filtered = forProblem.filter((s) => s.submittedBy.nickname === params.userNickname)
+  } else if (params.userNickname) {
+    const publicOthers = forProblem.filter(
+      (s) => s.visibility === 'PUBLIC' && s.submittedBy.nickname !== params.userNickname,
+    )
+    const own = forProblem.filter((s) => s.submittedBy.nickname === params.userNickname)
+    const seen = new Set<string>()
+    filtered = [...own, ...publicOthers].filter((s) => (seen.has(s.id) ? false : seen.add(s.id) && true))
+  } else if (params.mine) {
+    filtered = []
+  } else {
+    filtered = forProblem.filter((s) => s.visibility === 'PUBLIC')
   }
+
   if (params.verdict) {
     filtered = filtered.filter((s) => s.status === params.verdict)
   }
@@ -2107,6 +2121,10 @@ export function buildMaterialList(params: {
     },
   }
 }
+
+// Named exports for individual mock items used in tests
+export const mockProblemTwoSum = mockProblems.find((p) => p.slug === 'two-sum')!
+export const mockMaterialMat001 = mockMaterials.find((m) => m.id === 'mat-001')!
 
 // === Teams ===
 

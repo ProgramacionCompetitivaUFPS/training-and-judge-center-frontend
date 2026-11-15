@@ -1,0 +1,128 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
+import React from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/mocks/server'
+import { createTestQueryClient } from '@/test/renderWithProviders'
+import { resetProblemHandlerState } from '@/mocks/handlers/problems'
+import { mockProblems } from '@/mocks/data'
+import type { CreateProblemRequest } from '@/types/problem'
+import { problemKeys, useProblems, useProblemDetail, useCreateProblem } from './useProblems'
+
+function makeWrapper() {
+  const queryClient = createTestQueryClient()
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children)
+  return { queryClient, wrapper }
+}
+
+const baseProblem: CreateProblemRequest = {
+  slug: 'test-problem',
+  title: 'Test Problem',
+}
+
+afterEach(() => {
+  resetProblemHandlerState()
+})
+
+describe('useProblems', () => {
+  it('retorna lista paginada con al menos un problema', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblems(), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.pagination.total).toBeGreaterThan(0)
+    expect(result.current.data?.problems.some((p) => p.slug === mockProblems[0].slug)).toBe(true)
+  })
+
+  it('propaga error cuando el servidor responde 500', async () => {
+    server.use(
+      http.get('http://localhost:8080/api/problems', () =>
+        HttpResponse.json({ error: 'SERVER_ERROR', message: 'Error interno' }, { status: 500 }),
+      ),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblems(), { wrapper })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+})
+
+describe('useProblemDetail', () => {
+  it('retorna el detalle del problema para un slug válido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblemDetail(mockProblems[0].slug), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.slug).toBe('two-sum')
+    expect(result.current.data?.title).toBe('Two Sum')
+  })
+
+  it('no hace fetch cuando el slug está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblemDetail(''), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('propaga error 404 para un slug desconocido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblemDetail('no-existe'), { wrapper })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+})
+
+describe('useCreateProblem', () => {
+  beforeEach(() => {
+    server.use(
+      http.post('http://localhost:8080/api/problems', () =>
+        HttpResponse.json({ slug: baseProblem.slug, title: baseProblem.title }, { status: 201 }),
+      ),
+    )
+  })
+
+  it('invalida problemKeys.all al crear con éxito', async () => {
+    // Arrange
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useCreateProblem(), { wrapper })
+
+    // Act
+    result.current.mutate(baseProblem)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(result.current.data?.slug).toBe('test-problem')
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.all }))
+  })
+})
+
+describe('useProblems paginación', () => {
+  it('mantiene visible la página anterior mientras carga la siguiente', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result, rerender } = renderHook(
+      ({ page }) => useProblems({ page, limit: 1 }),
+      { wrapper, initialProps: { page: 1 } },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const firstPageSlug = result.current.data?.problems[0].slug
+
+    // Act
+    rerender({ page: 2 })
+
+    // Assert: the list is not replaced by a loading state in between
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(true))
+    expect(result.current.data?.pagination.page).toBe(1)
+    expect(result.current.data?.problems[0].slug).toBe(firstPageSlug)
+
+    await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.data?.pagination.page).toBe(2)
+    expect(result.current.data?.problems[0].slug).not.toBe(firstPageSlug)
+  })
+})

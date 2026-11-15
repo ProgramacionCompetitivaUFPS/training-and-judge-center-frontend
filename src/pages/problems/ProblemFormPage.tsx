@@ -208,7 +208,7 @@ function LanguageOverridesEditor({ value, onChange }: LanguageOverridesEditorPro
           <div className="flex-1">
             <label className="block text-xs text-neutral-text-muted mb-1">Lenguaje</label>
             <Select value={lo.language} onValueChange={(v) => updateOverride(idx, 'language', v)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Lenguaje" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -567,7 +567,7 @@ function EditForm({ problem, onSubmit, isSubmitting, onCancel }: EditFormProps) 
               <div>
                 <label className="block text-sm font-medium text-neutral-text-primary mb-1">Accesibilidad</label>
                 <Select value={accessibility} onValueChange={(v) => setValue('accessibility', v as 'PUBLIC' | 'PRIVATE')}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="Accesibilidad del problema" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

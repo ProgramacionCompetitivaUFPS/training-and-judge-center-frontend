@@ -11,9 +11,13 @@ npm run lint      # ESLint (0 warnings allowed — CI enforces this)
 npm run preview   # Preview production build locally
 ```
 
-There is no test runner configured yet. No `*.test.ts` or `*.spec.ts` files exist.
+**Test runner**: Vitest 2 + React Testing Library. Run with `npm run test:run` (headless) or `npm run test:ui` (browser UI). Coverage via `npm run test:coverage` (v8 provider). Test files live next to their source (`*.test.ts` / `*.test.tsx`). See `docs/TESTING_STANDARDS.md` for conventions.
 
-CI runs on PRs to `develop`: install → lint → build.
+**New logic and changed logic must be covered by tests.** When you add a new component, hook, or page, or change existing behavior (not just rename, reformat, or reorganize imports), add or update the corresponding test file. Purely cosmetic changes (import consolidation, type annotation tweaks) do not require a test update. See `docs/TESTING_STANDARDS.md` for what to cover and how to structure tests.
+
+CI runs on PRs to `develop`: install → lint → test → build.
+
+**Pull requests** always target `develop`. When creating a PR via `gh pr create`, use the template at `.github/PULL_REQUEST_TEMPLATE.md` — fill every section (Summary, Motivation, Changeset, Test plan) and delete sections that don't apply (Screenshots, Breaking changes, Notas).
 
 ## Architecture
 
