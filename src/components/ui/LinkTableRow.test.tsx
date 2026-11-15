@@ -98,7 +98,7 @@ describe('LinkTableRow', () => {
     await user.keyboard('{/Control}')
 
     // Assert
-    expect(open).toHaveBeenCalledWith('/items/42', '_blank', 'noopener')
+    expect(open).toHaveBeenCalledWith('/items/42', '_blank', 'noopener,noreferrer')
     expect(screen.queryByTestId('destination')).not.toBeInTheDocument()
   })
 
@@ -111,6 +111,6 @@ describe('LinkTableRow', () => {
     await user.pointer({ keys: '[MouseMiddle]', target: screen.getByText('other cell') })
 
     // Assert
-    expect(open).toHaveBeenCalledWith('/items/42', '_blank', 'noopener')
+    expect(open).toHaveBeenCalledWith('/items/42', '_blank', 'noopener,noreferrer')
   })
 })

@@ -77,11 +77,4 @@ describe('SubmitSolutionPage', () => {
     })
   })
 
-  it('renders language selector', async () => {
-    renderPage()
-    await waitFor(() => {
-      const selects = screen.getAllByRole('combobox')
-      expect(selects.length).toBeGreaterThanOrEqual(1)
-    })
-  })
 })

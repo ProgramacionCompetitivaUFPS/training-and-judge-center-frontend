@@ -34,12 +34,12 @@ describe('Button', () => {
   })
 
   it('shows spinner svg when isLoading', () => {
-    const { container } = render(<Button isLoading>Submit</Button>)
-    expect(container.querySelector('svg')).toBeInTheDocument()
+    render(<Button isLoading>Submit</Button>)
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
   it('does not show spinner when not loading', () => {
-    const { container } = render(<Button>Submit</Button>)
-    expect(container.querySelector('svg')).not.toBeInTheDocument()
+    render(<Button>Submit</Button>)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

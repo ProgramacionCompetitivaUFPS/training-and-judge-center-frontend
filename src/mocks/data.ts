@@ -2122,6 +2122,10 @@ export function buildMaterialList(params: {
   }
 }
 
+// Named exports for individual mock items used in tests
+export const mockProblemTwoSum = mockProblems.find((p) => p.slug === 'two-sum')!
+export const mockMaterialMat001 = mockMaterials.find((m) => m.id === 'mat-001')!
+
 // === Teams ===
 
 import type { MyTeamItem, TeamDetail, TeamInvitationItem, ContestTeamRegistrationsResponse } from '@/types/team'

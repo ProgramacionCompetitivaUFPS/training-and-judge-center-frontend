@@ -76,8 +76,7 @@ describe('MaterialFormPage', () => {
     const user = userEvent.setup()
     renderCreate()
     await user.click(await screen.findByRole('button', { name: /publicar/i }))
-    const matches = await screen.findAllByText(/título/i)
-    expect(matches.length).toBeGreaterThan(1)
+    expect(await screen.findByText('El título es requerido')).toBeInTheDocument()
   })
 
   it('shows success toast after creating a material', async () => {

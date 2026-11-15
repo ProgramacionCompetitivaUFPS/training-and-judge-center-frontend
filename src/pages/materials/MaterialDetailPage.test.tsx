@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser, mockGroupDetails, mockMaterials } from '@/mocks/data'
+import { mockCurrentUser, mockGroupDetails, mockMaterialMat001 } from '@/mocks/data'
 import type { User } from '@/types/user'
 import { MaterialDetailPage } from './MaterialDetailPage'
 
@@ -112,7 +112,7 @@ describe('MaterialDetailPage', () => {
     _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
     // Use DRAFT material with publishedAt=null so the sidebar "Publicado" row is also hidden
     const draftMaterial = {
-      ...mockMaterials.find((m) => m.id === 'mat-001')!,
+      ...mockMaterialMat001,
       status: 'DRAFT' as const,
       publishedAt: null,
     }
@@ -134,7 +134,7 @@ describe('MaterialDetailPage', () => {
   })
 
   it('ADMIN sees "Borrador" badge for a DRAFT material', async () => {
-    const draftMaterial = { ...mockMaterials.find((m) => m.id === 'mat-001')!, status: 'DRAFT' as const }
+    const draftMaterial = { ...mockMaterialMat001, status: 'DRAFT' as const }
     server.use(
       http.get('http://localhost:8080/api/groups/group-1/materials/mat-001', () =>
         HttpResponse.json(draftMaterial),

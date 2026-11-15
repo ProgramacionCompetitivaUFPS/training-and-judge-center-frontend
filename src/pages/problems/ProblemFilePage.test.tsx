@@ -8,7 +8,7 @@ import { mockCurrentUser } from '@/mocks/data'
 import { ProblemFilePage } from './ProblemFilePage'
 
 vi.mock('@/components/features/CodeBlockViewer', () => ({
-  default: ({ content }: { content: string }) => <pre data-testid="code-viewer">{content}</pre>,
+  default: ({ value }: { value: string }) => <pre data-testid="code-viewer">{value}</pre>,
 }))
 
 vi.mock('@/hooks/useContestSession', () => ({
@@ -53,7 +53,9 @@ describe('ProblemFilePage', () => {
 
   it('renders file content after loading', async () => {
     renderPage()
-    expect(await screen.findByTestId('code-viewer')).toBeInTheDocument()
+    const viewer = await screen.findByTestId('code-viewer')
+    expect(viewer).toBeInTheDocument()
+    expect(viewer.textContent).toBeTruthy()
   })
 
   it('renders breadcrumb with problem title', async () => {

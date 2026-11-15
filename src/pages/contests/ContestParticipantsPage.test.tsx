@@ -40,12 +40,12 @@ describe('ContestParticipantsPage', () => {
 
   it('renders participant list', async () => {
     renderPage()
-    expect(await screen.findByText('luisadmin')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: '@luisadmin' })).toBeInTheDocument()
   })
 
   it('shows search input', async () => {
     renderPage()
-    await screen.findByText('luisadmin')
-    expect(screen.getAllByRole('textbox')[0]).toBeInTheDocument()
+    await screen.findByRole('link', { name: '@luisadmin' })
+    expect(screen.getByRole('textbox', { name: /buscar participantes/i })).toBeInTheDocument()
   })
 })

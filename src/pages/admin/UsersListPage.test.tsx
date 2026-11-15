@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
-import { createTestQueryClient } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
 import { UsersListPage } from './UsersListPage'
@@ -31,13 +29,7 @@ vi.mock('@/hooks/useToastContext', () => ({
 }))
 
 function renderPage() {
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter>
-        <UsersListPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  )
+  renderWithProviders(<UsersListPage />)
 }
 
 describe('UsersListPage', () => {
@@ -77,8 +69,7 @@ describe('UsersListPage', () => {
       ),
     )
     renderPage()
-    await waitFor(() => {
-      expect(screen.queryByText('@diegomartinez')).not.toBeInTheDocument()
-    })
+    await screen.findByRole('alert')
+    expect(screen.queryByText('@diegomartinez')).not.toBeInTheDocument()
   })
 })

@@ -74,8 +74,7 @@ describe('GroupFormPage', () => {
     const user = userEvent.setup()
     renderCreate()
     await user.click(screen.getByRole('button', { name: /crear grupo/i }))
-    const matches = await screen.findAllByText(/nombre/i)
-    expect(matches.length).toBeGreaterThan(1)
+    expect(await screen.findByText('El nombre es requerido')).toBeInTheDocument()
   })
 
   it('shows success toast after creating a group', async () => {

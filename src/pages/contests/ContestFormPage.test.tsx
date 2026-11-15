@@ -74,8 +74,7 @@ describe('ContestFormPage', () => {
     const user = userEvent.setup()
     renderCreate()
     await user.click(await screen.findByRole('button', { name: /crear|guardar/i }))
-    const matches = await screen.findAllByText(/nombre/i)
-    expect(matches.length).toBeGreaterThan(1)
+    expect(await screen.findByText('El nombre es requerido')).toBeInTheDocument()
   })
 
   it('shows success toast after creating a contest', async () => {
@@ -84,7 +83,8 @@ describe('ContestFormPage', () => {
 
     await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
 
-    // datetime-local inputs don't work well with userEvent.type; fireEvent.change is reliable
+    // datetime-local: userEvent v14 does not support these inputs reliably (§13b exception)
+    // fireEvent.change is used intentionally here
     fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), {
       target: { value: '2027-06-01T10:00' },
     })

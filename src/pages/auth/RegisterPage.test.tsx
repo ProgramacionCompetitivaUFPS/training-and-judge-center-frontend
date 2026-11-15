@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
-import { createTestQueryClient } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 import { RegisterPage } from './RegisterPage'
 
 const toastSpy = vi.fn()
@@ -19,16 +18,12 @@ vi.mock('@/components/features/GoogleSignInButton', () => ({
 }))
 
 function renderRegister() {
-  const queryClient = createTestQueryClient()
-  render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/register']}>
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<div>LOGIN_SENTINEL</div>} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithProviders(
+    <Routes>
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={<div>LOGIN_SENTINEL</div>} />
+    </Routes>,
+    { initialEntries: ['/register'] },
   )
 }
 
@@ -70,13 +65,13 @@ describe('RegisterPage', () => {
     renderRegister()
 
     // Act
-    await user.type(screen.getByPlaceholderText('tu@correo.com'), 'nuevo@test.com')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Password1!')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[1], 'Password1!')
-    await user.type(screen.getByPlaceholderText('Tu nombre completo'), 'Nuevo Usuario')
-    await user.type(screen.getByPlaceholderText('tu_nick'), 'nuevonick')
-    await user.type(screen.getByPlaceholderText('Tu ciudad'), 'Bogotá')
-    await user.type(screen.getByPlaceholderText('Universidad'), 'Universidad Test')
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'nuevo@test.com')
+    await user.type(screen.getByLabelText(/^contraseña$/i), 'Password1!')
+    await user.type(screen.getByLabelText(/^confirmar$/i), 'Password1!')
+    await user.type(screen.getByLabelText(/nombre completo/i), 'Nuevo Usuario')
+    await user.type(screen.getByLabelText(/^nickname$/i), 'nuevonick')
+    await user.type(screen.getByLabelText(/ciudad/i), 'Bogotá')
+    await user.type(screen.getByLabelText(/institución/i), 'Universidad Test')
 
     // Country via SearchSelect — type to filter then click first option
     const countryInput = screen.getByPlaceholderText('Busca tu país...')
@@ -106,13 +101,13 @@ describe('RegisterPage', () => {
     renderRegister()
 
     // Act — fill minimum valid form
-    await user.type(screen.getByPlaceholderText('tu@correo.com'), 'admin@trainingcenter.com')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Password1!')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[1], 'Password1!')
-    await user.type(screen.getByPlaceholderText('Tu nombre completo'), 'Luis Admin')
-    await user.type(screen.getByPlaceholderText('tu_nick'), 'luisadmin')
-    await user.type(screen.getByPlaceholderText('Tu ciudad'), 'Bogotá')
-    await user.type(screen.getByPlaceholderText('Universidad'), 'Universidad Test')
+    await user.type(screen.getByLabelText(/correo electrónico/i), 'admin@trainingcenter.com')
+    await user.type(screen.getByLabelText(/^contraseña$/i), 'Password1!')
+    await user.type(screen.getByLabelText(/^confirmar$/i), 'Password1!')
+    await user.type(screen.getByLabelText(/nombre completo/i), 'Luis Admin')
+    await user.type(screen.getByLabelText(/^nickname$/i), 'luisadmin')
+    await user.type(screen.getByLabelText(/ciudad/i), 'Bogotá')
+    await user.type(screen.getByLabelText(/institución/i), 'Universidad Test')
 
     const countryInput = screen.getByPlaceholderText('Busca tu país...')
     await user.type(countryInput, 'Colombia')
@@ -136,8 +131,8 @@ describe('RegisterPage', () => {
 
     // Act — fill required fields but use mismatched passwords
     await user.type(screen.getByLabelText(/correo electrónico/i), 'test@test.com')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[0], 'Password1!')
-    await user.type(screen.getAllByPlaceholderText('••••••••')[1], 'OtraPassword1!')
+    await user.type(screen.getByLabelText(/^contraseña$/i), 'Password1!')
+    await user.type(screen.getByLabelText(/^confirmar$/i), 'OtraPassword1!')
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }))
 
     // Assert

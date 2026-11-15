@@ -28,7 +28,10 @@ vi.mock('@/hooks/useAuth', () => ({
     user: _authUser,
     isLoading: false,
     isAuthenticated: true,
-    hasRole: (r: string) => r === _authUser.role,
+    hasRole: (role: string | string[]) => {
+      const roles = Array.isArray(role) ? role : [role]
+      return roles.includes(_authUser.role)
+    },
     lastNickname: _authUser.nickname,
     logout: vi.fn(),
   }),
@@ -112,8 +115,17 @@ describe('ContestDetailPage', () => {
     expect(await screen.findByRole('button', { name: /^registrarse$/i })).toBeInTheDocument()
   })
 
-  it('LEAD sees "Editar competencia" button for ACTIVE unlocked contest', async () => {
-    // contest-2 is ACTIVE + unlocked; mockCurrentUser is ADMIN (counts as LEAD)
+  it('group LEAD (non-admin) sees "Editar competencia" for ACTIVE contest', async () => {
+    // Use COACH role so the ADMIN shortcut doesn't fire; only the membership LEAD check matters
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+        }),
+      ),
+    )
     renderPage('group-1', 'contest-2')
     await screen.findByRole('heading', { name: 'Práctica Grafos' })
     expect(screen.getByRole('button', { name: /editar competencia/i })).toBeInTheDocument()

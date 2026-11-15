@@ -8,7 +8,7 @@ import { mockCurrentUser } from '@/mocks/data'
 import { ProblemTestCasePage } from './ProblemTestCasePage'
 
 vi.mock('@/components/features/CodeBlockViewer', () => ({
-  default: ({ content }: { content: string }) => <pre data-testid="code-viewer">{content}</pre>,
+  default: ({ value }: { value: string }) => <pre data-testid="code-viewer">{value}</pre>,
 }))
 
 vi.mock('@/hooks/useContestSession', () => ({

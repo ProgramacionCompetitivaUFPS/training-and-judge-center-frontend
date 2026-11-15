@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -40,25 +40,24 @@ describe('ContestSubmissionsPage', () => {
   beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
   afterEach(() => clearAccessToken())
 
-  it('renders submissions list', async () => {
+  it('renders submissions list with data', async () => {
     renderPage()
-    await waitFor(() => {
-      expect(document.querySelector('table')).toBeInTheDocument()
-    })
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+    expect(screen.getAllByText('Two Sum').length).toBeGreaterThan(0)
   })
 
   it('shows empty state when no submissions', async () => {
     server.use(
       http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId/submissions', () =>
         HttpResponse.json({
+          contest: { id: 'contest-2', name: 'Práctica Grafos', status: 'ACTIVE', frozenAt: null },
           submissions: [],
           pagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
         }),
       ),
     )
     renderPage()
-    await waitFor(() => {
-      expect(screen.queryByRole('row', { name: /accepted|wrong/i })).not.toBeInTheDocument()
-    })
+    await screen.findByText('Aún no hay envíos en esta competencia.')
+    expect(screen.queryByText('Two Sum')).not.toBeInTheDocument()
   })
 })

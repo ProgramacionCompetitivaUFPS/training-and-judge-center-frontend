@@ -59,9 +59,8 @@ describe('SubmissionsPage', () => {
       ),
     )
     renderPage()
-    await waitFor(() => {
-      expect(screen.queryByText('Two Sum')).not.toBeInTheDocument()
-    })
+    await screen.findByText('No hay envíos')
+    expect(screen.queryByText('Two Sum')).not.toBeInTheDocument()
   })
 
   it('filters to only ACCEPTED submissions when clicking the Aceptado button', async () => {

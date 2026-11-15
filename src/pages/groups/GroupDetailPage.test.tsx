@@ -7,7 +7,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockGroupDetails } from '@/mocks/data'
 import type { User } from '@/types/user'
 import { GroupDetailPage } from './GroupDetailPage'
 
@@ -128,8 +128,18 @@ describe('GroupDetailPage', () => {
   })
 
   it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
-    // group-2 returns userMembership.role = 'MEMBER'; carloscp is not ADMIN → canManage = false
+    // Override group-2 to use joinPolicy: 'REQUEST' so the tab would be visible if canManage=true
+    // This ensures the assertion tests permissions, not joinPolicy
     _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          joinPolicy: 'REQUEST',
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
     renderPage('group-2')
 
     await waitFor(() => {

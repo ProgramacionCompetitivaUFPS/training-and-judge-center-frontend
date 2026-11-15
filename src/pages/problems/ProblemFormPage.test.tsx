@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser, mockProblems } from '@/mocks/data'
+import { mockCurrentUser, mockProblemTwoSum } from '@/mocks/data'
 import { ProblemFormPage } from './ProblemFormPage'
 
 // scrollIntoView not in jsdom (used by TagPicker)
@@ -73,7 +73,7 @@ describe('ProblemFormPage', () => {
   })
 
   it('pre-fills title in edit mode', async () => {
-    const draftProblem = { ...mockProblems.find((p) => p.slug === 'two-sum')!, status: 'DRAFT' as const }
+    const draftProblem = { ...mockProblemTwoSum, status: 'DRAFT' as const }
     server.use(
       http.get('http://localhost:8080/api/problems/p/two-sum', () =>
         HttpResponse.json(draftProblem),
@@ -88,8 +88,8 @@ describe('ProblemFormPage', () => {
     renderCreate()
     const submitButton = screen.getByRole('button', { name: /crear|guardar/i })
     await user.click(submitButton)
-    const matches = await screen.findAllByText(/título|slug/i)
-    expect(matches.length).toBeGreaterThan(1)
+    expect(await screen.findByText('El slug debe tener al menos 3 caracteres')).toBeInTheDocument()
+    expect(screen.getByText('El título es requerido')).toBeInTheDocument()
   })
 
   it('allows adding a tag from the picker', async () => {

@@ -4,13 +4,14 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
+import { mockCurrentUser } from '@/mocks/data'
 import { ProblemSubmissionsPage } from './ProblemSubmissionsPage'
 
 const auth = { userId: 'user-luisadmin' }
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: auth.userId, nickname: auth.userId.replace('user-', ''), role: 'ADMIN' },
+    user: { ...mockCurrentUser, id: auth.userId, nickname: auth.userId.replace('user-', '') },
     isLoading: false,
     isAuthenticated: true,
     hasRole: () => true,

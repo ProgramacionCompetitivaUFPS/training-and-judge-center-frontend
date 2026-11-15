@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -57,8 +57,7 @@ describe('ContestStandingsPage', () => {
       ),
     )
     renderPage()
-    await waitFor(() => {
-      expect(screen.queryByText('Competitive Coders')).not.toBeInTheDocument()
-    })
+    await screen.findByText('Todavía no hay posiciones para mostrar.')
+    expect(screen.queryByText('Competitive Coders')).not.toBeInTheDocument()
   })
 })

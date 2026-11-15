@@ -28,6 +28,12 @@ export default defineConfig({
         'src/hooks/usePyodide.ts',
       ],
       reporter: ['text', 'html'],
+      thresholds: {
+        lines: 60,
+        branches: 50,
+        functions: 60,
+        statements: 60,
+      },
     },
   },
   resolve: {

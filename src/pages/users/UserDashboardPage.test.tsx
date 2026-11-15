@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
@@ -50,5 +52,15 @@ describe('UserDashboardPage', () => {
   it('renders recent submissions section', async () => {
     renderPage()
     expect(await screen.findByText('Two Sum')).toBeInTheDocument()
+  })
+
+  it('shows error message when dashboard fails to load', async () => {
+    server.use(
+      http.get('http://localhost:8080/api/users/me/dashboard', () =>
+        HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+      ),
+    )
+    renderPage()
+    expect(await screen.findByText('No se pudo cargar el dashboard.')).toBeInTheDocument()
   })
 })

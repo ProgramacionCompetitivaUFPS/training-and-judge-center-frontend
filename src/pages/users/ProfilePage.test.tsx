@@ -84,7 +84,7 @@ describe('ProfilePage', () => {
 
     // Assert
     await waitFor(() => {
-      expect(screen.getByText(/no encontrado|not found|usuario/i)).toBeInTheDocument()
+      expect(screen.getByText('No se pudo cargar el perfil del usuario.')).toBeInTheDocument()
     })
   })
 })
