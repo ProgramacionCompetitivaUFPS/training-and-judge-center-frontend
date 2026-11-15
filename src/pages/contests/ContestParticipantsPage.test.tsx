@@ -1,0 +1,51 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { createTestQueryClient } from '@/test/renderWithProviders'
+import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
+import { mockCurrentUser } from '@/mocks/data'
+import { ContestParticipantsPage } from './ContestParticipantsPage'
+
+vi.mock('@/hooks/useContestSession', () => ({
+  useContestSession: () => ({ contest: null }),
+}))
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: mockCurrentUser,
+    isLoading: false,
+    isAuthenticated: true,
+    hasRole: () => true,
+    lastNickname: mockCurrentUser.nickname,
+    logout: vi.fn(),
+  }),
+}))
+
+function renderPage(groupId = 'group-1', contestId = 'contest-2') {
+  render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <MemoryRouter initialEntries={[`/groups/${groupId}/contests/${contestId}/participants`]}>
+        <Routes>
+          <Route path="/groups/:groupId/contests/:id/participants" element={<ContestParticipantsPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+describe('ContestParticipantsPage', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it('renders participant list', async () => {
+    renderPage()
+    expect(await screen.findByText('luisadmin')).toBeInTheDocument()
+  })
+
+  it('shows search input', async () => {
+    renderPage()
+    await screen.findByText('luisadmin')
+    expect(screen.getAllByRole('textbox')[0]).toBeInTheDocument()
+  })
+})
