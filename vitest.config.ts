@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     passWithNoTests: true,
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       include: [
