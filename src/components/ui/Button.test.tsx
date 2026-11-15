@@ -33,13 +33,13 @@ describe('Button', () => {
     expect(screen.getByRole('button')).toBeDisabled()
   })
 
-  it('shows spinner svg when isLoading', () => {
+  it('shows spinner and sr-only text when isLoading', () => {
     render(<Button isLoading>Submit</Button>)
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByText('Cargando…')).toBeInTheDocument()
   })
 
-  it('does not show spinner when not loading', () => {
+  it('does not show spinner text when not loading', () => {
     render(<Button>Submit</Button>)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cargando…')).not.toBeInTheDocument()
   })
 })
