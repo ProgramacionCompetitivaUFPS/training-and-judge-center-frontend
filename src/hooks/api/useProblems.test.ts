@@ -97,8 +97,8 @@ describe('useCreateProblem', () => {
   })
 })
 
-describe('useProblems pagination', () => {
-  it('keeps the previous page visible while the next one loads', async () => {
+describe('useProblems paginación', () => {
+  it('mantiene visible la página anterior mientras carga la siguiente', async () => {
     // Arrange
     const { wrapper } = makeWrapper()
     const { result, rerender } = renderHook(
