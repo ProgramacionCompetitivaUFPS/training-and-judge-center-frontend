@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
-import { createTestQueryClient } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 import { LoginPage } from './LoginPage'
 
 const toastSpy = vi.fn()
@@ -19,16 +18,12 @@ vi.mock('@/components/features/GoogleSignInButton', () => ({
 }))
 
 function renderLogin() {
-  const queryClient = createTestQueryClient()
-  render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/login']}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/dashboard" element={<div>DASHBOARD_SENTINEL</div>} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+  renderWithProviders(
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/dashboard" element={<div>DASHBOARD_SENTINEL</div>} />
+    </Routes>,
+    { initialEntries: ['/login'] },
   )
 }
 

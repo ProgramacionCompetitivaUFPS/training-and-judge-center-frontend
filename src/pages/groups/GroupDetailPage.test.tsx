@@ -7,7 +7,8 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockGroupDetails } from '@/mocks/data'
+import type { User } from '@/types/user'
 import { GroupDetailPage } from './GroupDetailPage'
 
 const toastSpy = vi.fn()
@@ -20,12 +21,18 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+// Mutable so individual tests can switch to a different role
+let _authUser: User = { ...mockCurrentUser }
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: mockCurrentUser,
+    user: _authUser,
     isLoading: false,
     isAuthenticated: true,
-    hasRole: (roles: string[]) => roles.includes(mockCurrentUser.role),
+    hasRole: (role: string | string[]) => {
+      const roles = Array.isArray(role) ? role : [role]
+      return roles.includes(_authUser.role)
+    },
     logout: vi.fn(),
   }),
 }))
@@ -45,6 +52,7 @@ function renderPage(groupId = 'group-1') {
 
 describe('GroupDetailPage', () => {
   beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     toastSpy.mockClear()
   })
@@ -117,5 +125,26 @@ describe('GroupDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Página no encontrada')).toBeInTheDocument()
     })
+  })
+
+  it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
+    // Override group-2 to use joinPolicy: 'REQUEST' so the tab would be visible if canManage=true
+    // This ensures the assertion tests permissions, not joinPolicy
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          joinPolicy: 'REQUEST',
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-2')
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('tab', { name: /solicitudes/i })).not.toBeInTheDocument()
   })
 })

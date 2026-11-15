@@ -30,7 +30,7 @@ export const LinkTableRow = React.forwardRef<HTMLTableRowElement, LinkTableRowPr
       if ((e.target as HTMLElement).closest(INTERACTIVE)) return
       if (window.getSelection()?.toString()) return // the user was selecting text
       if (e.metaKey || e.ctrlKey || e.shiftKey) {
-        window.open(href, '_blank', 'noopener')
+        window.open(href, '_blank', 'noopener,noreferrer')
         return
       }
       navigate(to, { state })
@@ -40,7 +40,7 @@ export const LinkTableRow = React.forwardRef<HTMLTableRowElement, LinkTableRowPr
       onAuxClick?.(e)
       if (e.defaultPrevented || e.button !== 1) return
       if ((e.target as HTMLElement).closest(INTERACTIVE)) return
-      window.open(href, '_blank', 'noopener')
+      window.open(href, '_blank', 'noopener,noreferrer')
     }
 
     return (

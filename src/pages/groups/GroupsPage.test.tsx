@@ -91,10 +91,11 @@ describe('GroupsPage', () => {
     // Act
     await user.click(screen.getByRole('tab', { name: /mis grupos/i }))
 
-    // Assert — after switching, 'Principiantes CP' disappears and "Mis Grupos" data loads
+    // Assert — after switching, 'Principiantes CP' (only in Todos) disappears
+    // and 'Training Center Global' (only in Mis Grupos) appears
     await waitFor(() => {
       expect(screen.queryByText('Principiantes CP')).not.toBeInTheDocument()
-      expect(screen.getByText('ICPC Colombia')).toBeInTheDocument()
     })
+    expect(await screen.findByText('Training Center Global')).toBeInTheDocument()
   })
 })

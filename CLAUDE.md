@@ -17,6 +17,8 @@ npm run preview   # Preview production build locally
 
 CI runs on PRs to `develop`: install → lint → test → build.
 
+**Pull requests** always target `develop`. When creating a PR via `gh pr create`, use the template at `.github/PULL_REQUEST_TEMPLATE.md` — fill every section (Summary, Motivation, Changeset, Test plan) and delete sections that don't apply (Screenshots, Breaking changes, Notas).
+
 ## Architecture
 
 **React 18 SPA** for a competitive programming platform (contests, problems, submissions, groups, teams, materials). TypeScript 5, Vite 8, React Router DOM 7, TanStack Query v5, Tailwind CSS 3.4, Radix UI primitives, React Hook Form + Zod.
