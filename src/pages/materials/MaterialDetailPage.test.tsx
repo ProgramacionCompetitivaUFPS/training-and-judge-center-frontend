@@ -6,20 +6,27 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockGroupDetails, mockMaterials } from '@/mocks/data'
+import type { User } from '@/types/user'
 import { MaterialDetailPage } from './MaterialDetailPage'
 
 vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+// Mutable so individual tests can switch to a different role
+let _authUser: User = { ...mockCurrentUser }
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: mockCurrentUser,
+    user: _authUser,
     isLoading: false,
     isAuthenticated: true,
-    hasRole: () => true,
-    lastNickname: mockCurrentUser.nickname,
+    hasRole: (role: string | string[]) => {
+      const roles = Array.isArray(role) ? role : [role]
+      return roles.includes(_authUser.role)
+    },
+    lastNickname: _authUser.nickname,
     logout: vi.fn(),
   }),
 }))
@@ -43,6 +50,7 @@ function renderPage(groupId = 'group-1', materialId = 'mat-001') {
 
 describe('MaterialDetailPage', () => {
   beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
   })
@@ -82,5 +90,58 @@ describe('MaterialDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Algo salió mal')).toBeInTheDocument()
     })
+  })
+
+  it('CONTESTANT (non-author, non-lead) does not see actions dropdown', async () => {
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    // Override group to return MEMBER role so isRealLead=false (default mock returns LEAD)
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: /bienvenidos al grupo de entrenamiento/i })
+    expect(screen.queryByRole('button', { name: /acciones del material/i })).not.toBeInTheDocument()
+  })
+
+  it('CONTESTANT does not see the DRAFT status badge', async () => {
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    // Use DRAFT material with publishedAt=null so the sidebar "Publicado" row is also hidden
+    const draftMaterial = {
+      ...mockMaterials.find((m) => m.id === 'mat-001')!,
+      status: 'DRAFT' as const,
+      publishedAt: null,
+    }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1/materials/mat-001', () =>
+        HttpResponse.json(draftMaterial),
+      ),
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: /bienvenidos al grupo de entrenamiento/i })
+    // canSeeStatus=false for CONTESTANT: status badge ("Borrador") must be hidden
+    expect(screen.queryByText('Borrador')).not.toBeInTheDocument()
+  })
+
+  it('ADMIN sees "Borrador" badge for a DRAFT material', async () => {
+    const draftMaterial = { ...mockMaterials.find((m) => m.id === 'mat-001')!, status: 'DRAFT' as const }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1/materials/mat-001', () =>
+        HttpResponse.json(draftMaterial),
+      ),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: /bienvenidos al grupo de entrenamiento/i })
+    expect(screen.getByText('Borrador')).toBeInTheDocument()
   })
 })

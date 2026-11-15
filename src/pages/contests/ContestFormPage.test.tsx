@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
@@ -76,5 +76,26 @@ describe('ContestFormPage', () => {
     await user.click(await screen.findByRole('button', { name: /crear|guardar/i }))
     const matches = await screen.findAllByText(/nombre/i)
     expect(matches.length).toBeGreaterThan(1)
+  })
+
+  it('shows success toast after creating a contest', async () => {
+    const user = userEvent.setup()
+    renderCreate()
+
+    await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
+
+    // datetime-local inputs don't work well with userEvent.type; fireEvent.change is reliable
+    fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), {
+      target: { value: '2027-06-01T10:00' },
+    })
+    fireEvent.change(screen.getByLabelText(/fecha y hora de fin/i), {
+      target: { value: '2027-06-01T12:00' },
+    })
+
+    await user.click(screen.getByRole('button', { name: /crear|guardar/i }))
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+    })
   })
 })

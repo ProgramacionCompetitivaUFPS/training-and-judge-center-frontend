@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -60,6 +61,24 @@ describe('SubmissionsPage', () => {
     renderPage()
     await waitFor(() => {
       expect(screen.queryByText('Two Sum')).not.toBeInTheDocument()
+    })
+  })
+
+  it('filters to only ACCEPTED submissions when clicking the Aceptado button', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    // Initial list has "Merge Sort" (TLE) on the first page
+    await screen.findAllByText('Two Sum')
+    expect(screen.getByText('Merge Sort')).toBeInTheDocument()
+
+    // Click the "Aceptado" verdict filter pill
+    await user.click(screen.getByRole('button', { name: 'Aceptado' }))
+
+    // After filter: "Merge Sort" disappears; "Graph BFS" (ACCEPTED) appears
+    await waitFor(() => {
+      expect(screen.queryByText('Merge Sort')).not.toBeInTheDocument()
+      expect(screen.getByText('Graph BFS')).toBeInTheDocument()
     })
   })
 })

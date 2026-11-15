@@ -8,6 +8,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
+import type { User } from '@/types/user'
 import { GroupDetailPage } from './GroupDetailPage'
 
 const toastSpy = vi.fn()
@@ -20,12 +21,18 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+// Mutable so individual tests can switch to a different role
+let _authUser: User = { ...mockCurrentUser }
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: mockCurrentUser,
+    user: _authUser,
     isLoading: false,
     isAuthenticated: true,
-    hasRole: (roles: string[]) => roles.includes(mockCurrentUser.role),
+    hasRole: (role: string | string[]) => {
+      const roles = Array.isArray(role) ? role : [role]
+      return roles.includes(_authUser.role)
+    },
     logout: vi.fn(),
   }),
 }))
@@ -45,6 +52,7 @@ function renderPage(groupId = 'group-1') {
 
 describe('GroupDetailPage', () => {
   beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     toastSpy.mockClear()
   })
@@ -117,5 +125,16 @@ describe('GroupDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Página no encontrada')).toBeInTheDocument()
     })
+  })
+
+  it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
+    // group-2 returns userMembership.role = 'MEMBER'; carloscp is not ADMIN → canManage = false
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    renderPage('group-2')
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('tab', { name: /solicitudes/i })).not.toBeInTheDocument()
   })
 })

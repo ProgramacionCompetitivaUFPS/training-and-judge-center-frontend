@@ -102,4 +102,23 @@ describe('ProblemFormPage', () => {
     await user.click(option)
     expect(await screen.findByRole('button', { name: /quitar el tag arrays/i })).toBeInTheDocument()
   })
+
+  it('allows removing an added tag', async () => {
+    const user = userEvent.setup()
+    renderCreate()
+
+    // Add "arrays" tag
+    const tagInput = screen.getByRole('combobox', { name: /agregar un tag/i })
+    await user.click(tagInput)
+    await user.type(tagInput, 'arrays')
+    await user.click(await screen.findByRole('option', { name: 'arrays' }))
+
+    // Remove it
+    const removeBtn = await screen.findByRole('button', { name: /quitar el tag arrays/i })
+    await user.click(removeBtn)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /quitar el tag arrays/i })).not.toBeInTheDocument()
+    })
+  })
 })

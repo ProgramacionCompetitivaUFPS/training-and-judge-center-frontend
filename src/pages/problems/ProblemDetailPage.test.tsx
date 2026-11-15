@@ -7,19 +7,26 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser } from '@/mocks/data'
+import type { User } from '@/types/user'
 import { ProblemDetailPage } from './ProblemDetailPage'
 
 vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+// Mutable so individual tests can switch to a different role
+let _authUser: User = { ...mockCurrentUser }
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: mockCurrentUser,
+    user: _authUser,
     isLoading: false,
     isAuthenticated: true,
-    hasRole: () => true,
-    lastNickname: mockCurrentUser.nickname,
+    hasRole: (role: string | string[]) => {
+      const roles = Array.isArray(role) ? role : [role]
+      return roles.includes(_authUser.role)
+    },
+    lastNickname: _authUser.nickname,
     logout: vi.fn(),
   }),
 }))
@@ -43,6 +50,7 @@ function renderPage(slug = 'two-sum') {
 
 describe('ProblemDetailPage', () => {
   beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
   })
@@ -81,5 +89,13 @@ describe('ProblemDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Algo salió mal')).toBeInTheDocument()
     })
+  })
+
+  it('CONTESTANT (non-modifier) does not see the "acciones" button', async () => {
+    // two-sum modifiers are ['mariacoach', 'luisadmin']; carloscp is not in the list
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    renderPage()
+    await screen.findByRole('heading', { name: 'Two Sum' })
+    expect(screen.queryByRole('button', { name: /acciones/i })).not.toBeInTheDocument()
   })
 })
