@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as materialsApi from '@/api/materials'
 import type {
   MaterialListParams,
@@ -26,6 +26,7 @@ export function useMaterials(groupId: string, params?: MaterialListParams) {
   return useQuery({
     queryKey: materialKeys.list(groupId, params),
     queryFn: () => materialsApi.getMaterials(groupId, params),
+    placeholderData: keepPreviousData,
     enabled: !!groupId,
   })
 }

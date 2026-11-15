@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as contestsApi from '@/api/contests'
 import type {
   ContestListParams,
@@ -36,6 +36,7 @@ export function useMyContests(params?: ContestListParams, options?: { enabled?: 
   return useQuery({
     queryKey: contestKeys.myList(params),
     queryFn: () => contestsApi.getMyContests(params),
+    placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }
@@ -44,6 +45,7 @@ export function useContests(groupId: string, params?: ContestListParams) {
   return useQuery({
     queryKey: contestKeys.list(groupId, params),
     queryFn: () => contestsApi.getContests(groupId, params),
+    placeholderData: keepPreviousData,
     enabled: !!groupId,
   })
 }

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as problemsApi from '@/api/problems'
 import type {
   ProblemListParams,
@@ -34,6 +34,7 @@ export function useProblems(params?: ProblemListParams) {
   return useQuery({
     queryKey: problemKeys.list(params),
     queryFn: () => problemsApi.getProblems(params),
+    placeholderData: keepPreviousData,
   })
 }
 
