@@ -13,6 +13,12 @@ vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+// ContestCountdown uses useSyncExternalStore + setInterval which causes
+// "Maximum update depth exceeded" under coverage instrumentation
+vi.mock('@/components/features/ContestCountdown', () => ({
+  ContestCountdown: () => null,
+}))
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: mockCurrentUser,

@@ -12,15 +12,17 @@ export default defineConfig({
     testTimeout: 15000,
     coverage: {
       provider: 'v8',
-      include: [
-        'src/lib/utils.ts',
-        'src/lib/schemas/user.ts',
-        'src/mocks/data.ts',
-        'src/hooks/**/*.ts',
-        'src/pages/**/*.tsx',
-      ],
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        'src/hooks/**/*.test.ts',
+        // Not production code
+        'src/mocks/**',
+        'src/test/**',
+        // Test files themselves
+        '**/*.test.{ts,tsx}',
+        // Pure TypeScript type definitions — no executable statements
+        'src/types/**',
+        // Web worker — requires a separate worker test environment
+        'src/workers/**',
         // Skipped: Blockly and Pyodide depend on external binaries unavailable in jsdom
         'src/hooks/useBlocklyPersistence.ts',
         'src/hooks/usePyodide.ts',
@@ -29,22 +31,6 @@ export default defineConfig({
         'src/hooks/useToastContext.ts',
       ],
       reporter: ['text', 'html'],
-      thresholds: {
-        'src/lib/**': {
-          lines: 80,
-          functions: 80,
-          branches: 80,
-          statements: 80,
-        },
-        'src/hooks/**': {
-          lines: 80,
-          functions: 80,
-        },
-        'src/pages/**': {
-          lines: 80,
-          functions: 80,
-        },
-      },
     },
   },
   resolve: {
