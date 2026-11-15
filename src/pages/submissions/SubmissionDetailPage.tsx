@@ -217,7 +217,6 @@ export function SubmissionDetailPage() {
             </CardHeader>
             <CardContent>
               <pre
-                data-testid="compile-log"
                 className="max-h-80 overflow-auto rounded-md border border-neutral-border bg-neutral-background p-4 font-mono text-xs leading-relaxed text-neutral-text-primary whitespace-pre-wrap break-words"
               >
                 {submission.compileLog}
