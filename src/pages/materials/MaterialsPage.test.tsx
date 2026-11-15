@@ -52,7 +52,7 @@ describe('MaterialsPage', () => {
   it('gives the sort selector an accessible name', async () => {
     renderPage()
     await screen.findByText('Bienvenidos al grupo de entrenamiento')
-    expect(screen.getByRole('combobox', { name: 'Ordenar materiales por' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Ordenar por criterio' })).toBeInTheDocument()
   })
 
   it('shows create button for ADMIN', async () => {
