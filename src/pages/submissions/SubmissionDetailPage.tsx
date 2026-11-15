@@ -1,6 +1,6 @@
 import React, { Suspense, useState } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle } from 'lucide-react'
+import { Clock, HardDrive, Calendar, Code2, Eye, EyeOff, Download, ArrowLeft, RefreshCw, Puzzle, Terminal } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -205,6 +205,25 @@ export function SubmissionDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Compiler output: only present when the submission failed to compile */}
+        {submission.compileLog && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Terminal className="h-5 w-5" />
+                Salida del compilador
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre
+                className="max-h-80 overflow-auto rounded-md border border-neutral-border bg-neutral-background p-4 font-mono text-xs leading-relaxed text-neutral-text-primary whitespace-pre-wrap break-words"
+              >
+                {submission.compileLog}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Source Code / Blockly blocks */}
         {(() => {
