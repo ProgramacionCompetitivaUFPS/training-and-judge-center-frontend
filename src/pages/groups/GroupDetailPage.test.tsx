@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -63,12 +64,17 @@ describe('GroupDetailPage', () => {
   })
 
   it('shows member list in members tab', async () => {
-    // Arrange
+    // Arrange — group-1 has 'carloscp' as a member (distinct from the navbar user 'luisadmin')
+    const user = userEvent.setup()
     renderPage('group-1')
 
-    // Assert — mockGroupMembers['group-1'][0].nickname = 'luisadmin'
+    // Act — navigate to Miembros tab (default tab is 'info')
+    await waitFor(() => expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument())
+    await user.click(screen.getByRole('tab', { name: /miembros/i }))
+
+    // Assert — '@carloscp' only appears in the members list, never in the navbar
     await waitFor(() => {
-      expect(screen.getByText('luisadmin')).toBeInTheDocument()
+      expect(screen.getByText('@carloscp')).toBeInTheDocument()
     })
   })
 

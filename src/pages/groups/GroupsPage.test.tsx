@@ -94,7 +94,7 @@ describe('GroupsPage', () => {
     // Assert — after switching, 'Principiantes CP' disappears and "Mis Grupos" data loads
     await waitFor(() => {
       expect(screen.queryByText('Principiantes CP')).not.toBeInTheDocument()
+      expect(screen.getByText('ICPC Colombia')).toBeInTheDocument()
     })
-    expect(screen.getByText('ICPC Colombia')).toBeInTheDocument()
   })
 })
