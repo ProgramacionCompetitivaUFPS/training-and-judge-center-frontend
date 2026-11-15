@@ -124,7 +124,7 @@ export function ContestSubmissionsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-neutral-text-muted">Problema</span>
                 <Select value={problemSlug} onValueChange={(v) => { setProblemSlug(v); setPagination((p) => ({ ...p, page: 1 })) }}>
-                  <SelectTrigger className="w-56 shrink-0">
+                  <SelectTrigger aria-label="Filtrar por problema" className="w-56 shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

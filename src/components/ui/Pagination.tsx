@@ -166,7 +166,7 @@ const PaginationSizeSelect = ({ value, onChange, sizeOptions = [5, 10, 20, 50] }
   <div className="flex items-center gap-2">
     <span>Mostrar</span>
     <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="h-7 w-[64px] px-2 text-xs">
+      <SelectTrigger aria-label="Resultados por página" className="h-7 w-[64px] px-2 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

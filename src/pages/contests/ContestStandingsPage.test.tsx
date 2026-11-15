@@ -49,6 +49,14 @@ describe('ContestStandingsPage', () => {
     expect(await screen.findByText('Competitive Coders')).toBeInTheDocument()
   })
 
+  it('gives the country, city and institution filters an accessible name', async () => {
+    renderPage()
+    await screen.findByText('Competitive Coders')
+    for (const name of ['Filtrar por país', 'Filtrar por ciudad', 'Filtrar por institución']) {
+      expect(screen.getByRole('combobox', { name })).toBeInTheDocument()
+    }
+  })
+
   it('shows empty state when no standings', async () => {
     server.use(
       http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId/standings', () =>

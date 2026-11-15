@@ -279,7 +279,7 @@ export function TeamContestRegistration({
                 <p className="text-sm text-neutral-text-muted">No tienes equipos. Crea uno primero en la sección de Equipos.</p>
               ) : (
                 <Select value={selectedTeamId} onValueChange={handleTeamSelect}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Equipo a registrar">
                     <SelectValue placeholder="Seleccionar equipo" />
                   </SelectTrigger>
                   <SelectContent>

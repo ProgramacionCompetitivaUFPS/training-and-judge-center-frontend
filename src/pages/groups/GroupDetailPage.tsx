@@ -906,7 +906,7 @@ export function GroupDetailPage() {
             <div>
               <label className="text-sm font-medium mb-1 block">Rol</label>
               <Select value={addRole} onValueChange={(v) => setAddRole(v as GroupRole)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Rol del miembro"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MEMBER">Miembro</SelectItem>
                   <SelectItem value="LEAD">Líder</SelectItem>
