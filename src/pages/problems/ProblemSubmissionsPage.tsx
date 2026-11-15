@@ -17,6 +17,7 @@ import { useProblemDetail, useProblemStatistics } from '@/hooks/api/useProblems'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PROGRAMMING_LANGUAGES, PATHS } from '@/lib/constants'
 import { RowLink } from '@/components/ui/RowLink'
+import { LinkTableRow } from '@/components/ui/LinkTableRow'
 import { cn } from '@/lib/utils'
 import type { ProblemSubmissionsParams, SubmissionOrigin, SubmissionStatus, SubmissionLanguage } from '@/types/submission'
 
@@ -219,12 +220,13 @@ export function ProblemSubmissionsPage() {
                 </TableHeader>
                 <TableBody>
                   {submissions.map((sub) => (
-                    <TableRow
+                    <LinkTableRow
                       key={sub.id}
-                      className="relative cursor-pointer"
+                      to={PATHS.submission(sub.id)}
+                      state={submissionOrigin}
                     >
                       <TableCell>
-                        <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin}>
+                        <RowLink to={PATHS.submission(sub.id)} state={submissionOrigin} overlay={false}>
                           <div className="flex items-center gap-2">
                             <SubmissionStatusBadge status={sub.status} />
                             {sub.submittedBy.id === user?.id && sub.visibility === 'PRIVATE' && (
@@ -252,7 +254,7 @@ export function ProblemSubmissionsPage() {
                       <TableCell className="text-right text-xs text-neutral-text-muted">
                         {new Date(sub.submittedAt).toLocaleString('es')}
                       </TableCell>
-                    </TableRow>
+                    </LinkTableRow>
                   ))}
                 </TableBody>
               </Table>

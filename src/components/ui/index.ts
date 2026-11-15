@@ -1,6 +1,7 @@
 export { Button } from './Button'
 export { LinkButton } from './LinkButton'
 export { RowLink } from './RowLink'
+export { LinkTableRow } from './LinkTableRow'
 export { Input } from './Input'
 export { PasswordInput } from './PasswordInput'
 export { Textarea } from './Textarea'
