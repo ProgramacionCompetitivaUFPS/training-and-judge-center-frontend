@@ -128,7 +128,7 @@ describe('ContestDetailPage', () => {
     )
     renderPage('group-1', 'contest-2')
     await screen.findByRole('heading', { name: 'Práctica Grafos' })
-    expect(screen.getByRole('button', { name: /editar competencia/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /editar competencia/i })).toBeInTheDocument()
   })
 
   it('non-LEAD CONTESTANT does not see "Editar competencia" for ACTIVE contest', async () => {
