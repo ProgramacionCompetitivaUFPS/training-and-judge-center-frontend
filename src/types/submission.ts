@@ -38,6 +38,9 @@ export interface SubmissionDetail {
   contest: {
     id: string
     name: string
+    groupId: string
+    /** Lugar del problema en la competencia (1 = A); null si el problema ya no forma parte de ella */
+    problemPosition: number | null
   } | null
   submittedBy: {
     id: string

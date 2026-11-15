@@ -61,6 +61,59 @@ function renderPage(id: string) {
   )
 }
 
+describe('SubmissionDetailPage problem link', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  function serveDetail(contest: unknown) {
+    server.use(
+      http.get('http://localhost:8080/api/submissions/:id', () =>
+        HttpResponse.json({ ...failedWithoutLog, contest }),
+      ),
+    )
+  }
+
+  it("links to the problem through the contest's own route when the submission belongs to a contest", async () => {
+    // Arrange
+    serveDetail({ id: 'contest-1', name: 'Copa', groupId: 'group-1', problemPosition: 2 })
+    renderPage(COMPILATION_ERROR_ID)
+
+    // Assert: position 2 is problem B
+    const link = await screen.findByRole('link', { name: 'Dynamic Knapsack' })
+    expect(link).toHaveAttribute('href', '/groups/group-1/contests/contest-1/problems/B')
+  })
+
+  it('falls back to the general problem page when the problem was dropped from the contest', async () => {
+    // Arrange
+    serveDetail({ id: 'contest-1', name: 'Copa', groupId: 'group-1', problemPosition: null })
+    renderPage(COMPILATION_ERROR_ID)
+
+    // Assert
+    const link = await screen.findByRole('link', { name: 'Dynamic Knapsack' })
+    expect(link).toHaveAttribute('href', '/problems/dynamic-knapsack')
+  })
+
+  it('falls back to the general problem page when the backend predates problemPosition', async () => {
+    // Arrange: the field is absent, not null
+    serveDetail({ id: 'contest-1', name: 'Copa' })
+    renderPage(COMPILATION_ERROR_ID)
+
+    // Assert
+    const link = await screen.findByRole('link', { name: 'Dynamic Knapsack' })
+    expect(link).toHaveAttribute('href', '/problems/dynamic-knapsack')
+  })
+
+  it('links to the general problem page for a practice submission', async () => {
+    // Arrange
+    serveDetail(null)
+    renderPage(COMPILATION_ERROR_ID)
+
+    // Assert
+    const link = await screen.findByRole('link', { name: 'Dynamic Knapsack' })
+    expect(link).toHaveAttribute('href', '/problems/dynamic-knapsack')
+  })
+})
+
 describe('SubmissionDetailPage compiler output', () => {
   beforeEach(() => {
     setAccessToken('mock-jwt-token-luisadmin')
