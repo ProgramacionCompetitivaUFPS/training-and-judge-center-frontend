@@ -4,7 +4,7 @@ import { setAccessToken, clearAccessToken, resetSessionExpiredNotified, subscrib
 import { ApiClientError } from '@/lib/errors'
 import { apiClient } from './client'
 
-// Builds a minimal Response-like object for vi.spyOn(global, 'fetch')
+// Builds a minimal Response-like object for vi.spyOn(globalThis, 'fetch')
 function makeFetchResponse(status: number, body: unknown = {}, ok?: boolean): Response {
   const isOk = ok ?? (status >= 200 && status < 300)
   const jsonBody = JSON.stringify(body)
@@ -21,7 +21,7 @@ function makeFetchResponse(status: number, body: unknown = {}, ok?: boolean): Re
 
 function mockFetchSequence(...responses: Array<{ status: number; body?: unknown }>) {
   let call = 0
-  vi.spyOn(global, 'fetch').mockImplementation(() => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
     const r = responses[Math.min(call++, responses.length - 1)]
     return Promise.resolve(makeFetchResponse(r.status, r.body ?? {}))
   })
@@ -39,7 +39,7 @@ describe('auth headers', () => {
     const spy = mockFetchSequence({ status: 200, body: { ok: true } })
     void spy
     await apiClient.get('/test')
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer test-token')
   })
 
@@ -47,7 +47,7 @@ describe('auth headers', () => {
     clearAccessToken()
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.get('/test')
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['Authorization']).toBeUndefined()
   })
 })
@@ -56,7 +56,7 @@ describe('buildUrl', () => {
   it('agrega los query params definidos a la URL', async () => {
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.get('/items', { params: { page: 2, limit: 10 } })
-    const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string]
+    const [url] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string]
     expect(url).toContain('page=2')
     expect(url).toContain('limit=10')
   })
@@ -64,7 +64,7 @@ describe('buildUrl', () => {
   it('omite los params undefined', async () => {
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.get('/items', { params: { page: 1, filter: undefined } })
-    const [url] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string]
+    const [url] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string]
     expect(url).not.toContain('filter')
   })
 })
@@ -79,7 +79,7 @@ describe('métodos HTTP', () => {
   it('POST envía el body como JSON con Content-Type: application/json', async () => {
     mockFetchSequence({ status: 201, body: { id: 'new' } })
     await apiClient.post('/resource', { name: 'Test' })
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json')
     expect(init.body).toBe(JSON.stringify({ name: 'Test' }))
   })
@@ -87,7 +87,7 @@ describe('métodos HTTP', () => {
   it('PUT envía el body como JSON', async () => {
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.put('/resource/1', { name: 'Updated' })
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect(init.method).toBe('PUT')
     expect(init.body).toBe(JSON.stringify({ name: 'Updated' }))
   })
@@ -95,7 +95,7 @@ describe('métodos HTTP', () => {
   it('PATCH envía el body como JSON', async () => {
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.patch('/resource/1', { field: 'val' })
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect(init.method).toBe('PATCH')
     expect(init.body).toBe(JSON.stringify({ field: 'val' }))
   })
@@ -103,7 +103,7 @@ describe('métodos HTTP', () => {
   it('DELETE envía la request sin body por defecto', async () => {
     mockFetchSequence({ status: 204 })
     await apiClient.delete('/resource/1')
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect(init.method).toBe('DELETE')
     expect(init.body).toBeUndefined()
   })
@@ -111,7 +111,7 @@ describe('métodos HTTP', () => {
   it('DELETE envía body JSON cuando config.body está definido', async () => {
     mockFetchSequence({ status: 200, body: {} })
     await apiClient.delete('/resource/1', { body: { reason: 'test' } })
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect(init.body).toBe(JSON.stringify({ reason: 'test' }))
   })
 
@@ -120,7 +120,7 @@ describe('métodos HTTP', () => {
     const form = new FormData()
     form.append('file', new Blob(['data']), 'file.txt')
     await apiClient.postFormData('/upload', form)
-    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
+    const [, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit]
     expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
     expect(init.body).toBeInstanceOf(FormData)
   })
@@ -151,7 +151,7 @@ describe('manejo de errores', () => {
   })
 
   it('usa código UNKNOWN y statusText cuando el body no es JSON válido', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: false,
       status: 503,
       statusText: 'Service Unavailable',
@@ -170,7 +170,7 @@ describe('manejo de errores', () => {
   })
 
   it('getBlob devuelve un Blob en respuesta ok', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       status: 200,
       blob: () => Promise.resolve(new Blob(['content'], { type: 'text/plain' })),
@@ -184,7 +184,7 @@ describe('manejo de errores', () => {
 describe('auto-refresh en 401', () => {
   it('reintenta la request original tras un refresh exitoso', async () => {
     let call = 0
-    vi.spyOn(global, 'fetch').mockImplementation(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
       call++
       if (call === 1)
         return Promise.resolve(
@@ -202,7 +202,7 @@ describe('auto-refresh en 401', () => {
 
   it('limpia el token y notifica sesión expirada cuando el refresh falla', async () => {
     let call = 0
-    vi.spyOn(global, 'fetch').mockImplementation(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
       call++
       if (call === 1)
         return Promise.resolve(
@@ -222,12 +222,12 @@ describe('auto-refresh en 401', () => {
   it('no reintenta cuando body.error no es UNAUTHORIZED', async () => {
     mockFetchSequence({ status: 401, body: { error: 'FORBIDDEN', message: 'no' } })
     await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401 })
-    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1)
+    expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1)
   })
 
   it('deduplica llamadas concurrentes al refresh (solo un /auth/refresh)', async () => {
     let call = 0
-    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url: RequestInfo | URL) => {
       call++
       const urlStr = String(url)
       if (urlStr.includes('/auth/refresh'))
@@ -241,7 +241,7 @@ describe('auto-refresh en 401', () => {
 
     await Promise.all([apiClient.get('/a'), apiClient.get('/b')])
 
-    const refreshCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([url]) =>
+    const refreshCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([url]) =>
       String(url).includes('/auth/refresh'),
     )
     expect(refreshCalls).toHaveLength(1)
