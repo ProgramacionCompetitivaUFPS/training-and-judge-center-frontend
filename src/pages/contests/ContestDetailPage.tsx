@@ -23,6 +23,7 @@ import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
 import { isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
+import { ErrorPage } from '@/pages/errors/ErrorPage'
 
 function LockedProblemsPlaceholder({
   title = 'Los problemas se revelarán al iniciar la competencia',
@@ -128,6 +129,7 @@ export function ContestDetailPage() {
   }
 
   if (isNotFoundError(error)) return <NotFoundPage />
+  if (error) return <ErrorPage />
   if (!contest) return null
 
   // Real leadership of the group that owns this contest — not just having the Coach role

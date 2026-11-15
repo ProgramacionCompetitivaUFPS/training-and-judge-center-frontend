@@ -13,6 +13,8 @@ npm run preview   # Preview production build locally
 
 **Test runner**: Vitest 2 + React Testing Library. Run with `npm run test:run` (headless) or `npm run test:ui` (browser UI). Coverage via `npm run test:coverage` (v8 provider, 80% threshold). Test files live next to their source (`*.test.ts` / `*.test.tsx`). See `docs/TESTING_STANDARDS.md` for conventions.
 
+**New logic and changed logic must be covered by tests.** When you add a new component, hook, or page, or change existing behavior (not just rename, reformat, or reorganize imports), add or update the corresponding test file. Purely cosmetic changes (import consolidation, type annotation tweaks) do not require a test update. See `docs/TESTING_STANDARDS.md` for what to cover and how to structure tests.
+
 CI runs on PRs to `develop`: install → lint → test → build.
 
 ## Architecture

@@ -36,9 +36,9 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
 
   const normalized = query.trim().toLowerCase()
   const matches = useMemo(() => {
-    const free = options.filter((o) => !value.includes(o) && o.includes(normalized))
+    const free = options.filter((o) => !value.includes(o) && o.toLowerCase().includes(normalized))
     // What starts with the text first: "dp" before "bitmask-dp"
-    return [...free].sort((a, b) => Number(b.startsWith(normalized)) - Number(a.startsWith(normalized)) || a.localeCompare(b))
+    return [...free].sort((a, b) => Number(b.toLowerCase().startsWith(normalized)) - Number(a.toLowerCase().startsWith(normalized)) || a.localeCompare(b))
   }, [options, value, normalized])
 
   useLayoutEffect(() => {
@@ -83,10 +83,10 @@ export function TagPicker({ value, onChange, options, error, isLoading = false }
 
   function submitTyped() {
     if (!normalized) return
-    if (value.includes(normalized)) {
+    if (value.some((t) => t.toLowerCase() === normalized)) {
       setTypedError(`«${normalized}» ya está agregado.`)
-    } else if (options.includes(normalized)) {
-      add(normalized)
+    } else if (options.some((o) => o.toLowerCase() === normalized)) {
+      add(options.find((o) => o.toLowerCase() === normalized)!)
     } else if (matches[active]) {
       add(matches[active])
     } else {
