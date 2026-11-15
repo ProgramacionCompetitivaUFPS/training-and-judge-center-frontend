@@ -26,9 +26,6 @@ export default defineConfig({
         // Skipped: Blockly and Pyodide depend on external binaries unavailable in jsdom
         'src/hooks/useBlocklyPersistence.ts',
         'src/hooks/usePyodide.ts',
-        // Trivial context readers — a single useContext call, nothing to branch on
-        'src/hooks/useContestSession.ts',
-        'src/hooks/useToastContext.ts',
       ],
       reporter: ['text', 'html'],
     },
