@@ -11,7 +11,7 @@ interface RequestConfig {
 
 class ApiClient {
   private baseUrl: string
-  private refreshPromise: Promise<boolean> | null = null
+  private refreshPromise: Promise<'ok' | 'definitive' | 'transient'> | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
@@ -32,7 +32,7 @@ class ApiClient {
     return url.toString()
   }
 
-  private ensureFreshToken(): Promise<boolean> {
+  private ensureFreshToken(): Promise<'ok' | 'definitive' | 'transient'> {
     if (!this.refreshPromise) {
       this.refreshPromise = this.performRefresh().finally(() => {
         this.refreshPromise = null
@@ -56,13 +56,14 @@ class ApiClient {
     return response.json()
   }
 
-  private async performRefresh(): Promise<boolean> {
+  private async performRefresh(): Promise<'ok' | 'definitive' | 'transient'> {
     try {
       const data = await this.refreshSession()
       setAccessToken(data.token)
-      return true
-    } catch {
-      return false
+      return 'ok'
+    } catch (err) {
+      const definitive = err instanceof ApiClientError && err.status < 500
+      return definitive ? 'definitive' : 'transient'
     }
   }
 
@@ -78,10 +79,10 @@ class ApiClient {
       return response
     }
 
-    const refreshed = await this.ensureFreshToken()
-    if (!refreshed) {
+    const refreshResult = await this.ensureFreshToken()
+    if (refreshResult !== 'ok') {
       clearAccessToken()
-      notifySessionExpired()
+      if (refreshResult === 'definitive') notifySessionExpired()
       return response
     }
 
