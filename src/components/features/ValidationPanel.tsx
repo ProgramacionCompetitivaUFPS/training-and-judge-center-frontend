@@ -89,7 +89,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
         {running && (
           <div className="space-y-1" role="status">
             <p className="flex items-center gap-2 text-neutral-text-primary">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 aria-label="Cargando" className="h-4 w-4 animate-spin" />
               Validando el problema…{' '}
               <span className="font-mono text-neutral-text-muted">
                 <Elapsed />

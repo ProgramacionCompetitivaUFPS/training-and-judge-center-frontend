@@ -14,6 +14,15 @@ import {
   useContests,
   useContestDetail,
   useCreateContest,
+  useRegistrationStatus,
+  useRegistrations,
+  useStandings,
+  useStandingsFilterOptions,
+  useContestSubmissions,
+  useUpdateContest,
+  useDeleteContest,
+  useRegisterToContest,
+  useUnregisterFromContest,
 } from './useContests'
 
 function makeWrapper() {
@@ -155,5 +164,196 @@ describe('useMyContests paginación', () => {
     await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
     expect(result.current.data?.pagination.page).toBe(2)
     expect(result.current.data?.items[0].id).not.toBe(firstPageId)
+  })
+})
+
+describe('useRegistrationStatus', () => {
+  it('retorna el estado de inscripción para IDs válidos', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRegistrationStatus('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.registered).toBe(true)
+  })
+
+  it('no hace fetch cuando algún ID está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRegistrationStatus('', 'contest-1'), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useRegistrations', () => {
+  it('retorna lista de registros individuales con total y nickname conocido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRegistrations('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.pagination.total).toBe(7)
+    expect(result.current.data?.registrations.some((r) => r.nickname === 'luisadmin')).toBe(true)
+  })
+
+  it('no hace fetch cuando groupId está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRegistrations('', 'contest-1'), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useStandings', () => {
+  it('retorna tabla de posiciones con al menos un entry conocido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(
+      result.current.data?.standings.some((e) => e.participant.displayName === 'Competitive Coders'),
+    ).toBe(true)
+  })
+
+  it('no hace fetch cuando algún ID está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('', 'contest-2'), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useStandingsFilterOptions', () => {
+  it('retorna opciones de filtro con países conocidos de mockStandings', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandingsFilterOptions('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.countries[0]).toBe('Argentina')
+    expect(result.current.data?.countries).toContain('Chile')
+  })
+})
+
+describe('useContestSubmissions', () => {
+  it('retorna envíos del concurso con el ID del concurso y el ID del primer envío correctos', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useContestSubmissions('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.contest.id).toBe('contest-2')
+    expect(result.current.data?.submissions[0].id).toBe('csub-004')
+  })
+
+  it('no hace fetch cuando algún ID está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useContestSubmissions('group-1', ''), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useUpdateContest', () => {
+  it('retorna el nombre actualizado, siembra el cache de detalle y marca contestKeys.all como stale', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-1', data: { name: 'Nombre Actualizado' } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.name).toBe('Nombre Actualizado')
+    const cached = queryClient.getQueryData(contestKeys.detail('group-1', 'contest-1'))
+    expect((cached as { name?: string })?.name).toBe('Nombre Actualizado')
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
+  })
+
+  it('conserva los problems del PUT en caché con el detalle activo sin refetch inmediato del detalle', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    // Montar el detalle primero para que la query esté activa como observador
+    const { result: detailHook } = renderHook(
+      () => useContestDetail('group-1', 'contest-1'),
+      { wrapper },
+    )
+    await waitFor(() => expect(detailHook.current.isSuccess).toBe(true))
+
+    const { result: mutHook } = renderHook(() => useUpdateContest(), { wrapper })
+    mutHook.current.mutate({ groupId: 'group-1', contestId: 'contest-1', data: { name: 'Nombre Actualizado' } })
+    await waitFor(() => expect(mutHook.current.isSuccess).toBe(true))
+
+    // El cache tiene la respuesta del PUT con el array de problems intacto
+    const cached = queryClient.getQueryData(contestKeys.detail('group-1', 'contest-1')) as {
+      name?: string
+      problems?: unknown[]
+    } | undefined
+    expect(cached?.name).toBe('Nombre Actualizado')
+    expect(Array.isArray(cached?.problems)).toBe(true)
+
+    // La invalidación del detalle usó refetchType:'none' para no disparar un GET inmediato
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: contestKeys.detail('group-1', 'contest-1'),
+        refetchType: 'none',
+      }),
+    )
+  })
+})
+
+describe('useDeleteContest', () => {
+  it('invalida contestKeys.all al eliminar con éxito', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useDeleteContest(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-1' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
+  })
+})
+
+describe('useRegisterToContest', () => {
+  it('invalida registrationStatus, contestDetail y registrations al registrarse', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRegisterToContest(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-1' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: contestKeys.registrationStatus('group-1', 'contest-1') }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: contestKeys.detail('group-1', 'contest-1') }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'registrations', 'group-1', 'contest-1'] }),
+    )
+  })
+})
+
+describe('useUnregisterFromContest', () => {
+  it('invalida registrationStatus, contestDetail y registrations al darse de baja', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useUnregisterFromContest(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-1' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: contestKeys.registrationStatus('group-1', 'contest-1') }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: contestKeys.detail('group-1', 'contest-1') }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'registrations', 'group-1', 'contest-1'] }),
+    )
   })
 })

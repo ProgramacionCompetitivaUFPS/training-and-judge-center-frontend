@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser, useLogout } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
-import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired } from '@/lib/tokenStore'
+import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired, hasSessionMark, clearSessionMark } from '@/lib/tokenStore'
 import { refreshSession } from '@/api/users'
 import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
@@ -13,21 +13,23 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
-async function refreshWithRetry(isCancelled: () => boolean, maxAttempts = 3): Promise<string | null> {
+type RefreshResult = { ok: true; token: string } | { ok: false; definitive: boolean }
+
+async function refreshWithRetry(isCancelled: () => boolean, maxAttempts = 3): Promise<RefreshResult> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    if (isCancelled()) return null
+    if (isCancelled()) return { ok: false, definitive: false }
     try {
       const res = await refreshSession()
-      return res.token
+      return { ok: true, token: res.token }
     } catch (err) {
       const transient = !(err instanceof ApiClientError) || err.status >= 500
-      if (!transient) return null
+      if (!transient) return { ok: false, definitive: true }
       if (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, attempt * 500))
       }
     }
   }
-  return null
+  return { ok: false, definitive: false }
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -47,9 +49,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let cancelled = false
-    refreshWithRetry(() => cancelled).then((token) => {
+    const noMark: RefreshResult = { ok: false, definitive: false }
+    const task = hasSessionMark()
+      ? refreshWithRetry(() => cancelled)
+      : Promise.resolve(noMark)
+    task.then((result) => {
       if (cancelled) return
-      if (token) setAccessToken(token)
+      if (result.ok) {
+        setAccessToken(result.token)
+      } else if (result.definitive && hasSessionMark()) {
+        clearSessionMark()
+      }
       setBootstrapping(false)
     })
     return () => {
@@ -59,6 +69,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     return subscribeSessionExpired(() => {
+      clearSessionMark()
       toast({
         variant: 'error',
         title: 'Sesión expirada',

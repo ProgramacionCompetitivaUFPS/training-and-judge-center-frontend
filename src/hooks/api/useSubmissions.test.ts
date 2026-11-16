@@ -12,6 +12,9 @@ import {
   useMySubmissions,
   useProblemSubmissions,
   useUpdateSubmissionVisibility,
+  useSubmissionDetail,
+  useRejudgeSubmission,
+  useAdminRejudgeSubmission,
 } from './useSubmissions'
 
 function makeWrapper() {
@@ -87,5 +90,76 @@ describe('useUpdateSubmissionVisibility', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: submissionKeys.all }),
     )
+  })
+})
+
+describe('useSubmissionDetail', () => {
+  it('retorna el detalle de un envío para un id válido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => useSubmissionDetail('sub-001-aaaa-bbbb-cccc-ddddeeee0001'),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.id).toBe('sub-001-aaaa-bbbb-cccc-ddddeeee0001')
+  })
+
+  it('no hace fetch cuando el id está vacío', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useSubmissionDetail(''), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useRejudgeSubmission', () => {
+  beforeEach(() => {
+    server.use(
+      http.post('http://localhost:8080/api/submissions/:id/rejudge', ({ params }) => {
+        const { id } = params as { id: string }
+        return HttpResponse.json({ id, status: 'PENDING' })
+      }),
+    )
+  })
+
+  it('invalida el detalle y submissionKeys.all al rejuzgar', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRejudgeSubmission(), { wrapper })
+
+    result.current.mutate('sub-001-aaaa-bbbb-cccc-ddddeeee0001')
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: submissionKeys.detail('sub-001-aaaa-bbbb-cccc-ddddeeee0001') }),
+    )
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: submissionKeys.all }))
+  })
+})
+
+describe('useAdminRejudgeSubmission', () => {
+  beforeEach(() => {
+    server.use(
+      http.post('http://localhost:8080/api/admin/submissions/:id/rejudge', ({ params }) => {
+        const { id } = params as { id: string }
+        return HttpResponse.json({ id, status: 'PENDING' })
+      }),
+    )
+  })
+
+  it('invalida el detalle y submissionKeys.all al rejuzgar como admin', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useAdminRejudgeSubmission(), { wrapper })
+
+    result.current.mutate('sub-001-aaaa-bbbb-cccc-ddddeeee0001')
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: submissionKeys.detail('sub-001-aaaa-bbbb-cccc-ddddeeee0001') }),
+    )
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: submissionKeys.all }))
   })
 })
