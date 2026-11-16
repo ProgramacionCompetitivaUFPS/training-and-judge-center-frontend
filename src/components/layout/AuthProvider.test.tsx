@@ -243,6 +243,29 @@ describe('AuthProvider', () => {
     )
   })
 
+  it('preserva el session mark cuando el refresh falla con error 500 transitorio', async () => {
+    // Arrange — transient server error (5xx), mark should be preserved for next load
+    markSessionActive()
+    server.use(
+      http.post('http://localhost:8080/api/auth/refresh', () =>
+        new HttpResponse(null, { status: 500 }),
+      ),
+    )
+
+    // Act
+    render(
+      <Wrapper>
+        <AuthProvider>
+          <AuthConsumer />
+        </AuthProvider>
+      </Wrapper>,
+    )
+
+    // Assert — user is guest (refresh failed) but mark is preserved
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('guest'), { timeout: 5000 })
+    expect(hasSessionMark()).toBe(true)
+  })
+
   it('limpia el session mark cuando el refresh devuelve 401', async () => {
     // Arrange
     markSessionActive()
