@@ -2,15 +2,16 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeamContestRegistration } from './TeamContestRegistration'
-import type { MyTeamItem } from '@/types/team'
+import type { MyTeamItem, ContestTeamRegistrationsResponse } from '@/types/team'
+
+type TeamRegistration = ContestTeamRegistrationsResponse['teams'][number]
 
 const mockTeam: MyTeamItem = {
   id: 'team-1',
   name: 'Equipo Alpha',
   memberCount: 3,
-  role: 'CAPTAIN',
-  isActive: true,
-  groupId: 'group-1',
+  joinedAt: '2026-01-01T00:00:00Z',
+  createdAt: '2026-01-01T00:00:00Z',
 }
 
 const baseProps = {
@@ -25,7 +26,7 @@ const baseProps = {
   isFetchingEligibility: false,
   eligibilityFailed: false,
   onRetryEligibility: vi.fn(),
-  myRegistration: undefined,
+  myRegistration: undefined as TeamRegistration | undefined,
   currentUserNickname: 'luisadmin',
   onRegisterTeam: vi.fn(),
   onUpdateTeamRegistration: vi.fn(),
@@ -73,12 +74,13 @@ describe('TeamContestRegistration', () => {
     const myRegistration = {
       team: { id: 'team-1', name: 'Equipo Alpha' },
       selectedMembers: [
-        { id: 'u-1', nickname: 'luisadmin', name: 'Luis Admin' },
-        { id: 'u-2', nickname: 'mariacoach', name: 'Maria Coach' },
+        { id: 'u-1', nickname: 'luisadmin' },
+        { id: 'u-2', nickname: 'mariacoach' },
       ],
-    } as Parameters<typeof TeamContestRegistration>[0]['myRegistration'] & {}
+      registeredAt: '2026-01-01T00:00:00Z',
+    } as TeamRegistration
 
-    renderComp({ myRegistration: myRegistration as NonNullable<typeof myRegistration>, isRegistered: true })
+    renderComp({ myRegistration, isRegistered: true })
     expect(screen.getByText('Tu equipo está registrado')).toBeInTheDocument()
     expect(screen.getByText(/Equipo Alpha/)).toBeInTheDocument()
   })
@@ -88,12 +90,13 @@ describe('TeamContestRegistration', () => {
     const myRegistration = {
       team: { id: 'team-1', name: 'Equipo Alpha' },
       selectedMembers: [
-        { id: 'u-1', nickname: 'luisadmin', name: 'Luis Admin' },
-        { id: 'u-2', nickname: 'mariacoach', name: 'Maria Coach' },
+        { id: 'u-1', nickname: 'luisadmin' },
+        { id: 'u-2', nickname: 'mariacoach' },
       ],
-    } as Parameters<typeof TeamContestRegistration>[0]['myRegistration'] & {}
+      registeredAt: '2026-01-01T00:00:00Z',
+    } as TeamRegistration
 
-    renderComp({ myRegistration: myRegistration as NonNullable<typeof myRegistration>, isRegistered: true })
+    renderComp({ myRegistration, isRegistered: true })
     await user.click(screen.getByRole('button', { name: 'Cancelar registro' }))
     expect(screen.getByText('Cancelar registro del equipo')).toBeInTheDocument()
   })
@@ -104,13 +107,14 @@ describe('TeamContestRegistration', () => {
     const myRegistration = {
       team: { id: 'team-1', name: 'Equipo Alpha' },
       selectedMembers: [
-        { id: 'u-1', nickname: 'luisadmin', name: 'Luis Admin' },
-        { id: 'u-2', nickname: 'mariacoach', name: 'Maria Coach' },
+        { id: 'u-1', nickname: 'luisadmin' },
+        { id: 'u-2', nickname: 'mariacoach' },
       ],
-    } as Parameters<typeof TeamContestRegistration>[0]['myRegistration'] & {}
+      registeredAt: '2026-01-01T00:00:00Z',
+    } as TeamRegistration
 
     renderComp({
-      myRegistration: myRegistration as NonNullable<typeof myRegistration>,
+      myRegistration,
       isRegistered: true,
       onUnregisterTeam,
     })
