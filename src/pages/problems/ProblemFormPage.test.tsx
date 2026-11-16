@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
@@ -121,6 +121,110 @@ describe('ProblemFormPage', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /quitar el tag arrays/i })).not.toBeInTheDocument()
+    })
+  })
+})
+
+// The import goes through XMLHttpRequest (for upload progress), which MSW does not intercept.
+// Only the transport is replaced here; the hook, the API client and the page run for real.
+class MockXHR {
+  static last: MockXHR
+  open = vi.fn()
+  send = vi.fn()
+  setRequestHeader = vi.fn()
+  withCredentials = false
+  timeout = 0
+  status = 400
+  statusText = 'Bad Request'
+  responseText = ''
+  upload: { onprogress: ((e: ProgressEvent) => void) | null } = { onprogress: null }
+  onload: (() => void) | null = null
+  onerror: (() => void) | null = null
+  ontimeout: (() => void) | null = null
+
+  constructor() { MockXHR.last = this }
+
+  triggerLoad() { this.onload?.() }
+  triggerProgress(loaded: number, total: number) {
+    this.upload.onprogress?.({ loaded, total, lengthComputable: true } as ProgressEvent)
+  }
+}
+
+async function buildZipFile(): Promise<File> {
+  const { default: JSZip } = await import('jszip')
+  const zip = new JSZip()
+  zip.file('problem.yaml', 'name: "Suma de dos números"\ntime_limit: 1\nmemory_limit: 256\n')
+  const bytes = await zip.generateAsync({ type: 'arraybuffer' })
+  return new File([bytes], 'paquete.zip', { type: 'application/zip' })
+}
+
+// Fills the slug, picks a valid ZIP and confirms the review dialog, leaving the import in flight.
+async function startImport(user: ReturnType<typeof userEvent.setup>) {
+  renderCreate()
+  await user.type(screen.getByRole('textbox', { name: /slug/i }), 'suma-dos')
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+  if (!input) throw new Error('file input not found')
+  await user.upload(input, await buildZipFile())
+  const importButton = await screen.findByRole('button', { name: /^importar$/i })
+  await waitFor(() => expect(importButton).toBeEnabled())
+  await user.click(importButton)
+  await waitFor(() => expect(MockXHR.last).toBeDefined())
+}
+
+describe('ProblemFormPage importación de ZIP', () => {
+  beforeEach(() => {
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+    vi.stubGlobal('XMLHttpRequest', MockXHR)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    clearAccessToken()
+  })
+
+  it('muestra el mensaje traducido del detail code en el toast de error al importar', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    await startImport(user)
+    MockXHR.last.status = 400
+    MockXHR.last.responseText = JSON.stringify({
+      error: 'VALIDATION_ERROR',
+      message: 'Los datos enviados no son válidos',
+      details: [{ field: 'file', code: 'ZIP_TOO_LARGE', message: 'raw english' }],
+    })
+
+    // Act
+    MockXHR.last.triggerLoad()
+
+    // Assert
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'error',
+          description: 'El ZIP supera el tamaño máximo permitido (150 MB)',
+        }),
+      )
+    })
+  })
+
+  it('muestra la barra de progreso durante el import y la oculta al terminar', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    await startImport(user)
+    expect(screen.queryByText(/subiendo/i)).not.toBeInTheDocument()
+
+    // Act: upload progress reported by the XHR
+    act(() => MockXHR.last.triggerProgress(50, 100))
+
+    // Assert
+    expect(await screen.findByText('Subiendo… 50%')).toBeInTheDocument()
+
+    // Act: the request ends with an error
+    act(() => MockXHR.last.triggerLoad())
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.queryByText(/subiendo/i)).not.toBeInTheDocument()
     })
   })
 })

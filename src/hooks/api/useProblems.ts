@@ -56,11 +56,11 @@ export function useProblemDetail(slug: string) {
   })
 }
 
-export function useProblemStatistics(slug: string) {
+export function useProblemStatistics(slug: string, enabled = true) {
   return useQuery({
     queryKey: problemKeys.statistics(slug),
     queryFn: () => problemsApi.getProblemStatistics(slug),
-    enabled: !!slug,
+    enabled: !!slug && enabled,
   })
 }
 
@@ -265,7 +265,8 @@ export function useRemoveModifier() {
 export function useImportProblem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ file, slug }: { file: File; slug: string }) => problemsApi.importProblem(file, slug),
+    mutationFn: ({ file, slug, onProgress }: { file: File; slug: string; onProgress?: (pct: number) => void }) =>
+      problemsApi.importProblem(file, slug, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },

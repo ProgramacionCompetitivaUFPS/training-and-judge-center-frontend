@@ -43,7 +43,10 @@ export function ProblemSubmissionsPage() {
 
   const { user } = useAuth()
   const { data: problem } = useProblemDetail(slug || '')
-  const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(slug || '')
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(
+    slug || '',
+    problem?.status === 'PUBLISHED',
+  )
 
   const [filters, setFilters] = useState<ProblemSubmissionsParams>({ page: 1, limit: 5 })
   const [mineOnly, setMineOnly] = useState(false)

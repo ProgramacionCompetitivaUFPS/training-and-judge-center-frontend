@@ -179,6 +179,14 @@ describe('useProblemStatistics', () => {
 
     expect(result.current.isFetching).toBe(false)
   })
+
+  it('no hace fetch cuando enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblemStatistics('two-sum', false), { wrapper })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(result.current.data).toBeUndefined()
+  })
 })
 
 describe('useProblemTags', () => {

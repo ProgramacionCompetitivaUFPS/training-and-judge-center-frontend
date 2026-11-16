@@ -81,7 +81,7 @@ export function ProblemDetailPage() {
     : slug
 
   const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
-  const { data: stats } = useProblemStatistics(resolvedSlug || '')
+  const { data: stats } = useProblemStatistics(resolvedSlug || '', problem?.status === 'PUBLISHED')
   const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
   const publishMutation = usePublishProblem()
   const validateMutation = useValidateProblem()

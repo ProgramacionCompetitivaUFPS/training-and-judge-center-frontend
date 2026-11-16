@@ -131,11 +131,15 @@ export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
 
 // === Import ===
 
-export function importProblem(file: File, slug: string): Promise<ProblemDetail> {
+export function importProblem(
+  file: File,
+  slug: string,
+  onProgress?: (pct: number) => void,
+): Promise<ProblemDetail> {
   const formData = new FormData()
   formData.append('slug', slug)
   formData.append('file', file)
-  return apiClient.postFormData('/problems/import', formData)
+  return apiClient.postFormDataWithProgress('/problems/import', formData, onProgress)
 }
 
 // === Accessibility ===

@@ -264,3 +264,93 @@ describe('auto-refresh en 401', () => {
     expect(refreshCalls).toHaveLength(1)
   })
 })
+
+describe('postFormDataWithProgress', () => {
+  // MSW intercepts fetch, not XMLHttpRequest, so the XHR path is exercised through this mock.
+  class MockXHR {
+    static last: MockXHR
+    open = vi.fn()
+    send = vi.fn()
+    setRequestHeader = vi.fn()
+    withCredentials = false
+    timeout = 0
+    status = 200
+    responseText = ''
+    upload: { onprogress: ((e: ProgressEvent) => void) | null } = { onprogress: null }
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+    ontimeout: (() => void) | null = null
+
+    constructor() { MockXHR.last = this }
+
+    triggerLoad() { this.onload?.() }
+    triggerError() { this.onerror?.() }
+    triggerTimeout() { this.ontimeout?.() }
+    triggerProgress(loaded: number, total: number) {
+      this.upload.onprogress?.({ loaded, total, lengthComputable: true } as ProgressEvent)
+    }
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('XMLHttpRequest', MockXHR)
+    setAccessToken('test-token')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    clearAccessToken()
+  })
+
+  it('resuelve con el body parseado en éxito (200)', async () => {
+    const promise = apiClient.postFormDataWithProgress<{ slug: string }>('/problems/import', new FormData())
+    MockXHR.last.status = 200
+    MockXHR.last.responseText = '{"slug":"test"}'
+    MockXHR.last.triggerLoad()
+    await expect(promise).resolves.toEqual({ slug: 'test' })
+  })
+
+  it('llama a onProgress con el porcentaje correcto', () => {
+    const onProgress = vi.fn()
+    void apiClient.postFormDataWithProgress('/problems/import', new FormData(), onProgress)
+    MockXHR.last.triggerProgress(50, 100)
+    expect(onProgress).toHaveBeenCalledWith(50)
+  })
+
+  it('rechaza con ApiClientError con status y code en error HTTP 400', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.status = 400
+    MockXHR.last.responseText = '{"error":"VALIDATION_ERROR","message":"bad"}'
+    MockXHR.last.triggerLoad()
+    const error = await promise.catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).status).toBe(400)
+    expect((error as ApiClientError).code).toBe('VALIDATION_ERROR')
+  })
+
+  it('rechaza con ApiClientError NETWORK_ERROR en error de red', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.triggerError()
+    const error = await promise.catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).code).toBe('NETWORK_ERROR')
+  })
+
+  it('rechaza con ApiClientError TIMEOUT en timeout', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.triggerTimeout()
+    const error = await promise.catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).code).toBe('TIMEOUT')
+  })
+
+  it('incluye el header Authorization cuando hay token', () => {
+    void apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    expect(MockXHR.last.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer test-token')
+  })
+
+  it('no incluye Authorization cuando no hay token', () => {
+    clearAccessToken()
+    void apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    expect(MockXHR.last.setRequestHeader).not.toHaveBeenCalledWith('Authorization', expect.anything())
+  })
+})

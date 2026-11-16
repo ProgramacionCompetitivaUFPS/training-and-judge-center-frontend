@@ -12,11 +12,12 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { useCreateProblem, useUpdateProblem, useProblemDetail, useImportProblem, useProblemTags } from '@/hooks/api/useProblems'
 import { useAuth } from '@/hooks/useAuth'
 import { createProblemSchema, updateProblemSchema, type CreateProblemFormData, type UpdateProblemFormData } from '@/lib/schemas/problem'
-import { getErrorMessage } from '@/lib/errorMessages'
+import { getErrorMessage, ERROR_MESSAGES } from '@/lib/errorMessages'
+import { ApiClientError } from '@/lib/errors'
 import type { ProblemDetail, LanguageOverride } from '@/types/problem'
 import { useState, useRef, type ReactNode } from 'react'
 import { PROGRAMMING_LANGUAGES, PROBLEM_SOURCE_FILE_EXTENSIONS, DEFAULT_PROBLEM_TIME_LIMIT_MS, DEFAULT_PROBLEM_MEMORY_LIMIT_MB, DEFAULT_PROBLEM_STATEMENT_MARKDOWN } from '@/lib/constants'
-import { exceedsZipStructureCheckSize } from '@/lib/zipPeek'
+import { exceedsZipStructureCheckSize, exceedsUploadSizeLimit } from '@/lib/zipPeek'
 import { reviewProblemPackage, buildPackageTemplate, PACKAGE_LIMITS, type PackageReview } from '@/lib/problemPackage'
 import { saveBlobAs } from '@/lib/download'
 import { PackageReviewDialog } from '@/components/features/PackageReviewDialog'
@@ -33,6 +34,7 @@ export function ProblemFormPage() {
   const createMutation = useCreateProblem()
   const updateMutation = useUpdateProblem()
   const importMutation = useImportProblem()
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   if (isEditing && isLoadingProblem) {
     return (
@@ -126,19 +128,30 @@ export function ProblemFormPage() {
             )
           }}
           onImport={(file, slug) => {
-            importMutation.mutate({ file, slug }, {
-              onSuccess: (created) => {
-                toast({ variant: 'success', title: 'Problema importado correctamente' })
-                navigate(`/problems/${created.slug}`)
+            importMutation.mutate(
+              { file, slug, onProgress: setUploadProgress },
+              {
+                onSuccess: (created) => {
+                  setUploadProgress(null)
+                  toast({ variant: 'success', title: 'Problema importado correctamente' })
+                  navigate(`/problems/${created.slug}`)
+                },
+                onError: (err) => {
+                  setUploadProgress(null)
+                  const title = getErrorMessage(err, 'Error al importar')
+                  const description =
+                    err instanceof ApiClientError && err.details?.length
+                      ? (ERROR_MESSAGES[err.details[0].code ?? ''] ?? err.details[0].message)
+                      : undefined
+                  toast({ variant: 'error', title, description })
+                },
               },
-              onError: (err) => {
-                const msg = getErrorMessage(err, 'Error al importar')
-                toast({ variant: 'error', title: msg })
-              },
-            })
+            )
           }}
           isSubmitting={createMutation.isPending}
           isImporting={importMutation.isPending}
+          uploadProgress={uploadProgress}
+          onImportReset={() => importMutation.reset()}
           onCancel={() => navigate('/problems')}
         />
       )}
@@ -264,9 +277,11 @@ interface CreateFormProps {
   isSubmitting: boolean
   isImporting: boolean
   onCancel: () => void
+  uploadProgress: number | null
+  onImportReset: () => void
 }
 
-function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }: CreateFormProps) {
+function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel, uploadProgress, onImportReset }: CreateFormProps) {
   const { register, handleSubmit, formState: { errors }, control, setValue, getValues, trigger } = useForm<CreateProblemFormData>({
     resolver: zodResolver(createProblemSchema),
     defaultValues: {
@@ -304,6 +319,11 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
     const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
     if (extension !== '.zip') {
       toast({ variant: 'error', title: 'Formato de archivo incorrecto', description: 'El import espera un archivo .zip con el paquete del problema.' })
+      return
+    }
+
+    if (exceedsUploadSizeLimit(file)) {
+      toast({ variant: 'error', title: 'El ZIP es demasiado grande', description: 'El tamaño máximo permitido es 150 MB.' })
       return
     }
 
@@ -359,6 +379,20 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         </div>
       </div>
 
+      {uploadProgress !== null && (
+        <div className="flex items-center gap-3 mt-2 text-sm text-neutral-text-muted">
+          <div className="flex-1 h-1.5 bg-neutral-border rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-primary transition-all duration-300 ease-out"
+              style={{ width: `${Math.min(uploadProgress, 100)}%` }}
+            />
+          </div>
+          <span className="whitespace-nowrap tabular-nums w-28 text-right">
+            {uploadProgress < 100 ? `Subiendo… ${uploadProgress}%` : 'Procesando…'}
+          </span>
+        </div>
+      )}
+
       <PackageReviewDialog
         open={!!pendingImport}
         fileName={pendingImport?.file.name ?? ''}
@@ -366,7 +400,10 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel }:
         review={pendingImport?.review ?? null}
         unreviewed={!!pendingImport && !pendingImport.review}
         isImporting={isImporting}
-        onCancel={() => setPendingImport(null)}
+        onCancel={() => {
+          setPendingImport(null)
+          onImportReset()
+        }}
         onConfirm={() => {
           if (!pendingImport) return
           onImport(pendingImport.file, getValues('slug'))

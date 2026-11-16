@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockProblems } from '@/mocks/data'
 import { ProblemSubmissionsPage } from './ProblemSubmissionsPage'
 
 const auth = { userId: 'user-luisadmin' }
@@ -76,5 +78,29 @@ describe('ProblemSubmissionsPage', () => {
       expect(screen.getByRole('table')).toBeInTheDocument()
     })
     expect(screen.queryAllByText('Privado')).toHaveLength(0)
+  })
+
+  it('no solicita estadísticas cuando el problema está en DRAFT', async () => {
+    // Arrange
+    const twoSum = mockProblems.find((p) => p.slug === SLUG)
+    let statisticsRequests = 0
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/:slug', () =>
+        HttpResponse.json({ ...twoSum, status: 'DRAFT' }),
+      ),
+      http.get('http://localhost:8080/api/problems/p/:slug/statistics', () => {
+        statisticsRequests++
+        return HttpResponse.json({})
+      }),
+    )
+
+    // Act
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByRole('table')).toBeInTheDocument()
+    })
+
+    // Assert
+    expect(statisticsRequests).toBe(0)
   })
 })
