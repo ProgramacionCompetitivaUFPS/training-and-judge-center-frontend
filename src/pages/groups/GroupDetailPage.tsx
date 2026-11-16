@@ -127,7 +127,7 @@ export function GroupDetailPage() {
     enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
   const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, limit: 10 })
-  const { data: invitationsData } = useInvitations(id!, invitationsPageQuery)
+  const { data: invitationsData } = useInvitations(id!, invitationsPageQuery, { enabled: canManage })
   const { data: materialsData } = useMaterials(id!, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
   const [contestsPageQuery, setContestsPageQuery] = useState({ page: 1, limit: 10 })
