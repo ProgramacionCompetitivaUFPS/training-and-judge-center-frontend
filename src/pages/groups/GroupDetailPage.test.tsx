@@ -129,6 +129,32 @@ describe('GroupDetailPage', () => {
     })
   })
 
+  it('does not call GET /invitations for a CONTESTANT member (non-lead)', async () => {
+    // Arrange — CONTESTANT member of group-2 (role MEMBER, not LEAD or ADMIN)
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    const invitationsSpy = vi.fn(() =>
+      HttpResponse.json({ invitations: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2/invitations', invitationsSpy),
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-2')
+
+    // Wait for the page to render (tabs visible means group detail loaded)
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+    })
+
+    // Assert — backend never receives the invitations request from a non-manager
+    expect(invitationsSpy).not.toHaveBeenCalled()
+  })
+
   it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
     // Override group-2 to use joinPolicy: 'REQUEST' so the tab would be visible if canManage=true
     // This ensures the assertion tests permissions, not joinPolicy

@@ -16,6 +16,7 @@ import {
   useGroupMembers,
   useJoinRequests,
   useMyJoinRequest,
+  useInvitations,
   useCreateGroup,
   useUpdateGroup,
   useDeleteGroup,
@@ -115,6 +116,26 @@ describe('useGroupMembers', () => {
     const { result } = renderHook(() => useGroupMembers(''), { wrapper })
 
     expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useInvitations', () => {
+  it('retorna invitaciones de un grupo válido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.invitations.length).toBeGreaterThan(0)
+    expect(result.current.data?.invitations[0].groupId).toBe('group-1')
+  })
+
+  it('no hace fetch cuando options.enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1', undefined, { enabled: false }), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
   })
 })
 
