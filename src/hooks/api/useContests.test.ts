@@ -269,6 +269,38 @@ describe('useUpdateContest', () => {
     expect((cached as { name?: string })?.name).toBe('Nombre Actualizado')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
   })
+
+  it('conserva los problems del PUT en caché con el detalle activo sin refetch inmediato del detalle', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    // Montar el detalle primero para que la query esté activa como observador
+    const { result: detailHook } = renderHook(
+      () => useContestDetail('group-1', 'contest-1'),
+      { wrapper },
+    )
+    await waitFor(() => expect(detailHook.current.isSuccess).toBe(true))
+
+    const { result: mutHook } = renderHook(() => useUpdateContest(), { wrapper })
+    mutHook.current.mutate({ groupId: 'group-1', contestId: 'contest-1', data: { name: 'Nombre Actualizado' } })
+    await waitFor(() => expect(mutHook.current.isSuccess).toBe(true))
+
+    // El cache tiene la respuesta del PUT con el array de problems intacto
+    const cached = queryClient.getQueryData(contestKeys.detail('group-1', 'contest-1')) as {
+      name?: string
+      problems?: unknown[]
+    } | undefined
+    expect(cached?.name).toBe('Nombre Actualizado')
+    expect(Array.isArray(cached?.problems)).toBe(true)
+
+    // La invalidación del detalle usó refetchType:'none' para no disparar un GET inmediato
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: contestKeys.detail('group-1', 'contest-1'),
+        refetchType: 'none',
+      }),
+    )
+  })
 })
 
 describe('useDeleteContest', () => {
