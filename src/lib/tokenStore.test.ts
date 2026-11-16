@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { waitFor } from '@testing-library/react'
 
 import {
   getAccessToken,
@@ -163,5 +164,52 @@ describe('session mark (localStorage flag)', () => {
 
   it('clearSessionMark no lanza si el flag no existe', () => {
     expect(() => clearSessionMark()).not.toThrow()
+  })
+})
+
+describe('session mark — localStorage no disponible', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    localStorage.clear()
+  })
+
+  it('markSessionActive no lanza cuando localStorage lanza', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    expect(() => markSessionActive()).not.toThrow()
+  })
+
+  it('clearSessionMark no lanza cuando localStorage lanza', () => {
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    expect(() => clearSessionMark()).not.toThrow()
+  })
+
+  it('hasSessionMark devuelve false cuando localStorage lanza', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    expect(hasSessionMark()).toBe(false)
+  })
+})
+
+describe('session mark — BroadcastChannel logout', () => {
+  let sender: BroadcastChannel
+
+  afterEach(() => {
+    sender?.close()
+    localStorage.clear()
+  })
+
+  it('limpia el session mark cuando otra pestaña hace logout', async () => {
+    markSessionActive()
+    expect(hasSessionMark()).toBe(true)
+
+    sender = new BroadcastChannel('auth-logout')
+    sender.postMessage('logout')
+
+    await waitFor(() => expect(hasSessionMark()).toBe(false))
   })
 })
