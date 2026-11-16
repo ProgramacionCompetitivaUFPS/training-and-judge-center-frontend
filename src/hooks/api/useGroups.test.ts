@@ -117,6 +117,23 @@ describe('useGroupMembers', () => {
 
     expect(result.current.isFetching).toBe(false)
   })
+
+  it('no hace fetch cuando options.enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useGroupMembers('group-1', undefined, { enabled: false }), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('sí hace fetch cuando options.enabled es true explícito', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useGroupMembers('group-1', undefined, { enabled: true }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.members.length).toBeGreaterThan(0)
+  })
 })
 
 describe('useInvitations', () => {

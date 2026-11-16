@@ -59,6 +59,7 @@ export interface ContestListItem {
   participantCount: number
   isRegistered: boolean
   problemCount: number
+  userGroupRole: 'LEAD' | 'MEMBER' | null
   group: { id: string; name: string }
 }
 

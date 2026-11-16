@@ -1425,6 +1425,7 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     participantCount: c.participantCount,
     isRegistered: c.isRegistered,
     problemCount: c.problems.length,
+    userGroupRole: 'MEMBER',
     group: c.group,
   }
 }

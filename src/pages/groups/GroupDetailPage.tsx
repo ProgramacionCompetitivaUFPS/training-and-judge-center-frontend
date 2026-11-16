@@ -109,10 +109,11 @@ export function GroupDetailPage() {
   const { user } = useAuth()
 
   const { data: group, isLoading, error } = useGroupDetail(id!)
-  const { data: membersData, error: membersError } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
   const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
+  // Only group members (and admins) can list members — backend answers 403 to non-members.
+  const { data: membersData } = useGroupMembers(id!, undefined, { enabled: isMember || canManage })
   const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
   const [requestsPageQuery, setRequestsPageQuery] = useState({ page: 1, limit: 10 })
   // Only leads/admins can list requests (the backend answers 403 to anyone else).
@@ -421,7 +422,7 @@ export function GroupDetailPage() {
             {(!membersData || membersData.members.length === 0) && (
               <TableRow>
                 <TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">
-                  {membersError instanceof ApiClientError && membersError.code === 'INSUFFICIENT_PERMISSIONS'
+                  {!isMember && !canManage
                     ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
                     : 'No hay miembros'}
                 </TableCell>

@@ -148,6 +148,24 @@ describe('ContestDetailPage', () => {
     expect(screen.queryByRole('button', { name: /editar competencia/i })).not.toBeInTheDocument()
   })
 
+  it('group LEAD (non-admin) does not see "Registrar equipo" button for SCHEDULED MIXED contest', async () => {
+    // contest-1 is SCHEDULED + MIXED; COACH with LEAD membership → registrationBlock='lead' → showTeamRegistration=false
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-1', 'contest-1')
+    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
+
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/como líder del grupo organizas esta competencia/i)).toBeInTheDocument()
+  })
+
   it('FINISHED contest shows "Finalizado" indicator', async () => {
     // contest-3 is FINISHED; "Finalizado" appears in both the status badge and the timer area
     renderPage('group-1', 'contest-3')

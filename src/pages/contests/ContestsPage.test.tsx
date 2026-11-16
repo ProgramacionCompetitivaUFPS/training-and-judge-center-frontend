@@ -61,6 +61,43 @@ describe('ContestsPage', () => {
     })
   })
 
+  it('shows "Ver competencia" instead of "Registrarse" for a LEAD in a SCHEDULED contest', async () => {
+    // Arrange — override the contests list to include one SCHEDULED contest where the user is LEAD
+    server.use(
+      http.get('http://localhost:8080/api/contests', () =>
+        HttpResponse.json({
+          items: [{
+            id: 'contest-lead',
+            name: 'Competencia Liderada',
+            description: null,
+            startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+            endTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 3600000).toISOString(),
+            duration: 3600,
+            status: 'SCHEDULED',
+            penalty: 20,
+            freezeMinutes: null,
+            enablePostContest: false,
+            participationMode: 'INDIVIDUAL',
+            participantCount: 0,
+            isRegistered: false,
+            problemCount: 0,
+            userGroupRole: 'LEAD',
+            group: { id: 'group-1', name: 'ICPC Colombia' },
+          }],
+          pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+        }),
+      ),
+    )
+    renderPage()
+
+    // Assert — LEAD sees "Ver competencia", not "Registrarse"
+    await waitFor(() => {
+      expect(screen.getAllByText('Competencia Liderada').length).toBeGreaterThan(0)
+    })
+    expect(screen.queryByText('Registrarse')).not.toBeInTheDocument()
+    expect(screen.getByText('Ver competencia')).toBeInTheDocument()
+  })
+
   it('shows empty state when server returns no contests', async () => {
     // Arrange
     server.use(

@@ -419,7 +419,7 @@ export function ContestDetailPage() {
   // SCHEDULED: Hero countdown layout
   // ═══════════════════════════════════════════════
   if (contest.status === 'SCHEDULED') {
-    const showTeamRegistration = contest.participationMode !== 'INDIVIDUAL'
+    const showTeamRegistration = contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
 
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
