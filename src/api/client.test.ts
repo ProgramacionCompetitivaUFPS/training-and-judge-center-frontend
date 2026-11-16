@@ -225,6 +225,23 @@ describe('auto-refresh en 401', () => {
     expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1)
   })
 
+  it('no notifica sesión expirada cuando el refresh falla con 5xx transitorio', async () => {
+    let call = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      call++
+      if (call === 1)
+        return Promise.resolve(makeFetchResponse(401, { error: 'UNAUTHORIZED', message: 'unauth' }))
+      return Promise.resolve(makeFetchResponse(500, { error: 'INTERNAL_ERROR' }))
+    })
+
+    const sessionExpiredListener = vi.fn()
+    const unsub = subscribeSessionExpired(sessionExpiredListener)
+
+    await expect(apiClient.get('/protected')).rejects.toBeInstanceOf(ApiClientError)
+    expect(sessionExpiredListener).not.toHaveBeenCalled()
+    unsub()
+  })
+
   it('deduplica llamadas concurrentes al refresh (solo un /auth/refresh)', async () => {
     let call = 0
     vi.spyOn(globalThis, 'fetch').mockImplementation((url: RequestInfo | URL) => {

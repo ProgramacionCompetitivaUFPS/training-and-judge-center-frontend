@@ -7,6 +7,7 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { ApiClientError } from '@/lib/errors'
 import { setAccessToken, clearAccessToken, getAccessToken } from '@/lib/tokenStore'
+import * as tokenStore from '@/lib/tokenStore'
 import { mockCurrentUser, mockUsers } from '@/mocks/data'
 import type { LoginRequest, UpdateProfileRequest } from '@/types/user'
 import {
@@ -15,6 +16,7 @@ import {
   useUserProfile,
   useSearchUsers,
   useLogin,
+  useGoogleLogin,
   useLogout,
   useUpdateProfile,
   useRegister,
@@ -258,5 +260,70 @@ describe('useAdminUpdateUser', () => {
     // Assert
     expect(result.current.data?.role).toBe('ADMIN')
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: userKeys.all }))
+  })
+})
+
+describe('session mark — login y logout', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('useLogin llama markSessionActive al tener éxito', async () => {
+    // Arrange
+    clearAccessToken()
+    const spy = vi.spyOn(tokenStore, 'markSessionActive')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useLogin(), { wrapper })
+
+    // Act
+    result.current.mutate(baseLogin)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('useGoogleLogin llama markSessionActive al tener éxito', async () => {
+    // Arrange
+    clearAccessToken()
+    const spy = vi.spyOn(tokenStore, 'markSessionActive')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useGoogleLogin(), { wrapper })
+
+    // Act
+    result.current.mutate({ id_token: 'mock-google-token', rememberSession: false })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('useLogout llama clearSessionMark al finalizar', async () => {
+    // Arrange
+    const spy = vi.spyOn(tokenStore, 'clearSessionMark')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useLogout(), { wrapper })
+
+    // Act
+    result.current.mutate()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('useConfirmDeactivation llama clearSessionMark al tener éxito', async () => {
+    // Arrange
+    const spy = vi.spyOn(tokenStore, 'clearSessionMark')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useConfirmDeactivation(), { wrapper })
+
+    // Act
+    result.current.mutate({ code: 'deact-code-123' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(spy).toHaveBeenCalledTimes(1)
   })
 })
