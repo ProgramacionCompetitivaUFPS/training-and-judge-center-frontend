@@ -160,10 +160,10 @@ describe('ContestDetailPage', () => {
       ),
     )
     renderPage('group-1', 'contest-1')
-    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
 
+    // Wait for the block message to confirm group membership has loaded before asserting the button
+    await screen.findByText(/como líder del grupo organizas esta competencia/i)
     expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/como líder del grupo organizas esta competencia/i)).toBeInTheDocument()
   })
 
   it('FINISHED contest shows "Finalizado" indicator', async () => {

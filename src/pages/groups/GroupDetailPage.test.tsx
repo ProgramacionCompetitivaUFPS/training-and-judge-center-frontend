@@ -129,6 +129,28 @@ describe('GroupDetailPage', () => {
     })
   })
 
+  it('calls GET /members for a CONTESTANT who is a plain member (not admin/lead)', async () => {
+    // Arrange — CONTESTANT member of group-2 (role MEMBER, not LEAD or ADMIN): tests the isMember branch
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    const membersSpy = vi.fn(() =>
+      HttpResponse.json({ members: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2/members', membersSpy),
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-2')
+
+    await waitFor(() => {
+      expect(membersSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('calls GET /members for a group member', async () => {
     // Arrange — mockCurrentUser is ADMIN and group-1 userMembership.isMember = true → enabled
     const membersSpy = vi.fn(() =>
