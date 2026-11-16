@@ -93,6 +93,7 @@ export function useMyJoinRequest(groupId: string, options?: { enabled?: boolean 
   })
 }
 
+// Only LEAD/ADMIN can list invitations — callers must pass { enabled: canManage } to avoid 403.
 export function useInvitations(groupId: string, params?: { page?: number; limit?: number }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...groupKeys.invitations(groupId), params],

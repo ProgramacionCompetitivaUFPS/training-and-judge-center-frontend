@@ -137,6 +137,15 @@ describe('useInvitations', () => {
     expect(result.current.isFetching).toBe(false)
     expect(result.current.data).toBeUndefined()
   })
+
+  it('sí hace fetch cuando options.enabled es true explícito', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1', undefined, { enabled: true }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.invitations.length).toBeGreaterThan(0)
+  })
 })
 
 describe('useJoinRequests', () => {

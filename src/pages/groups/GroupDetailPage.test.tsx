@@ -129,6 +129,22 @@ describe('GroupDetailPage', () => {
     })
   })
 
+  it('calls GET /invitations for a group LEAD / platform ADMIN', async () => {
+    // Arrange — mockCurrentUser is ADMIN and group-1 userMembership.role = 'LEAD' → canManage = true
+    const invitationsSpy = vi.fn(() =>
+      HttpResponse.json({ invitations: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1/invitations', invitationsSpy),
+    )
+    renderPage('group-1')
+
+    // Assert — backend receives the invitations request once the group detail resolves
+    await waitFor(() => {
+      expect(invitationsSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('does not call GET /invitations for a CONTESTANT member (non-lead)', async () => {
     // Arrange — CONTESTANT member of group-2 (role MEMBER, not LEAD or ADMIN)
     _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
@@ -146,13 +162,12 @@ describe('GroupDetailPage', () => {
     )
     renderPage('group-2')
 
-    // Wait for the page to render (tabs visible means group detail loaded)
+    // Wait for the page to fully settle (group detail loaded + any enabled queries fired)
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+      // Assert inside waitFor so re-renders after group load are included in the check
+      expect(invitationsSpy).not.toHaveBeenCalled()
     })
-
-    // Assert — backend never receives the invitations request from a non-manager
-    expect(invitationsSpy).not.toHaveBeenCalled()
   })
 
   it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
