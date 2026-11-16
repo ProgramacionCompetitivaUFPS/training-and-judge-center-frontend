@@ -146,9 +146,12 @@ export function ContestDetailPage() {
       : ownerGroup?.userMembership.role === 'LEAD' ? 'lead'
         : ownerGroup && !ownerGroup.userMembership.isMember ? 'nonmember'
           : null
+  // Suppress CTAs until the group membership is known — avoids a flash of "Registrarse"/"Registrar equipo"
+  // for leads/admins/non-members while ownerGroup is still loading (registrationBlock is null during that window).
+  const groupMembershipKnown = !groupId || ownerGroup !== undefined
   const offersIndividualRegistration = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
-  const canRegisterIndividual = offersIndividualRegistration && !registrationBlock
+  const canRegisterIndividual = groupMembershipKnown && offersIndividualRegistration && !registrationBlock
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
@@ -419,7 +422,7 @@ export function ContestDetailPage() {
   // SCHEDULED: Hero countdown layout
   // ═══════════════════════════════════════════════
   if (contest.status === 'SCHEDULED') {
-    const showTeamRegistration = contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
+    const showTeamRegistration = groupMembershipKnown && contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
 
     return (
       <AppLayout breadcrumbs={breadcrumbs}>

@@ -166,6 +166,30 @@ describe('ContestDetailPage', () => {
     expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
   })
 
+  it('"Registrar equipo" does not flash before group membership loads for a LEAD', async () => {
+    // Verifies that groupMembershipKnown gates showTeamRegistration during the loading window.
+    // If the guard were absent, the button would appear briefly while ownerGroup is undefined.
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    let resolveGroup!: (v: Response) => void
+    const groupPending = new Promise<Response>((res) => { resolveGroup = res })
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () => groupPending),
+    )
+    renderPage('group-1', 'contest-1')
+
+    // Contest is loaded but group is still pending — button must not appear yet
+    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+
+    // Now resolve the group as LEAD and confirm the button still doesn't appear
+    resolveGroup(HttpResponse.json({
+      ...mockGroupDetails['group-1'],
+      userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+    }))
+    await screen.findByText(/como líder del grupo organizas esta competencia/i)
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+  })
+
   it('FINISHED contest shows "Finalizado" indicator', async () => {
     // contest-3 is FINISHED; "Finalizado" appears in both the status badge and the timer area
     renderPage('group-1', 'contest-3')

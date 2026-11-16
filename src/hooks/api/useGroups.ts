@@ -90,7 +90,6 @@ export function useMyJoinRequest(groupId: string, options?: { enabled?: boolean 
     queryKey: [...groupKeys.joinRequests(groupId), 'me'],
     queryFn: () => groupsApi.getMyJoinRequest(groupId),
     enabled: (options?.enabled ?? true) && !!groupId,
-    retry: false,
   })
 }
 

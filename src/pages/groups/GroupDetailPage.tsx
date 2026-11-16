@@ -332,7 +332,7 @@ export function GroupDetailPage() {
   const buildPrimaryAction = () => {
     if (!group) return undefined
     if (isMember) return undefined
-    if (myJoinRequest?.status === 'PENDING') {
+    if (myJoinRequest?.request?.status === 'PENDING') {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }
     if (group.joinPolicy === 'OPEN') {
@@ -1010,10 +1010,10 @@ export function GroupDetailPage() {
             <DialogTitle>Solicitar ingreso</DialogTitle>
             <DialogDescription>Puedes agregar un mensaje opcional para los líderes del grupo.</DialogDescription>
           </DialogHeader>
-          {myJoinRequest?.status === 'REJECTED' && (
+          {myJoinRequest?.request?.status === 'REJECTED' && (
             <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
               Tu solicitud anterior a este grupo fue rechazada
-              {myJoinRequest.createdAt && ` el ${new Date(myJoinRequest.createdAt).toLocaleDateString('es')}`}.
+              {myJoinRequest.request.createdAt && ` el ${new Date(myJoinRequest.request.createdAt).toLocaleDateString('es')}`}.
               Puedes intentarlo de nuevo.
             </div>
           )}
