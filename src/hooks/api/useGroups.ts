@@ -63,11 +63,12 @@ export function useMyGroups(params?: MyGroupsParams) {
   })
 }
 
-export function useGroupMembers(groupId: string, params?: { page?: number; limit?: number }) {
+// Only group members can list members — callers must pass { enabled: isMember } to avoid 403.
+export function useGroupMembers(groupId: string, params?: { page?: number; limit?: number }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...groupKeys.members(groupId), params],
     queryFn: () => groupsApi.getGroupMembers(groupId, params),
-    enabled: !!groupId,
+    enabled: !!groupId && (options?.enabled ?? true),
   })
 }
 
@@ -89,7 +90,6 @@ export function useMyJoinRequest(groupId: string, options?: { enabled?: boolean 
     queryKey: [...groupKeys.joinRequests(groupId), 'me'],
     queryFn: () => groupsApi.getMyJoinRequest(groupId),
     enabled: (options?.enabled ?? true) && !!groupId,
-    retry: false,
   })
 }
 

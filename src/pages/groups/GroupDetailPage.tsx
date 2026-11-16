@@ -109,10 +109,11 @@ export function GroupDetailPage() {
   const { user } = useAuth()
 
   const { data: group, isLoading, error } = useGroupDetail(id!)
-  const { data: membersData, error: membersError } = useGroupMembers(id!)
   const isLead = group?.userMembership.role === 'LEAD'
   const canManage = isLead || user?.role === 'ADMIN'
   const isMember = group?.userMembership.isMember ?? false
+  // Only group members (and admins) can list members — backend answers 403 to non-members.
+  const { data: membersData } = useGroupMembers(id!, undefined, { enabled: isMember || canManage })
   const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
   const [requestsPageQuery, setRequestsPageQuery] = useState({ page: 1, limit: 10 })
   // Only leads/admins can list requests (the backend answers 403 to anyone else).
@@ -331,7 +332,7 @@ export function GroupDetailPage() {
   const buildPrimaryAction = () => {
     if (!group) return undefined
     if (isMember) return undefined
-    if (myJoinRequest?.status === 'PENDING') {
+    if (myJoinRequest?.request?.status === 'PENDING') {
       return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
     }
     if (group.joinPolicy === 'OPEN') {
@@ -421,7 +422,7 @@ export function GroupDetailPage() {
             {(!membersData || membersData.members.length === 0) && (
               <TableRow>
                 <TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">
-                  {membersError instanceof ApiClientError && membersError.code === 'INSUFFICIENT_PERMISSIONS'
+                  {!isMember && !canManage
                     ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
                     : 'No hay miembros'}
                 </TableCell>
@@ -1009,10 +1010,10 @@ export function GroupDetailPage() {
             <DialogTitle>Solicitar ingreso</DialogTitle>
             <DialogDescription>Puedes agregar un mensaje opcional para los líderes del grupo.</DialogDescription>
           </DialogHeader>
-          {myJoinRequest?.status === 'REJECTED' && (
+          {myJoinRequest?.request?.status === 'REJECTED' && (
             <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
               Tu solicitud anterior a este grupo fue rechazada
-              {myJoinRequest.createdAt && ` el ${new Date(myJoinRequest.createdAt).toLocaleDateString('es')}`}.
+              {myJoinRequest.request.createdAt && ` el ${new Date(myJoinRequest.request.createdAt).toLocaleDateString('es')}`}.
               Puedes intentarlo de nuevo.
             </div>
           )}

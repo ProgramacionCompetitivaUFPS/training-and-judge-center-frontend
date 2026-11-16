@@ -213,11 +213,8 @@ export const groupsHandlers = [
     const token = auth?.replace('Bearer ', '') || ''
     const userNickname = token.replace('mock-jwt-token-', '')
 
-    const myRequest = (mockJoinRequests[groupId] || []).find((r) => r.requester.nickname === userNickname)
-    if (!myRequest) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'No tienes una solicitud para este grupo' }, { status: 404 })
-    }
-    return HttpResponse.json(myRequest)
+    const myRequest = (mockJoinRequests[groupId] || []).find((r) => r.requester.nickname === userNickname) ?? null
+    return HttpResponse.json({ request: myRequest })
   }),
 
   // Cancel join request

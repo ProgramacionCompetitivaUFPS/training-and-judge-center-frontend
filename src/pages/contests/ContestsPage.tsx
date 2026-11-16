@@ -151,6 +151,7 @@ interface ContestCardProps {
 function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
   const isActive = contest.status === 'ACTIVE'
   const isFinished = contest.status === 'FINISHED'
+  const canRegister = contest.status === 'SCHEDULED' && !contest.isRegistered && contest.userGroupRole === 'MEMBER'
 
   return (
     <Card
@@ -231,9 +232,15 @@ function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
               Gestionar inscripción
             </span>
           )}
-          {contest.status === 'SCHEDULED' && !contest.isRegistered && (
+          {canRegister && (
             <span className="w-full bg-neutral-surface border-2 border-brand-primary/20 text-brand-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-brand-primary-muted transition-colors">
               Registrarse
+            </span>
+          )}
+          {contest.status === 'SCHEDULED' && !contest.isRegistered && !canRegister && (
+            <span className="w-full bg-neutral-surface border border-neutral-border text-neutral-text-primary py-3 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 group-hover/card:bg-neutral-background transition-colors">
+              Ver competencia
+              <ArrowRight className="h-4 w-4" />
             </span>
           )}
           {isFinished && (
