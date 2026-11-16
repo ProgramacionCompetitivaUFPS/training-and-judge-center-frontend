@@ -65,7 +65,7 @@ export function ContestDetailPage() {
   const { data: contest, isLoading, error, refetch: refetchContest } = useContestDetail(groupId || '', id || '')
   // Flip to the next state (problems visible / results) as soon as the countdown hits zero.
   const handleCountdownEnd = useCallback(() => { void refetchContest() }, [refetchContest])
-  const { data: ownerGroup } = useGroupDetail(groupId || '')
+  const { data: ownerGroup, error: groupError, refetch: refetchGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
@@ -442,8 +442,19 @@ export function ContestDetailPage() {
                 onComplete={handleCountdownEnd}
               />
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                {!groupMembershipKnown && (
+                {!groupMembershipKnown && !groupError && (
                   <div className="h-11 w-36 bg-white/20 animate-pulse rounded-pill" />
+                )}
+                {!groupMembershipKnown && groupError && (
+                  <div className="flex items-center gap-2 text-sm text-white/70">
+                    <span>No se pudo cargar tu membresía.</span>
+                    <button
+                      onClick={() => void refetchGroup()}
+                      className="underline hover:text-white transition-colors"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
                 )}
                 {canRegisterIndividual && (
                   <Button variant="primary" size="lg" onClick={handleRegister} isLoading={registerMutation.isPending}>

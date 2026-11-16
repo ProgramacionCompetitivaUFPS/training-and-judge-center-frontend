@@ -190,6 +190,22 @@ describe('ContestDetailPage', () => {
     expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
   })
 
+  it('shows retry message when group query fails while contest is loaded', async () => {
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+      ),
+    )
+    renderPage('group-1', 'contest-1')
+
+    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
+    await waitFor(() => {
+      expect(screen.getByText(/no se pudo cargar tu membresía/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /registrarse/i })).not.toBeInTheDocument()
+  })
+
   it('FINISHED contest shows "Finalizado" indicator', async () => {
     // contest-3 is FINISHED; "Finalizado" appears in both the status badge and the timer area
     renderPage('group-1', 'contest-3')
