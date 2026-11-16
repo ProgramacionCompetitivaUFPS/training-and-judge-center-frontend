@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as usersApi from '@/api/users'
-import { setAccessToken, clearAccessToken, notifyLogout, setLoggingOut } from '@/lib/tokenStore'
+import { setAccessToken, clearAccessToken, notifyLogout, setLoggingOut, markSessionActive, clearSessionMark } from '@/lib/tokenStore'
 import type {
   LoginRequest,
   GoogleLoginRequest,
@@ -102,6 +102,7 @@ export function useLogin() {
     mutationFn: (data: LoginRequest) => usersApi.login(data),
     onSuccess: (response) => {
       setAccessToken(response.token)
+      markSessionActive()
       queryClient.setQueryData(userKeys.me, response.user)
       // login response doesn't include googleLinked — refetch to pick it up
       queryClient.invalidateQueries({ queryKey: userKeys.me })
@@ -115,6 +116,7 @@ export function useGoogleLogin() {
     mutationFn: (data: GoogleLoginRequest) => usersApi.googleLogin(data),
     onSuccess: (response) => {
       setAccessToken(response.token)
+      markSessionActive()
       queryClient.setQueryData(userKeys.me, response.user)
       queryClient.invalidateQueries({ queryKey: userKeys.me })
     },
@@ -221,6 +223,7 @@ export function useConfirmDeactivation() {
     mutationFn: (data: ConfirmDeactivationRequest) => usersApi.confirmDeactivation(data),
     onSuccess: () => {
       clearAccessToken()
+      clearSessionMark()
     },
   })
 }
@@ -234,6 +237,7 @@ export function useLogout() {
     },
     onSettled: () => {
       clearAccessToken()
+      clearSessionMark()
       notifyLogout()
       queryClient.clear()
       setLoggingOut(false)
