@@ -151,7 +151,7 @@ interface ContestCardProps {
 function ContestCard({ contest, href, showStatus = false }: ContestCardProps) {
   const isActive = contest.status === 'ACTIVE'
   const isFinished = contest.status === 'FINISHED'
-  const canRegister = contest.status === 'SCHEDULED' && !contest.isRegistered && contest.userGroupRole !== 'LEAD'
+  const canRegister = contest.status === 'SCHEDULED' && !contest.isRegistered && contest.userGroupRole === 'MEMBER'
 
   return (
     <Card

@@ -1,11 +1,13 @@
-import { useState, useEffect, useSyncExternalStore } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 function useNow() {
-  return useSyncExternalStore(
-    (cb) => { const id = setInterval(cb, 1000); return () => clearInterval(id) },
-    () => Date.now(),
-  )
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return now
 }
 
 interface ContestCountdownProps {
