@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser, useLogout } from '@/hooks/api/useUsers'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
-import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired } from '@/lib/tokenStore'
+import { getAccessToken, setAccessToken, subscribe, subscribeSessionExpired, hasSessionMark, clearSessionMark } from '@/lib/tokenStore'
 import { refreshSession } from '@/api/users'
 import { ApiClientError } from '@/lib/errors'
 import { ROUTES } from '@/lib/constants'
@@ -47,9 +47,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     let cancelled = false
-    refreshWithRetry(() => cancelled).then((token) => {
+    const task = hasSessionMark()
+      ? refreshWithRetry(() => cancelled)
+      : Promise.resolve(null)
+    task.then((token) => {
       if (cancelled) return
-      if (token) setAccessToken(token)
+      if (token) {
+        setAccessToken(token)
+      } else if (hasSessionMark()) {
+        clearSessionMark()
+      }
       setBootstrapping(false)
     })
     return () => {
@@ -59,6 +66,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     return subscribeSessionExpired(() => {
+      clearSessionMark()
       toast({
         variant: 'error',
         title: 'Sesión expirada',

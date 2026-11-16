@@ -66,11 +66,11 @@ export function subscribeSessionExpired(listener: Listener): () => void {
 const SESSION_MARK_KEY = 'auth_session_active'
 
 export function markSessionActive(): void {
-  try { localStorage.setItem(SESSION_MARK_KEY, '1') } catch {}
+  try { localStorage.setItem(SESSION_MARK_KEY, '1') } catch { /* storage unavailable */ }
 }
 
 export function clearSessionMark(): void {
-  try { localStorage.removeItem(SESSION_MARK_KEY) } catch {}
+  try { localStorage.removeItem(SESSION_MARK_KEY) } catch { /* storage unavailable */ }
 }
 
 export function hasSessionMark(): boolean {
