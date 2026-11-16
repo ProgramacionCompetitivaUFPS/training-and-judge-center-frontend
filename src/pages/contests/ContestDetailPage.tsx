@@ -442,6 +442,9 @@ export function ContestDetailPage() {
                 onComplete={handleCountdownEnd}
               />
               <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {!groupMembershipKnown && (
+                  <div className="h-11 w-36 bg-white/20 animate-pulse rounded-pill" />
+                )}
                 {canRegisterIndividual && (
                   <Button variant="primary" size="lg" onClick={handleRegister} isLoading={registerMutation.isPending}>
                     <User className="h-4 w-4 mr-2" />
