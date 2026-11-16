@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 
 import {
   getAccessToken,
@@ -10,12 +10,16 @@ import {
   notifySessionExpired,
   resetSessionExpiredNotified,
   subscribeSessionExpired,
+  markSessionActive,
+  clearSessionMark,
+  hasSessionMark,
 } from './tokenStore'
 
 afterEach(() => {
   clearAccessToken()
   setLoggingOut(false)
   resetSessionExpiredNotified()
+  localStorage.clear()
 })
 
 describe('getAccessToken / setAccessToken / clearAccessToken', () => {
@@ -128,5 +132,36 @@ describe('subscribeSessionExpired', () => {
     unsub()
     notifySessionExpired()
     expect(listener).not.toHaveBeenCalled()
+  })
+})
+
+describe('session mark (localStorage flag)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('hasSessionMark devuelve false cuando no hay flag', () => {
+    expect(hasSessionMark()).toBe(false)
+  })
+
+  it('markSessionActive escribe el flag; hasSessionMark devuelve true', () => {
+    markSessionActive()
+    expect(hasSessionMark()).toBe(true)
+  })
+
+  it('clearSessionMark elimina el flag; hasSessionMark vuelve a false', () => {
+    markSessionActive()
+    clearSessionMark()
+    expect(hasSessionMark()).toBe(false)
+  })
+
+  it('markSessionActive es idempotente', () => {
+    markSessionActive()
+    markSessionActive()
+    expect(hasSessionMark()).toBe(true)
+  })
+
+  it('clearSessionMark no lanza si el flag no existe', () => {
+    expect(() => clearSessionMark()).not.toThrow()
   })
 })

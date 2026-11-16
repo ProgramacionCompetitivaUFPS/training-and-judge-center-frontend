@@ -7,6 +7,7 @@ const logoutChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastCha
 logoutChannel?.addEventListener('message', (event) => {
   if (event.data === 'logout') {
     accessToken = null
+    clearSessionMark()
     listeners.forEach((listener) => listener())
   }
 })
@@ -60,4 +61,18 @@ export function resetSessionExpiredNotified(): void {
 export function subscribeSessionExpired(listener: Listener): () => void {
   sessionExpiredListeners.add(listener)
   return () => sessionExpiredListeners.delete(listener)
+}
+
+const SESSION_MARK_KEY = 'auth_session_active'
+
+export function markSessionActive(): void {
+  try { localStorage.setItem(SESSION_MARK_KEY, '1') } catch {}
+}
+
+export function clearSessionMark(): void {
+  try { localStorage.removeItem(SESSION_MARK_KEY) } catch {}
+}
+
+export function hasSessionMark(): boolean {
+  try { return localStorage.getItem(SESSION_MARK_KEY) === '1' } catch { return false }
 }
