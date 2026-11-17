@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { useEffect } from 'react'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -133,6 +133,48 @@ describe('ProblemDetailPage', () => {
 
     // Assert
     expect(statisticsRequests).toBe(0)
+  })
+
+  describe('checklist → file picker', () => {
+    const user = userEvent.setup()
+    let clickSpy: MockInstance<typeof HTMLInputElement.prototype.click>
+
+    beforeEach(() => {
+      clickSpy = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
+    })
+    afterEach(() => {
+      clickSpy.mockRestore()
+    })
+
+    it('clicking "Subir" in the checklist switches to the files tab and opens the test-cases file picker', async () => {
+      // Arrange
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+
+      // Act
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await user.click(subirButton)
+
+      // Assert
+      expect(await screen.findByText('Archivos')).toBeInTheDocument()
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+      expect(document.querySelector<HTMLInputElement>('input[type="file"]')?.accept).toBe('.zip')
+    })
+
+    it('clicking "Agregar" in the checklist switches to the files tab and opens the solution file picker', async () => {
+      // Arrange
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+
+      // Act
+      const [agregarButton] = await screen.findAllByRole('button', { name: /agregar/i })
+      await user.click(agregarButton)
+
+      // Assert
+      expect(await screen.findByText('Soluciones')).toBeInTheDocument()
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+      expect(document.querySelector<HTMLInputElement>('input[type="file"]')?.accept).toBe('.cpp,.py,.java')
+    })
   })
 })
 
