@@ -1011,13 +1011,20 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
 
   // Per-call onSettled can be dropped by TanStack Query if the component re-renders during the
   // mutation (e.g. the invalidation refetch lands before the callback fires). This effect is the
-  // reliable fallback: it reacts to isPending going false regardless of callback timing.
+  // reliable fallback: it reacts to an active upload finishing regardless of callback timing.
+  // It must not run on mount (isPending is already false): that would clear the pendingFileType the
+  // checklist's autoUpload just set, and the file the user picks would be silently discarded.
+  const wasPendingRef = useRef(false)
   useEffect(() => {
-    if (!uploadMutation.isPending) {
-      setUploadProgress(null)
-      setPendingFileType(null)
-      onUploadingChange?.(false)
+    if (uploadMutation.isPending) {
+      wasPendingRef.current = true
+      return
     }
+    if (!wasPendingRef.current) return
+    wasPendingRef.current = false
+    setUploadProgress(null)
+    setPendingFileType(null)
+    onUploadingChange?.(false)
     // onUploadingChange is intentionally excluded — it's a stable setter from the parent
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadMutation.isPending])

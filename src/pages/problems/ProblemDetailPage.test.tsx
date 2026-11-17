@@ -175,6 +175,23 @@ describe('ProblemDetailPage', () => {
       expect(clickSpy).toHaveBeenCalledTimes(1)
       expect(document.querySelector<HTMLInputElement>('input[type="file"]')?.accept).toBe('.cpp,.py,.java')
     })
+
+    it('does not discard the file chosen after opening the picker from the checklist (wrong format shows its toast)', async () => {
+      // Arrange — FilesManager mounts only when the checklist switches to the files tab
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await pickerUser.click(subirButton)
+      await screen.findByText('Archivos')
+
+      // Act
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['x'], 'notas.txt', { type: 'text/plain' }))
+
+      // Assert
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Formato de archivo incorrecto' }))
+    })
   })
 })
 
