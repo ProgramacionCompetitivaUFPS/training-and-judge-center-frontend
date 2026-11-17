@@ -127,12 +127,16 @@ export function ProblemDetailPage() {
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
-  const [makePrivateDialogOpen, setMakePrivateDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
   // Tied to the problem that opened it: the route reuses this component when :slug changes
   // (browser back), and a stale open flag would confirm the publication of the wrong problem.
   const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
   const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
+  // Same idea for the "make private" confirmation: it must never confirm over a different problem
+  const [makePrivateSlug, setMakePrivateSlug] = useState<string | null>(null)
+  const makePrivateDialogOpen = !!resolvedSlug && makePrivateSlug === resolvedSlug
+  // Drop a stale confirmation as soon as another problem is shown, so coming back doesn't reopen it
+  if (makePrivateSlug !== null && makePrivateSlug !== resolvedSlug) setMakePrivateSlug(null)
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
     | { kind: 'failure'; data: PublishFailureResponse }
@@ -457,7 +461,7 @@ export function ProblemDetailPage() {
         onSuccess: () =>
           toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
         onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
-        onSettled: () => setMakePrivateDialogOpen(false),
+        onSettled: () => setMakePrivateSlug(null),
       },
     )
   }
@@ -465,8 +469,14 @@ export function ProblemDetailPage() {
   // Going private restricts who can see and add the problem, so it asks first; going public does not
   function handleAccessibilityClick() {
     if (!problem) return
-    if (problem.accessibility === 'PUBLIC') setMakePrivateDialogOpen(true)
+    if (problem.accessibility === 'PUBLIC') setMakePrivateSlug(problem.slug)
     else changeAccessibility('PUBLIC')
+  }
+
+  function handleMakePrivateConfirm() {
+    // Only the problem that opened the confirmation may be changed by it
+    if (!problem || makePrivateSlug !== problem.slug) return
+    changeAccessibility('PRIVATE')
   }
 
   function handleUnpublish() {
@@ -868,12 +878,12 @@ export function ProblemDetailPage() {
 
       <ConfirmDialog
         open={makePrivateDialogOpen}
-        onOpenChange={setMakePrivateDialogOpen}
+        onOpenChange={(open) => setMakePrivateSlug(open ? (resolvedSlug ?? null) : null)}
         title="Hacer privado el problema"
         description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
         variant="warning"
         confirmLabel="Hacer privado"
-        onConfirm={() => changeAccessibility('PRIVATE')}
+        onConfirm={handleMakePrivateConfirm}
         isLoading={accessibilityMutation.isPending}
       />
 

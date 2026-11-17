@@ -579,7 +579,10 @@ describe('ProblemDetailPage — visibilidad (accesibilidad) desde el menú de ac
     await user.click(screen.getByRole('menuitem', { name: /hacer público/i }))
 
     await waitFor(() => expect(requests).toEqual([{ slug: 'merge-sort', body: { accessibility: 'PUBLIC' } }]))
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es público' }))
+    // The request is recorded before the answer: the toast only shows once the mutation settles
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es público' })),
+    )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
@@ -597,7 +600,37 @@ describe('ProblemDetailPage — visibilidad (accesibilidad) desde el menú de ac
     await user.click(within(dialog).getByRole('button', { name: /hacer privado/i }))
 
     await waitFor(() => expect(requests).toEqual([{ slug: 'two-sum', body: { accessibility: 'PRIVATE' } }]))
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es privado' }))
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es privado' })),
+    )
+  })
+
+  it('cierra la confirmación al navegar a otro problema y no cambia la accesibilidad del nuevo, ni al volver', async () => {
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={['/problems/two-sum']}>
+          <NavigatorProbe />
+          <Routes>
+            <Route path="/problems/:slug" element={<ProblemDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await openActionsMenu(user, 'Two Sum')
+    await user.click(screen.getByRole('menuitem', { name: /hacer privado/i }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+
+    act(() => navigateTo('/problems/graph-bfs'))
+
+    expect(await screen.findByRole('heading', { name: 'Graph BFS' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    act(() => navigateTo('/problems/two-sum'))
+
+    expect(await screen.findByRole('heading', { name: 'Two Sum' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(requests).toEqual([])
   })
 
   it('cancelar la confirmación no envía nada', async () => {
