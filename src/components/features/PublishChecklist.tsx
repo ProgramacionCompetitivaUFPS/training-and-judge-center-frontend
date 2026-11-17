@@ -45,16 +45,13 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
         </div>
 
         <ol className="divide-y divide-neutral-border">
-          {steps.map((step) => (
+          {steps.map((step) => {
+            const row = (
             <li key={step.key} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
               {step.met ? (
                 step.warning ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-label="Advertencia" />
-                    </TooltipTrigger>
-                    <TooltipContent>{step.warning}</TooltipContent>
-                  </Tooltip>
+                  // The whole row is the tooltip trigger (see below); the icon only signals it
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-label="Advertencia" />
                 ) : (
                   <Check className="h-4 w-4 shrink-0 text-status-success" aria-label="Listo" />
                 )
@@ -94,7 +91,16 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
                 </Button>
               )}
             </li>
-          ))}
+            )
+            if (!step.met || !step.warning) return row
+            // Hovering anywhere on a step with a warning shows the warning, not just the icon
+            return (
+              <Tooltip key={step.key}>
+                <TooltipTrigger asChild>{row}</TooltipTrigger>
+                <TooltipContent>{step.warning}</TooltipContent>
+              </Tooltip>
+            )
+          })}
         </ol>
 
         {optionalMissing.length > 0 && (

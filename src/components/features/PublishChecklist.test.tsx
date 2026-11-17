@@ -93,4 +93,11 @@ describe('PublishChecklist', () => {
     await user.hover(screen.getByLabelText('Advertencia'))
     expect(await screen.findByRole('tooltip')).toHaveTextContent('No hay casos secretos.')
   })
+
+  it('el tooltip de advertencia aparece al pasar el mouse por el texto de la fila', async () => {
+    const user = userEvent.setup()
+    renderChecklist([makeStep({ met: true, label: 'Casos de prueba', warning: 'No hay casos secretos.' })])
+    await user.hover(screen.getByText('Casos de prueba'))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('No hay casos secretos.')
+  })
 })
