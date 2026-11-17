@@ -126,6 +126,8 @@ export function ProblemDetailPage() {
     | { kind: 'failure'; data: PublishFailureResponse }
     | null
   >(null)
+  // Set by the checklist's "Subir"/"Agregar" actions: FilesManager opens the matching file picker once, then clears it.
+  const [pendingAutoUpload, setPendingAutoUpload] = useState<ProblemFileType | null>(null)
 
   // A contest problem letter that doesn't exist (or a contest that can't be seen) resolves to no slug.
   if (isContestContext && !isContestLoading && !resolvedSlug) return <NotFoundPage />
@@ -171,8 +173,8 @@ export function ProblemDetailPage() {
       key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
       hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
     },
-    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles, warning: testCasesWarning },
-    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: goToFiles },
+    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: () => { goToFiles(); setPendingAutoUpload('testCases') }, warning: testCasesWarning },
+    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: () => { goToFiles(); setPendingAutoUpload('solution') } },
   ]
   const requirementsMet = missingPublishRequirements.length === 0
   const validationRunning = validateMutation.isPending || publishMutation.isPending || (!!validation?.found && !validation.terminal)
@@ -363,7 +365,15 @@ export function ProblemDetailPage() {
     <>
       {/* Files: always readable; uploading and deleting only while it's a draft — the backend
           rejects changes to a published problem */}
-      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} testCasesWarning={testCasesWarning} />}
+      {problem.files && (
+        <FilesManager
+          problem={problem}
+          readOnly={problem.status === 'PUBLISHED'}
+          testCasesWarning={testCasesWarning}
+          autoUpload={pendingAutoUpload}
+          onAutoUploadConsumed={() => setPendingAutoUpload(null)}
+        />
+      )}
 
       {/* What happened with the last publish attempt: persists, follows a running validation */}
       <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending || validateMutation.isPending} />
@@ -968,7 +978,13 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
   return null
 }
 
-interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean; testCasesWarning?: string }
+interface FilesManagerProps {
+  problem: ProblemDetail
+  readOnly?: boolean
+  testCasesWarning?: string
+  autoUpload?: ProblemFileType | null
+  onAutoUploadConsumed?: () => void
+}
 
 function FilesManager({ problem, readOnly = false, testCasesWarning }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
