@@ -149,6 +149,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PROBLEM_NOT_PUBLISHED: 'Solo problemas publicados aceptan envíos',
   NO_SUBMISSIONS_TO_REJUDGE: 'No hay envíos pendientes de rejuzgar para este problema',
   VALIDATION_TIMED_OUT: 'La validación está tardando más de lo esperado; vuelve a intentarlo más tarde',
+  ZIP_TOO_LARGE: 'El ZIP supera el tamaño máximo permitido (150 MB)',
+  EXTRACTED_SIZE_TOO_LARGE: 'El contenido descomprimido del ZIP supera el límite (150 MB)',
+  MISSING_PROBLEM_YAML: 'El ZIP no contiene problem.yaml',
+  INVALID_PROBLEM_YAML: 'El problem.yaml tiene un error de sintaxis o le falta el campo name',
 
   // ─── Materiales ───
   MATERIAL_NOT_FOUND: 'Material no encontrado',

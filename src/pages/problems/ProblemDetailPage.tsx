@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -19,6 +19,7 @@ import {
   usePublishProblem,
   useValidateProblem,
   useLatestValidation,
+  useProblemTestCases,
   useUnpublishProblem,
   useDeleteProblem,
   useUploadProblemFile,
@@ -81,7 +82,7 @@ export function ProblemDetailPage() {
     : slug
 
   const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
-  const { data: stats } = useProblemStatistics(resolvedSlug || '')
+  const { data: stats } = useProblemStatistics(resolvedSlug || '', problem?.status === 'PUBLISHED')
   const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
   const publishMutation = usePublishProblem()
   const validateMutation = useValidateProblem()
@@ -89,6 +90,22 @@ export function ProblemDetailPage() {
   const mayValidate =
     !isContestContext && problem?.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
   const { data: validation } = useLatestValidation(resolvedSlug || '', { enabled: mayValidate })
+  const testCasesQueryEnabled = mayValidate && !!problem?.files?.testCases
+  const { data: testCasesData, isError: testCasesError } = useProblemTestCases(
+    resolvedSlug || '',
+    testCasesQueryEnabled,
+  )
+  // The query is on but has no answer yet (loading or failed): "unknown" is not "no warnings"
+  const testCasesUnchecked = testCasesQueryEnabled && !testCasesData
+  const testCasesWarning: string | undefined = testCasesData
+    ? testCasesData.secretCount === 0 && testCasesData.sampleCount === 0
+      ? 'Los casos de prueba no tienen pares completos (.in + .ans) aún.'
+      : testCasesData.secretCount === 0
+        ? 'No hay casos secretos: el juez evaluará solo con los ejemplos que los concursantes conocen.'
+        : testCasesData.sampleCount === 0
+          ? 'No hay ejemplos: los concursantes no verán ningún ejemplo en el enunciado.'
+          : undefined
+    : undefined
   const unpublishMutation = useUnpublishProblem()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
@@ -100,6 +117,10 @@ export function ProblemDetailPage() {
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
+  // Tied to the problem that opened it: the route reuses this component when :slug changes
+  // (browser back), and a stale open flag would confirm the publication of the wrong problem.
+  const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
+  const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
     | { kind: 'failure'; data: PublishFailureResponse }
@@ -150,7 +171,7 @@ export function ProblemDetailPage() {
       key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
       hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
     },
-    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles },
+    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles, warning: testCasesWarning },
     { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: goToFiles },
   ]
   const requirementsMet = missingPublishRequirements.length === 0
@@ -178,6 +199,20 @@ export function ProblemDetailPage() {
     loading: validationRunning,
     onDetail: validationFailed ? goToFiles : undefined,
   })
+  const hasWarnings = checklistSteps.some((s) => s.met && !!s.warning)
+  const publishWarnings = checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning)
+  const publishDialogTitle = hasWarnings
+    ? 'El problema tiene advertencias'
+    : testCasesUnchecked
+      ? 'Casos de prueba sin comprobar'
+      : 'Publicar problema'
+  const publishDialogDescription = hasWarnings
+    ? publishWarnings.join(' ')
+    : testCasesUnchecked
+      ? testCasesError
+        ? 'No se pudieron revisar los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+        : 'Todavía se están revisando los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+      : 'Los casos de prueba ya se revisaron y no hay advertencias.'
   const showChecklist = showManagementTabs && problem.status === 'DRAFT'
   const optionalMissing = [
     ...(problem.files && !problem.files.checker ? ['checker'] : []),
@@ -217,7 +252,7 @@ export function ProblemDetailPage() {
             </TooltipContent>
           </Tooltip>
         ) : (
-          <Button variant="primary" className="gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+          <Button variant="primary" className="gap-2" onClick={handlePublishClick} isLoading={publishMutation.isPending}>
             <ArrowUpCircle className="h-4 w-4" />
             Publicar
           </Button>
@@ -328,7 +363,7 @@ export function ProblemDetailPage() {
     <>
       {/* Files: always readable; uploading and deleting only while it's a draft — the backend
           rejects changes to a published problem */}
-      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
+      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} testCasesWarning={testCasesWarning} />}
 
       {/* What happened with the last publish attempt: persists, follows a running validation */}
       <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending || validateMutation.isPending} />
@@ -343,6 +378,14 @@ export function ProblemDetailPage() {
     validateMutation.mutate(problem.slug, {
       onError: (err) => toast({ variant: 'error', title: 'No se pudo validar', description: getErrorMessage(err) }),
     })
+  }
+
+  function handlePublishClick() {
+    if (hasWarnings || testCasesUnchecked) {
+      setPublishWarningSlug(resolvedSlug ?? null)
+    } else {
+      handlePublish()
+    }
   }
 
   function handlePublish() {
@@ -762,6 +805,17 @@ export function ProblemDetailPage() {
         isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
       />
 
+      {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
+      <ConfirmDialog
+        open={publishWarningOpen}
+        onOpenChange={(open) => setPublishWarningSlug(open ? (resolvedSlug ?? null) : null)}
+        title={publishDialogTitle}
+        description={publishDialogDescription}
+        variant="warning"
+        confirmLabel="Publicar de todas formas"
+        onConfirm={() => { setPublishWarningSlug(null); handlePublish() }}
+      />
+
       {/* Publish validation result — success (validation logs) or failure (real detail from
           the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
       <Dialog open={!!publishResult} onOpenChange={(open) => !open && setPublishResult(null)}>
@@ -914,9 +968,9 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
   return null
 }
 
-interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
+interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean; testCasesWarning?: string }
 
-function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -1007,7 +1061,8 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
 
         {(['testCases', 'checker', 'validator'] as const).map((fileType) => (
-          <div key={fileType} className="flex items-center justify-between text-sm py-1">
+          <div key={fileType}>
+          <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
               <span className="text-neutral-text-primary inline-flex items-center gap-1">
@@ -1049,6 +1104,13 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
                 </button>
               )}
             </div>
+          </div>
+          {fileType === 'testCases' && testCasesWarning && (
+            <p className="text-xs text-status-warning flex items-center gap-1 pl-4 pb-1">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {testCasesWarning}
+            </p>
+          )}
           </div>
         ))}
 
