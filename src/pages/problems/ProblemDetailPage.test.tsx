@@ -249,6 +249,31 @@ describe('ProblemDetailPage', () => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
+    it('keeps every upload button blocked and the ZIP status visible when the user leaves the files tab and comes back during the ZIP check', async () => {
+      // Arrange — hold the ZIP check open
+      let finishCheck: (paths: string[] | null) => void = () => {}
+      zipPeek.override = () => new Promise((resolve) => { finishCheck = resolve })
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await pickerUser.click(subirButton)
+      await screen.findByText('Archivos')
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['x'], 'tests.zip', { type: 'application/zip' }))
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+
+      // Act — FilesManager unmounts and a new one mounts while the check is still pending
+      await pickerUser.click(screen.getByRole('tab', { name: /problema/i }))
+      await pickerUser.click(screen.getByRole('tab', { name: /archivos/i }))
+
+      // Assert
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+      screen.getAllByRole('button', { name: /subir|reemplazar|agregar/i }).forEach((button) => expect(button).toBeDisabled())
+
+      await act(async () => { finishCheck(null) })
+    })
+
     it('keeps the progress bar and the blocked buttons when the user leaves the files tab and comes back mid-upload', async () => {
       // Arrange — an upload that stays running until the test ends it
       let report: (pct: number) => void = () => {}

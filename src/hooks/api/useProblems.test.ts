@@ -496,3 +496,14 @@ describe('useUploadProgress', () => {
     expect(onProgress).toHaveBeenCalledWith(55)
   })
 })
+
+describe('useUploadProgress — retención en cache', () => {
+  it('conserva la consulta de progreso más tiempo que dos intentos de subida (5 min cada uno)', () => {
+    const { wrapper, queryClient } = makeWrapper()
+    renderHook(() => useUploadProgress('two-sum'), { wrapper })
+
+    const query = queryClient.getQueryCache().find({ queryKey: ['upload-progress', 'two-sum'] })
+
+    expect(query?.gcTime).toBeGreaterThan(10 * 60 * 1000)
+  })
+})

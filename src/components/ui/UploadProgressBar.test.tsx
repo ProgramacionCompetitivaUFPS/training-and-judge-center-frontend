@@ -39,6 +39,34 @@ describe('UploadProgressBar', () => {
     expect(screen.getByText(secondPhrase)).toBeInTheDocument()
   })
 
+  it('expone la barra como progressbar con su valor actual', () => {
+    render(<UploadProgressBar progress={42} />)
+
+    const bar = screen.getByRole('progressbar', { name: /subiendo archivo/i })
+    expect(bar).toHaveAttribute('aria-valuenow', '42')
+    expect(bar).toHaveAttribute('aria-valuemin', '0')
+    expect(bar).toHaveAttribute('aria-valuemax', '100')
+  })
+
+  it('limita aria-valuenow a 100 si progress supera 100', () => {
+    render(<UploadProgressBar progress={120} />)
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('anuncia el avance a los lectores de pantalla solo de 25 en 25, no en cada evento', () => {
+    const { rerender } = render(<UploadProgressBar progress={42} />)
+    const region = screen.getByText(/subida al/i)
+    expect(region).toHaveAttribute('aria-live', 'polite')
+    expect(region).toHaveTextContent('Subida al 25%')
+
+    rerender(<UploadProgressBar progress={49} />)
+    expect(screen.getByText(/subida al/i)).toHaveTextContent('Subida al 25%')
+
+    rerender(<UploadProgressBar progress={50} />)
+    expect(screen.getByText(/subida al/i)).toHaveTextContent('Subida al 50%')
+  })
+
   it('la barra interior refleja el ancho del porcentaje', () => {
     const { container } = render(<UploadProgressBar progress={60} />)
     const bar = container.querySelector('[style]') as HTMLElement

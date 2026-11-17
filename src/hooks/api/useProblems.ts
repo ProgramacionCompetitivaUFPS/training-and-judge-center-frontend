@@ -191,6 +191,9 @@ export function useUploadProgress(slug: string): number | null {
     queryFn: () => null,
     enabled: false,
     staleTime: Infinity,
+    // Longer than two upload attempts (5 min XHR timeout each, the second one after a 401 refresh):
+    // with the files tab closed there is no observer, and the default 5 min would drop the bar mid-upload
+    gcTime: 15 * 60 * 1000,
   })
   return data ?? null
 }

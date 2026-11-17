@@ -382,6 +382,7 @@ export function ProblemDetailPage() {
           autoUpload={pendingAutoUpload}
           onAutoUploadConsumed={() => setPendingAutoUpload(null)}
           isUploading={isUploadMutating}
+          isCheckingZip={isCheckingZip}
           onCheckingZipChange={setIsCheckingZip}
         />
       )}
@@ -997,17 +998,18 @@ interface FilesManagerProps {
   onAutoUploadConsumed?: () => void
   /** An upload of this problem is running, possibly one started before this component was mounted. */
   isUploading?: boolean
-  /** Reports the ZIP structure check, which runs before the upload starts. */
+  /** The ZIP structure check (which runs before the upload starts) is in progress, possibly one started before this component was mounted. */
+  isCheckingZip?: boolean
+  /** Reports the ZIP structure check. Its state is owned by the parent: this component unmounts on tab switches. */
   onCheckingZipChange?: (checking: boolean) => void
 }
 
-function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, isUploading = false, onCheckingZipChange }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, isUploading = false, isCheckingZip = false, onCheckingZipChange }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
-  const [isCheckingZip, setIsCheckingZip] = useState(false)
   // From the mutation cache, not local state: the upload outlives this component (tab switches unmount it)
   const uploadProgress = useUploadProgress(problem.slug)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
@@ -1065,13 +1067,11 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
 
     if (pendingFileType === 'testCases' && !exceedsZipStructureCheckSize(file)) {
       // Busy from the start of the check: otherwise the checklist stays enabled while it runs
-      setIsCheckingZip(true)
       onCheckingZipChange?.(true)
       let structureError: string | null
       try {
         structureError = await checkTestCasesZipStructure(file)
       } finally {
-        setIsCheckingZip(false)
         onCheckingZipChange?.(false)
       }
       if (structureError) {
