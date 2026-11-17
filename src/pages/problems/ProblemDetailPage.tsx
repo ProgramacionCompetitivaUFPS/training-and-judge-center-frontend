@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle, Globe, Lock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -23,6 +23,7 @@ import {
   useLatestValidation,
   useProblemTestCases,
   useUnpublishProblem,
+  useUpdateAccessibility,
   useDeleteProblem,
   useUploadProblemFile,
   useIsUploadingProblemFile,
@@ -47,7 +48,7 @@ import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+import type { ProblemAccessibility, ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { ErrorPage } from '@/pages/errors/ErrorPage'
 
@@ -111,6 +112,7 @@ export function ProblemDetailPage() {
           : undefined
     : undefined
   const unpublishMutation = useUnpublishProblem()
+  const accessibilityMutation = useUpdateAccessibility()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
   const exportMutation = useExportProblem()
@@ -130,6 +132,11 @@ export function ProblemDetailPage() {
   // (browser back), and a stale open flag would confirm the publication of the wrong problem.
   const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
   const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
+  // Same idea for the "make private" confirmation: it must never confirm over a different problem
+  const [makePrivateSlug, setMakePrivateSlug] = useState<string | null>(null)
+  const makePrivateDialogOpen = !!resolvedSlug && makePrivateSlug === resolvedSlug
+  // Drop a stale confirmation as soon as another problem is shown, so coming back doesn't reopen it
+  if (makePrivateSlug !== null && makePrivateSlug !== resolvedSlug) setMakePrivateSlug(null)
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
     | { kind: 'failure'; data: PublishFailureResponse }
@@ -285,6 +292,22 @@ export function ProblemDetailPage() {
               )}
             </span>
           </DropdownMenuItem>
+          {/* Unlike editing, the backend lets this change while the problem is published: no need to unpublish first */}
+          <DropdownMenuItem onClick={handleAccessibilityClick} disabled={accessibilityMutation.isPending}>
+            {problem.accessibility === 'PUBLIC' ? (
+              <Lock className="mr-2 h-4 w-4 shrink-0" />
+            ) : (
+              <Globe className="mr-2 h-4 w-4 shrink-0" />
+            )}
+            <span>
+              {problem.accessibility === 'PUBLIC' ? 'Hacer privado' : 'Hacer público'}
+              <span className="block text-xs text-neutral-text-muted">
+                {problem.accessibility === 'PUBLIC'
+                  ? 'Solo los modificadores podrán añadirlo a nuevas competencias'
+                  : 'Cualquier creador de competencias podrá añadirlo'}
+              </span>
+            </span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
             <Download className="mr-2 h-4 w-4 shrink-0" />
             <span>
@@ -428,6 +451,32 @@ export function ProblemDetailPage() {
         }
       },
     })
+  }
+
+  function changeAccessibility(accessibility: ProblemAccessibility) {
+    if (!problem) return
+    accessibilityMutation.mutate(
+      { slug: problem.slug, accessibility },
+      {
+        onSuccess: () =>
+          toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
+        onSettled: () => setMakePrivateSlug(null),
+      },
+    )
+  }
+
+  // Going private restricts who can see and add the problem, so it asks first; going public does not
+  function handleAccessibilityClick() {
+    if (!problem) return
+    if (problem.accessibility === 'PUBLIC') setMakePrivateSlug(problem.slug)
+    else changeAccessibility('PUBLIC')
+  }
+
+  function handleMakePrivateConfirm() {
+    // Only the problem that opened the confirmation may be changed by it
+    if (!problem || makePrivateSlug !== problem.slug) return
+    changeAccessibility('PRIVATE')
   }
 
   function handleUnpublish() {
@@ -825,6 +874,17 @@ export function ProblemDetailPage() {
         confirmLabel="Rejuzgar"
         onConfirm={handleContestRejudge}
         isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={makePrivateDialogOpen}
+        onOpenChange={(open) => setMakePrivateSlug(open ? (resolvedSlug ?? null) : null)}
+        title="Hacer privado el problema"
+        description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
+        variant="warning"
+        confirmLabel="Hacer privado"
+        onConfirm={handleMakePrivateConfirm}
+        isLoading={accessibilityMutation.isPending}
       />
 
       {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
