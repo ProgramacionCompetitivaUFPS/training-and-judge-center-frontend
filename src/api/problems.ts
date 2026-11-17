@@ -69,11 +69,16 @@ export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
 
 // === Files ===
 
-export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
+export function uploadProblemFile(
+  slug: string,
+  fileType: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
   const formData = new FormData()
   formData.append('fileType', fileType)
   formData.append('file', file)
-  return apiClient.postFormData(`/problems/p/${slug}/files`, formData)
+  return apiClient.postFormDataWithProgress(`/problems/p/${slug}/files`, formData, onProgress)
 }
 
 export function deleteProblemFile(slug: string, fileType: string, fileName?: string): Promise<void> {

@@ -165,8 +165,8 @@ export function useUnpublishProblem() {
 export function useUploadProblemFile() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ slug, fileType, file }: { slug: string; fileType: string; file: File }) =>
-      problemsApi.uploadProblemFile(slug, fileType, file),
+    mutationFn: ({ slug, fileType, file, onProgress }: { slug: string; fileType: string; file: File; onProgress?: (pct: number) => void }) =>
+      problemsApi.uploadProblemFile(slug, fileType, file, onProgress),
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })

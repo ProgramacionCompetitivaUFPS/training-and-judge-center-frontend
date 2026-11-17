@@ -5,6 +5,7 @@ import {
   Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
   Tabs, TabsList, TabsTrigger, TabsContent,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  UploadProgressBar,
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
@@ -993,6 +994,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
 
   // Must stay above the early return below: the checklist sets autoUpload and switches to this tab.
@@ -1042,7 +1044,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     }
 
     uploadMutation.mutate(
-      { slug: problem.slug, fileType: pendingFileType, file },
+      { slug: problem.slug, fileType: pendingFileType, file, onProgress: setUploadProgress },
       {
         onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
         onError: (err) => {
@@ -1054,9 +1056,12 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
             toast({ variant: 'error', title: 'Error al subir el archivo' })
           }
         },
+        onSettled: () => {
+          setPendingFileType(null)
+          setUploadProgress(null)
+        },
       },
     )
-    setPendingFileType(null)
   }
 
   function handleDeleteConfirm() {
@@ -1195,6 +1200,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
             Para subir o eliminar archivos, despublica el problema primero.
           </p>
         )}
+        <UploadProgressBar progress={uploadProgress} className="mt-2" />
       </CardContent>
 
 
