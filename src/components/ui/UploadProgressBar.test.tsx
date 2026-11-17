@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, act } from '@testing-library/react'
 import { UploadProgressBar } from './UploadProgressBar'
+import { PROCESSING_PHRASES } from '@/lib/constants'
 
 describe('UploadProgressBar', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('no renderiza nada cuando progress es null', () => {
     const { container } = render(<UploadProgressBar progress={null} />)
     expect(container.firstChild).toBeNull()
@@ -11,11 +16,23 @@ describe('UploadProgressBar', () => {
   it('muestra el porcentaje mientras sube', () => {
     render(<UploadProgressBar progress={42} />)
     expect(screen.getByText('Subiendo… 42%')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('muestra "Procesando…" cuando el progreso llega a 100', () => {
+  it('muestra "Procesando…" como estado cuando el progreso llega a 100', () => {
     render(<UploadProgressBar progress={100} />)
-    expect(screen.getByText('Procesando…')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Procesando…')
+    expect(screen.queryByText(/subiendo…/i)).not.toBeInTheDocument()
+  })
+
+  it('al llegar a 100 va cambiando de frase mientras el servidor procesa', () => {
+    vi.useFakeTimers()
+    render(<UploadProgressBar progress={100} />)
+    expect(screen.queryByText(PROCESSING_PHRASES[1])).not.toBeInTheDocument()
+
+    act(() => { vi.advanceTimersByTime(2500) })
+
+    expect(screen.getByText(PROCESSING_PHRASES[1])).toBeInTheDocument()
   })
 
   it('la barra interior refleja el ancho del porcentaje', () => {
