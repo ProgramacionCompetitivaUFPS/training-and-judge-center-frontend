@@ -3,7 +3,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FileText, Info, Timer, Tags, Settings, Upload, Plus, Trash2, Languages, HelpCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Input, Card, CardContent } from '@/components/ui'
+import { Button, Input, Card, CardContent, UploadProgressBar } from '@/components/ui'
 import { Textarea } from '@/components/ui/Textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -379,19 +379,7 @@ function CreateForm({ onSubmit, onImport, isSubmitting, isImporting, onCancel, u
         </div>
       </div>
 
-      {uploadProgress !== null && (
-        <div className="flex items-center gap-3 mt-2 text-sm text-neutral-text-muted">
-          <div className="flex-1 h-1.5 bg-neutral-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand-primary transition-all duration-300 ease-out"
-              style={{ width: `${Math.min(uploadProgress, 100)}%` }}
-            />
-          </div>
-          <span className="whitespace-nowrap tabular-nums w-28 text-right">
-            {uploadProgress < 100 ? `Subiendo… ${uploadProgress}%` : 'Procesando…'}
-          </span>
-        </div>
-      )}
+      <UploadProgressBar progress={uploadProgress} className="mt-2" />
 
       <PackageReviewDialog
         open={!!pendingImport}
