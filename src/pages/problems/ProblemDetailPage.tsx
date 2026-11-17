@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle, Globe, Lock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -23,6 +23,7 @@ import {
   useLatestValidation,
   useProblemTestCases,
   useUnpublishProblem,
+  useUpdateAccessibility,
   useDeleteProblem,
   useUploadProblemFile,
   useIsUploadingProblemFile,
@@ -47,7 +48,7 @@ import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+import type { ProblemAccessibility, ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { ErrorPage } from '@/pages/errors/ErrorPage'
 
@@ -111,6 +112,7 @@ export function ProblemDetailPage() {
           : undefined
     : undefined
   const unpublishMutation = useUnpublishProblem()
+  const accessibilityMutation = useUpdateAccessibility()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
   const exportMutation = useExportProblem()
@@ -125,6 +127,7 @@ export function ProblemDetailPage() {
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
+  const [makePrivateDialogOpen, setMakePrivateDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
   // Tied to the problem that opened it: the route reuses this component when :slug changes
   // (browser back), and a stale open flag would confirm the publication of the wrong problem.
@@ -285,6 +288,22 @@ export function ProblemDetailPage() {
               )}
             </span>
           </DropdownMenuItem>
+          {/* Unlike editing, the backend lets this change while the problem is published: no need to unpublish first */}
+          <DropdownMenuItem onClick={handleAccessibilityClick} disabled={accessibilityMutation.isPending}>
+            {problem.accessibility === 'PUBLIC' ? (
+              <Lock className="mr-2 h-4 w-4 shrink-0" />
+            ) : (
+              <Globe className="mr-2 h-4 w-4 shrink-0" />
+            )}
+            <span>
+              {problem.accessibility === 'PUBLIC' ? 'Hacer privado' : 'Hacer público'}
+              <span className="block text-xs text-neutral-text-muted">
+                {problem.accessibility === 'PUBLIC'
+                  ? 'Solo los modificadores podrán añadirlo a nuevas competencias'
+                  : 'Cualquier creador de competencias podrá añadirlo'}
+              </span>
+            </span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
             <Download className="mr-2 h-4 w-4 shrink-0" />
             <span>
@@ -428,6 +447,26 @@ export function ProblemDetailPage() {
         }
       },
     })
+  }
+
+  function changeAccessibility(accessibility: ProblemAccessibility) {
+    if (!problem) return
+    accessibilityMutation.mutate(
+      { slug: problem.slug, accessibility },
+      {
+        onSuccess: () =>
+          toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
+        onSettled: () => setMakePrivateDialogOpen(false),
+      },
+    )
+  }
+
+  // Going private restricts who can see and add the problem, so it asks first; going public does not
+  function handleAccessibilityClick() {
+    if (!problem) return
+    if (problem.accessibility === 'PUBLIC') setMakePrivateDialogOpen(true)
+    else changeAccessibility('PUBLIC')
   }
 
   function handleUnpublish() {
@@ -825,6 +864,17 @@ export function ProblemDetailPage() {
         confirmLabel="Rejuzgar"
         onConfirm={handleContestRejudge}
         isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={makePrivateDialogOpen}
+        onOpenChange={setMakePrivateDialogOpen}
+        title="Hacer privado el problema"
+        description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
+        variant="warning"
+        confirmLabel="Hacer privado"
+        onConfirm={() => changeAccessibility('PRIVATE')}
+        isLoading={accessibilityMutation.isPending}
       />
 
       {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}

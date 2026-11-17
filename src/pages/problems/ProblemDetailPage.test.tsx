@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest'
 import { useEffect } from 'react'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom'
@@ -536,5 +536,104 @@ describe('ProblemDetailPage — advertencias de casos de prueba', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
       expect(published).toEqual([])
     })
+  })
+})
+
+describe('ProblemDetailPage — visibilidad (accesibilidad) desde el menú de acciones', () => {
+  const accessibilityUrl = 'http://localhost:8080/api/problems/p/:slug/accessibility'
+  let requests: { slug: string; body: unknown }[]
+
+  beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+    requests = []
+    server.use(
+      http.patch(accessibilityUrl, async ({ params, request }) => {
+        requests.push({ slug: String(params.slug), body: await request.json() })
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+  })
+  afterEach(() => clearAccessToken())
+
+  async function openActionsMenu(user: ReturnType<typeof userEvent.setup>, heading: string) {
+    await screen.findByRole('heading', { name: heading })
+    await user.click(screen.getByRole('button', { name: /más acciones/i }))
+  }
+
+  it('ofrece "Hacer público" en un problema publicado y privado, aunque "Editar" esté bloqueado', async () => {
+    const user = userEvent.setup()
+    renderPage('merge-sort')
+    await openActionsMenu(user, 'Merge Sort')
+
+    expect(screen.getByRole('menuitem', { name: /editar/i })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('menuitem', { name: /hacer público/i })).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('hacerlo público envía PUBLIC sin pedir confirmación y avisa con un toast', async () => {
+    const user = userEvent.setup()
+    renderPage('merge-sort')
+    await openActionsMenu(user, 'Merge Sort')
+
+    await user.click(screen.getByRole('menuitem', { name: /hacer público/i }))
+
+    await waitFor(() => expect(requests).toEqual([{ slug: 'merge-sort', body: { accessibility: 'PUBLIC' } }]))
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es público' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('en un problema público ofrece "Hacer privado" y pide confirmación antes de enviarlo', async () => {
+    const user = userEvent.setup()
+    renderPage('two-sum')
+    await openActionsMenu(user, 'Two Sum')
+
+    await user.click(screen.getByRole('menuitem', { name: /hacer privado/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(/hacer privado el problema/i)
+    expect(requests).toEqual([])
+
+    await user.click(within(dialog).getByRole('button', { name: /hacer privado/i }))
+
+    await waitFor(() => expect(requests).toEqual([{ slug: 'two-sum', body: { accessibility: 'PRIVATE' } }]))
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'El problema ahora es privado' }))
+  })
+
+  it('cancelar la confirmación no envía nada', async () => {
+    const user = userEvent.setup()
+    renderPage('two-sum')
+    await openActionsMenu(user, 'Two Sum')
+    await user.click(screen.getByRole('menuitem', { name: /hacer privado/i }))
+
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /cancelar/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(requests).toEqual([])
+  })
+
+  it('muestra un toast de error si el backend rechaza el cambio', async () => {
+    server.use(
+      http.patch(accessibilityUrl, () =>
+        HttpResponse.json({ error: 'INSUFFICIENT_PERMISSIONS', message: 'Sin permiso' }, { status: 403 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderPage('merge-sort')
+    await openActionsMenu(user, 'Merge Sort')
+
+    await user.click(screen.getByRole('menuitem', { name: /hacer público/i }))
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo cambiar la visibilidad' })),
+    )
+  })
+
+  it('también está disponible en un borrador', async () => {
+    const user = userEvent.setup()
+    renderPage('segment-tree-range')
+    await openActionsMenu(user, 'Segment Tree Range Query')
+
+    expect(screen.getByRole('menuitem', { name: /hacer público/i })).toBeInTheDocument()
   })
 })
