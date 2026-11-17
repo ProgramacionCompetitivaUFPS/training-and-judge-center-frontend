@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -121,5 +122,95 @@ describe('ProblemDetailPage', () => {
 
     // Assert
     expect(statisticsRequests).toBe(0)
+  })
+})
+
+describe('ProblemDetailPage — advertencias de casos de prueba', () => {
+  beforeEach(() => {
+    _authUser = { ...mockCurrentUser }   // ADMIN role
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
+  afterEach(() => clearAccessToken())
+
+  it('muestra ícono de advertencia en el checklist cuando no hay casos secretos', async () => {
+    const twoSum = mockProblems.find((p) => p.slug === 'two-sum')
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/:slug', () =>
+        HttpResponse.json({ ...twoSum, status: 'DRAFT' }),
+      ),
+      http.get('http://localhost:8080/api/problems/p/:slug/testcases', () =>
+        HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 0, cases: [] }),
+      ),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: 'Two Sum' })
+    // The checklist renders twice (mobile + desktop), so the icon appears more than once
+    expect((await screen.findAllByLabelText('Advertencia')).length).toBeGreaterThan(0)
+  })
+
+  it('muestra ícono de advertencia en el checklist cuando no hay casos de ejemplo', async () => {
+    const twoSum = mockProblems.find((p) => p.slug === 'two-sum')
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/:slug', () =>
+        HttpResponse.json({ ...twoSum, status: 'DRAFT' }),
+      ),
+      http.get('http://localhost:8080/api/problems/p/:slug/testcases', () =>
+        HttpResponse.json({ hasTestCases: true, sampleCount: 0, secretCount: 3, cases: [] }),
+      ),
+    )
+    renderPage()
+    await screen.findByRole('heading', { name: 'Two Sum' })
+    // The checklist renders twice (mobile + desktop), so the icon appears more than once
+    expect((await screen.findAllByLabelText('Advertencia')).length).toBeGreaterThan(0)
+  })
+
+  it('muestra nota de advertencia en la sección Archivos cuando no hay secretos', async () => {
+    const twoSum = mockProblems.find((p) => p.slug === 'two-sum')
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/:slug', () =>
+        HttpResponse.json({ ...twoSum, status: 'DRAFT' }),
+      ),
+      http.get('http://localhost:8080/api/problems/p/:slug/testcases', () =>
+        HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 0, cases: [] }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByRole('heading', { name: 'Two Sum' })
+    // Switch to the files tab (tab trigger label is "Archivos y colaboradores")
+    await user.click(screen.getByRole('tab', { name: /archivos y colaboradores/i }))
+    // The warning note appears below the Casos de prueba row
+    expect(await screen.findByText(/no hay casos secretos/i)).toBeInTheDocument()
+  })
+
+  it('muestra diálogo de confirmación al publicar cuando hay advertencias activas', async () => {
+    const twoSum = mockProblems.find((p) => p.slug === 'two-sum')
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/:slug', () =>
+        HttpResponse.json({ ...twoSum, status: 'DRAFT' }),
+      ),
+      http.get('http://localhost:8080/api/problems/p/:slug/testcases', () =>
+        HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 0, cases: [] }),
+      ),
+      // Validation must be passed so the Publicar button is enabled
+      http.get('http://localhost:8080/api/problems/p/:slug/validation', () =>
+        HttpResponse.json({
+          found: true, terminal: true, passed: true, stale: false,
+          status: 'DRAFT', validationLogs: ['✓ Pasó'],
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByRole('heading', { name: 'Two Sum' })
+    // Publicar is in the page header — visible from any tab; wait for it to be enabled
+    // Re-query inside waitFor: the disabled tooltip branch is swapped for a new button once validation resolves
+    await waitFor(() => expect(screen.getByRole('button', { name: /^publicar$/i })).not.toBeDisabled())
+
+    await user.click(screen.getByRole('button', { name: /^publicar$/i }))
+
+    // A confirmation dialog appears (not an immediate publish call)
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/advertencias/i)).toBeInTheDocument()
   })
 })
