@@ -34,7 +34,7 @@ import { useRejudgeContestProblem } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
@@ -986,7 +986,7 @@ interface FilesManagerProps {
   onAutoUploadConsumed?: () => void
 }
 
-function FilesManager({ problem, readOnly = false, testCasesWarning }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -994,6 +994,15 @@ function FilesManager({ problem, readOnly = false, testCasesWarning }: FilesMana
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
+
+  // Must stay above the early return below: the checklist sets autoUpload and switches to this tab.
+  useEffect(() => {
+    if (!autoUpload || readOnly) return
+    triggerUpload(autoUpload)
+    onAutoUploadConsumed?.()
+    // triggerUpload and onAutoUploadConsumed are stable; readOnly is intentionally excluded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoUpload])
 
   if (!problem.files) return null
   const files = problem.files
