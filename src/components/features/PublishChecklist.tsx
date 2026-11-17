@@ -1,5 +1,5 @@
-import { ArrowRight, Check, CircleDashed, Loader2 } from 'lucide-react'
-import { Button, Card, CardContent } from '@/components/ui'
+import { AlertTriangle, ArrowRight, Check, CircleDashed, Loader2 } from 'lucide-react'
+import { Button, Card, CardContent, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 export interface PublishChecklistStep {
@@ -17,6 +17,8 @@ export interface PublishChecklistStep {
   loading?: boolean
   /** Leads to a longer explanation of the step's result, when there is one */
   onDetail?: () => void
+  /** Shown as an amber warning with a tooltip when the step is met but still has a concern */
+  warning?: string
 }
 
 interface PublishChecklistProps {
@@ -46,7 +48,16 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
           {steps.map((step) => (
             <li key={step.key} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
               {step.met ? (
-                <Check className="h-4 w-4 shrink-0 text-status-success" aria-label="Listo" />
+                step.warning ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-label="Advertencia" />
+                    </TooltipTrigger>
+                    <TooltipContent>{step.warning}</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Check className="h-4 w-4 shrink-0 text-status-success" aria-label="Listo" />
+                )
               ) : step.loading ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-status-warning" aria-label="En curso" />
               ) : (
