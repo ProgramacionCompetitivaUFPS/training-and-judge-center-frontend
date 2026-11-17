@@ -1123,6 +1123,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                   size="sm"
                   onClick={() => triggerUpload(fileType)}
                   isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
+                  disabled={uploadMutation.isPending || isCheckingZip}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1" />
                   {files[fileType] ? 'Reemplazar' : 'Subir'}
@@ -1161,6 +1162,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                 size="sm"
                 onClick={() => triggerUpload('solution')}
                 isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
+                disabled={uploadMutation.isPending || isCheckingZip}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 Agregar
