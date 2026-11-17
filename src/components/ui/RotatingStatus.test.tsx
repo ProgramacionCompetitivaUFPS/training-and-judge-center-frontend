@@ -2,64 +2,102 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { RotatingStatus } from './RotatingStatus'
 
+// Each tick() is its own act(): the hold and dot timers are scheduled after the render that
+// finishes typing, so a single big advance would skip over them.
+function tick(ms: number) {
+  act(() => { vi.advanceTimersByTime(ms) })
+}
+
+const timing = { typeMs: 10, holdMs: 100, dotMs: 50 }
+
 describe('RotatingStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
   afterEach(() => {
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
-  it('muestra la primera frase al montar y todavía no las siguientes', () => {
-    render(<RotatingStatus phrases={['Uno…', 'Dos…', 'Tres…']} />)
+  it('escribe la frase letra por letra, sin los puntos finales', () => {
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
+    expect(screen.queryByText('U')).not.toBeInTheDocument()
 
-    expect(screen.getByRole('status')).toHaveTextContent('Uno…')
-    expect(screen.queryByText('Dos…')).not.toBeInTheDocument()
+    tick(10)
+    expect(screen.getByText('U')).toBeInTheDocument()
+    tick(10)
+    expect(screen.getByText('Un')).toBeInTheDocument()
+    tick(10)
+    expect(screen.getByText('Uno')).toBeInTheDocument()
   })
 
-  it('cambia a la siguiente frase cuando pasa el intervalo', () => {
-    render(<RotatingStatus phrases={['Uno…', 'Dos…', 'Tres…']} intervalMs={1000} />)
+  it('al terminar de escribir anima los tres puntos finales', () => {
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} holdMs={10_000} />)
+    tick(30)
+    const dots = screen.getByTestId('rotating-status-dots')
+    expect(dots).toHaveTextContent('')
 
-    act(() => { vi.advanceTimersByTime(1000) })
+    tick(50)
+    expect(dots).toHaveTextContent(/^\.$/)
+    tick(50)
+    expect(dots).toHaveTextContent(/^\.\.$/)
+    tick(50)
+    expect(dots).toHaveTextContent(/^\.\.\.$/)
+    tick(50)
+    expect(dots).toHaveTextContent(/^\.$/)
+  })
 
-    expect(screen.getByText('Dos…')).toBeInTheDocument()
+  it('pasa a la siguiente frase cuando la anterior se quedó el tiempo de espera', () => {
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
+    tick(30)
+    expect(screen.getByText('Uno')).toBeInTheDocument()
+
+    tick(100)
+    expect(screen.queryByText('Uno')).not.toBeInTheDocument()
+    tick(30)
+
+    expect(screen.getByText('Dos')).toBeInTheDocument()
   })
 
   it('vuelve a la primera frase después de recorrer todas', () => {
-    render(<RotatingStatus phrases={['Uno…', 'Dos…']} intervalMs={1000} />)
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
+    tick(30); tick(100); tick(30); tick(100); tick(30)
 
-    act(() => { vi.advanceTimersByTime(2000) })
-
-    expect(screen.getByRole('status')).toHaveTextContent('Uno…')
-    expect(screen.queryByText('Dos…')).not.toBeInTheDocument()
+    expect(screen.getByText('Uno')).toBeInTheDocument()
+    expect(screen.queryByText('Dos')).not.toBeInTheDocument()
   })
 
-  it('con una sola frase no cambia ni programa un intervalo', () => {
-    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
-    render(<RotatingStatus phrases={['Solo…']} intervalMs={1000} />)
+  it('con una sola frase la escribe una vez y no cambia', () => {
+    render(<RotatingStatus phrases={['Solo…']} {...timing} />)
+    tick(50)
+    tick(5_000)
 
-    act(() => { vi.advanceTimersByTime(5000) })
-
-    expect(screen.getByRole('status')).toHaveTextContent('Solo…')
-    expect(setIntervalSpy).not.toHaveBeenCalled()
+    expect(screen.getByText('Solo')).toBeInTheDocument()
   })
 
-  it('detiene el intervalo al desmontar', () => {
-    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
-    const { unmount } = render(<RotatingStatus phrases={['Uno…', 'Dos…']} intervalMs={1000} />)
+  it('con movimiento reducido muestra la frase completa de una vez, sin teclear ni animar los puntos', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
 
-    unmount()
-
-    expect(clearIntervalSpy).toHaveBeenCalled()
+    expect(screen.getByText('Uno')).toBeInTheDocument()
+    expect(screen.getByTestId('rotating-status-dots')).toHaveTextContent('...')
   })
 
   it('anuncia a los lectores de pantalla una sola frase estable, no cada cambio', () => {
-    render(<RotatingStatus phrases={['Uno…', 'Dos…']} intervalMs={1000} />)
+    render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
+    tick(30); tick(100); tick(30)
 
-    act(() => { vi.advanceTimersByTime(1000) })
-
-    expect(screen.getByText('Dos…')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Dos')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByRole('status')).toHaveTextContent('Uno…')
+  })
+
+  it('detiene los temporizadores al desmontar', () => {
+    const { unmount } = render(<RotatingStatus phrases={['Uno…', 'Dos…']} {...timing} />)
+    tick(30)
+
+    unmount()
+
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

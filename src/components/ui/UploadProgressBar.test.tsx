@@ -27,12 +27,16 @@ describe('UploadProgressBar', () => {
 
   it('al llegar a 100 va cambiando de frase mientras el servidor procesa', () => {
     vi.useFakeTimers()
+    const secondPhrase = PROCESSING_PHRASES[1].replace(/…$/, '')
     render(<UploadProgressBar progress={100} />)
-    expect(screen.queryByText(PROCESSING_PHRASES[1])).not.toBeInTheDocument()
+    expect(screen.queryByText(secondPhrase)).not.toBeInTheDocument()
 
-    act(() => { vi.advanceTimersByTime(2500) })
+    // Separate acts: each stage schedules the timer of the next one (type, hold, type again)
+    act(() => { vi.advanceTimersByTime(1000) })
+    act(() => { vi.advanceTimersByTime(1000) })
+    act(() => { vi.advanceTimersByTime(1000) })
 
-    expect(screen.getByText(PROCESSING_PHRASES[1])).toBeInTheDocument()
+    expect(screen.getByText(secondPhrase)).toBeInTheDocument()
   })
 
   it('la barra interior refleja el ancho del porcentaje', () => {
