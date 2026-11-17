@@ -113,6 +113,7 @@ export function ProblemDetailPage() {
   const exportMutation = useExportProblem()
   const rejudgeContestMutation = useRejudgeContestProblem()
 
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
@@ -174,8 +175,8 @@ export function ProblemDetailPage() {
       key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
       hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
     },
-    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: () => { goToFiles(); setPendingAutoUpload('testCases') }, warning: testCasesWarning },
-    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: () => { goToFiles(); setPendingAutoUpload('solution') } },
+    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: () => { goToFiles(); setPendingAutoUpload('testCases') }, warning: testCasesWarning, disabled: isUploadingFile },
+    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: () => { goToFiles(); setPendingAutoUpload('solution') }, disabled: isUploadingFile },
   ]
   const requirementsMet = missingPublishRequirements.length === 0
   const validationRunning = validateMutation.isPending || publishMutation.isPending || (!!validation?.found && !validation.terminal)
@@ -373,6 +374,7 @@ export function ProblemDetailPage() {
           testCasesWarning={testCasesWarning}
           autoUpload={pendingAutoUpload}
           onAutoUploadConsumed={() => setPendingAutoUpload(null)}
+          onUploadingChange={setIsUploadingFile}
         />
       )}
 
@@ -985,9 +987,10 @@ interface FilesManagerProps {
   testCasesWarning?: string
   autoUpload?: ProblemFileType | null
   onAutoUploadConsumed?: () => void
+  onUploadingChange?: (uploading: boolean) => void
 }
 
-function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, onUploadingChange }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -1043,6 +1046,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
       }
     }
 
+    onUploadingChange?.(true)
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file, onProgress: setUploadProgress },
       {
@@ -1059,6 +1063,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
         onSettled: () => {
           setPendingFileType(null)
           setUploadProgress(null)
+          onUploadingChange?.(false)
         },
       },
     )
