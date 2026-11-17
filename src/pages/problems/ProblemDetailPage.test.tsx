@@ -39,6 +39,16 @@ vi.mock('@/hooks/useToastContext', () => ({
   useToastContext: () => ({ toast: mockToast }),
 }))
 
+// Lets a test hold the ZIP structure check open; null falls through to the real implementation
+const zipPeek = vi.hoisted(() => ({ override: null as null | ((file: File) => Promise<string[] | null>) }))
+vi.mock('@/lib/zipPeek', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/zipPeek')>()
+  return {
+    ...actual,
+    peekZipEntryPaths: (file: File) => (zipPeek.override ? zipPeek.override(file) : actual.peekZipEntryPaths(file)),
+  }
+})
+
 function renderPage(slug = 'two-sum') {
   render(
     <QueryClientProvider client={createTestQueryClient()}>
@@ -144,6 +154,7 @@ describe('ProblemDetailPage', () => {
     })
     afterEach(() => {
       clickSpy.mockRestore()
+      zipPeek.override = null
     })
 
     it('clicking "Subir" in the checklist switches to the files tab and opens the test-cases file picker', async () => {
@@ -191,6 +202,35 @@ describe('ProblemDetailPage', () => {
 
       // Assert
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Formato de archivo incorrecto' }))
+    })
+
+    it('disables the checklist actions while the test-cases ZIP is being checked, and frees them if it is rejected', async () => {
+      // Arrange — hold the ZIP check open
+      let finishCheck: (paths: string[] | null) => void = () => {}
+      zipPeek.override = () => new Promise((resolve) => { finishCheck = resolve })
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await pickerUser.click(subirButton)
+      await screen.findByText('Archivos')
+
+      // Act
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['x'], 'tests.zip', { type: 'application/zip' }))
+
+      // Assert — nothing can start another upload during the check
+      await waitFor(() => {
+        const actions = screen.getAllByRole('button', { name: /subir|agregar/i })
+        expect(actions.length).toBeGreaterThan(0)
+        actions.forEach((button) => expect(button).toBeDisabled())
+      })
+      const checklistActions = screen.getAllByRole('button', { name: /agregar/i })
+
+      // The ZIP is rejected: the busy state is released
+      await act(async () => { finishCheck(null) })
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Estructura del ZIP incorrecta' })))
+      await waitFor(() => checklistActions.forEach((button) => expect(button).toBeEnabled()))
     })
   })
 })

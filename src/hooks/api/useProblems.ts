@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useIsMutating, keepPreviousData } from '@tanstack/react-query'
 import * as problemsApi from '@/api/problems'
 import type {
   ProblemListParams,
@@ -165,10 +165,26 @@ export function useUnpublishProblem() {
   })
 }
 
+const uploadProblemFileMutationKey = ['problems', 'upload-file'] as const
+
+/**
+ * True while a file upload of this problem is running, wherever it was started from. The upload keeps
+ * running when the component that started it unmounts (e.g. the user switches tabs), so the state
+ * lives in the mutation cache instead of in that component.
+ */
+export function useIsUploadingProblemFile(slug: string): boolean {
+  const running = useIsMutating({
+    mutationKey: uploadProblemFileMutationKey,
+    predicate: (mutation) => (mutation.state.variables as { slug?: string } | undefined)?.slug === slug,
+  })
+  return running > 0
+}
+
 export function useUploadProblemFile() {
   const queryClient = useQueryClient()
   const { toast } = useToastContext()
   return useMutation({
+    mutationKey: uploadProblemFileMutationKey,
     mutationFn: ({ slug, fileType, file, onProgress }: { slug: string; fileType: string; file: File; onProgress?: (pct: number) => void }) =>
       problemsApi.uploadProblemFile(slug, fileType, file, onProgress),
     onSuccess: (_, { slug }) => {

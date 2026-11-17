@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
@@ -25,6 +25,7 @@ import {
   useAddModifier,
   useRemoveModifier,
   useUploadProblemFile,
+  useIsUploadingProblemFile,
 } from './useProblems'
 import * as problemsApi from '@/api/problems'
 import { ApiClientError } from '@/lib/errors'
@@ -408,5 +409,35 @@ describe('useUploadProblemFile', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(mockToast).toHaveBeenCalledWith({ variant: 'error', title: 'Error al subir el archivo' })
+  })
+})
+
+describe('useIsUploadingProblemFile', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('stays true while the upload runs, even after the component that started it unmounts', async () => {
+    let failUpload = () => {}
+    uploadMock.mockReturnValue(new Promise<never>((_, reject) => { failUpload = () => reject(new Error('fail')) }))
+    const { wrapper } = makeWrapper()
+    const uploader = renderHook(() => useUploadProblemFile(), { wrapper })
+    const observer = renderHook(() => useIsUploadingProblemFile('two-sum'), { wrapper })
+    const otherProblem = renderHook(() => useIsUploadingProblemFile('otro-problema'), { wrapper })
+    expect(observer.result.current).toBe(false)
+
+    act(() => uploader.result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file }))
+    await waitFor(() => expect(observer.result.current).toBe(true))
+    expect(otherProblem.result.current).toBe(false)
+
+    uploader.unmount()
+    expect(observer.result.current).toBe(true)
+
+    act(() => failUpload())
+    await waitFor(() => expect(observer.result.current).toBe(false))
   })
 })

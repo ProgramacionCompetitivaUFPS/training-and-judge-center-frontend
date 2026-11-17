@@ -24,6 +24,7 @@ import {
   useUnpublishProblem,
   useDeleteProblem,
   useUploadProblemFile,
+  useIsUploadingProblemFile,
   useDeleteProblemFile,
   useAddModifier,
   useRemoveModifier,
@@ -113,7 +114,11 @@ export function ProblemDetailPage() {
   const exportMutation = useExportProblem()
   const rejudgeContestMutation = useRejudgeContestProblem()
 
-  const [isUploadingFile, setIsUploadingFile] = useState(false)
+  // The upload outlives FilesManager (tab switches unmount it), so its state comes from the mutation
+  // cache; the ZIP structure check runs before the upload starts and is reported up by FilesManager.
+  const isUploadMutating = useIsUploadingProblemFile(resolvedSlug || '')
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
+  const isUploadingFile = isUploadMutating || isCheckingZip
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
@@ -374,7 +379,8 @@ export function ProblemDetailPage() {
           testCasesWarning={testCasesWarning}
           autoUpload={pendingAutoUpload}
           onAutoUploadConsumed={() => setPendingAutoUpload(null)}
-          onUploadingChange={setIsUploadingFile}
+          isUploading={isUploadMutating}
+          onCheckingZipChange={setIsCheckingZip}
         />
       )}
 
@@ -987,10 +993,13 @@ interface FilesManagerProps {
   testCasesWarning?: string
   autoUpload?: ProblemFileType | null
   onAutoUploadConsumed?: () => void
-  onUploadingChange?: (uploading: boolean) => void
+  /** An upload of this problem is running, possibly one started before this component was mounted. */
+  isUploading?: boolean
+  /** Reports the ZIP structure check, which runs before the upload starts. */
+  onCheckingZipChange?: (checking: boolean) => void
 }
 
-function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, onUploadingChange }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, isUploading = false, onCheckingZipChange }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
@@ -1024,9 +1033,6 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     wasPendingRef.current = false
     setUploadProgress(null)
     setPendingFileType(null)
-    onUploadingChange?.(false)
-    // onUploadingChange is intentionally excluded — it's a stable setter from the parent
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadMutation.isPending])
 
   if (!problem.files) return null
@@ -1056,9 +1062,16 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     }
 
     if (pendingFileType === 'testCases' && !exceedsZipStructureCheckSize(file)) {
+      // Busy from the start of the check: otherwise the checklist stays enabled while it runs
       setIsCheckingZip(true)
-      const structureError = await checkTestCasesZipStructure(file)
-      setIsCheckingZip(false)
+      onCheckingZipChange?.(true)
+      let structureError: string | null
+      try {
+        structureError = await checkTestCasesZipStructure(file)
+      } finally {
+        setIsCheckingZip(false)
+        onCheckingZipChange?.(false)
+      }
       if (structureError) {
         toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
         setPendingFileType(null)
@@ -1066,14 +1079,12 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
       }
     }
 
-    onUploadingChange?.(true)
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file, onProgress: setUploadProgress },
       {
         onSettled: () => {
           setPendingFileType(null)
           setUploadProgress(null)
-          onUploadingChange?.(false)
         },
       },
     )
@@ -1133,7 +1144,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                   size="sm"
                   onClick={() => triggerUpload(fileType)}
                   isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
-                  disabled={uploadMutation.isPending || isCheckingZip}
+                  disabled={uploadMutation.isPending || isUploading || isCheckingZip}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1" />
                   {files[fileType] ? 'Reemplazar' : 'Subir'}
@@ -1172,7 +1183,7 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                 size="sm"
                 onClick={() => triggerUpload('solution')}
                 isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
-                disabled={uploadMutation.isPending || isCheckingZip}
+                disabled={uploadMutation.isPending || isUploading || isCheckingZip}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 Agregar
