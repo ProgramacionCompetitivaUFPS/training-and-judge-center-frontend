@@ -10,6 +10,9 @@ import type {
   ProblemSourceFileType,
 } from '@/types/problem'
 import { saveBlobAs } from '@/lib/download'
+import { useToastContext } from '@/hooks/useToastContext'
+import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 // === Query Keys ===
 
@@ -164,6 +167,7 @@ export function useUnpublishProblem() {
 
 export function useUploadProblemFile() {
   const queryClient = useQueryClient()
+  const { toast } = useToastContext()
   return useMutation({
     mutationFn: ({ slug, fileType, file, onProgress }: { slug: string; fileType: string; file: File; onProgress?: (pct: number) => void }) =>
       problemsApi.uploadProblemFile(slug, fileType, file, onProgress),
@@ -172,6 +176,16 @@ export function useUploadProblemFile() {
       queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
+      toast({ variant: 'success', title: 'Archivo subido' })
+    },
+    onError: (err) => {
+      if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+        toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+      } else if (err instanceof ApiClientError) {
+        toast({ variant: 'error', title: 'Error al subir el archivo', description: getErrorMessage(err) })
+      } else {
+        toast({ variant: 'error', title: 'Error al subir el archivo' })
+      }
     },
   })
 }

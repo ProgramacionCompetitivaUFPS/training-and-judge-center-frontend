@@ -1063,16 +1063,6 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file, onProgress: setUploadProgress },
       {
-        onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
-        onError: (err) => {
-          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
-            toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
-          } else if (err instanceof ApiClientError) {
-            toast({ variant: 'error', title: 'Error al subir el archivo', description: getErrorMessage(err) })
-          } else {
-            toast({ variant: 'error', title: 'Error al subir el archivo' })
-          }
-        },
         onSettled: () => {
           setPendingFileType(null)
           setUploadProgress(null)

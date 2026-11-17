@@ -24,7 +24,20 @@ import {
   useUpdateAccessibility,
   useAddModifier,
   useRemoveModifier,
+  useUploadProblemFile,
 } from './useProblems'
+import * as problemsApi from '@/api/problems'
+import { ApiClientError } from '@/lib/errors'
+
+const mockToast = vi.fn()
+vi.mock('@/hooks/useToastContext', () => ({
+  useToastContext: () => ({ toast: mockToast }),
+}))
+
+vi.mock('@/api/problems', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/problems')>()
+  return { ...actual, uploadProblemFile: vi.fn() }
+})
 
 function makeWrapper() {
   const queryClient = createTestQueryClient()
@@ -348,5 +361,52 @@ describe('useRemoveModifier', () => {
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.detail('two-sum') }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.validation('two-sum') }))
+  })
+})
+
+describe('useUploadProblemFile', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('muestra toast de éxito al subir el archivo', async () => {
+    uploadMock.mockResolvedValue(undefined as never)
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({ variant: 'success', title: 'Archivo subido' })
+  })
+
+  it('muestra toast de problema publicado si el backend rechaza el upload', async () => {
+    uploadMock.mockRejectedValue(new ApiClientError(409, 'PROBLEM_IS_PUBLISHED', 'published'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({
+      variant: 'error',
+      title: 'No se puede subir el archivo',
+      description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.',
+    })
+  })
+
+  it('muestra toast de error genérico si el upload falla por otra causa', async () => {
+    uploadMock.mockRejectedValue(new Error('network down'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({ variant: 'error', title: 'Error al subir el archivo' })
   })
 })
