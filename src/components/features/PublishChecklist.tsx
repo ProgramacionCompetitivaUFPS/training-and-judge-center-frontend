@@ -47,7 +47,15 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
         <ol className="divide-y divide-neutral-border">
           {steps.map((step) => {
             const row = (
-            <li key={step.key} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+            <li
+              key={step.key}
+              // A row that triggers the warning tooltip must be reachable with the keyboard too
+              tabIndex={step.met && step.warning ? 0 : undefined}
+              className={cn(
+                'flex items-center gap-3 py-2 first:pt-0 last:pb-0',
+                step.met && step.warning && 'rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
+              )}
+            >
               {step.met ? (
                 step.warning ? (
                   // The whole row is the tooltip trigger (see below); the icon only signals it

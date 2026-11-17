@@ -156,8 +156,13 @@ class ApiClient {
         xhr.withCredentials = true
         xhr.timeout = 5 * 60 * 1000
 
+        // Same precedence as the fetch-based methods: config.headers wins over the defaults.
+        // setRequestHeader appends instead of replacing, so a custom Authorization skips the token one.
+        const extraHeaders = config?.headers ?? {}
+        const hasCustomAuth = Object.keys(extraHeaders).some((name) => name.toLowerCase() === 'authorization')
         const token = getAccessToken()
-        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        if (token && !hasCustomAuth) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        for (const [name, value] of Object.entries(extraHeaders)) xhr.setRequestHeader(name, value)
 
         if (onProgress) {
           xhr.upload.onprogress = (e) => {
@@ -189,7 +194,11 @@ class ApiClient {
 
           if (xhr.status >= 400) {
             let error: { error?: string; message?: string; details?: Array<{ field: string; code?: string; message: string }> } = {}
-            try { error = JSON.parse(xhr.responseText) } catch { /* noop */ }
+            try {
+              // "null" (or any non-object) parses fine but has no fields: keep the UNKNOWN fallback
+              const parsed: unknown = JSON.parse(xhr.responseText)
+              if (parsed && typeof parsed === 'object') error = parsed as typeof error
+            } catch { /* noop */ }
             reject(new ApiClientError(
               xhr.status,
               error.error ?? 'UNKNOWN',

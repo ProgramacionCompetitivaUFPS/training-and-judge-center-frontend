@@ -129,6 +129,7 @@ describe('ProblemFormPage', () => {
 // Only the transport is replaced here; the hook, the API client and the page run for real.
 class MockXHR {
   static last: MockXHR
+  static created = 0
   open = vi.fn()
   send = vi.fn()
   setRequestHeader = vi.fn()
@@ -142,7 +143,10 @@ class MockXHR {
   onerror: (() => void) | null = null
   ontimeout: (() => void) | null = null
 
-  constructor() { MockXHR.last = this }
+  constructor() {
+    MockXHR.last = this
+    MockXHR.created++
+  }
 
   triggerLoad() { this.onload?.() }
   triggerProgress(loaded: number, total: number) {
@@ -175,11 +179,34 @@ describe('ProblemFormPage importación de ZIP', () => {
   beforeEach(() => {
     setAccessToken('mock-jwt-token-luisadmin')
     mockToast.mockClear()
+    MockXHR.created = 0
     vi.stubGlobal('XMLHttpRequest', MockXHR)
   })
   afterEach(() => {
     vi.unstubAllGlobals()
     clearAccessToken()
+  })
+
+  it('rechaza un ZIP que supera el límite en un byte: muestra el error y no abre la revisión ni envía nada', async () => {
+    // Arrange: 150 MB + 1 byte, without allocating that memory
+    const user = userEvent.setup()
+    renderCreate()
+    const tooBig = new File(['x'], 'grande.zip', { type: 'application/zip' })
+    Object.defineProperty(tooBig, 'size', { value: 150 * 1024 * 1024 + 1 })
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('file input not found')
+
+    // Act
+    await user.upload(input, tooBig)
+
+    // Assert
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ variant: 'error', title: 'El ZIP es demasiado grande' }),
+      )
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(MockXHR.created).toBe(0)
   })
 
   it('muestra el mensaje traducido del detail code en el toast de error al importar', async () => {

@@ -269,6 +269,7 @@ describe('postFormDataWithProgress', () => {
   // MSW intercepts fetch, not XMLHttpRequest, so the XHR path is exercised through this mock.
   class MockXHR {
     static last: MockXHR
+    static instances: MockXHR[] = []
     open = vi.fn()
     send = vi.fn()
     setRequestHeader = vi.fn()
@@ -277,13 +278,17 @@ describe('postFormDataWithProgress', () => {
     status = 200
     responseText = ''
     upload: { onprogress: ((e: ProgressEvent) => void) | null } = { onprogress: null }
-    onload: (() => void) | null = null
+    onload: (() => void | Promise<void>) | null = null
     onerror: (() => void) | null = null
     ontimeout: (() => void) | null = null
 
-    constructor() { MockXHR.last = this }
+    constructor() {
+      MockXHR.last = this
+      MockXHR.instances.push(this)
+    }
 
-    triggerLoad() { this.onload?.() }
+    // Returns the handler's promise so tests can await the 401 refresh-and-retry flow
+    triggerLoad() { return this.onload?.() }
     triggerError() { this.onerror?.() }
     triggerTimeout() { this.ontimeout?.() }
     triggerProgress(loaded: number, total: number) {
@@ -292,6 +297,7 @@ describe('postFormDataWithProgress', () => {
   }
 
   beforeEach(() => {
+    MockXHR.instances = []
     vi.stubGlobal('XMLHttpRequest', MockXHR)
     setAccessToken('test-token')
   })
@@ -352,5 +358,84 @@ describe('postFormDataWithProgress', () => {
     clearAccessToken()
     void apiClient.postFormDataWithProgress('/problems/import', new FormData())
     expect(MockXHR.last.setRequestHeader).not.toHaveBeenCalledWith('Authorization', expect.anything())
+  })
+
+  it('transmite las cabeceras de config.headers', () => {
+    void apiClient.postFormDataWithProgress('/problems/import', new FormData(), undefined, {
+      headers: { 'X-Request-ID': 'import-1' },
+    })
+    expect(MockXHR.last.setRequestHeader).toHaveBeenCalledWith('X-Request-ID', 'import-1')
+  })
+
+  it('un Authorization en config.headers reemplaza al del token (no se envían los dos)', () => {
+    void apiClient.postFormDataWithProgress('/problems/import', new FormData(), undefined, {
+      headers: { Authorization: 'Bearer custom' },
+    })
+    const authCalls = MockXHR.last.setRequestHeader.mock.calls.filter(([name]) => name === 'Authorization')
+    expect(authCalls).toEqual([['Authorization', 'Bearer custom']])
+  })
+
+  it('rechaza con ApiClientError UNKNOWN cuando un error HTTP trae el body "null"', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.status = 500
+    MockXHR.last.responseText = 'null'
+    MockXHR.last.triggerLoad()
+    const error = await promise.catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).status).toBe(500)
+    expect((error as ApiClientError).code).toBe('UNKNOWN')
+  })
+
+  describe('renovación de sesión tras un 401', () => {
+    const unauthorized = (xhr: MockXHR) => {
+      xhr.status = 401
+      xhr.responseText = '{"error":"UNAUTHORIZED"}'
+    }
+
+    it('reintenta una vez con el token renovado y resuelve con la respuesta del reintento', async () => {
+      mockFetchSequence({ status: 200, body: { token: 'new-token' } })
+      const promise = apiClient.postFormDataWithProgress<{ slug: string }>('/problems/import', new FormData())
+      const first = MockXHR.last
+      unauthorized(first)
+      await first.triggerLoad()
+
+      expect(MockXHR.instances).toHaveLength(2)
+      const second = MockXHR.last
+      expect(second.setRequestHeader).toHaveBeenCalledWith('Authorization', 'Bearer new-token')
+      second.status = 200
+      second.responseText = '{"slug":"ok"}'
+      second.triggerLoad()
+      await expect(promise).resolves.toEqual({ slug: 'ok' })
+    })
+
+    it('rechaza sin un tercer intento si el reintento también recibe 401', async () => {
+      mockFetchSequence({ status: 200, body: { token: 'new-token' } })
+      const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+      const first = MockXHR.last
+      unauthorized(first)
+      await first.triggerLoad()
+
+      const second = MockXHR.last
+      unauthorized(second)
+      await second.triggerLoad()
+
+      const error = await promise.catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(ApiClientError)
+      expect((error as ApiClientError).status).toBe(401)
+      expect(MockXHR.instances).toHaveLength(2)
+    })
+
+    it('rechaza y no reintenta si la renovación falla', async () => {
+      mockFetchSequence({ status: 401, body: { error: 'UNAUTHORIZED' } })
+      const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+      const first = MockXHR.last
+      unauthorized(first)
+      await first.triggerLoad()
+
+      const error = await promise.catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(ApiClientError)
+      expect((error as ApiClientError).status).toBe(401)
+      expect(MockXHR.instances).toHaveLength(1)
+    })
   })
 })

@@ -94,6 +94,19 @@ describe('PublishChecklist', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('No hay casos secretos.')
   })
 
+  it('la fila con advertencia recibe el foco con Tab y muestra el tooltip', async () => {
+    const user = userEvent.setup()
+    renderChecklist([makeStep({ met: true, label: 'Casos de prueba', warning: 'No hay casos secretos.' })])
+    await user.tab()
+    expect(screen.getByText('Casos de prueba').closest('li')).toHaveFocus()
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('No hay casos secretos.')
+  })
+
+  it('las filas sin advertencia no entran en el orden de tabulación', () => {
+    renderChecklist([makeStep({ met: true, label: 'Enunciado' })])
+    expect(screen.getByText('Enunciado').closest('li')).not.toHaveAttribute('tabindex')
+  })
+
   it('el tooltip de advertencia aparece al pasar el mouse por el texto de la fila', async () => {
     const user = userEvent.setup()
     renderChecklist([makeStep({ met: true, label: 'Casos de prueba', warning: 'No hay casos secretos.' })])

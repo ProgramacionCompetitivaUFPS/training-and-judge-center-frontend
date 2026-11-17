@@ -90,10 +90,13 @@ export function ProblemDetailPage() {
   const mayValidate =
     !isContestContext && problem?.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
   const { data: validation } = useLatestValidation(resolvedSlug || '', { enabled: mayValidate })
-  const { data: testCasesData } = useProblemTestCases(
+  const testCasesQueryEnabled = mayValidate && !!problem?.files?.testCases
+  const { data: testCasesData, isError: testCasesError } = useProblemTestCases(
     resolvedSlug || '',
-    mayValidate && !!problem?.files?.testCases,
+    testCasesQueryEnabled,
   )
+  // The query is on but has no answer yet (loading or failed): "unknown" is not "no warnings"
+  const testCasesUnchecked = testCasesQueryEnabled && !testCasesData
   const testCasesWarning: string | undefined = testCasesData
     ? testCasesData.secretCount === 0 && testCasesData.sampleCount === 0
       ? 'Los casos de prueba no tienen pares completos (.in + .ans) aún.'
@@ -114,7 +117,10 @@ export function ProblemDetailPage() {
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
-  const [publishWarningOpen, setPublishWarningOpen] = useState(false)
+  // Tied to the problem that opened it: the route reuses this component when :slug changes
+  // (browser back), and a stale open flag would confirm the publication of the wrong problem.
+  const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
+  const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
     | { kind: 'failure'; data: PublishFailureResponse }
@@ -194,6 +200,19 @@ export function ProblemDetailPage() {
     onDetail: validationFailed ? goToFiles : undefined,
   })
   const hasWarnings = checklistSteps.some((s) => s.met && !!s.warning)
+  const publishWarnings = checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning)
+  const publishDialogTitle = hasWarnings
+    ? 'El problema tiene advertencias'
+    : testCasesUnchecked
+      ? 'Casos de prueba sin comprobar'
+      : 'Publicar problema'
+  const publishDialogDescription = hasWarnings
+    ? publishWarnings.join(' ')
+    : testCasesUnchecked
+      ? testCasesError
+        ? 'No se pudieron revisar los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+        : 'Todavía se están revisando los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+      : 'Los casos de prueba ya se revisaron y no hay advertencias.'
   const showChecklist = showManagementTabs && problem.status === 'DRAFT'
   const optionalMissing = [
     ...(problem.files && !problem.files.checker ? ['checker'] : []),
@@ -362,8 +381,8 @@ export function ProblemDetailPage() {
   }
 
   function handlePublishClick() {
-    if (hasWarnings) {
-      setPublishWarningOpen(true)
+    if (hasWarnings || testCasesUnchecked) {
+      setPublishWarningSlug(resolvedSlug ?? null)
     } else {
       handlePublish()
     }
@@ -789,12 +808,12 @@ export function ProblemDetailPage() {
       {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
       <ConfirmDialog
         open={publishWarningOpen}
-        onOpenChange={setPublishWarningOpen}
-        title="El problema tiene advertencias"
-        description={checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning).join(' ')}
+        onOpenChange={(open) => setPublishWarningSlug(open ? (resolvedSlug ?? null) : null)}
+        title={publishDialogTitle}
+        description={publishDialogDescription}
         variant="warning"
         confirmLabel="Publicar de todas formas"
-        onConfirm={() => { setPublishWarningOpen(false); handlePublish() }}
+        onConfirm={() => { setPublishWarningSlug(null); handlePublish() }}
       />
 
       {/* Publish validation result — success (validation logs) or failure (real detail from

@@ -42,7 +42,7 @@ export function ProblemSubmissionsPage() {
   const { slug } = useParams<{ slug: string }>()
 
   const { user } = useAuth()
-  const { data: problem } = useProblemDetail(slug || '')
+  const { data: problem, isLoading: problemLoading, isError: problemError } = useProblemDetail(slug || '')
   const { data: stats, isLoading: statsLoading, isError: statsError } = useProblemStatistics(
     slug || '',
     problem?.status === 'PUBLISHED',
@@ -169,7 +169,7 @@ export function ProblemSubmissionsPage() {
         )}
 
         {/* Table */}
-        {isLoading || (submissions.length === 0 && !hasActiveFilters && statsLoading) ? (
+        {isLoading || (submissions.length === 0 && !hasActiveFilters && (problemLoading || statsLoading)) ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -182,9 +182,10 @@ export function ProblemSubmissionsPage() {
               title="No hay envíos"
               description="Ningún envío coincide con los filtros seleccionados."
             />
-          ) : statsError && !stats ? (
+          ) : (statsError || problemError) && !stats ? (
             // Sin estadísticas no se puede saber si hay historial dentro de competencias,
-            // así que no se afirma que nadie haya enviado.
+            // así que no se afirma que nadie haya enviado. Si falla el detalle del problema, la
+            // consulta de estadísticas queda deshabilitada (no entra en error), de ahí problemError.
             <EmptyState
               icon={FileCode2}
               title="Sin envíos de práctica"
