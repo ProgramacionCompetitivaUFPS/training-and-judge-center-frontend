@@ -6,6 +6,7 @@ import {
   Tabs, TabsList, TabsTrigger, TabsContent,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   UploadProgressBar,
+  RotatingStatus,
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
@@ -25,6 +26,7 @@ import {
   useDeleteProblem,
   useUploadProblemFile,
   useIsUploadingProblemFile,
+  useUploadProgress,
   useDeleteProblemFile,
   useAddModifier,
   useRemoveModifier,
@@ -40,7 +42,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
-import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO, ZIP_CHECK_PHRASES } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
@@ -1006,7 +1008,8 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
   const [isCheckingZip, setIsCheckingZip] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  // From the mutation cache, not local state: the upload outlives this component (tab switches unmount it)
+  const uploadProgress = useUploadProgress(problem.slug)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
 
   // Must stay above the early return below: the checklist sets autoUpload and switches to this tab.
@@ -1031,7 +1034,6 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     }
     if (!wasPendingRef.current) return
     wasPendingRef.current = false
-    setUploadProgress(null)
     setPendingFileType(null)
   }, [uploadMutation.isPending])
 
@@ -1080,13 +1082,8 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
     }
 
     uploadMutation.mutate(
-      { slug: problem.slug, fileType: pendingFileType, file, onProgress: setUploadProgress },
-      {
-        onSettled: () => {
-          setPendingFileType(null)
-          setUploadProgress(null)
-        },
-      },
+      { slug: problem.slug, fileType: pendingFileType, file },
+      { onSettled: () => setPendingFileType(null) },
     )
   }
 
@@ -1143,7 +1140,6 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                   variant="ghost"
                   size="sm"
                   onClick={() => triggerUpload(fileType)}
-                  isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
                   disabled={uploadMutation.isPending || isUploading || isCheckingZip}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1" />
@@ -1182,7 +1178,6 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
                 variant="ghost"
                 size="sm"
                 onClick={() => triggerUpload('solution')}
-                isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
                 disabled={uploadMutation.isPending || isUploading || isCheckingZip}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
@@ -1228,7 +1223,11 @@ function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload,
             Para subir o eliminar archivos, despublica el problema primero.
           </p>
         )}
-        <UploadProgressBar progress={uploadProgress} className="mt-2" />
+        {isCheckingZip ? (
+          <RotatingStatus phrases={ZIP_CHECK_PHRASES} className="mt-2" />
+        ) : (
+          <UploadProgressBar progress={uploadProgress} className="mt-2" />
+        )}
       </CardContent>
 
 

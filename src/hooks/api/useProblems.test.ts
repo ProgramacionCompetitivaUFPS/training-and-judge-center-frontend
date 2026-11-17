@@ -26,6 +26,7 @@ import {
   useRemoveModifier,
   useUploadProblemFile,
   useIsUploadingProblemFile,
+  useUploadProgress,
 } from './useProblems'
 import * as problemsApi from '@/api/problems'
 import { ApiClientError } from '@/lib/errors'
@@ -439,5 +440,59 @@ describe('useIsUploadingProblemFile', () => {
 
     act(() => failUpload())
     await waitFor(() => expect(observer.result.current).toBe(false))
+  })
+})
+
+describe('useUploadProgress', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('starts at 0, follows the progress, survives the uploader unmounting and resets when the upload ends', async () => {
+    let report: (pct: number) => void = () => {}
+    let failUpload = () => {}
+    uploadMock.mockImplementation((_slug, _fileType, _file, onProgress) => {
+      report = (pct) => onProgress?.(pct)
+      return new Promise<never>((_, reject) => { failUpload = () => reject(new Error('fail')) })
+    })
+    const { wrapper } = makeWrapper()
+    const uploader = renderHook(() => useUploadProblemFile(), { wrapper })
+    const observer = renderHook(() => useUploadProgress('two-sum'), { wrapper })
+    const otherProblem = renderHook(() => useUploadProgress('otro-problema'), { wrapper })
+    expect(observer.result.current).toBeNull()
+
+    act(() => uploader.result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file }))
+    await waitFor(() => expect(observer.result.current).toBe(0))
+    await waitFor(() => expect(uploadMock).toHaveBeenCalled())
+
+    act(() => report(40))
+    await waitFor(() => expect(observer.result.current).toBe(40))
+    expect(otherProblem.result.current).toBeNull()
+
+    uploader.unmount()
+    act(() => report(70))
+    await waitFor(() => expect(observer.result.current).toBe(70))
+
+    act(() => failUpload())
+    await waitFor(() => expect(observer.result.current).toBeNull())
+  })
+
+  it('also forwards the progress to the onProgress the caller passes', async () => {
+    const onProgress = vi.fn()
+    uploadMock.mockImplementation(async (_slug, _fileType, _file, report) => {
+      report?.(55)
+      throw new Error('fail')
+    })
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file, onProgress })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(onProgress).toHaveBeenCalledWith(55)
   })
 })

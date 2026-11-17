@@ -315,3 +315,20 @@ export const PATHS = {
   material: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}`,
   materialEdit: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}/edit`,
 }
+
+// Shown while the test-cases ZIP structure is checked. The first one is the plain description
+// (what screen readers get); the rest are just for company while the user waits.
+export const ZIP_CHECK_PHRASES = [
+  'Revisando el ZIP…',
+  'Contando los casos de prueba…',
+  'Buscando data/sample y data/secret…',
+  'Desempolvando los .in y los .ans…',
+  'Despertando al juez…',
+  'Negociando con el Time Limit Exceeded…',
+  'Convenciendo al Wrong Answer de que se vaya…',
+  'Cazando el off-by-one que se escondió…',
+  'Verificando que ningún int se desborde…',
+  'Descomprimiendo con mucho cuidado…',
+  'Pidiéndole al Accepted que sea amable…',
+  'Ordenando los casos por dificultad (mentira)…',
+] as const

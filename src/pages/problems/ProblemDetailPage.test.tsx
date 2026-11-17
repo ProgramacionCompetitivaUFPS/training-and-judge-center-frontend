@@ -49,6 +49,19 @@ vi.mock('@/lib/zipPeek', async (importOriginal) => {
   }
 })
 
+// Same idea for the upload itself (XHR, so MSW can't answer it): lets a test keep an upload running
+const uploadApi = vi.hoisted(() => ({
+  override: null as null | typeof import('@/api/problems').uploadProblemFile,
+}))
+vi.mock('@/api/problems', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/problems')>()
+  return {
+    ...actual,
+    uploadProblemFile: (...args: Parameters<typeof actual.uploadProblemFile>) =>
+      uploadApi.override ? uploadApi.override(...args) : actual.uploadProblemFile(...args),
+  }
+})
+
 function renderPage(slug = 'two-sum') {
   render(
     <QueryClientProvider client={createTestQueryClient()}>
@@ -155,6 +168,7 @@ describe('ProblemDetailPage', () => {
     afterEach(() => {
       clickSpy.mockRestore()
       zipPeek.override = null
+      uploadApi.override = null
     })
 
     it('clicking "Subir" in the checklist switches to the files tab and opens the test-cases file picker', async () => {
@@ -226,11 +240,47 @@ describe('ProblemDetailPage', () => {
         actions.forEach((button) => expect(button).toBeDisabled())
       })
       const checklistActions = screen.getAllByRole('button', { name: /agregar/i })
+      expect(screen.getByRole('status')).toHaveTextContent(/revisando el zip/i)
 
       // The ZIP is rejected: the busy state is released
       await act(async () => { finishCheck(null) })
       await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Estructura del ZIP incorrecta' })))
       await waitFor(() => checklistActions.forEach((button) => expect(button).toBeEnabled()))
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('keeps the progress bar and the blocked buttons when the user leaves the files tab and comes back mid-upload', async () => {
+      // Arrange — an upload that stays running until the test ends it
+      let report: (pct: number) => void = () => {}
+      let failUpload = () => {}
+      uploadApi.override = (_slug, _fileType, _file, onProgress) => {
+        report = (pct) => onProgress?.(pct)
+        return new Promise<never>((_, reject) => { failUpload = () => reject(new Error('fail')) })
+      }
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      renderPage('segment-tree-range')
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [agregarButton] = await screen.findAllByRole('button', { name: /agregar/i })
+      await pickerUser.click(agregarButton)
+      await screen.findByText('Soluciones')
+
+      // Act — start the upload: the bar is there from the first moment, not after the first event
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['print(1)'], 'sol.py', { type: 'text/x-python' }))
+      expect(await screen.findByText('Subiendo… 0%')).toBeInTheDocument()
+      await waitFor(() => expect(typeof report).toBe('function'))
+      act(() => report(40))
+      expect(await screen.findByText('Subiendo… 40%')).toBeInTheDocument()
+
+      // Assert — leave the files tab (FilesManager unmounts) and come back
+      await pickerUser.click(screen.getByRole('tab', { name: /problema/i }))
+      await pickerUser.click(screen.getByRole('tab', { name: /archivos/i }))
+      expect(await screen.findByText('Subiendo… 40%')).toBeInTheDocument()
+      screen.getAllByRole('button', { name: /subir|reemplazar|agregar/i }).forEach((button) => expect(button).toBeDisabled())
+
+      // The upload ends: the bar goes away
+      act(() => failUpload())
+      await waitFor(() => expect(screen.queryByText(/subiendo…/i)).not.toBeInTheDocument())
     })
   })
 })

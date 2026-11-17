@@ -180,13 +180,38 @@ export function useIsUploadingProblemFile(slug: string): boolean {
   return running > 0
 }
 
+// Outside ['problems', …] on purpose: invalidating problems must not touch it. Kept in the query cache
+// (not in component state) so the progress survives the component that started the upload unmounting.
+const uploadProgressKey = (slug: string) => ['upload-progress', slug] as const
+
+/** Percentage of the running upload of this problem (0–100), or null when none is running. */
+export function useUploadProgress(slug: string): number | null {
+  const { data } = useQuery<number | null>({
+    queryKey: uploadProgressKey(slug),
+    queryFn: () => null,
+    enabled: false,
+    staleTime: Infinity,
+  })
+  return data ?? null
+}
+
 export function useUploadProblemFile() {
   const queryClient = useQueryClient()
   const { toast } = useToastContext()
   return useMutation({
     mutationKey: uploadProblemFileMutationKey,
+    // Hook-level callbacks run even if the component that called mutate() is gone
+    onMutate: ({ slug }) => {
+      queryClient.setQueryData(uploadProgressKey(slug), 0)
+    },
     mutationFn: ({ slug, fileType, file, onProgress }: { slug: string; fileType: string; file: File; onProgress?: (pct: number) => void }) =>
-      problemsApi.uploadProblemFile(slug, fileType, file, onProgress),
+      problemsApi.uploadProblemFile(slug, fileType, file, (pct) => {
+        queryClient.setQueryData(uploadProgressKey(slug), pct)
+        onProgress?.(pct)
+      }),
+    onSettled: (_data, _error, { slug }) => {
+      queryClient.setQueryData(uploadProgressKey(slug), null)
+    },
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })

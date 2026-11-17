@@ -77,3 +77,4 @@ export { Skeleton, SkeletonText, SkeletonCard, SkeletonAvatar, SkeletonButton } 
 export { SearchSelect } from './SearchSelect'
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './Tooltip'
 export { UploadProgressBar } from './UploadProgressBar'
+export { RotatingStatus } from './RotatingStatus'
