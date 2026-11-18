@@ -114,7 +114,8 @@ export function TeamDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError && err.code === 'TEAM_NAME_EXISTS') {
         renameForm.setError('name', { message: getErrorMessage(err) })
-      } else if (err instanceof ApiClientError) {
+      } else {
+        // also a network failure, which is not an ApiClientError and would otherwise say nothing
         toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
@@ -141,7 +142,8 @@ export function TeamDetailPage() {
           title: `No puedes quitar a ${target.nickname} todavía`,
           description: 'Está seleccionado en una competencia que ya está en curso. Podrás quitarlo cuando termine.',
         })
-      } else if (err instanceof ApiClientError) {
+      } else {
+        // also a network failure, which is not an ApiClientError and would otherwise say nothing
         toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
@@ -445,7 +447,8 @@ export function TeamDetailPage() {
             <Button variant="outline" onClick={() => setMemberToRemove(null)}>
               Cancelar
             </Button>
-            <Button variant="danger" onClick={handleRemoveMember} isLoading={removeMember.isPending}>
+            {/* Not while the impact is still being asked: the removal could cancel a registration before the warning shows it */}
+            <Button variant="danger" onClick={handleRemoveMember} isLoading={removeMember.isPending} disabled={isCheckingRemoval}>
               Quitar del equipo
             </Button>
           </DialogFooter>

@@ -270,7 +270,7 @@ describe('useRenameTeam', () => {
 })
 
 describe('useRemoveTeamMember', () => {
-  it('invalida teamKeys.all al quitar a un miembro', async () => {
+  it('invalida teamKeys.all y las competencias al quitar a un miembro', async () => {
     // Arrange
     server.use(
       http.delete('http://localhost:8080/api/teams/:teamId/members/:userId', () =>
@@ -285,8 +285,9 @@ describe('useRemoveTeamMember', () => {
     result.current.mutate({ teamId: 'team-1', userId: 'u3' })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Assert
+    // Assert: quitar a alguien puede cancelar una inscripción
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.all }))
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
   })
 
   it('llama al endpoint del miembro indicado', async () => {
@@ -371,5 +372,21 @@ describe('useTeamLeaveImpact', () => {
     // Assert
     expect(result.current.isFetching).toBe(false)
     expect(result.current.data).toBeUndefined()
+  })
+})
+
+describe('useLeaveTeam con los handlers por defecto', () => {
+  it('sale del equipo: la ruta de quitar a un miembro no intercepta /members/me', async () => {
+    // Arrange: sin server.use, para que responda el handler de los mocks. "me" también encaja con
+    // :userId, y si el handler genérico va primero Salir contesta 404.
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useLeaveTeam(), { wrapper })
+
+    // Act
+    result.current.mutate('team-4')
+    await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.isSuccess).toBe(true)
   })
 })

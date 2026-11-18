@@ -109,6 +109,8 @@ export function useRemoveTeamMember() {
     mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) => teamsApi.removeTeamMember(teamId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: teamKeys.all })
+      // removing a member can cancel a registration: contests show participantCount and registration state
+      queryClient.invalidateQueries({ queryKey: contestKeys.all })
     },
   })
 }

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, delay } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
@@ -41,6 +41,13 @@ function renderPage(teamId = 'team-1') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+// The confirm button stays disabled while the impact of the removal is being asked; wait for it like a person would.
+async function confirmRemoval(user: ReturnType<typeof userEvent.setup>) {
+  const confirm = await screen.findByRole('button', { name: 'Quitar del equipo' })
+  await waitFor(() => expect(confirm).toBeEnabled())
+  await user.click(confirm)
 }
 
 describe('TeamDetailPage', () => {
@@ -191,7 +198,7 @@ describe('TeamDetailPage remove member', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Quitar a carloscp del equipo' }))
-    await user.click(await screen.findByRole('button', { name: 'Quitar del equipo' }))
+    await confirmRemoval(user)
 
     // Assert
     await waitFor(() =>
@@ -263,7 +270,7 @@ describe('TeamDetailPage remove member', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Quitar a carloscp del equipo' }))
-    await user.click(await screen.findByRole('button', { name: 'Quitar del equipo' }))
+    await confirmRemoval(user)
 
     // Assert
     await waitFor(() =>
@@ -283,5 +290,99 @@ describe('TeamDetailPage remove member', () => {
 
     // Assert
     expect(screen.queryByRole('button', { name: /^Quitar a .* del equipo$/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('TeamDetailPage network failures', () => {
+  const user = userEvent.setup()
+
+  beforeEach(() => {
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+  })
+  afterEach(() => clearAccessToken())
+
+  it('shows an error toast when the network fails while renaming', async () => {
+    // Arrange: a network failure is a TypeError from fetch, not an ApiClientError
+    server.use(http.patch('http://localhost:8080/api/teams/:teamId', () => HttpResponse.error()))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Competitive Coders' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Cambiar nombre del equipo' }))
+    const input = screen.getByRole('textbox', { name: 'Nombre del equipo' })
+    await user.clear(input)
+    await user.type(input, 'Nuevo Nombre')
+    await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    // Assert
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Error' })))
+  })
+
+  it('shows an error toast when the network fails while removing a member', async () => {
+    // Arrange
+    server.use(http.delete('http://localhost:8080/api/teams/:teamId/members/:userId', () => HttpResponse.error()))
+    renderPage()
+    await screen.findByText('carloscp')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Quitar a carloscp del equipo' }))
+    await confirmRemoval(user)
+
+    // Assert
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Error' })))
+    expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Miembro quitado' }))
+  })
+})
+
+describe('TeamDetailPage remove confirmation while the impact is checked', () => {
+  const user = userEvent.setup()
+
+  beforeEach(() => {
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+  })
+  afterEach(() => clearAccessToken())
+
+  it('keeps the confirm button disabled until the impact answer has arrived', async () => {
+    // Arrange: a slow answer, so the dialog stays on "Comprobando…" for a moment
+    server.use(
+      http.get('http://localhost:8080/api/teams/:teamId/leave-impact', async () => {
+        await delay(400)
+        return HttpResponse.json({ registrationsToCancel: [{ contestId: 'c1', contestName: 'Taller ICPC', groupId: 'g1' }] })
+      }),
+    )
+    renderPage()
+    await screen.findByText('carloscp')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Quitar a carloscp del equipo' }))
+
+    // Assert: while checking it cannot be confirmed (it could cancel a registration before the warning shows it)
+    const confirm = await screen.findByRole('button', { name: 'Quitar del equipo' })
+    expect(screen.getByText(/comprobando si esto afecta/i)).toBeInTheDocument()
+    expect(confirm).toBeDisabled()
+
+    // ...and once the warning is on screen, it can
+    expect(await screen.findByRole('link', { name: 'Taller ICPC' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quitar del equipo' })).toBeEnabled()
+  })
+
+  it('still lets the removal go ahead when the impact check itself fails', async () => {
+    // Arrange: the warning says it could not check, but the user may still decide
+    server.use(
+      http.get('http://localhost:8080/api/teams/:teamId/leave-impact', () =>
+        HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+      ),
+    )
+    renderPage()
+    await screen.findByText('carloscp')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Quitar a carloscp del equipo' }))
+
+    // Assert
+    expect(await screen.findByText(/no pudimos comprobar si esto afecta/i)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Quitar del equipo' })).toBeEnabled())
   })
 })

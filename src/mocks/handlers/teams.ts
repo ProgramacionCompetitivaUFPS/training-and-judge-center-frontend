@@ -135,7 +135,32 @@ export const teamsHandlers = [
     return HttpResponse.json({ registrationsToCancel: [] })
   }),
 
-  // Remove another member (any member can). Like leaving, it does not change the mock data.
+  // Leave team
+  http.delete(url('/teams/:teamId/members/me'), async ({ params }) => {
+    await delay(300)
+    const { teamId } = params as { teamId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    const isInActiveContest = mockContests.some((c) => {
+      if (c.status !== 'ACTIVE') return false
+      return (mockTeamRegistrations[c.id] || []).some((r) => r.team.id === teamId)
+    })
+    if (isInActiveContest) {
+      return HttpResponse.json({
+        error: 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST',
+        message: 'No puedes salir del equipo mientras esté seleccionado en una competencia activa',
+      }, { status: 409 })
+    }
+
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Remove another member (any member can). It must stay after the "/members/me" handler above: MSW answers with the
+  // first handler that matches, and ":userId" also matches "me".
+  // Like leaving, it does not change the mock data.
   http.delete(url('/teams/:teamId/members/:userId'), async ({ params, request }) => {
     await delay(300)
     const { teamId, userId } = params as { teamId: string; userId: string }
@@ -164,29 +189,6 @@ export const teamsHandlers = [
       return HttpResponse.json({
         error: 'CANNOT_REMOVE_DURING_ACTIVE_CONTEST',
         message: 'No puedes quitar a un miembro mientras esté seleccionado en una competencia activa',
-      }, { status: 409 })
-    }
-
-    return new HttpResponse(null, { status: 204 })
-  }),
-
-  // Leave team
-  http.delete(url('/teams/:teamId/members/me'), async ({ params }) => {
-    await delay(300)
-    const { teamId } = params as { teamId: string }
-    const team = mockTeamDetails[teamId]
-    if (!team) {
-      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
-    }
-
-    const isInActiveContest = mockContests.some((c) => {
-      if (c.status !== 'ACTIVE') return false
-      return (mockTeamRegistrations[c.id] || []).some((r) => r.team.id === teamId)
-    })
-    if (isInActiveContest) {
-      return HttpResponse.json({
-        error: 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST',
-        message: 'No puedes salir del equipo mientras esté seleccionado en una competencia activa',
       }, { status: 409 })
     }
 
