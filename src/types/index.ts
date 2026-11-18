@@ -95,6 +95,7 @@ export type {
   ContestSubmissionItem,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
+  ContestProblemPayload,
 } from './contest'
 
 // Submission types

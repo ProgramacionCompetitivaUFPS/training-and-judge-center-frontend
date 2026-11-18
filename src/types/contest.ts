@@ -14,6 +14,13 @@ export interface ContestProblem {
   title: string
   timeLimit: number
   memoryLimit: number
+  color?: string | null
+}
+
+export interface ContestProblemPayload {
+  slug: string
+  order: number
+  color?: string | null
 }
 
 export interface ContestDetail {
@@ -112,7 +119,7 @@ export interface UpdateContestRequest {
   penalty?: number
   freezeMinutes?: number | null
   enablePostContest?: boolean
-  problems?: Array<{ slug: string; order: number }>
+  problems?: ContestProblemPayload[]
   locked?: boolean
   participationMode?: ParticipationMode
   teamSizeMin?: number
