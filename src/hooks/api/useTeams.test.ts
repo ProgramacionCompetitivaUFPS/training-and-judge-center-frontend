@@ -7,6 +7,7 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockMyTeams, mockTeamRegistrations } from '@/mocks/data'
+import { ApiClientError } from '@/lib/errors'
 import type { CreateTeamRequest } from '@/types/team'
 import { contestKeys } from './useContests'
 import {
@@ -17,6 +18,9 @@ import {
   useContestTeamRegistrations,
   useCreateTeam,
   useLeaveTeam,
+  useRenameTeam,
+  useRemoveTeamMember,
+  useTeamLeaveImpact,
   useAcceptTeamInvitation,
   useRejectTeamInvitation,
   useRegisterTeamToContest,
@@ -216,5 +220,156 @@ describe('useRegisterTeamToContest', () => {
     expect(spy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: ['contests', 'registrations', 'group-1', 'contest-1'] }),
     )
+  })
+})
+
+describe('useRenameTeam', () => {
+  it('retorna el nombre guardado y refresca equipos y competencias', async () => {
+    // Arrange
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRenameTeam(), { wrapper })
+
+    // Act
+    result.current.mutate({ teamId: 'team-1', data: { name: 'Nuevo Nombre' } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(result.current.data?.name).toBe('Nuevo Nombre')
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.all }))
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
+  })
+
+  it('permite cambiar solo las mayúsculas del propio nombre', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRenameTeam(), { wrapper })
+
+    // Act
+    result.current.mutate({ teamId: 'team-1', data: { name: 'COMPETITIVE CODERS' } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(result.current.data?.name).toBe('COMPETITIVE CODERS')
+  })
+
+  it('propaga el 409 cuando el nombre ya lo usa otro equipo', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRenameTeam(), { wrapper })
+
+    // Act: "Algorithm Masters" belongs to team-2
+    result.current.mutate({ teamId: 'team-1', data: { name: 'algorithm masters' } })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(409)
+    expect((result.current.error as ApiClientError).code).toBe('TEAM_NAME_EXISTS')
+  })
+})
+
+describe('useRemoveTeamMember', () => {
+  it('invalida teamKeys.all al quitar a un miembro', async () => {
+    // Arrange
+    server.use(
+      http.delete('http://localhost:8080/api/teams/:teamId/members/:userId', () =>
+        new HttpResponse(null, { status: 204 }),
+      ),
+    )
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRemoveTeamMember(), { wrapper })
+
+    // Act
+    result.current.mutate({ teamId: 'team-1', userId: 'u3' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: teamKeys.all }))
+  })
+
+  it('llama al endpoint del miembro indicado', async () => {
+    // Arrange
+    let removed = ''
+    server.use(
+      http.delete('http://localhost:8080/api/teams/:teamId/members/:userId', ({ params }) => {
+        removed = `${params.teamId}/${params.userId}`
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRemoveTeamMember(), { wrapper })
+
+    // Act
+    result.current.mutate({ teamId: 'team-1', userId: 'u3' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(removed).toBe('team-1/u3')
+  })
+
+  it('propaga el 400 al intentar quitarse a sí mismo', async () => {
+    // Arrange: luisadmin is u1 in team-1
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRemoveTeamMember(), { wrapper })
+
+    // Act
+    result.current.mutate({ teamId: 'team-1', userId: 'u1' })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect((result.current.error as ApiClientError).code).toBe('CANNOT_REMOVE_SELF')
+  })
+})
+
+describe('useTeamLeaveImpact', () => {
+  it('pregunta por el miembro indicado cuando se pasa userId', async () => {
+    // Arrange
+    let asked: string | null = 'sin llamar'
+    server.use(
+      http.get('http://localhost:8080/api/teams/:teamId/leave-impact', ({ request }) => {
+        asked = new URL(request.url).searchParams.get('userId')
+        return HttpResponse.json({ registrationsToCancel: [{ contestId: 'c1', contestName: 'Taller ICPC', groupId: 'g1' }] })
+      }),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useTeamLeaveImpact('team-1', true, 'u3'), { wrapper })
+
+    // Act
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(asked).toBe('u3')
+    expect(result.current.data?.registrationsToCancel[0].contestName).toBe('Taller ICPC')
+  })
+
+  it('no manda userId cuando es el propio usuario quien saldría', async () => {
+    // Arrange
+    let asked: string | null = 'sin llamar'
+    server.use(
+      http.get('http://localhost:8080/api/teams/:teamId/leave-impact', ({ request }) => {
+        asked = new URL(request.url).searchParams.get('userId')
+        return HttpResponse.json({ registrationsToCancel: [] })
+      }),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useTeamLeaveImpact('team-1', true), { wrapper })
+
+    // Act
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(asked).toBeNull()
+  })
+
+  it('no pregunta mientras el diálogo está cerrado', () => {
+    // Arrange / Act
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useTeamLeaveImpact('team-1', false, 'u3'), { wrapper })
+
+    // Assert
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
   })
 })

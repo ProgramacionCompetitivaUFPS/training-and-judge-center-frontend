@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { UsersRound, UserPlus, LogOut, Clock, Mail } from 'lucide-react'
+import { UsersRound, UserPlus, UserMinus, LogOut, Clock, Mail, Pencil } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
-import { Button, Badge } from '@/components/ui'
+import { Button, Badge, Input } from '@/components/ui'
 import { SearchSelect } from '@/components/ui/SearchSelect'
 import {
   Dialog,
@@ -23,12 +23,25 @@ import {
   TableCell,
 } from '@/components/ui/Table'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useTeamDetail, useInviteTeamMember, useLeaveTeam, useTeamLeaveImpact } from '@/hooks/api/useTeams'
+import {
+  useTeamDetail,
+  useInviteTeamMember,
+  useLeaveTeam,
+  useTeamLeaveImpact,
+  useRenameTeam,
+  useRemoveTeamMember,
+} from '@/hooks/api/useTeams'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { useDebounce } from '@/hooks/useDebounce'
-import { inviteTeamMemberSchema, type InviteTeamMemberFormData } from '@/lib/schemas/team'
+import {
+  inviteTeamMemberSchema,
+  renameTeamSchema,
+  type InviteTeamMemberFormData,
+  type RenameTeamFormData,
+} from '@/lib/schemas/team'
+import type { TeamMember } from '@/types/team'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PATHS } from '@/lib/constants'
@@ -40,14 +53,30 @@ export function TeamDetailPage() {
   const { user } = useAuth()
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+  const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null)
 
   const { data: team, isLoading, error } = useTeamDetail(teamId || '')
   const inviteMember = useInviteTeamMember()
   const leaveTeam = useLeaveTeam()
+  const renameTeam = useRenameTeam()
+  const removeMember = useRemoveTeamMember()
   const { data: leaveImpact, isFetching: isCheckingLeave, isError: leaveImpactFailed } = useTeamLeaveImpact(teamId ?? '', showLeaveDialog)
   // The query keeps the answer of the last time the dialog was open while it asks again (and after a failed
   // ask): only an answer that has just been fetched is shown, never an old one.
   const registrationsToCancel = !isCheckingLeave && !leaveImpactFailed ? (leaveImpact?.registrationsToCancel ?? []) : []
+  // Same for removing another member: what it would cost the team, asked for only while the dialog is open.
+  const {
+    data: removalImpact,
+    isFetching: isCheckingRemoval,
+    isError: removalImpactFailed,
+  } = useTeamLeaveImpact(teamId ?? '', memberToRemove !== null, memberToRemove?.id)
+  const registrationsLostByRemoval = !isCheckingRemoval && !removalImpactFailed ? (removalImpact?.registrationsToCancel ?? []) : []
+
+  const renameForm = useForm<RenameTeamFormData>({
+    resolver: zodResolver(renameTeamSchema),
+    defaultValues: { name: '' },
+  })
 
   const form = useForm<InviteTeamMemberFormData>({
     resolver: zodResolver(inviteTeamMemberSchema),
@@ -66,6 +95,53 @@ export function TeamDetailPage() {
       form.reset()
     } catch (err) {
       if (err instanceof ApiClientError) {
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
+      }
+    }
+  }
+
+  const openRenameDialog = (currentName: string) => {
+    renameForm.reset({ name: currentName })
+    setShowRenameDialog(true)
+  }
+
+  const handleRename = async (data: RenameTeamFormData) => {
+    if (!teamId) return
+    try {
+      const result = await renameTeam.mutateAsync({ teamId, data })
+      toast({ variant: 'success', title: 'Nombre actualizado', description: `El equipo ahora se llama "${result.name}"` })
+      setShowRenameDialog(false)
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'TEAM_NAME_EXISTS') {
+        renameForm.setError('name', { message: getErrorMessage(err) })
+      } else if (err instanceof ApiClientError) {
+        toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
+      }
+    }
+  }
+
+  const handleRemoveMember = async () => {
+    if (!teamId || !memberToRemove) return
+    const target = memberToRemove
+    try {
+      await removeMember.mutateAsync({ teamId, userId: target.id })
+      toast({
+        variant: 'success',
+        title: 'Miembro quitado',
+        // What the warning said, not a report of what the server did: the removal answers with no detail
+        description: registrationsLostByRemoval.length
+          ? `${target.nickname} ya no está en el equipo. Según el aviso, la inscripción en ${registrationsLostByRemoval.slice(0, 3).map((r) => r.contestName).join(', ')}${registrationsLostByRemoval.length > 3 ? ` y ${registrationsLostByRemoval.length - 3} más` : ''} debía cancelarse.`
+          : `${target.nickname} ya no está en el equipo.`,
+      })
+      setMemberToRemove(null)
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'CANNOT_REMOVE_DURING_ACTIVE_CONTEST') {
+        toast({
+          variant: 'error',
+          title: `No puedes quitar a ${target.nickname} todavía`,
+          description: 'Está seleccionado en una competencia que ya está en curso. Podrás quitarlo cuando termine.',
+        })
+      } else if (err instanceof ApiClientError) {
         toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) })
       }
     }
@@ -132,6 +208,17 @@ export function TeamDetailPage() {
             <div className="flex items-center gap-3">
               <UsersRound className="h-6 w-6 text-brand-primary" />
               <h1 className="text-2xl font-bold text-neutral-text-primary">{team.name}</h1>
+              {isMember && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => openRenameDialog(team.name)}
+                  aria-label="Cambiar nombre del equipo"
+                  title="Cambiar nombre"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <p className="text-sm text-neutral-text-muted mt-1">
               Creado por <span className="font-medium">{team.createdBy.nickname}</span> el{' '}
@@ -165,6 +252,11 @@ export function TeamDetailPage() {
                 <TableRow>
                   <TableHead>Nickname</TableHead>
                   <TableHead>Miembro desde</TableHead>
+                  {isMember && (
+                    <TableHead className="text-right">
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,6 +276,21 @@ export function TeamDetailPage() {
                         {new Date(member.joinedAt).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })}
                       </span>
                     </TableCell>
+                    {isMember && (
+                      <TableCell className="text-right">
+                        {member.nickname !== user?.nickname && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setMemberToRemove(member)}
+                            aria-label={`Quitar a ${member.nickname} del equipo`}
+                            title="Quitar del equipo"
+                          >
+                            <UserMinus className="h-4 w-4 text-status-error" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -269,6 +376,79 @@ export function TeamDetailPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar nombre del equipo</DialogTitle>
+            <DialogDescription>
+              Cualquier miembro puede cambiarlo. El nombre debe ser único.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={renameForm.handleSubmit(handleRename)}>
+            <div className="py-4">
+              <Input
+                label="Nombre del equipo"
+                error={renameForm.formState.errors.name?.message}
+                {...renameForm.register('name')}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setShowRenameDialog(false)}>
+                Cancelar
+              </Button>
+              <Button variant="primary" type="submit" isLoading={renameTeam.isPending}>
+                Guardar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove member Dialog */}
+      <Dialog open={memberToRemove !== null} onOpenChange={(open) => { if (!open) setMemberToRemove(null) }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quitar del equipo</DialogTitle>
+            <DialogDescription>
+              ¿Quitar a {memberToRemove?.nickname} de "{team.name}"? Si está seleccionado para una competencia programada, será removido de su alineación.
+            </DialogDescription>
+          </DialogHeader>
+          {isCheckingRemoval && (
+            <p className="text-sm text-neutral-text-muted">Comprobando si esto afecta las inscripciones del equipo…</p>
+          )}
+          {removalImpactFailed && (
+            <p className="text-sm text-neutral-text-muted">
+              No pudimos comprobar si esto afecta las inscripciones del equipo en competencias programadas.
+            </p>
+          )}
+          {registrationsLostByRemoval.length > 0 && (
+            <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm text-neutral-text-primary space-y-2">
+              <p>
+                Si lo quitas, el equipo se quedaría con menos integrantes de los que piden estas competencias, y su inscripción se cancelará:
+              </p>
+              <ul className="list-disc list-inside">
+                {registrationsLostByRemoval.map((r) => (
+                  <li key={r.contestId}>
+                    <Link className="underline underline-offset-2" to={PATHS.contest(r.groupId, r.contestId)}>
+                      {r.contestName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMemberToRemove(null)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleRemoveMember} isLoading={removeMember.isPending}>
+              Quitar del equipo
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -10,6 +10,11 @@ export const createTeamSchema = z.object({
 
 export type CreateTeamFormData = z.infer<typeof createTeamSchema>
 
+// Renaming follows the same rules as naming a team when it is created.
+export const renameTeamSchema = createTeamSchema
+
+export type RenameTeamFormData = CreateTeamFormData
+
 export const inviteTeamMemberSchema = z.object({
   nickname: z
     .string()

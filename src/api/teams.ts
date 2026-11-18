@@ -14,6 +14,8 @@ import type {
   ContestTeamRegistrationsResponse,
   TeamRegistrationEligibility,
   TeamLeaveImpact,
+  RenameTeamRequest,
+  RenameTeamResponse,
 } from '@/types/team'
 
 // === Teams CRUD ===
@@ -30,18 +32,27 @@ export function createTeam(data: CreateTeamRequest): Promise<CreateTeamResponse>
   return apiClient.post('/teams', data)
 }
 
+export function renameTeam(teamId: string, data: RenameTeamRequest): Promise<RenameTeamResponse> {
+  return apiClient.patch(`/teams/${teamId}`, data)
+}
+
 // === Members ===
 
 export function inviteTeamMember(teamId: string, data: InviteTeamMemberRequest): Promise<TeamInvitationResponse> {
   return apiClient.post(`/teams/${teamId}/invitations`, data)
 }
 
-export function getTeamLeaveImpact(teamId: string): Promise<TeamLeaveImpact> {
-  return apiClient.get(`/teams/${teamId}/leave-impact`)
+/** What removing `userId` from the team would cancel; without `userId`, what the caller leaving would. */
+export function getTeamLeaveImpact(teamId: string, userId?: string): Promise<TeamLeaveImpact> {
+  return apiClient.get(`/teams/${teamId}/leave-impact`, { params: userId ? { userId } : undefined })
 }
 
 export function leaveTeam(teamId: string): Promise<void> {
   return apiClient.delete(`/teams/${teamId}/members/me`)
+}
+
+export function removeTeamMember(teamId: string, userId: string): Promise<void> {
+  return apiClient.delete(`/teams/${teamId}/members/${userId}`)
 }
 
 export function getTeamMembers(teamId: string): Promise<{ members: Array<{ userId: string; nickname: string; joinedAt: string }> }> {
