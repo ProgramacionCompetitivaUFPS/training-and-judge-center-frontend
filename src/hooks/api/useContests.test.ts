@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
+import { ApiClientError } from '@/lib/errors'
 import { mockContests } from '@/mocks/data'
 import type { CreateContestRequest } from '@/types/contest'
 import {
@@ -31,6 +32,8 @@ function makeWrapper() {
     React.createElement(QueryClientProvider, { client: queryClient }, children)
   return { queryClient, wrapper }
 }
+
+const initialContests = structuredClone(mockContests)
 
 const baseContest: CreateContestRequest = {
   name: 'Nuevo Concurso',
@@ -313,6 +316,119 @@ describe('useDeleteContest', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: contestKeys.all }))
+  })
+
+  it.each([
+    ['contest-3', 403, 'CONTEST_LOCKED'],
+    ['contest-2', 409, 'CONTEST_IS_ACTIVE'],
+    ['no-existe', 404, 'CONTEST_NOT_FOUND'],
+  ])('falla al eliminar %s con %i %s', async (contestId, status, code) => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useDeleteContest(), { wrapper })
+
+    // Act
+    result.current.mutate({ groupId: 'group-1', contestId })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(status)
+    expect((result.current.error as ApiClientError).code).toBe(code)
+  })
+})
+
+describe('useUpdateContest con colores de problemas', () => {
+  beforeEach(() => {
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+
+  it('conserva los colores cuando los items no traen color', async () => {
+    // Arrange
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    // Act
+    result.current.mutate({
+      groupId: 'group-1',
+      contestId: 'contest-2',
+      data: { problems: [{ slug: 'two-sum', order: 1 }, { slug: 'binary-search', order: 2 }] },
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    // Assert
+    expect(result.current.data?.problems[0].color).toBe('#e11d48')
+    expect(result.current.data?.problems[1].color).toBe('#2563eb')
+  })
+
+  it('guarda el color nuevo en minúsculas', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({
+      groupId: 'group-1',
+      contestId: 'contest-2',
+      data: { problems: [{ slug: 'two-sum', order: 1, color: '#AABBCC' }] },
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.problems[0].color).toBe('#aabbcc')
+  })
+
+  it('borra el color cuando se envía null', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({
+      groupId: 'group-1',
+      contestId: 'contest-2',
+      data: { problems: [{ slug: 'two-sum', order: 1, color: null }] },
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.problems[0].color).toBeNull()
+  })
+
+  it('permite editar otros campos de una competencia finalizada', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-3', data: { name: 'Nuevo nombre' } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.name).toBe('Nuevo nombre')
+  })
+
+  it.each(['red', '#fff'])('rechaza el color inválido %j con 400 INVALID_PROBLEM_COLOR', async (color) => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({
+      groupId: 'group-1',
+      contestId: 'contest-2',
+      data: { problems: [{ slug: 'two-sum', order: 1, color }] },
+    })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(400)
+    expect((result.current.error as ApiClientError).code).toBe('INVALID_PROBLEM_COLOR')
+  })
+
+  it('rechaza cambiar problemas de una competencia finalizada con 409 CONTEST_PROBLEMS_LOCKED', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUpdateContest(), { wrapper })
+
+    result.current.mutate({
+      groupId: 'group-1',
+      contestId: 'contest-3',
+      data: { problems: [{ slug: 'two-sum', order: 1, color: '#112233' }] },
+    })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(409)
+    expect((result.current.error as ApiClientError).code).toBe('CONTEST_PROBLEMS_LOCKED')
   })
 })
 

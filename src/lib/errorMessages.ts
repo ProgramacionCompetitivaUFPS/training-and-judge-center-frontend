@@ -111,6 +111,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // ─── Competencias ───
   CONTEST_NOT_FOUND: 'Competencia no encontrada',
   CONTEST_LOCKED: 'Esta competencia está bloqueada y no se puede modificar',
+  CONTEST_PROBLEMS_LOCKED: 'No se pueden cambiar los problemas de una competencia finalizada',
+  INVALID_PROBLEM_COLOR: 'El color del problema no es válido',
   CONTEST_IS_ACTIVE: 'No se puede eliminar una competencia activa',
   CONTEST_NOT_ACTIVE: 'El rejuzgamiento solo está permitido durante competencias activas',
   CONTEST_ALREADY_STARTED: 'La competencia ya ha comenzado',
