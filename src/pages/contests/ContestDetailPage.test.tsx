@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser, mockGroupDetails } from '@/mocks/data'
+import { mockCurrentUser, mockGroupDetails, mockContests } from '@/mocks/data'
 import type { User } from '@/types/user'
 import { ContestDetailPage } from './ContestDetailPage'
 
@@ -53,6 +54,19 @@ function renderPage(groupId = 'group-1', contestId = 'contest-1') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+}
+
+const initialContests = structuredClone(mockContests)
+
+// Registra el body de cada PUT y devuelve undefined: MSW pasa al handler por defecto del mock.
+function recordPutBodies() {
+  const bodies: unknown[] = []
+  server.use(
+    http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
+      bodies.push(await request.clone().json())
+    }),
+  )
+  return bodies
 }
 
 describe('ContestDetailPage', () => {
@@ -211,5 +225,66 @@ describe('ContestDetailPage', () => {
     renderPage('group-1', 'contest-3')
     await screen.findByRole('heading', { name: 'Reto Algoritmos Clásicos' })
     expect(screen.getAllByText(/finalizado/i).length).toBeGreaterThan(0)
+  })
+
+  describe('gestión de problemas y borrado', () => {
+    afterEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    it('agrega y quita problemas sin enviar nunca la clave color', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderPage('group-1', 'contest-1')
+      const search = await screen.findByPlaceholderText('Buscar problema publicado por título...')
+
+      // Act
+      await user.type(search, 'Two Sum')
+      await user.click(await screen.findByRole('button', { name: /two-sum/ }))
+      // El PUT del mock tarda 300 ms: hay que esperar al EFECTO (caché actualizada → aparece el botón Remover),
+      // no solo a que el body se registre; si no, el siguiente paso arma su payload con la lista vieja.
+      await screen.findByRole('button', { name: 'Remover Two Sum' })
+      await user.type(screen.getByPlaceholderText('Buscar problema publicado por título...'), 'Binary Search')
+      await user.click(await screen.findByRole('button', { name: /binary-search/ }))
+      await screen.findByRole('button', { name: 'Remover Binary Search' })
+      await user.click(screen.getByRole('button', { name: 'Remover Two Sum' }))
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Problema removido' }))
+      })
+
+      // Assert
+      expect(bodies).toEqual([
+        { problems: [{ slug: 'two-sum', order: 1 }] },
+        { problems: [{ slug: 'two-sum', order: 1 }, { slug: 'binary-search', order: 2 }] },
+        { problems: [{ slug: 'binary-search', order: 1 }] },
+      ])
+    })
+
+    it.each([
+      [403, 'CONTEST_LOCKED', 'Esta competencia está bloqueada y no se puede modificar'],
+      [409, 'CONTEST_IS_ACTIVE', 'No se puede eliminar una competencia activa'],
+      [404, 'CONTEST_NOT_FOUND', 'Competencia no encontrada'],
+    ])('al fallar el borrado con %i %s muestra el mensaje en español', async (status, code, description) => {
+      // Arrange
+      const user = userEvent.setup()
+      server.use(
+        http.delete('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ error: code, message: 'x' }, { status }),
+        ),
+      )
+      renderPage('group-1', 'contest-1')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Eliminar competencia' }))
+      await user.type(screen.getByPlaceholderText('Nombre de la competencia'), 'Competencia Semanal #12')
+      await user.click(screen.getByRole('button', { name: 'Eliminar' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', description }))
+      })
+      expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Eliminado' }))
+    })
   })
 })
