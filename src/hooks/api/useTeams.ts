@@ -6,6 +6,7 @@ import type {
   CreateTeamRequest,
   InviteTeamMemberRequest,
   UpdateTeamRegistrationRequest,
+  RenameTeamRequest,
 } from '@/types/team'
 
 // === Query Keys ===
@@ -17,7 +18,7 @@ export const teamKeys = {
   myInvitations: ['teams', 'invitations'] as const,
   contestRegistrations: (groupId: string, contestId: string) =>
     ['teams', 'contest-registrations', groupId, contestId] as const,
-  leaveImpact: (teamId: string) => ['teams', 'leave-impact', teamId] as const,
+  leaveImpact: (teamId: string, userId?: string) => ['teams', 'leave-impact', teamId, userId ?? 'me'] as const,
   registrationEligibility: (groupId: string, contestId: string, teamId: string) =>
     ['teams', 'registration-eligibility', groupId, contestId, teamId] as const,
 }
@@ -39,11 +40,14 @@ export function useTeamDetail(teamId: string) {
   })
 }
 
-/** What leaving would cancel, for the confirmation; only asked for while it is open. */
-export function useTeamLeaveImpact(teamId: string, enabled: boolean) {
+/**
+ * What leaving would cancel, for the confirmation; only asked for while it is open. With `userId`, what
+ * removing that member would cancel.
+ */
+export function useTeamLeaveImpact(teamId: string, enabled: boolean, userId?: string) {
   return useQuery({
-    queryKey: teamKeys.leaveImpact(teamId),
-    queryFn: () => teamsApi.getTeamLeaveImpact(teamId),
+    queryKey: teamKeys.leaveImpact(teamId, userId),
+    queryFn: () => teamsApi.getTeamLeaveImpact(teamId, userId),
     enabled: enabled && !!teamId,
     // other members' registrations change it: always ask again when the dialog opens
     staleTime: 0,
@@ -83,6 +87,30 @@ export function useCreateTeam() {
     mutationFn: (data: CreateTeamRequest) => teamsApi.createTeam(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: teamKeys.all })
+    },
+  })
+}
+
+export function useRenameTeam() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ teamId, data }: { teamId: string; data: RenameTeamRequest }) => teamsApi.renameTeam(teamId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.all })
+      // standings and rosters of contests show the team's name
+      queryClient.invalidateQueries({ queryKey: contestKeys.all })
+    },
+  })
+}
+
+export function useRemoveTeamMember() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) => teamsApi.removeTeamMember(teamId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teamKeys.all })
+      // removing a member can cancel a registration: contests show participantCount and registration state
+      queryClient.invalidateQueries({ queryKey: contestKeys.all })
     },
   })
 }

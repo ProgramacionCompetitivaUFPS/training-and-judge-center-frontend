@@ -129,6 +129,15 @@ export interface UpdateTeamRegistrationRequest {
 export type MemberIneligibilityReason = 'MEMBER_NOT_IN_GROUP' | 'MEMBER_ALREADY_REGISTERED' | 'MEMBER_IN_ANOTHER_TEAM'
 
 /** What leaving a team would cost it: registrations in contests that have not started that would be cancelled. */
+export interface RenameTeamRequest {
+  name: string
+}
+
+export interface RenameTeamResponse {
+  id: string
+  name: string
+}
+
 export interface TeamLeaveImpact {
   registrationsToCancel: Array<{ contestId: string; contestName: string; groupId: string }>
 }

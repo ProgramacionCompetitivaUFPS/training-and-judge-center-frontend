@@ -96,12 +96,41 @@ export const teamsHandlers = [
     })
   }),
 
-  // What leaving would cancel: the mock keeps no contest size limits, so nothing
-  http.get(url('/teams/:teamId/leave-impact'), async ({ params }) => {
+  // Rename team (any member). Like leaving, it does not change the mock data.
+  http.patch(url('/teams/:teamId'), async ({ params, request }) => {
+    await delay(300)
+    const { teamId } = params as { teamId: string }
+    const body = (await request.json()) as { name: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    const viewer = (request.headers.get('Authorization') ?? '').replace('Bearer mock-jwt-token-', '')
+    if (!team.members.some((m) => m.nickname === viewer)) {
+      return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'No eres miembro de este equipo' }, { status: 403 })
+    }
+
+    const name = body.name.trim()
+    // unique ignoring case, but the team's own current name does not count against it
+    const taken = Object.values(mockTeamDetails).some((t) => t.id !== teamId && t.name.toLowerCase() === name.toLowerCase())
+    if (taken) {
+      return HttpResponse.json({ error: 'TEAM_NAME_EXISTS', message: 'Ya existe un equipo con este nombre' }, { status: 409 })
+    }
+    return HttpResponse.json({ id: teamId, name })
+  }),
+
+  // What leaving (or, with ?userId=, removing that member) would cancel: the mock keeps no contest size limits, so nothing
+  http.get(url('/teams/:teamId/leave-impact'), async ({ params, request }) => {
     await delay(150)
     const { teamId } = params as { teamId: string }
-    if (!mockTeamDetails[teamId]) {
+    const team = mockTeamDetails[teamId]
+    if (!team) {
       return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'No eres miembro de este equipo' }, { status: 404 })
+    }
+    const userId = new URL(request.url).searchParams.get('userId')
+    if (userId && !team.members.some((m) => m.id === userId)) {
+      return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'Ese usuario no es miembro del equipo' }, { status: 404 })
     }
     return HttpResponse.json({ registrationsToCancel: [] })
   }),
@@ -123,6 +152,43 @@ export const teamsHandlers = [
       return HttpResponse.json({
         error: 'CANNOT_LEAVE_DURING_ACTIVE_CONTEST',
         message: 'No puedes salir del equipo mientras esté seleccionado en una competencia activa',
+      }, { status: 409 })
+    }
+
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Remove another member (any member can). It must stay after the "/members/me" handler above: MSW answers with the
+  // first handler that matches, and ":userId" also matches "me".
+  // Like leaving, it does not change the mock data.
+  http.delete(url('/teams/:teamId/members/:userId'), async ({ params, request }) => {
+    await delay(300)
+    const { teamId, userId } = params as { teamId: string; userId: string }
+    const team = mockTeamDetails[teamId]
+    if (!team) {
+      return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    const viewer = (request.headers.get('Authorization') ?? '').replace('Bearer mock-jwt-token-', '')
+    const requester = team.members.find((m) => m.nickname === viewer)
+    if (!requester) {
+      return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'No eres miembro de este equipo' }, { status: 403 })
+    }
+    if (requester.id === userId) {
+      return HttpResponse.json({ error: 'CANNOT_REMOVE_SELF', message: 'No puedes quitarte a ti mismo del equipo' }, { status: 400 })
+    }
+    if (!team.members.some((m) => m.id === userId)) {
+      return HttpResponse.json({ error: 'NOT_TEAM_MEMBER', message: 'Ese usuario no es miembro del equipo' }, { status: 404 })
+    }
+
+    const isInActiveContest = mockContests.some((c) => {
+      if (c.status !== 'ACTIVE') return false
+      return (mockTeamRegistrations[c.id] || []).some((r) => r.team.id === teamId)
+    })
+    if (isInActiveContest) {
+      return HttpResponse.json({
+        error: 'CANNOT_REMOVE_DURING_ACTIVE_CONTEST',
+        message: 'No puedes quitar a un miembro mientras esté seleccionado en una competencia activa',
       }, { status: 409 })
     }
 
