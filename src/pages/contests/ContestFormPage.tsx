@@ -1,22 +1,26 @@
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Info, Calendar, Settings, Clock, UsersRound } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Info, Calendar, Settings, Clock, UsersRound, Palette } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import { Button, Input, Textarea, Checkbox, Card, CardContent } from '@/components/ui'
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
+import { BalloonIcon } from '@/components/features/BalloonIcon'
+import { contestKeys, useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { resolveBalloonColor } from '@/lib/balloon'
+import { buildColorUpdatePayload } from '@/lib/contestProblems'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
-import { formatDuration } from '@/lib/utils'
+import { formatDuration, problemLabel } from '@/lib/utils'
 
 function formatDurationFromDates(start: string, end: string): string {
   if (!start || !end) return '—'
@@ -46,6 +50,9 @@ export function ContestFormPage() {
   const { data: groupDetail, isLoading: isLoadingGroup } = useGroupDetail(groupId || '')
   const createMutation = useCreateContest()
   const updateMutation = useUpdateContest()
+  const queryClient = useQueryClient()
+  // Solo los slugs que la usuaria cambió. Vive fuera de react-hook-form para sobrevivir a las recargas de `values`.
+  const [balloonColors, setBalloonColors] = useState<Record<string, string>>({})
 
   const form = useForm<CreateContestFormData>({
     resolver: zodResolver(createContestSchema),
@@ -126,6 +133,11 @@ export function ContestFormPage() {
       if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
       if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
 
+      if (existing) {
+        const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
+        if (problemsPayload) updatePayload.problems = problemsPayload
+      }
+
       if (Object.keys(updatePayload).length === 0) {
         navigate(PATHS.contest(groupId, id))
         return
@@ -139,7 +151,10 @@ export function ContestFormPage() {
             navigate(PATHS.contest(groupId, id))
           },
           onError: (err) => {
-            if (err instanceof ApiClientError && err.code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
+            if (err instanceof ApiClientError && err.code === 'CONTEST_CONFLICT') {
+              toast({ variant: 'error', title: 'La competencia cambió', description: getErrorMessage(err) })
+              queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, id) })
+            } else if (err instanceof ApiClientError && err.code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
               toast({ variant: 'error', title: 'No se puede cambiar la modalidad', description: 'Ya hay equipos registrados en esta competencia.' })
             } else {
               toast({ variant: 'error', title: 'No se pudo actualizar', description: getErrorMessage(err) })
@@ -369,6 +384,37 @@ export function ContestFormPage() {
               </div>
             </div>
           </FormSection>
+
+          {isEditing && existing && existing.problems.length > 0 && (
+            <FormSection icon={<Palette className="h-4 w-4" />} title="Colores de los globos">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                {[...existing.problems]
+                  .sort((a, b) => a.position - b.position)
+                  .map((problem) => {
+                    const value = balloonColors[problem.slug] ?? resolveBalloonColor(problem.color)
+                    return (
+                      <label key={problem.slug} className="flex items-center gap-2 text-sm font-medium text-neutral-text-primary">
+                        <BalloonIcon color={value} />
+                        {problemLabel(problem.position)}
+                        <input
+                          type="color"
+                          aria-label={`Color del problema ${problemLabel(problem.position)}`}
+                          value={value}
+                          disabled={existing.status === 'FINISHED'}
+                          onChange={(e) => setBalloonColors((c) => ({ ...c, [problem.slug]: e.target.value }))}
+                          className="ml-auto h-8 w-10 cursor-pointer rounded-sm border border-neutral-border bg-neutral-surface disabled:cursor-not-allowed disabled:opacity-50"
+                        />
+                      </label>
+                    )
+                  })}
+              </div>
+              {existing.status === 'FINISHED' && (
+                <p className="mt-3 text-xs text-neutral-text-muted">
+                  No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.
+                </p>
+              )}
+            </FormSection>
+          )}
         </div>
       </form>
     </AppLayout>
