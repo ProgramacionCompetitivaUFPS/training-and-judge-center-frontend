@@ -3,6 +3,14 @@ import { mockContests, buildContestList, buildRegistrations, buildContestSubmiss
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
+/** Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post. */
+function standingsRowsFor(contest: (typeof mockContests)[number]) {
+  const officialRows = contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+  const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
+  const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
+  return { officialRows, postRows }
+}
+
 export const contestsHandlers = [
   // List all contests accessible to the user (across all groups)
   http.get(url('/contests'), async ({ request }) => {
@@ -247,9 +255,7 @@ export const contestsHandlers = [
       )
     }
 
-    const officialRows = contestId === 'contest-7' ? mockLargeStandings : mockStandings
-    const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
-    const postRows = postAvailable && contestId === 'contest-8' ? mockPostStandings : []
+    const { officialRows, postRows } = standingsRowsFor(contest)
     const base =
       phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
     // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
@@ -327,10 +333,14 @@ export const contestsHandlers = [
     const distinct = (values: Array<string | null | undefined>) =>
       [...new Set(values.filter((v): v is string => !!v))].sort()
 
+    // Los filtros aplican a las dos secciones, así que las opciones salen de oficiales y post.
+    const { officialRows, postRows } = standingsRowsFor(contest)
+    const participants = [...officialRows, ...postRows].map((e) => e.participant)
+
     return HttpResponse.json({
-      countries: distinct(mockStandings.map((e) => e.participant.country)),
-      cities: distinct(mockStandings.map((e) => e.participant.city)),
-      institutions: distinct(mockStandings.map((e) => e.participant.institution)),
+      countries: distinct(participants.map((p) => p.country)),
+      cities: distinct(participants.map((p) => p.city)),
+      institutions: distinct(participants.map((p) => p.institution)),
     })
   }),
 

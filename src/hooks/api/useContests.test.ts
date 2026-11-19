@@ -386,7 +386,7 @@ describe('standingsRefetchInterval', () => {
     ['FINISHED', 'postcompetition', undefined, 10000],
     ['FINISHED', 'all', 30000, 10000],
     ['FINISHED', 'competition', undefined, false],
-    ['FINISHED', undefined, undefined, false],
+    ['FINISHED', undefined, undefined, 10000],
     ['SCHEDULED', 'all', undefined, false],
     [undefined, 'all', undefined, false],
   ] as const)(
@@ -406,6 +406,25 @@ describe('useStandingsFilterOptions', () => {
 
     expect(result.current.data?.countries[0]).toBe('Argentina')
     expect(result.current.data?.countries).toContain('Chile')
+  })
+
+  it('incluye ciudades e instituciones de las filas de post-competencia cuando están disponibles', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandingsFilterOptions('group-1', 'contest-8'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.cities).toContain('Cúcuta')
+    expect(result.current.data?.institutions).toContain('UFPS')
+  })
+
+  it('no incluye valores de post-competencia en una competencia activa', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandingsFilterOptions('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.cities).not.toContain('Cúcuta')
   })
 })
 
