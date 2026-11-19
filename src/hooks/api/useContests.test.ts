@@ -11,6 +11,7 @@ import { mockContests } from '@/mocks/data'
 import type { ContestDetail, CreateContestRequest } from '@/types/contest'
 import {
   contestKeys,
+  standingsRefetchInterval,
   useMyContests,
   useContests,
   useContestDetail,
@@ -224,6 +225,69 @@ describe('useStandings', () => {
     const { result } = renderHook(() => useStandings('', 'contest-2'), { wrapper })
 
     expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useStandings (mock con colores y estadísticas)', () => {
+  async function loadStandings(params?: { limit?: number }) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', 'contest-2', params), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('devuelve color y contadores globales por problema', async () => {
+    const data = await loadStandings()
+
+    expect(data.problems[0]).toMatchObject({ position: 1, slug: 'two-sum', color: '#e11d48', accepted: 5, tried: 5 })
+    expect(data.problems[1]).toMatchObject({ color: '#2563eb', accepted: 3, tried: 4 })
+    expect(data.problems[2]).toMatchObject({ color: null, accepted: 3, tried: 5 })
+  })
+
+  it('marca solo el primer AC con isFirstSolve', async () => {
+    const data = await loadStandings()
+
+    expect(data.standings[0].problems[0].isFirstSolve).toBe(true)
+    expect(data.standings[1].problems[0].isFirstSolve).toBeUndefined()
+  })
+
+  it('mantiene los contadores globales aunque se pida una sola fila', async () => {
+    const data = await loadStandings({ limit: 2 })
+
+    expect(data.standings).toHaveLength(2)
+    expect(data.problems[0].accepted).toBe(5)
+  })
+
+  it('devuelve una celda por problema de la competencia en cada fila', async () => {
+    const data = await loadStandings()
+
+    expect(data.standings[0].problems).toHaveLength(3)
+  })
+})
+
+describe('useStandings (contest-7 con muchos datos)', () => {
+  it('devuelve 13 problemas, 30 participantes y celdas alineadas', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', 'contest-7', { limit: 100 }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.problems).toHaveLength(13)
+    expect(result.current.data?.standings).toHaveLength(30)
+    expect(result.current.data?.pagination.total).toBe(30)
+    expect(result.current.data?.standings[29].problems).toHaveLength(13)
+  })
+})
+
+describe('standingsRefetchInterval', () => {
+  it.each([
+    ['ACTIVE', undefined, 10000],
+    ['ACTIVE', 30000, 30000],
+    ['FINISHED', undefined, false],
+    ['SCHEDULED', 30000, false],
+    [undefined, undefined, false],
+  ] as const)('con estado %s e intervalo %s devuelve %s', (status, interval, expected) => {
+    expect(standingsRefetchInterval(status, interval)).toBe(expected)
   })
 })
 

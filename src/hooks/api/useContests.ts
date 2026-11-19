@@ -6,6 +6,7 @@ import type {
   ContestListParams,
   CreateContestRequest,
   UpdateContestRequest,
+  ContestStatus,
   StandingsParams,
   ContestSubmissionsParams,
 } from '@/types/contest'
@@ -93,20 +94,28 @@ export function useRegistrations(
   })
 }
 
+export const STANDINGS_REFETCH_MS = 10_000
+
+/** Intervalo de refresco de los standings: solo mientras la competencia está activa. */
+export function standingsRefetchInterval(
+  status: ContestStatus | undefined,
+  activeIntervalMs: number = STANDINGS_REFETCH_MS,
+): number | false {
+  return status === 'ACTIVE' ? activeIntervalMs : false
+}
+
 export function useStandings(
   groupId: string,
   contestId: string,
   params?: StandingsParams,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; activeIntervalMs?: number },
 ) {
   return useQuery({
     queryKey: contestKeys.standings(groupId, contestId, params),
     queryFn: () => contestsApi.getStandings(groupId, contestId, params),
     enabled: !!groupId && !!contestId && (options?.enabled ?? true),
-    refetchInterval: (query) => {
-      const status = query.state.data?.contest?.status
-      return status === 'ACTIVE' ? 30_000 : false
-    },
+    refetchInterval: (query) =>
+      standingsRefetchInterval(query.state.data?.contest?.status, options?.activeIntervalMs),
   })
 }
 

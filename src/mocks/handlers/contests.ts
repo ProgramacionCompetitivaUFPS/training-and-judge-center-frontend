@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
@@ -239,7 +239,8 @@ export const contestsHandlers = [
     const city = sp.get('city')?.toLowerCase() || undefined
     const institution = sp.get('institution')?.toLowerCase() || undefined
 
-    const filtered = mockStandings.filter((entry) => {
+    const source = contestId === 'contest-7' ? mockLargeStandings : mockStandings
+    const filtered = source.filter((entry) => {
       const p = entry.participant
       if (country && !p.country?.toLowerCase().includes(country)) return false
       if (city && !p.city?.toLowerCase().includes(city)) return false
@@ -263,8 +264,29 @@ export const contestsHandlers = [
         isFrozen: false,
         frozenAt: null,
       },
-      problems: contest.problems.map((p) => ({ position: p.position, slug: p.slug, title: p.title })),
-      standings: paged,
+      problems: contest.problems.map((p) => ({
+        position: p.position,
+        slug: p.slug,
+        title: p.title,
+        color: p.color ?? null,
+        // Contadores globales: no dependen de filtros ni de la página.
+        accepted: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        tried: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+      })),
+      standings: paged.map((entry) => ({
+        ...entry,
+        // Una celda por problema de la competencia, aunque la fila tenga menos resultados.
+        problems: contest.problems.map(
+          (p) =>
+            entry.problems.find((r) => r.position === p.position) ?? {
+              position: p.position,
+              status: 'NOT_ATTEMPTED' as const,
+              attempts: 0,
+              time: null,
+              penalty: 0,
+            },
+        ),
+      })),
       pagination: {
         page,
         limit,

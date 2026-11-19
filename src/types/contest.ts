@@ -179,6 +179,8 @@ export interface StandingProblemResult {
   attempts: number
   time: number | null // minutes from start to AC
   penalty: number
+  /** Primer AC de ese problema en toda la competencia. */
+  isFirstSolve?: boolean
 }
 
 export interface StandingParticipant {
@@ -201,6 +203,16 @@ export interface StandingEntry {
   problems: StandingProblemResult[]
 }
 
+export interface StandingsProblem {
+  position: number
+  slug: string
+  title: string
+  color?: string | null
+  /** Contadores globales (no dependen de la página ni de los filtros). */
+  accepted?: number
+  tried?: number
+}
+
 export interface StandingsResponse {
   contest: {
     id: string
@@ -213,7 +225,7 @@ export interface StandingsResponse {
     isFrozen: boolean
     frozenAt: string | null
   }
-  problems: Array<{ position: number; slug: string; title: string }>
+  problems: StandingsProblem[]
   standings: StandingEntry[]
   pagination: {
     page: number

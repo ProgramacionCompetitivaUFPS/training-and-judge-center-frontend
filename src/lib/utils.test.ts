@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, formatDuration, pluralize, problemLabel, formatBytes, participationModeLabel, formatDateTz, localDayStartIso } from './utils'
+import { cn, formatDuration, pluralize, problemLabel, formatBytes, participationModeLabel, formatDateTz, localDayStartIso, formatContestTime } from './utils'
 
 describe('cn', () => {
   it('merges class names', () => expect(cn('a', 'b')).toBe('a b'))
@@ -95,5 +95,19 @@ describe('localDayStartIso', () => {
 
   it('returns a valid ISO string without milliseconds', () => {
     expect(localDayStartIso('2026-10-21')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
+  })
+})
+
+describe('formatContestTime', () => {
+  it.each([
+    [0, '00:00'],
+    [7, '00:07'],
+    [155, '02:35'],
+    [600, '10:00'],
+    [59.9, '00:59'],
+    [-5, '00:00'],
+    [NaN, '00:00'],
+  ])('formats %s minutes as %s', (minutes, expected) => {
+    expect(formatContestTime(minutes)).toBe(expected)
   })
 })

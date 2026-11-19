@@ -88,6 +88,7 @@ export type {
   RegistrationListResponse,
   StandingProblemStatus,
   StandingProblemResult,
+  StandingsProblem,
   StandingParticipant,
   StandingEntry,
   StandingsResponse,
