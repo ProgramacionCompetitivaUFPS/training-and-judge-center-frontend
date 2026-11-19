@@ -21,7 +21,9 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
-import { isNotFoundError } from '@/lib/errors'
+import { DEFAULT_BALLOON_COLOR } from '@/lib/balloon'
+import { buildColorUpdatePayload } from '@/lib/contestProblems'
+import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { ErrorPage } from '@/pages/errors/ErrorPage'
 
@@ -70,6 +72,9 @@ export function ContestDetailPage() {
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
   const updateMutation = useUpdateContest()
+  // Instancia propia para los colores: si compartiera estado con updateMutation, guardar un color
+  // pondría "cargando" en el botón de bloquear y en la gestión de problemas.
+  const colorMutation = useUpdateContest()
 
   const [problemSearchQuery, setProblemSearchQuery] = useState('')
   const debouncedProblemSearch = useDebounce(problemSearchQuery)
@@ -242,11 +247,16 @@ export function ContestDetailPage() {
     )
   }
 
+  // Un PUT con `problems` manda la lista completa: dos en vuelo a la vez harían que el último en
+  // terminar pise lo del otro (p. ej. un cambio de color retrasado borraría un problema recién agregado).
+  const isSavingProblems = updateMutation.isPending || colorMutation.isPending
+
   const handleAddProblem = (slug: string) => {
-    if (!slug.trim()) return
+    if (!slug.trim() || isSavingProblems) return
+    // Los ya existentes van sin `color` (el backend conserva el suyo); el nuevo entra en blanco.
     const newProblems = [
       ...contest.problems.map((p) => ({ slug: p.slug, order: p.position })),
-      { slug, order: contest.problems.length + 1 },
+      { slug, order: contest.problems.length + 1, color: DEFAULT_BALLOON_COLOR },
     ]
     updateMutation.mutate(
       { groupId, contestId: contest.id, data: { problems: newProblems } },
@@ -261,6 +271,7 @@ export function ContestDetailPage() {
   }
 
   const handleRemoveProblem = (slug: string) => {
+    if (isSavingProblems) return
     const remaining = contest.problems
       .filter((p) => p.slug !== slug)
       .map((p, i) => ({ slug: p.slug, order: i + 1 }))
@@ -269,6 +280,26 @@ export function ContestDetailPage() {
       {
         onSuccess: () => toast({ variant: 'success', title: 'Problema removido', description: `Se removió "${slug}" de la competencia` }),
         onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
+      },
+    )
+  }
+
+  // El backend no deja cambiar problemas (ni colores) una vez finalizada; bloqueada tampoco se edita.
+  const canEditColors = isLead && !contest.locked && contest.status !== 'FINISHED'
+
+  const handleColorChange = (slug: string, color: string) => {
+    const target = contest.problems.find((p) => p.slug === slug)
+    const problems = buildColorUpdatePayload(contest.problems, { [slug]: color })
+    if (!target || !problems) return
+    const letter = problemLabel(target.position)
+    colorMutation.mutate(
+      { groupId, contestId: contest.id, data: { problems } },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Color guardado', description: `Se actualizó el color del problema ${letter}` }),
+        onError: (err) => {
+          toast({ variant: 'error', title: 'No se pudo guardar el color', description: getErrorMessage(err) })
+          if (err instanceof ApiClientError && err.code === 'CONTEST_CONFLICT') void refetchContest()
+        },
       },
     )
   }
@@ -367,6 +398,8 @@ export function ContestDetailPage() {
                       groupId={groupId}
                       contestId={contest.id}
                       showSubmit={contest.isRegistered}
+                      onColorChange={canEditColors ? handleColorChange : undefined}
+                      colorsDisabled={isSavingProblems}
                     />
                   )}
                 </CardContent>
@@ -610,7 +643,13 @@ export function ContestDetailPage() {
                       <LockedProblemsPlaceholder />
                     )
                   ) : (
-                    <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
+                    <ContestProblemsTable
+                      problems={contest.problems}
+                      groupId={groupId}
+                      contestId={contest.id}
+                      onColorChange={canEditColors ? handleColorChange : undefined}
+                      colorsDisabled={isSavingProblems}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -640,6 +679,7 @@ export function ContestDetailPage() {
                         </div>
                       )}
                       onSelect={(p) => handleAddProblem(p.slug)}
+                      disabled={isSavingProblems}
                     />
                     {updateMutation.isPending && (
                       <p className="text-xs text-neutral-text-muted">Agregando...</p>
@@ -655,7 +695,7 @@ export function ContestDetailPage() {
                             <button
                               type="button"
                               onClick={() => handleRemoveProblem(p.slug)}
-                              disabled={updateMutation.isPending}
+                              disabled={isSavingProblems}
                               className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
                               aria-label={`Remover ${p.title}`}
                             >
@@ -713,6 +753,7 @@ export function ContestDetailPage() {
                       className="w-full"
                       onClick={handleLockToggle}
                       isLoading={updateMutation.isPending}
+                      disabled={colorMutation.isPending}
                     >
                       {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                       {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}
@@ -807,6 +848,7 @@ export function ContestDetailPage() {
                     className="w-full"
                     onClick={handleLockToggle}
                     isLoading={updateMutation.isPending}
+                    disabled={colorMutation.isPending}
                   >
                     {contest.locked ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
                     {contest.locked ? 'Desbloquear competencia' : 'Bloquear competencia'}

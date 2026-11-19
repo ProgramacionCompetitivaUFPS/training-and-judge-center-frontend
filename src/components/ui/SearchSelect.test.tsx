@@ -14,6 +14,7 @@ interface WrapperProps {
   emptyLabel?: string
   hintLabel?: string
   onSelect?: (item: Item) => void
+  disabled?: boolean
 }
 
 function Wrapper({
@@ -24,6 +25,7 @@ function Wrapper({
   emptyLabel,
   hintLabel,
   onSelect = vi.fn(),
+  disabled,
 }: WrapperProps) {
   const [query, setQuery] = useState(initialQuery)
   return (
@@ -38,6 +40,7 @@ function Wrapper({
       getKey={(item) => item.id}
       renderItem={(item) => item.label}
       onSelect={onSelect}
+      disabled={disabled}
       placeholder="Buscar..."
     />
   )
@@ -92,6 +95,12 @@ describe('SearchSelect', () => {
     await user.click(screen.getByPlaceholderText('Buscar...'))
     await user.click(screen.getByRole('button', { name: 'Elemento A' }))
     expect(onSelect).toHaveBeenCalledWith(results[0])
+  })
+
+  it('deshabilita el campo de búsqueda cuando disabled es true', () => {
+    render(<Wrapper disabled />)
+
+    expect(screen.getByPlaceholderText('Buscar...')).toBeDisabled()
   })
 
   it('muestra hintLabel cuando query tiene más de 0 pero menos de minChars caracteres', async () => {

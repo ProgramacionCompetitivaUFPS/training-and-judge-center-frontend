@@ -1,5 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
 export const contestsHandlers = [
@@ -117,7 +118,7 @@ export const contestsHandlers = [
     }
     const contest = mockContests[idx]
     const body = (await request.json()) as Record<string, unknown> & {
-      problems?: Array<{ slug: string; order: number }>
+      problems?: Array<{ slug: string; order: number; color?: string | null }>
     }
 
     const changesTeamShape = 'participationMode' in body || 'teamSizeMin' in body || 'teamSizeMax' in body
@@ -127,6 +128,16 @@ export const contestsHandlers = [
         error: 'CONTEST_HAS_TEAM_REGISTRATIONS',
         message: 'No se puede cambiar la modalidad o el tamaño de equipo: ya hay equipos registrados en esta competencia',
       }, { status: 409 })
+    }
+
+    if (body.problems && computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED') {
+      return HttpResponse.json({
+        error: 'CONTEST_PROBLEMS_LOCKED',
+        message: 'No se pueden cambiar los problemas de una competencia finalizada',
+      }, { status: 409 })
+    }
+    if (body.problems?.some((p) => p.color !== undefined && p.color !== null && !isValidBalloonColor(p.color))) {
+      return HttpResponse.json({ error: 'INVALID_PROBLEM_COLOR', message: 'Color inválido' }, { status: 400 })
     }
 
     const resolvedProblems = body.problems
@@ -140,6 +151,9 @@ export const contestsHandlers = [
             title: problem.title,
             timeLimit: problem.timeLimit ?? 1000,
             memoryLimit: problem.memoryLimit ?? 256,
+            color: p.color !== undefined
+              ? (p.color === null ? null : p.color.toLowerCase())
+              : (contest.problems.find((cp) => cp.slug === p.slug)?.color ?? null),
           }
         })
         .filter((p): p is NonNullable<typeof p> => p !== null)
@@ -161,9 +175,15 @@ export const contestsHandlers = [
   http.delete(url('/groups/:groupId/contests/:contestId'), async ({ params }) => {
     await delay(300)
     const { contestId } = params as { groupId: string; contestId: string }
-    const idx = mockContests.findIndex((c) => c.id === contestId)
-    if (idx === -1) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
+    }
+    if (contest.locked === true) {
+      return HttpResponse.json({ error: 'CONTEST_LOCKED', message: 'Competencia bloqueada' }, { status: 403 })
+    }
+    if (computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE') {
+      return HttpResponse.json({ error: 'CONTEST_IS_ACTIVE', message: 'Competencia en curso' }, { status: 409 })
     }
     return new HttpResponse(null, { status: 204 })
   }),

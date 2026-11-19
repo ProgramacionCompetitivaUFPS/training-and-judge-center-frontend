@@ -16,6 +16,8 @@ interface SearchSelectProps<T> {
   renderItem: (item: T) => ReactNode
   onSelect: (item: T) => void
   className?: string
+  /** Deshabilita el campo de búsqueda (p. ej. mientras otra acción está en curso). */
+  disabled?: boolean
   /** Passed through to the underlying input — lets a caller confirm the typed (unselected) query on Enter. */
   onInputKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
@@ -35,6 +37,7 @@ export function SearchSelect<T>({
   renderItem,
   onSelect,
   className,
+  disabled,
   onInputKeyDown,
 }: SearchSelectProps<T>) {
   const [isFocused, setIsFocused] = useState(false)
@@ -48,6 +51,7 @@ export function SearchSelect<T>({
         <Input
           ref={inputRef}
           placeholder={placeholder}
+          disabled={disabled}
           className="pl-9"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
