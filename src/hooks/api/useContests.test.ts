@@ -461,6 +461,24 @@ describe('useStandings congelado (mock)', () => {
     expect(minutesBeforeEnd).toBe(60)
   })
 
+  it('revela los resultados cuando termina el congelamiento', async () => {
+    // Arrange: 30 minutos después, contest-6 (que termina en 20) ya acabó
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(Date.now() + 30 * 60_000)
+
+    try {
+      // Act
+      const data = await load('contest-6')
+
+      // Assert
+      expect(data.contest.isFrozen).toBe(false)
+      expect(data.contest.frozenAt).toBeNull()
+      expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('no marca como congelada una competencia activa sin freeze configurado', async () => {
     // Arrange / Act
     const data = await load('contest-7')

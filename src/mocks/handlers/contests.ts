@@ -10,9 +10,22 @@ function countsAsTried(cell: StandingProblemResult): boolean {
   return !(cell.status === 'PENDING' && cell.attempts === 0)
 }
 
-/** Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post. */
-function standingsRowsFor(contest: (typeof mockContests)[number]) {
-  const officialRows = contest.id === 'contest-6' ? mockFrozenStandings : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+/** Inicio del congelamiento (null si la competencia no tiene freeze) y si está vigente ahora mismo. */
+function freezeStateOf(contest: (typeof mockContests)[number]) {
+  const freezeStartMs = contest.freezeMinutes != null ? Date.parse(contest.endTime) - contest.freezeMinutes * 60_000 : null
+  const isFrozen =
+    computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE' && freezeStartMs !== null && Date.now() >= freezeStartMs
+  return { isFrozen, freezeStartMs }
+}
+
+/**
+ * Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post.
+ * `isFrozen` viene de `freezeStateOf`, para que las filas y el `isFrozen` de la respuesta salgan del mismo
+ * momento: `contest-6` muestra celdas pendientes mientras dura el congelamiento y, al terminar, resultados visibles.
+ */
+function standingsRowsFor(contest: (typeof mockContests)[number], isFrozen: boolean) {
+  const frozenOrRevealed = isFrozen ? mockFrozenStandings : mockStandings
+  const officialRows = contest.id === 'contest-6' ? frozenOrRevealed : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
   const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
   const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
   return { officialRows, postRows }
@@ -262,15 +275,12 @@ export const contestsHandlers = [
       )
     }
 
-    const { officialRows, postRows } = standingsRowsFor(contest)
+    const { isFrozen, freezeStartMs } = freezeStateOf(contest)
+    const { officialRows, postRows } = standingsRowsFor(contest, isFrozen)
     const base =
       phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
     // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
     const countRows = phase === 'postcompetition' ? postRows : officialRows
-    const endMs = Date.parse(contest.endTime)
-    const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60_000 : null
-    const isFrozen =
-      computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE' && freezeStartMs !== null && Date.now() >= freezeStartMs
 
     const filtered = base.filter((entry) => {
       const p = entry.participant
@@ -344,7 +354,7 @@ export const contestsHandlers = [
       [...new Set(values.filter((v): v is string => !!v))].sort()
 
     // Los filtros aplican a las dos secciones, así que las opciones salen de oficiales y post.
-    const { officialRows, postRows } = standingsRowsFor(contest)
+    const { officialRows, postRows } = standingsRowsFor(contest, freezeStateOf(contest).isFrozen)
     const participants = [...officialRows, ...postRows].map((e) => e.participant)
 
     return HttpResponse.json({
