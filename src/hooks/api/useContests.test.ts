@@ -435,6 +435,90 @@ describe('useStandings refresco automático', () => {
   })
 })
 
+describe('useStandings congelado (mock)', () => {
+  async function load(contestId: string) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('marca la competencia como congelada y expone el inicio del congelamiento', async () => {
+    const data = await load('contest-6')
+
+    expect(data.contest.isFrozen).toBe(true)
+    expect(data.contest.frozenAt).toEqual(expect.any(String))
+  })
+
+  it('no marca como congelada una competencia activa sin freeze vigente', async () => {
+    const data = await load('contest-2')
+
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.frozenAt).toBeNull()
+  })
+
+  it('no marca como congelada una competencia finalizada', async () => {
+    const data = await load('contest-3')
+
+    expect(data.contest.isFrozen).toBe(false)
+  })
+
+  it('ordena las filas congeladas por resueltos y penalización', async () => {
+    const data = await load('contest-6')
+
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'sofiarodriguez',
+      'Competitive Coders',
+      'carloscp',
+      'anagarcia',
+    ])
+    expect(data.standings.map((e) => e.rank)).toEqual([1, 2, 3, 4])
+  })
+
+  it('devuelve una celda PENDING con su contador de envíos ocultos', async () => {
+    const data = await load('contest-6')
+
+    expect(data.standings[1].problems[1]).toMatchObject({
+      position: 2,
+      status: 'PENDING',
+      attempts: 1,
+      pending: 2,
+      time: null,
+      penalty: 0,
+    })
+  })
+
+  it('devuelve una celda ACCEPTED anterior al freeze con pending en cero', async () => {
+    const data = await load('contest-6')
+
+    expect(data.standings[0].problems[0]).toMatchObject({
+      status: 'ACCEPTED',
+      time: 20,
+      pending: 0,
+      isFirstSolve: true,
+    })
+  })
+
+  it('cuenta en los contadores solo lo visible en una competencia congelada', async () => {
+    const data = await load('contest-6')
+
+    expect(data.problems[0]).toMatchObject({ accepted: 3, tried: 3, postAccepted: 0, postTried: 0 })
+    expect(data.problems[1]).toMatchObject({ accepted: 0, tried: 1 })
+  })
+
+  it('incluye pending en cero en las celdas de una competencia sin congelar', async () => {
+    const data = await load('contest-2')
+
+    expect(data.standings[0].problems[0].pending).toBe(0)
+  })
+
+  it('mantiene los contadores de una competencia sin celdas pendientes', async () => {
+    const data = await load('contest-2')
+
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+})
+
 describe('standingsRefetchInterval', () => {
   it.each([
     ['ACTIVE', undefined, undefined, 10000],

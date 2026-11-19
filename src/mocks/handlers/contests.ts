@@ -1,11 +1,11 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
 /** Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post. */
 function standingsRowsFor(contest: (typeof mockContests)[number]) {
-  const officialRows = contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+  const officialRows = contest.id === 'contest-6' ? mockFrozenStandings : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
   const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
   const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
   return { officialRows, postRows }
@@ -260,6 +260,10 @@ export const contestsHandlers = [
       phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
     // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
     const countRows = phase === 'postcompetition' ? postRows : officialRows
+    const endMs = Date.parse(contest.endTime)
+    const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60_000 : null
+    const isFrozen =
+      computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE' && freezeStartMs !== null && Date.now() >= freezeStartMs
 
     const filtered = base.filter((entry) => {
       const p = entry.participant
@@ -282,8 +286,8 @@ export const contestsHandlers = [
         endTime: contest.endTime,
         penalty: contest.penalty,
         freezeMinutes: contest.freezeMinutes,
-        isFrozen: false,
-        frozenAt: null,
+        isFrozen,
+        frozenAt: isFrozen && freezeStartMs !== null ? new Date(freezeStartMs).toISOString() : null,
       },
       problems: contest.problems.map((p) => ({
         position: p.position,
@@ -292,24 +296,20 @@ export const contestsHandlers = [
         color: p.color ?? null,
         // Contadores globales: no dependen de filtros ni de la página.
         accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED' && !(r.status === 'PENDING' && r.attempts === 0))).length,
         // Contadores de post-competencia: siempre presentes, 0 si no hay filas de post.
         postAccepted: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED' && !(r.status === 'PENDING' && r.attempts === 0))).length,
       })),
       standings: paged.map((entry) => ({
         ...entry,
         // Una celda por problema de la competencia, aunque la fila tenga menos resultados.
-        problems: contest.problems.map(
-          (p) =>
-            entry.problems.find((r) => r.position === p.position) ?? {
-              position: p.position,
-              status: 'NOT_ATTEMPTED' as const,
-              attempts: 0,
-              time: null,
-              penalty: 0,
-            },
-        ),
+        problems: contest.problems.map((p) => {
+          const cell = entry.problems.find((r) => r.position === p.position)
+          return cell
+            ? { ...cell, pending: cell.pending ?? 0 }
+            : { position: p.position, status: 'NOT_ATTEMPTED' as const, attempts: 0, time: null, penalty: 0, pending: 0 }
+        }),
       })),
       pagination: {
         page,
