@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui'
 import { BalloonIcon } from '@/components/features/BalloonIcon'
 import { resolveBalloonColor } from '@/lib/balloon'
 import { cn, formatContestTime, problemLabel } from '@/lib/utils'
-import type { StandingEntry, StandingProblemResult, StandingsProblem } from '@/types/contest'
+import type { StandingEntry, StandingProblemResult, StandingsPhase, StandingsProblem } from '@/types/contest'
 
 const HEAD_CELL =
   'border-b border-neutral-border px-1 py-2 text-center text-sm font-semibold text-neutral-text-muted'
@@ -21,6 +21,13 @@ const RANK_COLORS: Record<number, string> = {
 interface StandingsTableProps {
   problems: StandingsProblem[]
   entries: StandingEntry[]
+  /** Fase pedida: define de qué filas son los contadores del pie (con `all`, solo las oficiales). */
+  phase?: StandingsPhase
+}
+
+const STATS_SCOPE_LABEL: Partial<Record<StandingsPhase, string>> = {
+  all: ' (oficial)',
+  postcompetition: ' (post-competencia)',
 }
 
 /** Filas de post-competencia: `isOfficial` false (ausente = oficial). */
@@ -28,17 +35,17 @@ function isPost(entry: StandingEntry): boolean {
   return entry.isOfficial === false
 }
 
-function ProblemCell({ result, isPost }: { result: StandingProblemResult | undefined; isPost: boolean }) {
+function ProblemCell({ result, post }: { result: StandingProblemResult | undefined; post: boolean }) {
   if (!result || result.status === 'NOT_ATTEMPTED') {
     return <span aria-label="Sin intentos" className="text-slate-300">·</span>
   }
   if (result.status === 'ACCEPTED') {
     return (
       <>
-        <span className={cn('font-bold', isPost ? 'text-brand-accent' : 'text-status-success')}>
+        <span className={cn('font-bold', post ? 'text-brand-accent' : 'text-status-success')}>
           +{result.attempts > 1 ? result.attempts - 1 : ''}
         </span>
-        {!isPost && result.time !== null && (
+        {!post && result.time !== null && (
           <span className="block font-mono text-xs font-medium text-neutral-text-muted">
             {formatContestTime(result.time)}
           </span>
@@ -87,7 +94,8 @@ function ParticipantCell({ entry }: { entry: StandingEntry }) {
   )
 }
 
-export function StandingsTable({ problems, entries }: StandingsTableProps) {
+export function StandingsTable({ problems, entries, phase }: StandingsTableProps) {
+  const statsScope = phase ? (STATS_SCOPE_LABEL[phase] ?? '') : ''
   const hasStats = problems.length > 0 && problems.every((p) => typeof p.accepted === 'number' && typeof p.tried === 'number')
 
   return (
@@ -153,7 +161,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
                         data-first-solve={firstSolve ? 'true' : undefined}
                         className={cn(BODY_CELL, firstSolve && 'bg-emerald-100')}
                       >
-                        <ProblemCell result={result} isPost={post} />
+                        <ProblemCell result={result} post={post} />
                       </td>
                     )
                   })}
@@ -166,7 +174,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
           <tfoot>
             <tr>
               <td className={FOOT_CELL} />
-              <td className={cn(FOOT_CELL, 'pl-3 text-left text-neutral-text-muted')}>Aceptados</td>
+              <td className={cn(FOOT_CELL, 'pl-3 text-left text-neutral-text-muted')}>{`Aceptados${statsScope}`}</td>
               <td className={FOOT_CELL} />
               <td className={FOOT_CELL} />
               {problems.map((problem) => (
@@ -177,7 +185,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
             </tr>
             <tr>
               <td className={FOOT_CELL} />
-              <td className={cn(FOOT_CELL, 'pl-3 text-left text-neutral-text-muted')}>Intentos</td>
+              <td className={cn(FOOT_CELL, 'pl-3 text-left text-neutral-text-muted')}>{`Intentos${statsScope}`}</td>
               <td className={FOOT_CELL} />
               <td className={FOOT_CELL} />
               {problems.map((problem) => (

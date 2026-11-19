@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
@@ -213,14 +213,27 @@ describe('ContestStandingsPage con fases', () => {
     expect(requests[0].get('phase')).toBe('competition')
   })
 
-  it('muestra el pie de aceptados también al ver solo la post-competencia', async () => {
+  it('rotula el pie como oficial en la fase Todas', async () => {
+    renderPage('group-1', 'contest-8')
+
+    expect(await screen.findByText('Aceptados (oficial)')).toBeInTheDocument()
+    expect(screen.getByText('Intentos (oficial)')).toBeInTheDocument()
+  })
+
+  it('calcula el pie sobre las filas de post al ver solo la post-competencia', async () => {
+    // Arrange
     renderPage('group-1', 'contest-8')
     await screen.findByRole('radiogroup', { name: 'Fase' })
 
+    // Act
     await user.click(screen.getByRole('radio', { name: 'Post-competencia' }))
-    await waitFor(() => expect(screen.getByText('* lauramendez')).toBeInTheDocument())
+    const acceptedRow = (await screen.findByText('Aceptados (post-competencia)')).closest('tr')!
+    const triedRow = screen.getByText('Intentos (post-competencia)').closest('tr')!
 
-    expect(screen.getByText('Aceptados')).toBeInTheDocument()
+    // Assert
+    const counters = (row: HTMLElement) => within(row).getAllByRole('cell').slice(4).map((cell) => cell.textContent)
+    expect(counters(acceptedRow)).toEqual(['1', '1', '1'])
+    expect(counters(triedRow)).toEqual(['2', '1', '1'])
   })
 
   it('vuelve a la página 1 al cambiar de fase estando en la página 2', async () => {

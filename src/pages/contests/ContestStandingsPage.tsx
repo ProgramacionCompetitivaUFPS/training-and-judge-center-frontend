@@ -139,7 +139,7 @@ export function ContestStandingsPage() {
               ))}
             </div>
           ) : data && data.standings.length > 0 ? (
-            <StandingsTable problems={data.problems} entries={data.standings} />
+            <StandingsTable problems={data.problems} entries={data.standings} phase={params.phase} />
           ) : (
             <div className="text-center py-12 text-neutral-text-muted">
               Todavía no hay posiciones para mostrar.
