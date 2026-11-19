@@ -70,6 +70,21 @@ describe('CopyButton', () => {
     expect(screen.queryByTitle('Copiado')).not.toBeInTheDocument()
   })
 
+  it('no confirma "Copiado" para un texto distinto del que se copió', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    const { rerender } = render(<CopyButton text="A" label="Copiar salida" />)
+    await user.click(screen.getByRole('button', { name: 'Copiar salida' }))
+    expect(screen.getByTitle('Copiado')).toBeInTheDocument()
+
+    // Act
+    rerender(<CopyButton text="B" label="Copiar salida" />)
+
+    // Assert
+    expect(screen.getByTitle('Copiar')).toBeInTheDocument()
+    expect(screen.queryByTitle('Copiado')).not.toBeInTheDocument()
+  })
+
   it('muestra un toast de error y sigue en "Copiar" si el portapapeles falla', async () => {
     // Arrange
     const user = userEvent.setup()

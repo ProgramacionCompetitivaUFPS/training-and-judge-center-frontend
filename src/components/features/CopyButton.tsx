@@ -15,7 +15,9 @@ interface CopyButtonProps {
 /** Icon-only button that copies `text` to the clipboard and shows a check ("Copiado" tooltip) for 2 s. */
 export function CopyButton({ text, label, className }: CopyButtonProps) {
   const { toast } = useToastContext()
-  const [copied, setCopied] = useState(false)
+  // The text whose copy was confirmed; the check only shows while it still matches `text`.
+  const [copiedText, setCopiedText] = useState<string | null>(null)
+  const copied = copiedText === text
   const copiedTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => () => clearTimeout(copiedTimer.current), [])
@@ -23,9 +25,9 @@ export function CopyButton({ text, label, className }: CopyButtonProps) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
+      setCopiedText(text)
       clearTimeout(copiedTimer.current)
-      copiedTimer.current = setTimeout(() => setCopied(false), 2000)
+      copiedTimer.current = setTimeout(() => setCopiedText(null), 2000)
     } catch {
       toast({ variant: 'error', title: 'No se pudo copiar', description: 'El navegador no permitió acceder al portapapeles.' })
     }
