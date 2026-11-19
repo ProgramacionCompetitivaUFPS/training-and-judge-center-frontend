@@ -8,6 +8,7 @@ import type {
   UpdateContestRequest,
   ContestStatus,
   StandingsParams,
+  StandingsPhase,
   ContestSubmissionsParams,
 } from '@/types/contest'
 
@@ -96,12 +97,22 @@ export function useRegistrations(
 
 export const STANDINGS_REFETCH_MS = 10_000
 
-/** Intervalo de refresco de los standings: solo mientras la competencia está activa. */
+/**
+ * Intervalo de refresco de los standings. Activa: cada `activeIntervalMs`. Finalizada: cada 10 s solo
+ * si se piden filas de post-competencia (pueden llegar envíos tardíos); en cualquier otro caso no refresca.
+ * Sin `phase` el backend aplica `all`, así que aquí también se trata como `all`.
+ */
 export function standingsRefetchInterval(
   status: ContestStatus | undefined,
+  phase: StandingsPhase | undefined,
   activeIntervalMs: number = STANDINGS_REFETCH_MS,
 ): number | false {
-  return status === 'ACTIVE' ? activeIntervalMs : false
+  if (status === 'ACTIVE') return activeIntervalMs
+  const effectivePhase = phase ?? 'all'
+  if (status === 'FINISHED' && (effectivePhase === 'all' || effectivePhase === 'postcompetition')) {
+    return STANDINGS_REFETCH_MS
+  }
+  return false
 }
 
 export function useStandings(
@@ -115,7 +126,11 @@ export function useStandings(
     queryFn: () => contestsApi.getStandings(groupId, contestId, params),
     enabled: !!groupId && !!contestId && (options?.enabled ?? true),
     refetchInterval: (query) =>
-      standingsRefetchInterval(query.state.data?.contest?.status, options?.activeIntervalMs),
+      standingsRefetchInterval(
+        query.state.data?.contest?.status,
+        params?.phase,
+        options?.activeIntervalMs,
+      ),
   })
 }
 

@@ -1442,6 +1442,33 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
+  {
+    id: 'contest-8',
+    name: 'Reto Clásicos con Post-competencia',
+    description: 'Competencia finalizada con post-competencia habilitada.',
+    startTime: yesterday.toISOString(),
+    endTime: yesterdayEnd.toISOString(),
+    duration: 10800,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: null,
+    enablePostContest: true,
+    locked: false,
+    participantCount: 8,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256, color: '#e11d48' },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128, color: '#2563eb' },
+      { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256, color: null },
+    ],
+    problemCount: 3,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1635,6 +1662,70 @@ export const mockStandings: StandingEntry[] = [
       { position: 1, status: 'ACCEPTED', attempts: 2, time: 45, penalty: 20 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 3, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
+    ],
+  },
+]
+
+// Filas de post-competencia de contest-8: sin rank, no oficiales, sin penalización ni horas.
+export const mockPostStandings: StandingEntry[] = [
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-1',
+      type: 'INDIVIDUAL',
+      displayName: 'lauramendez',
+      nickname: 'lauramendez',
+      country: 'Colombia',
+      city: 'Cúcuta',
+      institution: 'UFPS',
+    },
+    problemsSolved: 2,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-2',
+      type: 'INDIVIDUAL',
+      displayName: 'andresrojas',
+      nickname: 'andresrojas',
+      country: 'Colombia',
+      city: 'Bogotá',
+      institution: 'UNAL',
+    },
+    problemsSolved: 1,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-3',
+      type: 'INDIVIDUAL',
+      displayName: 'carlosvega',
+      nickname: 'carlosvega',
+      country: 'Colombia',
+      city: 'Cali',
+      institution: 'UNIVALLE',
+    },
+    problemsSolved: 0,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
 ]

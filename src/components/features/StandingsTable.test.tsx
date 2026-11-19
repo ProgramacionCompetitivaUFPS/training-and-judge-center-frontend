@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { StandingEntry, StandingsProblem } from '@/types/contest'
+import type { StandingEntry, StandingsPhase, StandingsProblem } from '@/types/contest'
 import { StandingsTable } from './StandingsTable'
 
 const problems: StandingsProblem[] = [
@@ -53,10 +53,49 @@ const entries: StandingEntry[] = [
   },
 ]
 
-function renderTable(tableProblems = problems, tableEntries = entries) {
+const postEntries: StandingEntry[] = [
+  {
+    rank: null,
+    isOfficial: false,
+    participant: { id: 'u-post-1', type: 'INDIVIDUAL', displayName: 'lauramendez', nickname: 'lauramendez' },
+    problemsSolved: 2,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: { id: 'u-post-2', type: 'INDIVIDUAL', displayName: 'andresrojas', nickname: 'andresrojas' },
+    problemsSolved: 1,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: { id: 'u-post-3', type: 'INDIVIDUAL', displayName: 'carlosvega', nickname: 'carlosvega' },
+    problemsSolved: 0,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+    ],
+  },
+]
+
+function renderTable(tableProblems = problems, tableEntries = entries, phase?: StandingsPhase) {
   render(
     <MemoryRouter>
-      <StandingsTable problems={tableProblems} entries={tableEntries} />
+      <StandingsTable problems={tableProblems} entries={tableEntries} phase={phase} />
     </MemoryRouter>,
   )
 }
@@ -166,5 +205,202 @@ describe('StandingsTable', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Participante' })).toBeInTheDocument()
     expect(screen.queryByText('Aceptados')).not.toBeInTheDocument()
+  })
+})
+
+describe('StandingsTable con post-competencia', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('muestra una franja Post-competencia y las filas de post con su asterisco', () => {
+    // Arrange / Act
+    renderTable(problems, [...entries, ...postEntries])
+
+    // Assert
+    expect(screen.getAllByRole('row', { name: 'Post-competencia' })).toHaveLength(1)
+    expect(screen.getByText('* lauramendez')).toBeInTheDocument()
+    expect(screen.getByText('* andresrojas')).toBeInTheDocument()
+    expect(screen.getByText('* carlosvega')).toBeInTheDocument()
+    expect(screen.queryByText('null')).not.toBeInTheDocument()
+  })
+
+  it('muestra — como penalización y el AC en +N sin hora en una fila de post', () => {
+    // Arrange
+    renderTable(problems, [...entries, ...postEntries])
+    const row = screen.getByText('* lauramendez').closest('tr')!
+
+    // Act / Assert
+    expect(within(row).getByText('—')).toBeInTheDocument()
+    expect(within(row).getByText('+2')).toHaveClass('text-brand-accent')
+    expect(row).not.toHaveTextContent(/\d{2}:\d{2}/)
+  })
+
+  it('muestra 0 resueltos, — y -N en rojo para una fila de post sin aciertos', () => {
+    // Arrange
+    renderTable(problems, [...entries, ...postEntries])
+    const row = screen.getByText('* carlosvega').closest('tr')!
+
+    // Act / Assert
+    expect(within(row).getByText('0')).toBeInTheDocument()
+    expect(within(row).getByText('—')).toBeInTheDocument()
+    expect(within(row).getByText('-2')).toHaveClass('text-status-error')
+    expect(row).not.toHaveTextContent(/NaN/)
+  })
+
+  it('muestra la franja una sola vez y antes de la primera fila de post cuando la tabla empieza en post', () => {
+    // Arrange / Act
+    renderTable(problems, postEntries)
+    const strip = screen.getByRole('row', { name: 'Post-competencia' })
+    const firstPostRow = screen.getByText('* lauramendez').closest('tr')!
+
+    // Assert
+    expect(screen.getAllByRole('row', { name: 'Post-competencia' })).toHaveLength(1)
+    expect(strip.compareDocumentPosition(firstPostRow) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+  })
+
+  it('no muestra la franja cuando solo hay filas oficiales', () => {
+    renderTable(problems, entries)
+
+    expect(screen.queryByRole('row', { name: 'Post-competencia' })).not.toBeInTheDocument()
+  })
+
+  it('deja vacía la celda de rank cuando la fila oficial no tiene rank', () => {
+    // Arrange
+    const unranked: StandingEntry[] = [{ ...entries[0], rank: null }]
+    renderTable(problems, unranked)
+
+    // Act
+    const row = screen.getByText('Competitive Coders').closest('tr')!
+
+    // Assert
+    expect(row).not.toHaveTextContent('null')
+    expect(within(row).getAllByRole('cell')[0]).toBeEmptyDOMElement()
+  })
+
+  it('muestra dos filas cuando el mismo participante aparece en oficial y en post', () => {
+    // Arrange
+    const samePlayerInPost: StandingEntry = {
+      ...postEntries[0],
+      participant: { id: 'u3', type: 'INDIVIDUAL', displayName: 'carloscp', nickname: 'carloscp' },
+    }
+
+    // Act
+    renderTable(problems, [entries[1], samePlayerInPost])
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'carloscp' })).toBeInTheDocument()
+    expect(screen.getByText('* carloscp')).toBeInTheDocument()
+  })
+
+  it('no repite keys de React cuando el mismo participante tiene fila oficial y de post', () => {
+    // Arrange
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const samePlayerInPost: StandingEntry = {
+      ...postEntries[0],
+      participant: { id: 'u3', type: 'INDIVIDUAL', displayName: 'carloscp', nickname: 'carloscp' },
+    }
+
+    // Act
+    renderTable(problems, [entries[1], samePlayerInPost])
+
+    // Assert
+    expect(consoleError.mock.calls.flat().join(' ')).not.toContain('same key')
+  })
+
+  it('no resalta el primer AC en una fila de post aunque venga marcado', () => {
+    // Arrange
+    const firstSolveInPost: StandingEntry = {
+      ...postEntries[0],
+      problems: [{ position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0, isFirstSolve: true }],
+    }
+
+    // Act
+    renderTable(problems, [firstSolveInPost])
+    const row = screen.getByText('* lauramendez').closest('tr')!
+
+    // Assert
+    for (const cell of within(row).getAllByRole('cell')) {
+      expect(cell).not.toHaveAttribute('data-first-solve')
+    }
+  })
+
+  it.each<[StandingsPhase | undefined, string, string]>([
+    ['all', 'Aceptados (oficial)', 'Intentos (oficial)'],
+    ['postcompetition', 'Aceptados (post-competencia)', 'Intentos (post-competencia)'],
+    ['competition', 'Aceptados', 'Intentos'],
+    [undefined, 'Aceptados', 'Intentos'],
+  ])('con la fase %s rotula el pie como %s e %s', (phase, accepted, tried) => {
+    renderTable(problems, entries, phase)
+
+    expect(screen.getByText(accepted)).toBeInTheDocument()
+    expect(screen.getByText(tried)).toBeInTheDocument()
+  })
+})
+
+describe('StandingsTable con contadores de post-competencia', () => {
+  const problemsWithPost: StandingsProblem[] = [
+    { ...problems[0], postAccepted: 2, postTried: 3 },
+    { ...problems[1], postAccepted: 0, postTried: 1 },
+    { ...problems[2], postAccepted: 0, postTried: 0 },
+  ]
+
+  function footerCounters(label: string) {
+    const row = screen.getByText(label).closest('tr')!
+    return within(row)
+      .getAllByRole('cell')
+      .slice(4)
+      .map((cell) => cell.textContent)
+  }
+
+  it('suma aparte los de post-competencia en la fase Todas y solo donde hay', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'all')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4 (+2)', '3', '3'])
+    expect(footerCounters('Intentos')).toEqual(['5 (+3)', '4 (+1)', '5'])
+  })
+
+  it('explica en un tooltip cuántos son oficiales y cuántos de post-competencia', () => {
+    renderTable(problemsWithPost, entries, 'all')
+
+    expect(screen.getAllByTitle('4 oficiales + 2 de post-competencia')).toHaveLength(1)
+  })
+
+  it('muestra solo los contadores de post-competencia en la fase Post-competencia', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'postcompetition')
+
+    // Assert
+    expect(footerCounters('Aceptados (post-competencia)')).toEqual(['2', '0', '0'])
+    expect(footerCounters('Intentos (post-competencia)')).toEqual(['3', '1', '0'])
+  })
+
+  it('muestra solo los oficiales en la fase Competencia aunque lleguen los de post', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'competition')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4', '3', '3'])
+    expect(screen.queryByText(/\(\+/)).not.toBeInTheDocument()
+  })
+
+  it('no muestra sumas cuando la competencia no tiene fase post (todos en 0)', () => {
+    // Arrange
+    const noPost = problems.map((p) => ({ ...p, postAccepted: 0, postTried: 0 }))
+
+    // Act
+    renderTable(noPost, entries, 'all')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4', '3', '3'])
+    expect(screen.queryByText(/\(\+/)).not.toBeInTheDocument()
+  })
+
+  it('usa accepted y tried en la fase Post-competencia cuando el backend no manda los de post', () => {
+    // Arrange / Act
+    renderTable(problems, entries, 'postcompetition')
+
+    // Assert
+    expect(footerCounters('Aceptados (post-competencia)')).toEqual(['4', '3', '3'])
   })
 })

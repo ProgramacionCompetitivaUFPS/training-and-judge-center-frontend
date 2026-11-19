@@ -93,6 +93,7 @@ export type {
   StandingEntry,
   StandingsResponse,
   StandingsParams,
+  StandingsPhase,
   ContestSubmissionItem,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,

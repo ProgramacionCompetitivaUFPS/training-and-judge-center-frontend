@@ -1,7 +1,15 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
+
+/** Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post. */
+function standingsRowsFor(contest: (typeof mockContests)[number]) {
+  const officialRows = contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+  const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
+  const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
+  return { officialRows, postRows }
+}
 
 export const contestsHandlers = [
   // List all contests accessible to the user (across all groups)
@@ -239,8 +247,21 @@ export const contestsHandlers = [
     const city = sp.get('city')?.toLowerCase() || undefined
     const institution = sp.get('institution')?.toLowerCase() || undefined
 
-    const source = contestId === 'contest-7' ? mockLargeStandings : mockStandings
-    const filtered = source.filter((entry) => {
+    const phase = sp.get('phase') ?? 'all'
+    if (phase !== 'competition' && phase !== 'postcompetition' && phase !== 'all') {
+      return HttpResponse.json(
+        { error: 'BAD_REQUEST', message: "phase must be 'competition', 'postcompetition' or 'all'" },
+        { status: 400 },
+      )
+    }
+
+    const { officialRows, postRows } = standingsRowsFor(contest)
+    const base =
+      phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
+    // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
+    const countRows = phase === 'postcompetition' ? postRows : officialRows
+
+    const filtered = base.filter((entry) => {
       const p = entry.participant
       if (country && !p.country?.toLowerCase().includes(country)) return false
       if (city && !p.city?.toLowerCase().includes(city)) return false
@@ -270,8 +291,11 @@ export const contestsHandlers = [
         title: p.title,
         color: p.color ?? null,
         // Contadores globales: no dependen de filtros ni de la página.
-        accepted: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        tried: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        // Contadores de post-competencia: siempre presentes, 0 si no hay filas de post.
+        postAccepted: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
       })),
       standings: paged.map((entry) => ({
         ...entry,
@@ -312,10 +336,14 @@ export const contestsHandlers = [
     const distinct = (values: Array<string | null | undefined>) =>
       [...new Set(values.filter((v): v is string => !!v))].sort()
 
+    // Los filtros aplican a las dos secciones, así que las opciones salen de oficiales y post.
+    const { officialRows, postRows } = standingsRowsFor(contest)
+    const participants = [...officialRows, ...postRows].map((e) => e.participant)
+
     return HttpResponse.json({
-      countries: distinct(mockStandings.map((e) => e.participant.country)),
-      cities: distinct(mockStandings.map((e) => e.participant.city)),
-      institutions: distinct(mockStandings.map((e) => e.participant.institution)),
+      countries: distinct(participants.map((p) => p.country)),
+      cities: distinct(participants.map((p) => p.city)),
+      institutions: distinct(participants.map((p) => p.institution)),
     })
   }),
 

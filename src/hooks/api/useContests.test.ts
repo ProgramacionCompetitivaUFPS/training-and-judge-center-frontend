@@ -8,7 +8,7 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 import { mockContests } from '@/mocks/data'
-import type { ContestDetail, CreateContestRequest } from '@/types/contest'
+import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase } from '@/types/contest'
 import {
   contestKeys,
   standingsRefetchInterval,
@@ -279,16 +279,180 @@ describe('useStandings (contest-7 con muchos datos)', () => {
   })
 })
 
+describe('useStandings con phase (mock)', () => {
+  async function load(contestId: string, params?: StandingsParams) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, params), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('devuelve solo las filas de post-competencia sin rank y no oficiales', async () => {
+    // Arrange / Act
+    const data = await load('contest-8', { phase: 'postcompetition' })
+
+    // Assert
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual(['lauramendez', 'andresrojas', 'carlosvega'])
+    expect(data.standings[0].rank).toBeNull()
+    expect(data.standings[0].isOfficial).toBe(false)
+    expect(data.standings[2].problemsSolved).toBe(0)
+  })
+
+  it('calcula los contadores de post-competencia sobre las filas de post', async () => {
+    const data = await load('contest-8', { phase: 'postcompetition' })
+
+    expect(data.problems[0]).toMatchObject({ color: '#e11d48', accepted: 1, tried: 2 })
+    expect(data.problems[1]).toMatchObject({ accepted: 1, tried: 1 })
+    expect(data.problems[2]).toMatchObject({ accepted: 1, tried: 1 })
+  })
+
+  it('devuelve solo las filas oficiales con la fase competition', async () => {
+    const data = await load('contest-8', { phase: 'competition' })
+
+    expect(data.standings).toHaveLength(5)
+    expect(data.standings.every((e) => e.isOfficial !== false)).toBe(true)
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+
+  it('devuelve oficiales primero y luego post con la fase all', async () => {
+    const data = await load('contest-8', { phase: 'all' })
+
+    expect(data.standings).toHaveLength(8)
+    expect(data.standings[0].participant.displayName).toBe('Competitive Coders')
+    expect(data.standings[5].participant.displayName).toBe('lauramendez')
+    expect(data.pagination.total).toBe(8)
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+
+  it('manda siempre los contadores de post-competencia, también con la fase competition', async () => {
+    const data = await load('contest-8', { phase: 'competition' })
+
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5, postAccepted: 1, postTried: 2 })
+    expect(data.problems[1]).toMatchObject({ postAccepted: 1, postTried: 1 })
+    expect(data.problems[2]).toMatchObject({ postAccepted: 1, postTried: 1 })
+  })
+
+  it('manda los contadores de post-competencia en 0 cuando la competencia no tiene fase post', async () => {
+    const data = await load('contest-2', { phase: 'all' })
+
+    expect(data.problems[0]).toMatchObject({ postAccepted: 0, postTried: 0 })
+  })
+
+  it('no filtra los contadores de post-competencia por país', async () => {
+    const data = await load('contest-8', { phase: 'all', country: 'Argentina' })
+
+    expect(data.problems[0]).toMatchObject({ postAccepted: 1, postTried: 2 })
+  })
+
+  it('trata la ausencia de phase como all', async () => {
+    const data = await load('contest-8')
+
+    expect(data.standings).toHaveLength(8)
+  })
+
+  it('pagina cruzando de las filas oficiales a las de post', async () => {
+    const data = await load('contest-8', { phase: 'all', limit: 3, page: 2 })
+
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual(['Algorithm Masters', 'sofiarodriguez', 'lauramendez'])
+    expect(data.pagination.totalPages).toBe(3)
+  })
+
+  it('aplica el filtro de país a las dos secciones', async () => {
+    const data = await load('contest-8', { phase: 'all', country: 'Colombia' })
+
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'sofiarodriguez',
+      'lauramendez',
+      'andresrojas',
+      'carlosvega',
+    ])
+  })
+
+  it('no devuelve filas de post en una competencia ACTIVE aunque tenga post habilitada', async () => {
+    const postOnly = await load('contest-2', { phase: 'postcompetition' })
+    const all = await load('contest-2', { phase: 'all' })
+
+    expect(postOnly.standings).toEqual([])
+    expect(all.standings).toHaveLength(5)
+  })
+
+  it('no devuelve filas de post en una competencia finalizada sin post-competencia', async () => {
+    const data = await load('contest-3', { phase: 'all' })
+
+    expect(data.standings).toHaveLength(5)
+  })
+
+  it('responde 400 BAD_REQUEST ante una phase inválida', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => useStandings('group-1', 'contest-8', { phase: 'bogus' as unknown as StandingsPhase }),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(400)
+    expect((result.current.error as ApiClientError).code).toBe('BAD_REQUEST')
+  })
+})
+
+describe('useStandings refresco automático', () => {
+  const STANDINGS_URL = 'http://localhost:8080/api/groups/:groupId/contests/:contestId/standings'
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function countRequestsAfter10Seconds(contestId: string, phase: StandingsPhase) {
+    let requests = 0
+    server.use(
+      http.get(STANDINGS_URL, () => {
+        requests += 1
+      }),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, { phase }), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(1_000)
+    return requests
+  }
+
+  it('vuelve a pedir los standings cada 10 s en una competencia finalizada cuando se piden filas de post', async () => {
+    const requests = await countRequestsAfter10Seconds('contest-8', 'all')
+
+    expect(requests).toBe(2)
+  })
+
+  it('no vuelve a pedir los standings de una competencia finalizada cuando solo se piden las oficiales', async () => {
+    const requests = await countRequestsAfter10Seconds('contest-8', 'competition')
+
+    expect(requests).toBe(1)
+  })
+})
+
 describe('standingsRefetchInterval', () => {
   it.each([
-    ['ACTIVE', undefined, 10000],
-    ['ACTIVE', 30000, 30000],
-    ['FINISHED', undefined, false],
-    ['SCHEDULED', 30000, false],
-    [undefined, undefined, false],
-  ] as const)('con estado %s e intervalo %s devuelve %s', (status, interval, expected) => {
-    expect(standingsRefetchInterval(status, interval)).toBe(expected)
-  })
+    ['ACTIVE', undefined, undefined, 10000],
+    ['ACTIVE', 'competition', undefined, 10000],
+    ['ACTIVE', undefined, 30000, 30000],
+    ['FINISHED', 'all', undefined, 10000],
+    ['FINISHED', 'postcompetition', undefined, 10000],
+    ['FINISHED', 'all', 30000, 10000],
+    ['FINISHED', 'competition', undefined, false],
+    ['FINISHED', undefined, undefined, 10000],
+    ['SCHEDULED', 'all', undefined, false],
+    [undefined, 'all', undefined, false],
+  ] as const)(
+    'con estado %s, fase %s e intervalo %s devuelve %s',
+    (status, phase, interval, expected) => {
+      expect(standingsRefetchInterval(status, phase, interval)).toBe(expected)
+    },
+  )
 })
 
 describe('useStandingsFilterOptions', () => {
@@ -300,6 +464,25 @@ describe('useStandingsFilterOptions', () => {
 
     expect(result.current.data?.countries[0]).toBe('Argentina')
     expect(result.current.data?.countries).toContain('Chile')
+  })
+
+  it('incluye ciudades e instituciones de las filas de post-competencia cuando están disponibles', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandingsFilterOptions('group-1', 'contest-8'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.cities).toContain('Cúcuta')
+    expect(result.current.data?.institutions).toContain('UFPS')
+  })
+
+  it('no incluye valores de post-competencia en una competencia activa', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandingsFilterOptions('group-1', 'contest-2'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.cities).not.toContain('Cúcuta')
   })
 })
 

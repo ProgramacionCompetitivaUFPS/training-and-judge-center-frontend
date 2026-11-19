@@ -8,10 +8,11 @@ import { PaginationControls, PaginationSummary } from '@/components/ui/Paginatio
 import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { StandingsTable } from '@/components/features/StandingsTable'
+import { StandingsPhaseTabs } from '@/components/features/StandingsPhaseTabs'
 import { useContestDetail, useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
-import type { StandingsParams } from '@/types/contest'
+import type { StandingsParams, StandingsPhase } from '@/types/contest'
 
 export function ContestStandingsPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
@@ -19,19 +20,30 @@ export function ContestStandingsPage() {
   const [countryFilter, setCountryFilter] = useState<string | undefined>(undefined)
   const [cityFilter, setCityFilter] = useState<string | undefined>(undefined)
   const [institutionFilter, setInstitutionFilter] = useState<string | undefined>(undefined)
+  const [phase, setPhase] = useState<StandingsPhase>('all')
   const [pagination, setPagination] = useState({ page: 1, limit: 50 })
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
+
+  const { data: contestDetail, isLoading: isLoadingDetail } = useContestDetail(groupId || '', id || '')
+  const postEnabled = contestDetail?.enablePostContest === true && contestDetail.status === 'FINISHED'
 
   const params: StandingsParams = {
     ...pagination,
     country: countryFilter,
     city: cityFilter,
     institution: institutionFilter,
+    // Sin post-competencia disponible se pide `competition` explícito, nunca se omite.
+    phase: postEnabled ? phase : 'competition',
   }
 
-  const { data, isLoading } = useStandings(groupId || '', id || '', params)
+  const { data, isLoading } = useStandings(groupId || '', id || '', params, { enabled: !isLoadingDetail })
+  const showSkeleton = isLoading || isLoadingDetail
   const { data: filterOptions } = useStandingsFilterOptions(groupId || '', id || '')
-  const { data: contestDetail } = useContestDetail(groupId || '', id || '')
+
+  const handlePhaseChange = (next: StandingsPhase) => {
+    setPhase(next)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
 
   const handleCountryFilter = (v: string) => { setCountryFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
   const handleCityFilter = (v: string) => { setCityFilter(v === 'ALL' ? undefined : v); setPagination((p) => ({ ...p, page: 1 })) }
@@ -63,6 +75,7 @@ export function ContestStandingsPage() {
                 />
               </div>
             )}
+            {postEnabled && <StandingsPhaseTabs value={phase} onChange={handlePhaseChange} />}
           </div>
 
           {data?.contest.isFrozen && (
@@ -102,7 +115,7 @@ export function ContestStandingsPage() {
             </Select>
           </div>
 
-          {data && !isLoading && (
+          {data && !showSkeleton && (
             <PaginationSummary
               total={data.pagination.total}
               totalLabel="participantes"
@@ -115,7 +128,7 @@ export function ContestStandingsPage() {
           )}
 
           {/* Standings Table */}
-          {isLoading ? (
+          {showSkeleton ? (
             <div className="space-y-2">
               {/* The real table always has a header row (#, Participante, Resueltos, Penalización,
                   + una por problema) that doesn't exist until data arrives — without a placeholder
@@ -126,7 +139,7 @@ export function ContestStandingsPage() {
               ))}
             </div>
           ) : data && data.standings.length > 0 ? (
-            <StandingsTable problems={data.problems} entries={data.standings} />
+            <StandingsTable problems={data.problems} entries={data.standings} phase={params.phase} />
           ) : (
             <div className="text-center py-12 text-neutral-text-muted">
               Todavía no hay posiciones para mostrar.
