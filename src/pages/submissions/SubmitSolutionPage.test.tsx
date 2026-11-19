@@ -134,7 +134,13 @@ describe('SubmitSolutionPage remembers the last language', () => {
   })
 
   it('remembers the language once the solution was sent', async () => {
-    // Arrange: nothing remembered; the .py extension picks Python
+    // Arrange: the default mock handler reads the multipart body, which hangs on Node 20 when the file
+    // comes from jsdom (CI), so answer without reading it. Nothing is remembered yet; the .py extension picks Python.
+    server.use(
+      http.post('http://localhost:8080/api/problems/p/:slug/submissions', () =>
+        HttpResponse.json({ id: 'sub-remembered-0001', status: 'PENDING' }, { status: 201 }),
+      ),
+    )
     const { container } = renderPage('/submit?problem=two-sum')
     await uploadPythonSolution(container)
     await waitFor(() => expect((screen.getByTestId('code-editor') as HTMLTextAreaElement).value).toBe('print(1)'), { timeout: 3000 })
@@ -143,7 +149,6 @@ describe('SubmitSolutionPage remembers the last language', () => {
     await user.click(screen.getByRole('button', { name: /enviar solución/i }))
 
     // Assert
-    // The mock submit handler answers after 500 ms: the default 1000 ms of waitFor leaves no margin on a slow machine
     await waitFor(
       () => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Solución enviada' })),
       { timeout: 3000 },
