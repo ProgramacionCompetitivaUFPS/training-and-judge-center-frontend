@@ -9,8 +9,12 @@ import { resolveBalloonColor } from '@/lib/balloon'
 import { problemLabel } from '@/lib/utils'
 import type { ContestProblem } from '@/types/contest'
 
+// Un problema recién agregado llega del PUT sin límites hasta que se refresca el detalle.
+type TableProblem = Omit<ContestProblem, 'timeLimit' | 'memoryLimit'> & Partial<Pick<ContestProblem, 'timeLimit' | 'memoryLimit'>>
+const EMPTY_LIMIT = '—'
+
 interface ContestProblemsTableProps {
-  problems: ContestProblem[]
+  problems: TableProblem[]
   groupId: string
   contestId: string
   showSubmit?: boolean
@@ -67,8 +71,8 @@ export function ContestProblemsTable({ problems, groupId, contestId, showSubmit,
                   {p.title}
                 </Link>
               </TableCell>
-              <TableCell className="text-sm font-medium">{p.timeLimit}ms</TableCell>
-              <TableCell className="text-sm font-medium">{p.memoryLimit} MiB</TableCell>
+              <TableCell className="text-sm font-medium">{p.timeLimit === undefined ? EMPTY_LIMIT : `${p.timeLimit}ms`}</TableCell>
+              <TableCell className="text-sm font-medium">{p.memoryLimit === undefined ? EMPTY_LIMIT : `${p.memoryLimit} MiB`}</TableCell>
               {showSubmit && (
                 <TableCell className="text-right pr-6">
                   <Button

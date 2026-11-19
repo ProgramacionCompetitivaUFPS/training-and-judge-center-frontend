@@ -30,6 +30,22 @@ describe('ContestProblemsTable', () => {
     expect(screen.getByRole('link', { name: 'Two Sum' })).toBeInTheDocument()
   })
 
+  it('muestra los límites de cada problema con su unidad', () => {
+    renderTable()
+
+    expect(screen.getByText('2000ms')).toBeInTheDocument()
+    expect(screen.getByText('256 MiB')).toBeInTheDocument()
+    expect(screen.getByText('1000ms')).toBeInTheDocument()
+    expect(screen.getByText('128 MiB')).toBeInTheDocument()
+  })
+
+  it('muestra — en lugar de los límites cuando todavía no se conocen (problema recién agregado)', () => {
+    renderTable({ problems: [{ position: 3, slug: 'graph-bfs', title: 'Graph BFS', color: null }] })
+
+    expect(screen.getAllByText('—')).toHaveLength(2)
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument()
+  })
+
   it('no ofrece cambiar el color cuando no se pasa onColorChange', () => {
     renderTable()
 
