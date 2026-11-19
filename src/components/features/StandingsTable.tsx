@@ -7,13 +7,9 @@ import { cn, formatContestTime, problemLabel } from '@/lib/utils'
 import type { StandingEntry, StandingProblemResult, StandingsProblem } from '@/types/contest'
 
 const HEAD_CELL =
-  'sticky top-0 z-10 border-b border-neutral-border bg-neutral-background px-1 py-2 text-center text-sm font-semibold text-neutral-text-muted'
+  'border-b border-neutral-border px-1 py-2 text-center text-sm font-semibold text-neutral-text-muted'
 const BODY_CELL = 'border-b border-neutral-border px-1 py-[7px] text-center'
 const FOOT_CELL = 'bg-slate-50 px-1 py-1.5 text-center text-sm'
-
-// Rank y participante quedan fijos a la izquierda al hacer scroll horizontal (w-11 = 2.75rem = left-11).
-const STICKY_RANK = 'sticky left-0 bg-neutral-background'
-const STICKY_NAME = 'sticky left-11 bg-neutral-background'
 
 const RANK_COLORS: Record<number, string> = {
   1: 'text-amber-700',
@@ -87,16 +83,16 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
   const hasStats = problems.length > 0 && problems.every((p) => typeof p.accepted === 'number' && typeof p.tried === 'number')
 
   return (
-    <div className="max-h-[calc(100vh-21rem)] min-h-64 overflow-auto border-t border-neutral-border">
+    <div className="overflow-x-auto border-t border-neutral-border">
       <table className="w-full border-separate border-spacing-0 text-base">
         <thead>
           <tr>
-            <th scope="col" className={cn(HEAD_CELL, STICKY_RANK, 'z-20 w-11 min-w-11')}>#</th>
-            <th scope="col" className={cn(HEAD_CELL, STICKY_NAME, 'z-20 min-w-48 pl-3 text-left')}>Participante</th>
+            <th scope="col" className={cn(HEAD_CELL, 'w-11')}>#</th>
+            <th scope="col" className={cn(HEAD_CELL, 'pl-3 text-left')}>Participante</th>
             <th scope="col" aria-label="Resueltos" title="Resueltos" className={cn(HEAD_CELL, 'w-11')}>=</th>
             <th scope="col" aria-label="Penalización" title="Penalización" className={cn(HEAD_CELL, 'w-14')}>Pen.</th>
             {problems.map((problem) => (
-              <th key={problem.slug} scope="col" title={problem.title} className={cn(HEAD_CELL, 'min-w-14')}>
+              <th key={problem.slug} scope="col" title={problem.title} className={HEAD_CELL}>
                 <BalloonIcon
                   color={resolveBalloonColor(problem.color)}
                   letter={problemLabel(problem.position)}
@@ -110,10 +106,10 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
         <tbody>
           {entries.map((entry) => (
             <tr key={entry.participant.id} className="hover:bg-neutral-background/60">
-              <td className={cn(BODY_CELL, STICKY_RANK, 'z-[5] font-bold', RANK_COLORS[entry.rank] ?? 'text-neutral-text-muted')}>
+              <td className={cn(BODY_CELL, 'font-bold', RANK_COLORS[entry.rank] ?? 'text-neutral-text-muted')}>
                 {entry.rank}
               </td>
-              <td className={cn(BODY_CELL, STICKY_NAME, 'z-[5] pl-3 text-left font-semibold text-neutral-text-primary')}>
+              <td className={cn(BODY_CELL, 'pl-3 text-left font-semibold text-neutral-text-primary')}>
                 <ParticipantCell entry={entry} />
               </td>
               <td className={cn(BODY_CELL, 'font-bold text-brand-primary')}>{entry.problemsSolved}</td>
