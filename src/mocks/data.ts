@@ -1407,6 +1407,41 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
+  {
+    // ACTIVE con 13 problemas (A–M) y 30 participantes (ver mockLargeStandings): sirve para revisar
+    // el tablero de posiciones con muchas columnas y filas.
+    id: 'contest-7',
+    name: 'Maratón Demo (13 problemas)',
+    description: 'Competencia de demostración con muchos problemas y participantes.',
+    startTime: oneHourAgo.toISOString(),
+    endTime: inFourHours.toISOString(),
+    duration: 18000,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: null,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 30,
+    isRegistered: true,
+    participationMode: 'MIXED',
+    showTeamMembers: true,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u1', nickname: 'luisadmin' },
+    problems: [
+      '#e11d48', '#2563eb', null, '#f59e0b', '#7c3aed', '#0891b2', '#db2777',
+      '#84cc16', '#0d9488', '#f97316', '#475569', '#c026d3', '#16a34a',
+    ].map((color, i) => ({
+      position: i + 1,
+      slug: `demo-${i + 1}`,
+      title: `Problema demo ${i + 1}`,
+      timeLimit: 1000,
+      memoryLimit: 128,
+      color,
+    })),
+    problemCount: 13,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1603,6 +1638,30 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
 ]
+
+// Standings de contest-7: 30 participantes (1 de cada 4 es equipo) con 13 problemas, datos deterministas.
+export const mockLargeStandings: StandingEntry[] = Array.from({ length: 30 }, (_, i) => {
+  const solved = Math.max(0, 13 - Math.floor(i / 2.5))
+  return {
+    rank: i + 1,
+    participant:
+      i % 4 === 0
+        ? { id: `demo-t${i}`, type: 'TEAM' as const, displayName: `Equipo Demo ${i + 1}`, members: ['ana', 'luis', 'sofia'] }
+        : { id: `demo-u${i}`, type: 'INDIVIDUAL' as const, displayName: `participante${i + 1}`, nickname: `participante${i + 1}`, institution: 'UFPS' },
+    problemsSolved: solved,
+    totalPenalty: 40 + i * 37,
+    problems: Array.from({ length: 13 }, (_, j) => {
+      const position = j + 1
+      if (j < solved) {
+        return { position, status: 'ACCEPTED' as const, attempts: 1 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
+      }
+      if ((i + j) % 4 === 0) {
+        return { position, status: 'WRONG_ANSWER' as const, attempts: 1 + ((i + j) % 5), time: null, penalty: 0 }
+      }
+      return { position, status: 'NOT_ATTEMPTED' as const, attempts: 0, time: null, penalty: 0 }
+    }),
+  }
+})
 
 // === Mock Contest Submissions ===
 

@@ -265,6 +265,20 @@ describe('useStandings (mock con colores y estadísticas)', () => {
   })
 })
 
+describe('useStandings (contest-7 con muchos datos)', () => {
+  it('devuelve 13 problemas, 30 participantes y celdas alineadas', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', 'contest-7', { limit: 100 }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.problems).toHaveLength(13)
+    expect(result.current.data?.standings).toHaveLength(30)
+    expect(result.current.data?.pagination.total).toBe(30)
+    expect(result.current.data?.standings[29].problems).toHaveLength(13)
+  })
+})
+
 describe('standingsRefetchInterval', () => {
   it.each([
     ['ACTIVE', undefined, 10000],
