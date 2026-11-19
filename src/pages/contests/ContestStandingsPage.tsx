@@ -47,7 +47,7 @@ export function ContestStandingsPage() {
       ]}
     >
       <div className="flex justify-center">
-      <div className="w-full max-w-5xl space-y-3">
+      <div className="w-full max-w-6xl space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
