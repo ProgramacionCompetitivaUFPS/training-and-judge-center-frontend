@@ -120,7 +120,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
                   <td
                     key={problem.slug}
                     data-first-solve={firstSolve ? 'true' : undefined}
-                    className={cn(BODY_CELL, firstSolve && 'bg-emerald-50')}
+                    className={cn(BODY_CELL, firstSolve && 'bg-emerald-200')}
                   >
                     <ProblemCell result={result} />
                   </td>
