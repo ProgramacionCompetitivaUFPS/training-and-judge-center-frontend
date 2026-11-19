@@ -9,6 +9,7 @@ import {
   RotatingStatus,
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CopyButton } from '@/components/features/CopyButton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
 import { ValidationPanel } from '@/components/features/ValidationPanel'
 import { ValidationReportView } from '@/components/features/ValidationReportView'
@@ -377,11 +378,17 @@ export function ProblemDetailPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
                   <div className="p-4">
-                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+                      <CopyButton text={sample.input} label={`Copiar entrada del ejemplo ${index + 1}`} />
+                    </div>
                     <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
                   </div>
                   <div className="p-4">
-                    <span className="block mb-2 text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+                      <CopyButton text={sample.output} label={`Copiar salida del ejemplo ${index + 1}`} />
+                    </div>
                     <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
                   </div>
                 </div>
