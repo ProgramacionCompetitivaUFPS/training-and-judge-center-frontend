@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { UsersRound } from 'lucide-react'
 import { Badge } from '@/components/ui'
@@ -22,15 +23,22 @@ interface StandingsTableProps {
   entries: StandingEntry[]
 }
 
-function ProblemCell({ result }: { result: StandingProblemResult | undefined }) {
+/** Filas de post-competencia: `isOfficial` false (ausente = oficial). */
+function isPost(entry: StandingEntry): boolean {
+  return entry.isOfficial === false
+}
+
+function ProblemCell({ result, isPost }: { result: StandingProblemResult | undefined; isPost: boolean }) {
   if (!result || result.status === 'NOT_ATTEMPTED') {
     return <span aria-label="Sin intentos" className="text-slate-300">·</span>
   }
   if (result.status === 'ACCEPTED') {
     return (
       <>
-        <span className="font-bold text-status-success">+{result.attempts > 1 ? result.attempts - 1 : ''}</span>
-        {result.time !== null && (
+        <span className={cn('font-bold', isPost ? 'text-brand-accent' : 'text-status-success')}>
+          +{result.attempts > 1 ? result.attempts - 1 : ''}
+        </span>
+        {!isPost && result.time !== null && (
           <span className="block font-mono text-xs font-medium text-neutral-text-muted">
             {formatContestTime(result.time)}
           </span>
@@ -104,31 +112,55 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry) => (
-            <tr key={entry.participant.id} className="hover:bg-neutral-background/60">
-              <td className={cn(BODY_CELL, 'font-bold', RANK_COLORS[entry.rank ?? 0] ??'text-neutral-text-muted')}>
-                {entry.rank}
-              </td>
-              <td className={cn(BODY_CELL, 'pl-3 text-left font-semibold text-neutral-text-primary')}>
-                <ParticipantCell entry={entry} />
-              </td>
-              <td className={cn(BODY_CELL, 'font-bold text-brand-primary')}>{entry.problemsSolved}</td>
-              <td className={cn(BODY_CELL, 'text-sm text-neutral-text-muted')}>{entry.totalPenalty}</td>
-              {problems.map((problem) => {
-                const result = entry.problems.find((r) => r.position === problem.position)
-                const firstSolve = result?.status === 'ACCEPTED' && result.isFirstSolve === true
-                return (
-                  <td
-                    key={problem.slug}
-                    data-first-solve={firstSolve ? 'true' : undefined}
-                    className={cn(BODY_CELL, firstSolve && 'bg-emerald-100')}
-                  >
-                    <ProblemCell result={result} />
+          {entries.map((entry, index) => {
+            const post = isPost(entry)
+            const showStrip = post && (index === 0 || !isPost(entries[index - 1]))
+            return (
+              <Fragment key={`${entry.participant.id}-${post ? 'post' : 'official'}`}>
+                {showStrip && (
+                  <tr>
+                    <td
+                      colSpan={4 + problems.length}
+                      className="bg-brand-accent-muted px-3 py-1 text-left text-xs font-semibold text-brand-accent-dark"
+                    >
+                      Post-competencia
+                    </td>
+                  </tr>
+                )}
+                <tr className="hover:bg-neutral-background/60">
+                  <td className={cn(BODY_CELL, 'font-bold', !post && (RANK_COLORS[entry.rank ?? 0] ?? 'text-neutral-text-muted'))}>
+                    {!post && entry.rank}
                   </td>
-                )
-              })}
-            </tr>
-          ))}
+                  <td
+                    className={cn(
+                      BODY_CELL,
+                      'pl-3 text-left',
+                      post ? 'font-medium text-neutral-text-muted' : 'font-semibold text-neutral-text-primary',
+                    )}
+                  >
+                    {post ? `* ${entry.participant.displayName}` : <ParticipantCell entry={entry} />}
+                  </td>
+                  <td className={cn(BODY_CELL, 'font-bold', post ? 'text-neutral-text-muted' : 'text-brand-primary')}>
+                    {entry.problemsSolved}
+                  </td>
+                  <td className={cn(BODY_CELL, 'text-sm text-neutral-text-muted')}>{post ? '—' : entry.totalPenalty}</td>
+                  {problems.map((problem) => {
+                    const result = entry.problems.find((r) => r.position === problem.position)
+                    const firstSolve = !post && result?.status === 'ACCEPTED' && result.isFirstSolve === true
+                    return (
+                      <td
+                        key={problem.slug}
+                        data-first-solve={firstSolve ? 'true' : undefined}
+                        className={cn(BODY_CELL, firstSolve && 'bg-emerald-100')}
+                      >
+                        <ProblemCell result={result} isPost={post} />
+                      </td>
+                    )
+                  })}
+                </tr>
+              </Fragment>
+            )
+          })}
         </tbody>
         {hasStats && (
           <tfoot>
