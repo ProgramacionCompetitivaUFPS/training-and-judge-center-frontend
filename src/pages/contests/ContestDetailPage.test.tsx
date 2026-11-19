@@ -446,4 +446,21 @@ describe('ContestDetailPage', () => {
       expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Eliminado' }))
     })
   })
+
+  it('pide los standings solo de la fase oficial', async () => {
+    // Arrange
+    const phases: (string | null)[] = []
+    server.use(
+      http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId/standings', ({ request }) => {
+        phases.push(new URL(request.url).searchParams.get('phase'))
+      }),
+    )
+
+    // Act
+    renderPage('group-1', 'contest-2')
+    await screen.findByRole('heading', { name: 'Práctica Grafos' })
+
+    // Assert
+    await waitFor(() => expect(phases[0]).toBe('competition'))
+  })
 })

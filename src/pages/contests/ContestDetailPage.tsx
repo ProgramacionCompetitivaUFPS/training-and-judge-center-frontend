@@ -108,7 +108,8 @@ export function ContestDetailPage() {
 
   // Large limit so the current user's row is included regardless of their rank —
   // there's no "find me" endpoint, so we fetch the full table and search client-side.
-  const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000 }, {
+  // Solo oficiales: la post-competencia no interesa para "tu posición" mientras la competencia está viva.
+  const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000, phase: 'competition' }, {
     enabled: contest?.status === 'ACTIVE' && !!contest?.isRegistered,
     activeIntervalMs: 30_000,
   })
