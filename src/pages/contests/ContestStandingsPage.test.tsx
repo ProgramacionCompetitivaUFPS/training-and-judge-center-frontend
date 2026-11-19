@@ -289,3 +289,46 @@ describe('ContestStandingsPage con fases', () => {
     expect(lastRequest(requests)?.get('phase')).toBe('competition')
   })
 })
+
+describe('ContestStandingsPage con competencia congelada', () => {
+  beforeEach(() => {
+    mockLogout.mockClear()
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
+  afterEach(() => clearAccessToken())
+
+  it('muestra el aviso de congelado con la explicación de las celdas pendientes', async () => {
+    renderPage('group-1', 'contest-6')
+
+    expect(
+      await screen.findByText(
+        'La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán al terminar la competencia.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('muestra las celdas pendientes con la cantidad de envíos ocultos', async () => {
+    renderPage('group-1', 'contest-6')
+
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.getByText('1 envío sin revelar')).toBeInTheDocument()
+    expect(screen.getByText('3 envíos sin revelar')).toBeInTheDocument()
+  })
+
+  it('no cuenta lo congelado en el pie de contadores', async () => {
+    renderPage('group-1', 'contest-6')
+    const acceptedRow = (await screen.findByText('Aceptados')).closest('tr')!
+    const triedRow = screen.getByText('Intentos').closest('tr')!
+
+    const counters = (row: HTMLElement) => within(row).getAllByRole('cell').slice(4).map((cell) => cell.textContent)
+    expect(counters(acceptedRow)).toEqual(['3', '0'])
+    expect(counters(triedRow)).toEqual(['3', '1'])
+  })
+
+  it('no muestra el aviso de congelado en una competencia sin freeze', async () => {
+    renderPage('group-1', 'contest-2')
+
+    await screen.findByText('Competitive Coders')
+    expect(screen.queryByText(/está congelada/)).not.toBeInTheDocument()
+  })
+})
