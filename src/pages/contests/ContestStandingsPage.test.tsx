@@ -213,11 +213,18 @@ describe('ContestStandingsPage con fases', () => {
     expect(requests[0].get('phase')).toBe('competition')
   })
 
-  it('rotula el pie como oficial en la fase Todas', async () => {
+  it('muestra en el pie los contadores oficiales y los de post-competencia en la fase Todas', async () => {
+    // Arrange
     renderPage('group-1', 'contest-8')
 
-    expect(await screen.findByText('Aceptados (oficial)')).toBeInTheDocument()
-    expect(screen.getByText('Intentos (oficial)')).toBeInTheDocument()
+    // Act
+    const acceptedRow = (await screen.findByText('Aceptados')).closest('tr')!
+    const triedRow = screen.getByText('Intentos').closest('tr')!
+
+    // Assert
+    const counters = (row: HTMLElement) => within(row).getAllByRole('cell').slice(4).map((cell) => cell.textContent)
+    expect(counters(acceptedRow)).toEqual(['5 (+1)', '3 (+1)', '3 (+1)'])
+    expect(counters(triedRow)).toEqual(['5 (+2)', '4 (+1)', '5 (+1)'])
   })
 
   it('calcula el pie sobre las filas de post al ver solo la post-competencia', async () => {

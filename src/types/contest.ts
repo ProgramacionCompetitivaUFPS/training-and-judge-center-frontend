@@ -217,6 +217,9 @@ export interface StandingsProblem {
   /** Contadores globales (no dependen de la página ni de los filtros). */
   accepted?: number
   tried?: number
+  /** Contadores de las filas de post-competencia (siempre presentes en el backend actual; 0 sin fase post). */
+  postAccepted?: number
+  postTried?: number
 }
 
 export interface StandingsResponse {

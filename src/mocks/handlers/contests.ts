@@ -293,6 +293,9 @@ export const contestsHandlers = [
         // Contadores globales: no dependen de filtros ni de la página.
         accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
         tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        // Contadores de post-competencia: siempre presentes, 0 si no hay filas de post.
+        postAccepted: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
       })),
       standings: paged.map((entry) => ({
         ...entry,

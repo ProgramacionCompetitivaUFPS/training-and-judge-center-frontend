@@ -21,13 +21,49 @@ const RANK_COLORS: Record<number, string> = {
 interface StandingsTableProps {
   problems: StandingsProblem[]
   entries: StandingEntry[]
-  /** Fase pedida: define de qué filas son los contadores del pie (con `all`, solo las oficiales). */
+  /** Fase pedida: define qué contadores se muestran en el pie. */
   phase?: StandingsPhase
 }
 
-const STATS_SCOPE_LABEL: Partial<Record<StandingsPhase, string>> = {
-  all: ' (oficial)',
-  postcompetition: ' (post-competencia)',
+type Counter = 'accepted' | 'tried'
+
+/** Todos los problemas traen los contadores de post-competencia (backend nuevo). */
+function hasPostCounters(problems: StandingsProblem[]): boolean {
+  return problems.every((p) => typeof p.postAccepted === 'number' && typeof p.postTried === 'number')
+}
+
+/**
+ * Contador del pie de un problema. `main` es el número principal y `extra` los de post-competencia que
+ * se suman aparte (solo con la fase `all`, para no mezclar con los oficiales). Con `postcompetition` se leen
+ * `postAccepted`/`postTried` si el backend los manda; si no, `accepted`/`tried`, que ahí valen lo mismo.
+ */
+function footerCounter(
+  problem: StandingsProblem,
+  kind: Counter,
+  phase: StandingsPhase | undefined,
+  postCounters: boolean,
+): { main: number; extra: number } {
+  const official = problem[kind] ?? 0
+  const post = (kind === 'accepted' ? problem.postAccepted : problem.postTried) ?? 0
+  if (phase === 'postcompetition' && postCounters) return { main: post, extra: 0 }
+  return { main: official, extra: phase === 'all' && postCounters ? post : 0 }
+}
+
+/** Sufijo que aclara de qué filas son los contadores cuando no se ven los dos juegos a la vez. */
+function footerScopeLabel(phase: StandingsPhase | undefined, postCounters: boolean): string {
+  if (phase === 'postcompetition') return ' (post-competencia)'
+  if (phase === 'all' && !postCounters) return ' (oficial)'
+  return ''
+}
+
+function FooterCounterCell({ counter, className }: { counter: { main: number; extra: number }; className: string }) {
+  const title = counter.extra > 0 ? `${counter.main} oficiales + ${counter.extra} de post-competencia` : undefined
+  return (
+    <td title={title} className={cn(FOOT_CELL, className)}>
+      {counter.main}
+      {counter.extra > 0 && <span className="font-normal text-brand-accent"> (+{counter.extra})</span>}
+    </td>
+  )
 }
 
 /** Filas de post-competencia: `isOfficial` false (ausente = oficial). */
@@ -95,7 +131,8 @@ function ParticipantCell({ entry }: { entry: StandingEntry }) {
 }
 
 export function StandingsTable({ problems, entries, phase }: StandingsTableProps) {
-  const statsScope = phase ? (STATS_SCOPE_LABEL[phase] ?? '') : ''
+  const postCounters = hasPostCounters(problems)
+  const statsScope = footerScopeLabel(phase, postCounters)
   const hasStats = problems.length > 0 && problems.every((p) => typeof p.accepted === 'number' && typeof p.tried === 'number')
 
   return (
@@ -178,9 +215,11 @@ export function StandingsTable({ problems, entries, phase }: StandingsTableProps
               <td className={FOOT_CELL} />
               <td className={FOOT_CELL} />
               {problems.map((problem) => (
-                <td key={problem.slug} className={cn(FOOT_CELL, 'font-semibold text-status-success')}>
-                  {problem.accepted}
-                </td>
+                <FooterCounterCell
+                  key={problem.slug}
+                  counter={footerCounter(problem, 'accepted', phase, postCounters)}
+                  className="font-semibold text-status-success"
+                />
               ))}
             </tr>
             <tr>
@@ -189,9 +228,11 @@ export function StandingsTable({ problems, entries, phase }: StandingsTableProps
               <td className={FOOT_CELL} />
               <td className={FOOT_CELL} />
               {problems.map((problem) => (
-                <td key={problem.slug} className={cn(FOOT_CELL, 'text-neutral-text-muted')}>
-                  {problem.tried}
-                </td>
+                <FooterCounterCell
+                  key={problem.slug}
+                  counter={footerCounter(problem, 'tried', phase, postCounters)}
+                  className="text-neutral-text-muted"
+                />
               ))}
             </tr>
           </tfoot>

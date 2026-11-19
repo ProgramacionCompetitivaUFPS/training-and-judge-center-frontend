@@ -335,3 +335,72 @@ describe('StandingsTable con post-competencia', () => {
     expect(screen.getByText(tried)).toBeInTheDocument()
   })
 })
+
+describe('StandingsTable con contadores de post-competencia', () => {
+  const problemsWithPost: StandingsProblem[] = [
+    { ...problems[0], postAccepted: 2, postTried: 3 },
+    { ...problems[1], postAccepted: 0, postTried: 1 },
+    { ...problems[2], postAccepted: 0, postTried: 0 },
+  ]
+
+  function footerCounters(label: string) {
+    const row = screen.getByText(label).closest('tr')!
+    return within(row)
+      .getAllByRole('cell')
+      .slice(4)
+      .map((cell) => cell.textContent)
+  }
+
+  it('suma aparte los de post-competencia en la fase Todas y solo donde hay', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'all')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4 (+2)', '3', '3'])
+    expect(footerCounters('Intentos')).toEqual(['5 (+3)', '4 (+1)', '5'])
+  })
+
+  it('explica en un tooltip cuántos son oficiales y cuántos de post-competencia', () => {
+    renderTable(problemsWithPost, entries, 'all')
+
+    expect(screen.getAllByTitle('4 oficiales + 2 de post-competencia')).toHaveLength(1)
+  })
+
+  it('muestra solo los contadores de post-competencia en la fase Post-competencia', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'postcompetition')
+
+    // Assert
+    expect(footerCounters('Aceptados (post-competencia)')).toEqual(['2', '0', '0'])
+    expect(footerCounters('Intentos (post-competencia)')).toEqual(['3', '1', '0'])
+  })
+
+  it('muestra solo los oficiales en la fase Competencia aunque lleguen los de post', () => {
+    // Arrange / Act
+    renderTable(problemsWithPost, entries, 'competition')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4', '3', '3'])
+    expect(screen.queryByText(/\(\+/)).not.toBeInTheDocument()
+  })
+
+  it('no muestra sumas cuando la competencia no tiene fase post (todos en 0)', () => {
+    // Arrange
+    const noPost = problems.map((p) => ({ ...p, postAccepted: 0, postTried: 0 }))
+
+    // Act
+    renderTable(noPost, entries, 'all')
+
+    // Assert
+    expect(footerCounters('Aceptados')).toEqual(['4', '3', '3'])
+    expect(screen.queryByText(/\(\+/)).not.toBeInTheDocument()
+  })
+
+  it('usa accepted y tried en la fase Post-competencia cuando el backend no manda los de post', () => {
+    // Arrange / Act
+    renderTable(problems, entries, 'postcompetition')
+
+    // Assert
+    expect(footerCounters('Aceptados (post-competencia)')).toEqual(['4', '3', '3'])
+  })
+})

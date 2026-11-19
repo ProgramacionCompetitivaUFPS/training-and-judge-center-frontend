@@ -324,6 +324,26 @@ describe('useStandings con phase (mock)', () => {
     expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
   })
 
+  it('manda siempre los contadores de post-competencia, también con la fase competition', async () => {
+    const data = await load('contest-8', { phase: 'competition' })
+
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5, postAccepted: 1, postTried: 2 })
+    expect(data.problems[1]).toMatchObject({ postAccepted: 1, postTried: 1 })
+    expect(data.problems[2]).toMatchObject({ postAccepted: 1, postTried: 1 })
+  })
+
+  it('manda los contadores de post-competencia en 0 cuando la competencia no tiene fase post', async () => {
+    const data = await load('contest-2', { phase: 'all' })
+
+    expect(data.problems[0]).toMatchObject({ postAccepted: 0, postTried: 0 })
+  })
+
+  it('no filtra los contadores de post-competencia por país', async () => {
+    const data = await load('contest-8', { phase: 'all', country: 'Argentina' })
+
+    expect(data.problems[0]).toMatchObject({ postAccepted: 1, postTried: 2 })
+  })
+
   it('trata la ausencia de phase como all', async () => {
     const data = await load('contest-8')
 
