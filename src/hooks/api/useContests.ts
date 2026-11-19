@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as contestsApi from '@/api/contests'
+import { mergeContestUpdate } from '@/lib/contestProblems'
 import type {
+  ContestDetail,
   ContestListParams,
   CreateContestRequest,
   UpdateContestRequest,
@@ -158,11 +160,16 @@ export function useUpdateContest() {
       data: UpdateContestRequest
     }) => contestsApi.updateContest(groupId, contestId, data),
     onSuccess: (data, { groupId, contestId }) => {
-      // The PUT response carries the full updated contest (problems included), but the GET used to
-      // refetch on invalidation is more permission-restricted and can omit problems for some Coaches
-      // (see hallazgo #6 del manual). Seed the cache with the PUT response directly and mark it merely
-      // stale (no immediate refetch) so this edit stays visible; a later full reload still hits GET.
-      queryClient.setQueryData(contestKeys.detail(groupId, contestId), data)
+      // The PUT response carries the updated problems, but the GET used to refetch on invalidation is
+      // more permission-restricted and can omit problems for some Coaches (see hallazgo #6 del manual).
+      // So merge the PUT response into the cached detail (it is partial: problems come with `order` and
+      // no limits, and fields like participantCount are missing) instead of replacing it, and mark it
+      // merely stale (no immediate refetch) so this edit stays visible; a later full reload still hits GET.
+      // Without a cached detail there is nothing to merge into: seed with the response as before.
+      queryClient.setQueryData<ContestDetail>(
+        contestKeys.detail(groupId, contestId),
+        (previous) => mergeContestUpdate(previous, data) ?? (data as ContestDetail),
+      )
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId), refetchType: 'none' })
       queryClient.invalidateQueries({ queryKey: contestKeys.all })
     },

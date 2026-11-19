@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, delay } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
@@ -225,6 +225,139 @@ describe('ContestDetailPage', () => {
     renderPage('group-1', 'contest-3')
     await screen.findByRole('heading', { name: 'Reto Algoritmos Clásicos' })
     expect(screen.getAllByText(/finalizado/i).length).toBeGreaterThan(0)
+  })
+
+  describe('color de los globos en la tabla de problemas', () => {
+    afterEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    it('un líder cambia el color de un problema y se envía solo ese color', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderPage('group-1', 'contest-2')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Color del problema B' }))
+      await user.click(await screen.findByRole('button', { name: '#7c3aed' }))
+
+      // Assert: se espera al toast (el mock responde a los 300 ms) para no dejar el PUT en vuelo
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({ variant: 'success', title: 'Color guardado', description: 'Se actualizó el color del problema B' }),
+        )
+      })
+      expect(bodies).toEqual([
+        { problems: [{ slug: 'two-sum', order: 1 }, { slug: 'binary-search', order: 2, color: '#7c3aed' }, { slug: 'graph-bfs', order: 3 }] },
+      ])
+    })
+
+    it('mientras se guarda un color deshabilita los globos y el botón de bloquear, sin mostrarlo como cargando', async () => {
+      // Arrange: el botón de bloquear solo existe en el diseño de competencia programada, y el PUT
+      // nunca responde para que el guardado quede en curso
+      const user = userEvent.setup()
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      server.use(
+        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ ...contest2, status: 'SCHEDULED' }),
+        ),
+        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => delay('infinite')),
+      )
+      renderPage('group-1', 'contest-2')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Color del problema B' }))
+      await user.click(await screen.findByRole('button', { name: '#7c3aed' }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Color del problema A' })).toBeDisabled())
+      // El nombre es exacto: si estuviera "cargando" incluiría el texto "Cargando…"
+      expect(screen.getByRole('button', { name: 'Bloquear competencia' })).toBeDisabled()
+    })
+
+    it('quitar el color de un problema envía color null solo para ese problema', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderPage('group-1', 'contest-2')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Color del problema A' }))
+      await user.click(await screen.findByRole('button', { name: 'Quitar color' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Color guardado' }))
+      })
+      expect(bodies).toEqual([
+        { problems: [{ slug: 'two-sum', order: 1, color: null }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
+      ])
+    })
+
+    it('ante CONTEST_CONFLICT avisa y recarga el contest con los datos nuevos', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      let getCalls = 0
+      server.use(
+        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
+          getCalls += 1
+          // 1.ª carga: handler por defecto. Recarga tras el conflicto: otra persona cambió el color de A.
+          if (getCalls === 1) return undefined
+          return HttpResponse.json({
+            ...contest2,
+            problems: contest2?.problems.map((p) => (p.slug === 'two-sum' ? { ...p, color: '#abcdef' } : p)),
+          })
+        }),
+        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 }),
+        ),
+      )
+      renderPage('group-1', 'contest-2')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Color del problema B' }))
+      await user.click(await screen.findByRole('button', { name: '#7c3aed' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variant: 'error',
+            title: 'No se pudo guardar el color',
+            description: 'Alguien más modificó esta competencia al mismo tiempo. Recarga e inténtalo de nuevo',
+          }),
+        )
+      })
+      await waitFor(() => {
+        const balloonA = within(screen.getByRole('button', { name: 'Color del problema A' })).getByTestId('balloon-icon-body')
+        expect(balloonA).toHaveAttribute('fill', '#abcdef')
+      })
+    })
+
+    it('en una competencia finalizada los globos se ven pero no se pueden editar', async () => {
+      renderPage('group-1', 'contest-3')
+
+      expect(await screen.findByRole('img', { name: 'Problema A' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Color del problema A' })).not.toBeInTheDocument()
+    })
+
+    it('un miembro que no lidera el grupo ve los globos sin poder editarlos', async () => {
+      _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+      server.use(
+        http.get('http://localhost:8080/api/groups/group-1', () =>
+          HttpResponse.json({
+            ...mockGroupDetails['group-1'],
+            userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+          }),
+        ),
+      )
+      renderPage('group-1', 'contest-2')
+
+      expect(await screen.findByRole('img', { name: 'Problema A' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Color del problema A' })).not.toBeInTheDocument()
+    })
   })
 
   describe('gestión de problemas y borrado', () => {

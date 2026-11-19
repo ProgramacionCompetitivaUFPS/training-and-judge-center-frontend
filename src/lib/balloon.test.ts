@@ -1,6 +1,30 @@
 import { describe, it, expect } from 'vitest'
 
-import { isValidBalloonColor, resolveBalloonColor } from './balloon'
+import { BALLOON_PALETTE, isValidBalloonColor, readableTextColor, resolveBalloonColor } from './balloon'
+
+describe('BALLOON_PALETTE', () => {
+  it('tiene 12 colores válidos y sin repetir', () => {
+    expect(BALLOON_PALETTE).toHaveLength(12)
+    expect(BALLOON_PALETTE.every((c) => isValidBalloonColor(c) && c === c.toLowerCase())).toBe(true)
+    expect(new Set(BALLOON_PALETTE).size).toBe(12)
+  })
+})
+
+describe('readableTextColor', () => {
+  it.each([
+    ['#ffffff', '#1c1517'],
+    ['#f59e0b', '#1c1517'],
+    ['#e11d48', '#ffffff'],
+    ['#2563eb', '#ffffff'],
+    ['#000000', '#ffffff'],
+  ])('para el fondo %s usa el texto %s', (background, text) => {
+    expect(readableTextColor(background)).toBe(text)
+  })
+
+  it('trata un color inválido como blanco (texto oscuro)', () => {
+    expect(readableTextColor('red')).toBe('#1c1517')
+  })
+})
 
 describe('isValidBalloonColor', () => {
   it.each([

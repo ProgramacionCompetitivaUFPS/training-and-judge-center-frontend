@@ -1,5 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
 export const contestsHandlers = [
@@ -135,8 +136,7 @@ export const contestsHandlers = [
         message: 'No se pueden cambiar los problemas de una competencia finalizada',
       }, { status: 409 })
     }
-    const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
-    if (body.problems?.some((p) => p.color !== undefined && p.color !== null && !COLOR_PATTERN.test(p.color))) {
+    if (body.problems?.some((p) => p.color !== undefined && p.color !== null && !isValidBalloonColor(p.color))) {
       return HttpResponse.json({ error: 'INVALID_PROBLEM_COLOR', message: 'Color inválido' }, { status: 400 })
     }
 

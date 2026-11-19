@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout'
 import { Button, Input, Textarea, Checkbox, Card, CardContent } from '@/components/ui'
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { BalloonIcon } from '@/components/features/BalloonIcon'
+import { BalloonColorPicker } from '@/components/features/BalloonColorPicker'
 import { contestKeys, useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
@@ -16,7 +16,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
-import { resolveBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
@@ -52,7 +51,7 @@ export function ContestFormPage() {
   const updateMutation = useUpdateContest()
   const queryClient = useQueryClient()
   // Solo los slugs que la usuaria cambió. Vive fuera de react-hook-form para sobrevivir a las recargas de `values`.
-  const [balloonColors, setBalloonColors] = useState<Record<string, string>>({})
+  const [balloonColors, setBalloonColors] = useState<Record<string, string | null>>({})
 
   const form = useForm<CreateContestFormData>({
     resolver: zodResolver(createContestSchema),
@@ -386,32 +385,39 @@ export function ContestFormPage() {
           </FormSection>
 
           {isEditing && existing && existing.problems.length > 0 && (
-            <FormSection icon={<Palette className="h-4 w-4" />} title="Colores de los globos">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            <FormSection icon={<Palette className="h-4 w-4" />} title="Gestión de colores">
+              <ul className="divide-y divide-neutral-border">
                 {[...existing.problems]
                   .sort((a, b) => a.position - b.position)
                   .map((problem) => {
-                    const value = balloonColors[problem.slug] ?? resolveBalloonColor(problem.color)
+                    const letter = problemLabel(problem.position)
+                    const color = problem.slug in balloonColors ? balloonColors[problem.slug] : problem.color
                     return (
-                      <label key={problem.slug} className="flex items-center gap-2 text-sm font-medium text-neutral-text-primary">
-                        <BalloonIcon color={value} />
-                        {problemLabel(problem.position)}
-                        <input
-                          type="color"
-                          aria-label={`Color del problema ${problemLabel(problem.position)}`}
-                          value={value}
-                          disabled={existing.status === 'FINISHED'}
-                          onChange={(e) => setBalloonColors((c) => ({ ...c, [problem.slug]: e.target.value }))}
-                          className="ml-auto h-8 w-10 cursor-pointer rounded-sm border border-neutral-border bg-neutral-surface disabled:cursor-not-allowed disabled:opacity-50"
+                      <li key={problem.slug} className="flex items-center gap-3 py-3">
+                        <BalloonColorPicker
+                          letter={letter}
+                          title={problem.title}
+                          color={color}
+                          disabled={existing.status === 'FINISHED' || existing.locked === true}
+                          onChange={(next) => setBalloonColors((c) => ({ ...c, [problem.slug]: next }))}
                         />
-                      </label>
+                        <span className="text-sm font-medium text-neutral-text-primary">
+                          {letter}. {problem.title} <span className="text-neutral-text-muted">({problem.slug})</span>
+                        </span>
+                      </li>
                     )
                   })}
-              </div>
-              {existing.status === 'FINISHED' && (
+              </ul>
+              {existing.status === 'FINISHED' ? (
                 <p className="mt-3 text-xs text-neutral-text-muted">
                   No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.
                 </p>
+              ) : (
+                existing.locked === true && (
+                  <p className="mt-3 text-xs text-neutral-text-muted">
+                    La competencia está bloqueada: desbloquéala para cambiar los colores de los globos.
+                  </p>
+                )
               )}
             </FormSection>
           )}

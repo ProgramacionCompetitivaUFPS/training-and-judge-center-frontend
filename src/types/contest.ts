@@ -17,6 +17,15 @@ export interface ContestProblem {
   color?: string | null
 }
 
+/**
+ * Lo que responde el PUT de la competencia. NO es un ContestDetail completo: los problemas
+ * vienen con `order` (el GET usa `position`), sin límites de tiempo/memoria, y faltan campos
+ * como `participantCount`. Hay que fusionarlo con el detalle cacheado (ver `mergeContestUpdate`).
+ */
+export type UpdateContestResponse = Partial<Omit<ContestDetail, 'problems'>> & {
+  problems?: Array<Partial<ContestProblem> & { slug: string; order?: number }>
+}
+
 export interface ContestProblemPayload {
   slug: string
   order: number

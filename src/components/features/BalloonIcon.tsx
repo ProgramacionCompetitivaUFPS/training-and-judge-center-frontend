@@ -1,6 +1,15 @@
+import { readableTextColor } from '@/lib/balloon'
 import { cn } from '@/lib/utils'
 
-export function BalloonIcon({ color, className }: { color: string; className?: string }) {
+interface BalloonIconProps {
+  /** Color ya resuelto (quien lo usa llama antes a `resolveBalloonColor`). */
+  color: string
+  className?: string
+  /** Letra opcional dibujada dentro del globo. */
+  letter?: string
+}
+
+export function BalloonIcon({ color, className, letter }: BalloonIconProps) {
   return (
     <svg data-testid="balloon-icon" aria-hidden="true" viewBox="0 0 14 18" className={cn('h-[18px] w-3.5 shrink-0', className)}>
       <path
@@ -11,6 +20,19 @@ export function BalloonIcon({ color, className }: { color: string; className?: s
         strokeWidth="0.75"
       />
       <path d="M6 14.8h2l-1 2z" fill={color} stroke="#94a3b8" strokeWidth="0.75" />
+      {letter && (
+        <text
+          data-testid="balloon-icon-letter"
+          x="7"
+          y="9.2"
+          textAnchor="middle"
+          fontSize="6.5"
+          fontWeight="700"
+          fill={readableTextColor(color)}
+        >
+          {letter}
+        </text>
+      )}
     </svg>
   )
 }

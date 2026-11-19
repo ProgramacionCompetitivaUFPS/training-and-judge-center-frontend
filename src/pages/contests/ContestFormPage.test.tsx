@@ -117,19 +117,25 @@ describe('ContestFormPage', () => {
     })
   })
 
-  describe('colores de los globos', () => {
+  describe('gestión de colores', () => {
     beforeEach(() => {
       mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
     })
 
-    it('muestra los colores guardados y blanco para el problema sin color', async () => {
+    async function chooseColor(user: ReturnType<typeof userEvent.setup>, letter: string, colorName: string) {
+      await user.click(await screen.findByRole('button', { name: `Color del problema ${letter}` }))
+      await user.click(await screen.findByRole('button', { name: colorName }))
+    }
+
+    it('lista los problemas con su color guardado y "Sin color" para el que no tiene', async () => {
       renderEdit('group-1', 'contest-2')
 
-      expect(await screen.findByRole('heading', { name: 'Colores de los globos' })).toBeInTheDocument()
-      expect(screen.getByLabelText('Color del problema A')).toHaveValue('#e11d48')
-      expect(screen.getByLabelText('Color del problema B')).toHaveValue('#2563eb')
-      expect(screen.getByLabelText('Color del problema C')).toHaveValue('#ffffff')
-      expect(screen.getByLabelText('Color del problema A')).toBeEnabled()
+      expect(await screen.findByRole('heading', { name: 'Gestión de colores' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#e11d48')
+      expect(screen.getByRole('button', { name: 'Color del problema B' })).toHaveTextContent('#2563eb')
+      expect(screen.getByRole('button', { name: 'Color del problema C' })).toHaveTextContent('Sin color')
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toBeEnabled()
+      expect(screen.getByText('B. Binary Search', { exact: false })).toBeInTheDocument()
     })
 
     it('no muestra la sección al crear una competencia', async () => {
@@ -137,7 +143,7 @@ describe('ContestFormPage', () => {
 
       await screen.findByRole('textbox', { name: /nombre/i })
 
-      expect(screen.queryByRole('heading', { name: 'Colores de los globos' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Gestión de colores' })).not.toBeInTheDocument()
     })
 
     it('no muestra la sección cuando la competencia no tiene problemas', async () => {
@@ -145,7 +151,7 @@ describe('ContestFormPage', () => {
 
       await screen.findByDisplayValue('Competencia Semanal #12')
 
-      expect(screen.queryByRole('heading', { name: 'Colores de los globos' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Gestión de colores' })).not.toBeInTheDocument()
     })
 
     it('manda color solo en el problema cambiado y omite la clave en los demás', async () => {
@@ -153,34 +159,52 @@ describe('ContestFormPage', () => {
       const user = userEvent.setup()
       const bodies = recordPutBodies()
       renderEdit('group-1', 'contest-2')
-      const input = await screen.findByLabelText('Color del problema A')
 
       // Act
-      // <input type="color"> no es soportado por userEvent: fireEvent es la excepción permitida (§13b)
-      fireEvent.change(input, { target: { value: '#112233' } })
+      await chooseColor(user, 'A', '#7c3aed')
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#7c3aed')
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-      // Assert: el toast llega cuando responde el mock (300 ms); esperarlo también evita dejar el PUT en vuelo
+      // Assert: el toast llega cuando responde el mock (300 ms); esperarlo evita dejar el PUT en vuelo
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success' }))
       })
       expect(bodies).toEqual([
-        { problems: [{ slug: 'two-sum', order: 1, color: '#112233' }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
+        { problems: [{ slug: 'two-sum', order: 1, color: '#7c3aed' }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
       ])
     })
 
-    it.each([
-      ['el mismo color guardado', 'Color del problema A', '#e11d48'],
-      ['blanco en un problema sin color', 'Color del problema C', '#ffffff'],
-    ])('no manda problems si se elige %s', async (_caso, label, color) => {
+    it('manda color null para quitar el color de un problema que lo tenía', async () => {
       // Arrange
       const user = userEvent.setup()
       const bodies = recordPutBodies()
       renderEdit('group-1', 'contest-2')
-      const input = await screen.findByLabelText(label)
 
       // Act
-      fireEvent.change(input, { target: { value: color } }) // <input type="color">: excepción §13b
+      await chooseColor(user, 'A', 'Quitar color')
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('Sin color')
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success' }))
+      })
+      expect(bodies).toEqual([
+        { problems: [{ slug: 'two-sum', order: 1, color: null }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
+      ])
+    })
+
+    it.each([
+      ['se elige el mismo color guardado', 'A', '#e11d48'],
+      ['se quita el color a un problema que ya no tenía', 'C', 'Quitar color'],
+    ])('no manda problems si %s', async (_caso, letter, colorName) => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+
+      // Act
+      await chooseColor(user, letter, colorName)
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       // Assert: al no haber cambios el formulario navega fuera sin llamar al PUT
@@ -202,10 +226,9 @@ describe('ContestFormPage', () => {
         ),
       )
       renderEdit('group-1', 'contest-2')
-      const input = await screen.findByLabelText('Color del problema A')
 
       // Act
-      fireEvent.change(input, { target: { value: '#112233' } }) // <input type="color">: excepción §13b
+      await chooseColor(user, 'A', '#7c3aed')
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
       // Assert
@@ -217,36 +240,59 @@ describe('ContestFormPage', () => {
     it('ante CONTEST_CONFLICT avisa, recarga el contest y conserva los colores elegidos', async () => {
       // Arrange
       const user = userEvent.setup()
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
       let getCalls = 0
       server.use(
         http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
-          getCalls += 1 // sin retorno: pasa al handler por defecto
+          getCalls += 1
+          // 1.ª carga: handler por defecto. Recarga tras el conflicto: otra persona cambió el color de B.
+          if (getCalls === 1) return undefined
+          return HttpResponse.json({
+            ...contest2,
+            problems: contest2?.problems.map((p) => (p.slug === 'binary-search' ? { ...p, color: '#abcdef' } : p)),
+          })
         }),
         http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
           HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 }),
         ),
       )
       renderEdit('group-1', 'contest-2')
-      const input = await screen.findByLabelText('Color del problema A')
-      fireEvent.change(input, { target: { value: '#112233' } }) // <input type="color">: excepción §13b
-      const callsBeforeSave = getCalls
+      await chooseColor(user, 'A', '#7c3aed')
 
       // Act
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
-      // Assert
+      // Assert: la recarga ya llegó (B muestra el color nuevo del servidor) y A conserva lo elegido
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'La competencia cambió' }))
       })
-      await waitFor(() => expect(getCalls).toBeGreaterThan(callsBeforeSave))
-      expect(screen.getByLabelText('Color del problema A')).toHaveValue('#112233')
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Color del problema B' })).toHaveTextContent('#abcdef')
+      })
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#7c3aed')
+    })
+
+    it('deshabilita los colores y pide desbloquear cuando la competencia está bloqueada sin haber finalizado', async () => {
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      server.use(
+        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ ...contest2, locked: true }),
+        ),
+      )
+      renderEdit('group-1', 'contest-2')
+
+      expect(await screen.findByRole('heading', { name: 'Gestión de colores' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toBeDisabled()
+      expect(
+        screen.getByText('La competencia está bloqueada: desbloquéala para cambiar los colores de los globos.'),
+      ).toBeInTheDocument()
     })
 
     it('deshabilita los colores y explica por qué en una competencia finalizada', async () => {
       renderEdit('group-1', 'contest-3')
 
-      expect(await screen.findByRole('heading', { name: 'Colores de los globos' })).toBeInTheDocument()
-      expect(screen.getByLabelText('Color del problema A')).toBeDisabled()
+      expect(await screen.findByRole('heading', { name: 'Gestión de colores' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Color del problema A' })).toBeDisabled()
       expect(
         screen.getByText('No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.'),
       ).toBeInTheDocument()
