@@ -106,7 +106,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
         <tbody>
           {entries.map((entry) => (
             <tr key={entry.participant.id} className="hover:bg-neutral-background/60">
-              <td className={cn(BODY_CELL, 'font-bold', RANK_COLORS[entry.rank] ?? 'text-neutral-text-muted')}>
+              <td className={cn(BODY_CELL, 'font-bold', RANK_COLORS[entry.rank ?? 0] ??'text-neutral-text-muted')}>
                 {entry.rank}
               </td>
               <td className={cn(BODY_CELL, 'pl-3 text-left font-semibold text-neutral-text-primary')}>

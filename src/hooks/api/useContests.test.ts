@@ -281,14 +281,22 @@ describe('useStandings (contest-7 con muchos datos)', () => {
 
 describe('standingsRefetchInterval', () => {
   it.each([
-    ['ACTIVE', undefined, 10000],
-    ['ACTIVE', 30000, 30000],
-    ['FINISHED', undefined, false],
-    ['SCHEDULED', 30000, false],
-    [undefined, undefined, false],
-  ] as const)('con estado %s e intervalo %s devuelve %s', (status, interval, expected) => {
-    expect(standingsRefetchInterval(status, interval)).toBe(expected)
-  })
+    ['ACTIVE', undefined, undefined, 10000],
+    ['ACTIVE', 'competition', undefined, 10000],
+    ['ACTIVE', undefined, 30000, 30000],
+    ['FINISHED', 'all', undefined, 10000],
+    ['FINISHED', 'postcompetition', undefined, 10000],
+    ['FINISHED', 'all', 30000, 10000],
+    ['FINISHED', 'competition', undefined, false],
+    ['FINISHED', undefined, undefined, false],
+    ['SCHEDULED', 'all', undefined, false],
+    [undefined, 'all', undefined, false],
+  ] as const)(
+    'con estado %s, fase %s e intervalo %s devuelve %s',
+    (status, phase, interval, expected) => {
+      expect(standingsRefetchInterval(status, phase, interval)).toBe(expected)
+    },
+  )
 })
 
 describe('useStandingsFilterOptions', () => {

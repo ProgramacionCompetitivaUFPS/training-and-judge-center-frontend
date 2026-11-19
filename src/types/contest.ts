@@ -195,8 +195,14 @@ export interface StandingParticipant {
   institution?: string | null
 }
 
+/** `all` = oficiales y post-competencia; `competition` = solo oficiales; `postcompetition` = solo post. */
+export type StandingsPhase = 'all' | 'competition' | 'postcompetition'
+
 export interface StandingEntry {
-  rank: number
+  /** null en filas de post-competencia. */
+  rank: number | null
+  /** Ausente = oficial (backend anterior). */
+  isOfficial?: boolean
   participant: StandingParticipant
   problemsSolved: number
   totalPenalty: number
@@ -247,6 +253,7 @@ export interface StandingsParams extends PaginationParams {
   country?: string
   city?: string
   institution?: string
+  phase?: StandingsPhase
   realtime?: boolean
 }
 
