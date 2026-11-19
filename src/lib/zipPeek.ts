@@ -8,6 +8,15 @@ export function exceedsZipStructureCheckSize(file: File): boolean {
   return file.size > MAX_ZIP_STRUCTURE_CHECK_BYTES
 }
 
+// Mirrors backend config/virtual_object.json → max_zip_upload_size_mb (150 MB).
+// Files above this limit are always rejected by the server; validate client-side so the
+// user gets instant feedback instead of a silent hang during a multi-minute upload.
+export const MAX_ZIP_UPLOAD_BYTES = 150 * 1024 * 1024
+
+export function exceedsUploadSizeLimit(file: File): boolean {
+  return file.size > MAX_ZIP_UPLOAD_BYTES
+}
+
 // Returns the list of entry paths in the zip, or null if the file couldn't be read as one.
 // Loaded lazily (code-split) since most users never trigger this path.
 export async function peekZipEntryPaths(file: File): Promise<string[] | null> {

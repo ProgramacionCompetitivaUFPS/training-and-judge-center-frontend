@@ -186,6 +186,10 @@ export interface JoinRequest {
   createdAt: string
 }
 
+export interface MyJoinRequestResponse {
+  request: JoinRequest | null
+}
+
 export interface CreateJoinRequestBody {
   message?: string
 }

@@ -1,5 +1,5 @@
-import { ArrowRight, Check, CircleDashed, Loader2 } from 'lucide-react'
-import { Button, Card, CardContent } from '@/components/ui'
+import { AlertTriangle, ArrowRight, Check, CircleDashed, Loader2 } from 'lucide-react'
+import { Button, Card, CardContent, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 export interface PublishChecklistStep {
@@ -17,6 +17,8 @@ export interface PublishChecklistStep {
   loading?: boolean
   /** Leads to a longer explanation of the step's result, when there is one */
   onDetail?: () => void
+  /** Shown as an amber warning with a tooltip when the step is met but still has a concern */
+  warning?: string
 }
 
 interface PublishChecklistProps {
@@ -43,10 +45,24 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
         </div>
 
         <ol className="divide-y divide-neutral-border">
-          {steps.map((step) => (
-            <li key={step.key} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+          {steps.map((step) => {
+            const row = (
+            <li
+              key={step.key}
+              // A row that triggers the warning tooltip must be reachable with the keyboard too
+              tabIndex={step.met && step.warning ? 0 : undefined}
+              className={cn(
+                'flex items-center gap-3 py-2 first:pt-0 last:pb-0',
+                step.met && step.warning && 'rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
+              )}
+            >
               {step.met ? (
-                <Check className="h-4 w-4 shrink-0 text-status-success" aria-label="Listo" />
+                step.warning ? (
+                  // The whole row is the tooltip trigger (see below); the icon only signals it
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" aria-label="Advertencia" />
+                ) : (
+                  <Check className="h-4 w-4 shrink-0 text-status-success" aria-label="Listo" />
+                )
               ) : step.loading ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-status-warning" aria-label="En curso" />
               ) : (
@@ -83,7 +99,16 @@ export function PublishChecklist({ steps, optionalMissing, onOptionalAction, cla
                 </Button>
               )}
             </li>
-          ))}
+            )
+            if (!step.met || !step.warning) return row
+            // Hovering anywhere on a step with a warning shows the warning, not just the icon
+            return (
+              <Tooltip key={step.key}>
+                <TooltipTrigger asChild>{row}</TooltipTrigger>
+                <TooltipContent>{step.warning}</TooltipContent>
+              </Tooltip>
+            )
+          })}
         </ol>
 
         {optionalMissing.length > 0 && (

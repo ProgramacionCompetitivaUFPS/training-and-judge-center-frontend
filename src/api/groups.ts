@@ -14,6 +14,7 @@ import type {
   GroupMember,
   ChangeMemberRoleRequest,
   JoinRequest,
+  MyJoinRequestResponse,
   CreateJoinRequestBody,
   ProcessJoinRequestBody,
   CreateInvitationRequest,
@@ -92,7 +93,7 @@ export function createJoinRequest(groupId: string, data?: CreateJoinRequestBody)
   return apiClient.post(`/groups/${groupId}/requests`, data)
 }
 
-export function getMyJoinRequest(groupId: string): Promise<JoinRequest> {
+export function getMyJoinRequest(groupId: string): Promise<MyJoinRequestResponse> {
   return apiClient.get(`/groups/${groupId}/requests/me`)
 }
 

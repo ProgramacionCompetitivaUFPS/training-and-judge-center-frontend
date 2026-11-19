@@ -129,6 +129,107 @@ describe('GroupDetailPage', () => {
     })
   })
 
+  it('calls GET /members for a CONTESTANT who is a plain member (not admin/lead)', async () => {
+    // Arrange — CONTESTANT member of group-2 (role MEMBER, not LEAD or ADMIN): tests the isMember branch
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    const membersSpy = vi.fn(() =>
+      HttpResponse.json({ members: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2/members', membersSpy),
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-2')
+
+    await waitFor(() => {
+      expect(membersSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('calls GET /members for a group member', async () => {
+    // Arrange — mockCurrentUser is ADMIN and group-1 userMembership.isMember = true → enabled
+    const membersSpy = vi.fn(() =>
+      HttpResponse.json({ members: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1/members', membersSpy),
+    )
+    renderPage('group-1')
+
+    await waitFor(() => {
+      expect(membersSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('does not call GET /members for a non-member', async () => {
+    // Arrange — group-3 userMembership.isMember = false → query disabled
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    const membersSpy = vi.fn(() =>
+      HttpResponse.json({ members: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-3/members', membersSpy),
+      http.get('http://localhost:8080/api/groups/group-3', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-3'],
+          userMembership: { isMember: false, role: null, joinedAt: null },
+        }),
+      ),
+    )
+    renderPage('group-3')
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+      expect(membersSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  it('calls GET /invitations for a group LEAD / platform ADMIN', async () => {
+    // Arrange — mockCurrentUser is ADMIN and group-1 userMembership.role = 'LEAD' → canManage = true
+    const invitationsSpy = vi.fn(() =>
+      HttpResponse.json({ invitations: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1/invitations', invitationsSpy),
+    )
+    renderPage('group-1')
+
+    // Assert — backend receives the invitations request once the group detail resolves
+    await waitFor(() => {
+      expect(invitationsSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('does not call GET /invitations for a CONTESTANT member (non-lead)', async () => {
+    // Arrange — CONTESTANT member of group-2 (role MEMBER, not LEAD or ADMIN)
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    const invitationsSpy = vi.fn(() =>
+      HttpResponse.json({ invitations: [], pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } }),
+    )
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-2/invitations', invitationsSpy),
+      http.get('http://localhost:8080/api/groups/group-2', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-2'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-2')
+
+    // Wait for the page to fully settle (group detail loaded + any enabled queries fired)
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /miembros/i })).toBeInTheDocument()
+      // Assert inside waitFor so re-renders after group load are included in the check
+      expect(invitationsSpy).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not show "Solicitudes" tab for CONTESTANT member (non-lead)', async () => {
     // Override group-2 to use joinPolicy: 'REQUEST' so the tab would be visible if canManage=true
     // This ensures the assertion tests permissions, not joinPolicy

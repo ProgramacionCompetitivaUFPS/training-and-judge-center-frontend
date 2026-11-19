@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
@@ -16,6 +16,7 @@ import {
   useGroupMembers,
   useJoinRequests,
   useMyJoinRequest,
+  useInvitations,
   useCreateGroup,
   useUpdateGroup,
   useDeleteGroup,
@@ -116,6 +117,52 @@ describe('useGroupMembers', () => {
 
     expect(result.current.isFetching).toBe(false)
   })
+
+  it('no hace fetch cuando options.enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useGroupMembers('group-1', undefined, { enabled: false }), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('sí hace fetch cuando options.enabled es true explícito', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useGroupMembers('group-1', undefined, { enabled: true }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.members.length).toBeGreaterThan(0)
+  })
+})
+
+describe('useInvitations', () => {
+  it('retorna invitaciones de un grupo válido', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.invitations.length).toBeGreaterThan(0)
+    expect(result.current.data?.invitations[0].groupId).toBe('group-1')
+  })
+
+  it('no hace fetch cuando options.enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1', undefined, { enabled: false }), { wrapper })
+
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.data).toBeUndefined()
+  })
+
+  it('sí hace fetch cuando options.enabled es true explícito', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useInvitations('group-1', undefined, { enabled: true }), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data?.invitations.length).toBeGreaterThan(0)
+  })
 })
 
 describe('useJoinRequests', () => {
@@ -139,27 +186,38 @@ describe('useJoinRequests', () => {
 })
 
 describe('useMyJoinRequest', () => {
-  it('no reintenta en 404 aunque el QueryClient tenga retry habilitado', async () => {
-    // Arrange — custom client with retry: 2 so the hook's own retry: false is what stops retries
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: 2, staleTime: 0 }, mutations: { retry: false } },
-    })
-    const wrapper = ({ children }: { children: React.ReactNode }) =>
-      React.createElement(QueryClientProvider, { client: queryClient }, children)
+  it('devuelve request: null cuando el usuario no tiene solicitud', async () => {
+    const { wrapper } = makeWrapper()
     server.use(
       http.get('http://localhost:8080/api/groups/:groupId/requests/me', () =>
-        HttpResponse.json({ error: 'NOT_FOUND', message: 'Sin solicitud' }, { status: 404 }),
+        HttpResponse.json({ request: null }),
       ),
     )
-
-    // Act
     const { result } = renderHook(() => useMyJoinRequest('group-3'), { wrapper })
-    await waitFor(() => expect(result.current.isError).toBe(true))
 
-    // Assert — exactly 1 attempt: hook's retry: false overrides the client's retry: 2
-    expect(queryClient.getQueryState(
-      [...groupKeys.joinRequests('group-3'), 'me']
-    )?.fetchFailureCount).toBe(1)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.request).toBeNull()
+  })
+
+  it('devuelve la solicitud cuando el usuario tiene una pendiente', async () => {
+    const { wrapper } = makeWrapper()
+    server.use(
+      http.get('http://localhost:8080/api/groups/:groupId/requests/me', () =>
+        HttpResponse.json({
+          request: {
+            id: 'req-1',
+            groupId: 'group-3',
+            requester: { userId: 'user-1', nickname: 'carloscp', name: 'Carlos' },
+            status: 'PENDING',
+            createdAt: '2026-01-01T00:00:00Z',
+          },
+        }),
+      ),
+    )
+    const { result } = renderHook(() => useMyJoinRequest('group-3'), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.request?.status).toBe('PENDING')
   })
 })
 

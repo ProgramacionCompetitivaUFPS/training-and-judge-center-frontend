@@ -148,6 +148,64 @@ describe('ContestDetailPage', () => {
     expect(screen.queryByRole('button', { name: /editar competencia/i })).not.toBeInTheDocument()
   })
 
+  it('group LEAD (non-admin) does not see "Registrar equipo" button for SCHEDULED MIXED contest', async () => {
+    // contest-1 is SCHEDULED + MIXED; COACH with LEAD membership → registrationBlock='lead' → showTeamRegistration=false
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+        }),
+      ),
+    )
+    renderPage('group-1', 'contest-1')
+
+    // Wait for the block message to confirm group membership has loaded before asserting the button
+    await screen.findByText(/como líder del grupo organizas esta competencia/i)
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+  })
+
+  it('"Registrar equipo" does not flash before group membership loads for a LEAD', async () => {
+    // Verifies that groupMembershipKnown gates showTeamRegistration during the loading window.
+    // If the guard were absent, the button would appear briefly while ownerGroup is undefined.
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    let resolveGroup!: (v: Response) => void
+    const groupPending = new Promise<Response>((res) => { resolveGroup = res })
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () => groupPending),
+    )
+    renderPage('group-1', 'contest-1')
+
+    // Contest is loaded but group is still pending — button must not appear yet
+    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+
+    // Now resolve the group as LEAD and confirm the button still doesn't appear
+    resolveGroup(HttpResponse.json({
+      ...mockGroupDetails['group-1'],
+      userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+    }))
+    await screen.findByText(/como líder del grupo organizas esta competencia/i)
+    expect(screen.queryByRole('button', { name: /registrar equipo/i })).not.toBeInTheDocument()
+  })
+
+  it('shows retry message when group query fails while contest is loaded', async () => {
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+      ),
+    )
+    renderPage('group-1', 'contest-1')
+
+    await screen.findByRole('heading', { name: 'Competencia Semanal #12' })
+    await waitFor(() => {
+      expect(screen.getByText(/no se pudo cargar tu membresía/i)).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /registrarse/i })).not.toBeInTheDocument()
+  })
+
   it('FINISHED contest shows "Finalizado" indicator', async () => {
     // contest-3 is FINISHED; "Finalizado" appears in both the status badge and the timer area
     renderPage('group-1', 'contest-3')

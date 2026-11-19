@@ -143,6 +143,99 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
+  postFormDataWithProgress<T>(
+    path: string,
+    formData: FormData,
+    onProgress?: (pct: number) => void,
+    config?: RequestConfig,
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const attempt = (isRetry: boolean) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', this.buildUrl(path, config?.params))
+        xhr.withCredentials = true
+        xhr.timeout = 5 * 60 * 1000
+
+        // Same precedence as the fetch-based methods: config.headers wins over the defaults.
+        // setRequestHeader appends instead of replacing, so a custom Authorization skips the token one.
+        const extraHeaders = config?.headers ?? {}
+        const hasCustomAuth = Object.keys(extraHeaders).some((name) => name.toLowerCase() === 'authorization')
+        const token = getAccessToken()
+        if (token && !hasCustomAuth) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        for (const [name, value] of Object.entries(extraHeaders)) xhr.setRequestHeader(name, value)
+
+        if (onProgress) {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+          }
+        }
+
+        xhr.onload = async () => {
+          if (xhr.status === 401 && !isRetry) {
+            let body: { error?: string } = {}
+            try { body = JSON.parse(xhr.responseText) } catch { /* noop */ }
+            if (body?.error === 'UNAUTHORIZED') {
+              if (isLoggingOut()) {
+                clearAccessToken()
+                reject(new ApiClientError(401, 'UNAUTHORIZED', 'Unauthorized', undefined, body))
+                return
+              }
+              const result = await this.ensureFreshToken()
+              if (result === 'ok') {
+                attempt(true)
+                return
+              }
+              clearAccessToken()
+              if (result === 'definitive') notifySessionExpired()
+              reject(new ApiClientError(401, 'UNAUTHORIZED', 'Unauthorized', undefined, body))
+              return
+            }
+          }
+
+          if (xhr.status >= 400) {
+            let error: { error?: string; message?: string; details?: Array<{ field: string; code?: string; message: string }> } = {}
+            try {
+              // "null" (or any non-object) parses fine but has no fields: keep the UNKNOWN fallback
+              const parsed: unknown = JSON.parse(xhr.responseText)
+              if (parsed && typeof parsed === 'object') error = parsed as typeof error
+            } catch { /* noop */ }
+            reject(new ApiClientError(
+              xhr.status,
+              error.error ?? 'UNKNOWN',
+              error.message ?? xhr.statusText,
+              error.details,
+              error,
+            ))
+            return
+          }
+
+          if (xhr.status === 204) {
+            resolve(undefined as T)
+            return
+          }
+
+          try {
+            resolve(JSON.parse(xhr.responseText) as T)
+          } catch {
+            reject(new ApiClientError(xhr.status, 'UNKNOWN', 'Failed to parse response', undefined, undefined))
+          }
+        }
+
+        xhr.onerror = () => {
+          reject(new ApiClientError(0, 'NETWORK_ERROR', 'Network request failed', undefined, undefined))
+        }
+
+        xhr.ontimeout = () => {
+          reject(new ApiClientError(0, 'TIMEOUT', 'Request timed out', undefined, undefined))
+        }
+
+        xhr.send(formData)
+      }
+
+      attempt(false)
+    })
+  }
+
   async put<T>(path: string, body?: unknown, config?: RequestConfig): Promise<T> {
     const response = await this.executeWithAuthRetry(() =>
       fetch(this.buildUrl(path, config?.params), {

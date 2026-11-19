@@ -62,3 +62,14 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(undefined)).toBe('Ocurrió un error inesperado. Inténtalo de nuevo.')
   })
 })
+
+describe('ERROR_MESSAGES de importación de problemas', () => {
+  it.each([
+    ['ZIP_TOO_LARGE', 'El ZIP supera el tamaño máximo permitido (150 MB)'],
+    ['EXTRACTED_SIZE_TOO_LARGE', 'El contenido descomprimido del ZIP supera el límite (150 MB)'],
+    ['MISSING_PROBLEM_YAML', 'El ZIP no contiene problem.yaml'],
+    ['INVALID_PROBLEM_YAML', 'El problem.yaml tiene un error de sintaxis o le falta el campo name'],
+  ])('ERROR_MESSAGES["%s"] está definido y en español', (code, expected) => {
+    expect(ERROR_MESSAGES[code]).toBe(expected)
+  })
+})

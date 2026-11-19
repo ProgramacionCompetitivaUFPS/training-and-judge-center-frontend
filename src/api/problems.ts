@@ -69,11 +69,16 @@ export function unpublishProblem(slug: string): Promise<UnpublishResponse> {
 
 // === Files ===
 
-export function uploadProblemFile(slug: string, fileType: string, file: File): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
+export function uploadProblemFile(
+  slug: string,
+  fileType: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<{ message: string; fileType: string; fileName: string; files: ProblemFiles }> {
   const formData = new FormData()
   formData.append('fileType', fileType)
   formData.append('file', file)
-  return apiClient.postFormData(`/problems/p/${slug}/files`, formData)
+  return apiClient.postFormDataWithProgress(`/problems/p/${slug}/files`, formData, onProgress)
 }
 
 export function deleteProblemFile(slug: string, fileType: string, fileName?: string): Promise<void> {
@@ -131,11 +136,15 @@ export function getProblemStatistics(slug: string): Promise<ProblemStatistics> {
 
 // === Import ===
 
-export function importProblem(file: File, slug: string): Promise<ProblemDetail> {
+export function importProblem(
+  file: File,
+  slug: string,
+  onProgress?: (pct: number) => void,
+): Promise<ProblemDetail> {
   const formData = new FormData()
   formData.append('slug', slug)
   formData.append('file', file)
-  return apiClient.postFormData('/problems/import', formData)
+  return apiClient.postFormDataWithProgress('/problems/import', formData, onProgress)
 }
 
 // === Accessibility ===

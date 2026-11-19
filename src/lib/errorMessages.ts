@@ -96,6 +96,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ALREADY_INVITED: 'El usuario ya tiene una invitación pendiente a este equipo',
   NOT_YOUR_INVITATION: 'Esta invitación no fue enviada a ti',
   CANNOT_LEAVE_DURING_ACTIVE_CONTEST: 'No puedes salir del equipo mientras esté seleccionado en una competencia activa',
+  CANNOT_REMOVE_SELF: 'No puedes quitarte a ti mismo del equipo; usa "Salir"',
+  CANNOT_REMOVE_DURING_ACTIVE_CONTEST: 'No puedes quitar a un miembro mientras esté seleccionado en una competencia activa',
   MEMBER_NOT_IN_GROUP: 'Debes ser miembro del grupo de la competencia para realizar esta acción',
   TEAMS_NOT_ALLOWED: 'Esta competencia no permite inscripción por equipos',
   CONTEST_NOT_OPEN_FOR_REGISTRATION: 'La competencia no está abierta para inscripciones',
@@ -149,6 +151,10 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PROBLEM_NOT_PUBLISHED: 'Solo problemas publicados aceptan envíos',
   NO_SUBMISSIONS_TO_REJUDGE: 'No hay envíos pendientes de rejuzgar para este problema',
   VALIDATION_TIMED_OUT: 'La validación está tardando más de lo esperado; vuelve a intentarlo más tarde',
+  ZIP_TOO_LARGE: 'El ZIP supera el tamaño máximo permitido (150 MB)',
+  EXTRACTED_SIZE_TOO_LARGE: 'El contenido descomprimido del ZIP supera el límite (150 MB)',
+  MISSING_PROBLEM_YAML: 'El ZIP no contiene problem.yaml',
+  INVALID_PROBLEM_YAML: 'El problem.yaml tiene un error de sintaxis o le falta el campo name',
 
   // ─── Materiales ───
   MATERIAL_NOT_FOUND: 'Material no encontrado',

@@ -65,7 +65,7 @@ export function ContestDetailPage() {
   const { data: contest, isLoading, error, refetch: refetchContest } = useContestDetail(groupId || '', id || '')
   // Flip to the next state (problems visible / results) as soon as the countdown hits zero.
   const handleCountdownEnd = useCallback(() => { void refetchContest() }, [refetchContest])
-  const { data: ownerGroup } = useGroupDetail(groupId || '')
+  const { data: ownerGroup, error: groupError, refetch: refetchGroup } = useGroupDetail(groupId || '')
   const registerMutation = useRegisterToContest()
   const unregisterMutation = useUnregisterFromContest()
   const deleteMutation = useDeleteContest()
@@ -146,9 +146,12 @@ export function ContestDetailPage() {
       : ownerGroup?.userMembership.role === 'LEAD' ? 'lead'
         : ownerGroup && !ownerGroup.userMembership.isMember ? 'nonmember'
           : null
+  // Suppress CTAs until the group membership is known — avoids a flash of "Registrarse"/"Registrar equipo"
+  // for leads/admins/non-members while ownerGroup is still loading (registrationBlock is null during that window).
+  const groupMembershipKnown = !groupId || ownerGroup !== undefined
   const offersIndividualRegistration = contest.status === 'SCHEDULED' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
-  const canRegisterIndividual = offersIndividualRegistration && !registrationBlock
+  const canRegisterIndividual = groupMembershipKnown && offersIndividualRegistration && !registrationBlock
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
@@ -419,7 +422,7 @@ export function ContestDetailPage() {
   // SCHEDULED: Hero countdown layout
   // ═══════════════════════════════════════════════
   if (contest.status === 'SCHEDULED') {
-    const showTeamRegistration = contest.participationMode !== 'INDIVIDUAL'
+    const showTeamRegistration = groupMembershipKnown && contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
 
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
@@ -439,6 +442,20 @@ export function ContestDetailPage() {
                 onComplete={handleCountdownEnd}
               />
               <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {!groupMembershipKnown && !groupError && (
+                  <div className="h-11 w-36 bg-white/20 animate-pulse rounded-pill" />
+                )}
+                {!groupMembershipKnown && groupError && (
+                  <div className="flex items-center gap-2 text-sm text-white/70">
+                    <span>No se pudo cargar tu membresía.</span>
+                    <button
+                      onClick={() => void refetchGroup()}
+                      className="underline hover:text-white transition-colors"
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                )}
                 {canRegisterIndividual && (
                   <Button variant="primary" size="lg" onClick={handleRegister} isLoading={registerMutation.isPending}>
                     <User className="h-4 w-4 mr-2" />

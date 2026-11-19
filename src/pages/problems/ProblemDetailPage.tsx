@@ -1,10 +1,12 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye } from 'lucide-react'
+import { Clock, HardDrive, User, Calendar, Trash2, Pencil, ArrowUpCircle, ArrowDownCircle, BarChart3, Send, Upload, X, RefreshCw, ClipboardCheck, HelpCircle, XCircle, Download, MoreVertical, Eye, AlertTriangle, Globe, Lock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Badge, Button, LinkButton, Card, CardContent, CardHeader, CardTitle, SearchSelect, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
   Tabs, TabsList, TabsTrigger, TabsContent,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  UploadProgressBar,
+  RotatingStatus,
 } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { MarkdownRenderer } from '@/components/features/MarkdownRenderer'
@@ -19,9 +21,13 @@ import {
   usePublishProblem,
   useValidateProblem,
   useLatestValidation,
+  useProblemTestCases,
   useUnpublishProblem,
+  useUpdateAccessibility,
   useDeleteProblem,
   useUploadProblemFile,
+  useIsUploadingProblemFile,
+  useUploadProgress,
   useDeleteProblemFile,
   useAddModifier,
   useRemoveModifier,
@@ -33,16 +39,16 @@ import { useRejudgeContestProblem } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
-import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO } from '@/lib/constants'
+import { SUBMISSION_STATUS_CONFIG, PATHS, PROBLEM_FILE_TYPE_INFO, ZIP_CHECK_PHRASES } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-import type { ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+import type { ProblemAccessibility, ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { ErrorPage } from '@/pages/errors/ErrorPage'
 
@@ -81,7 +87,7 @@ export function ProblemDetailPage() {
     : slug
 
   const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
-  const { data: stats } = useProblemStatistics(resolvedSlug || '')
+  const { data: stats } = useProblemStatistics(resolvedSlug || '', problem?.status === 'PUBLISHED')
   const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
   const publishMutation = usePublishProblem()
   const validateMutation = useValidateProblem()
@@ -89,22 +95,55 @@ export function ProblemDetailPage() {
   const mayValidate =
     !isContestContext && problem?.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
   const { data: validation } = useLatestValidation(resolvedSlug || '', { enabled: mayValidate })
+  const testCasesQueryEnabled = mayValidate && !!problem?.files?.testCases
+  const { data: testCasesData, isError: testCasesError } = useProblemTestCases(
+    resolvedSlug || '',
+    testCasesQueryEnabled,
+  )
+  // The query is on but has no answer yet (loading or failed): "unknown" is not "no warnings"
+  const testCasesUnchecked = testCasesQueryEnabled && !testCasesData
+  const testCasesWarning: string | undefined = testCasesData
+    ? testCasesData.secretCount === 0 && testCasesData.sampleCount === 0
+      ? 'Los casos de prueba no tienen pares completos (.in + .ans) aún.'
+      : testCasesData.secretCount === 0
+        ? 'No hay casos secretos: el juez evaluará solo con los ejemplos que los concursantes conocen.'
+        : testCasesData.sampleCount === 0
+          ? 'No hay ejemplos: los concursantes no verán ningún ejemplo en el enunciado.'
+          : undefined
+    : undefined
   const unpublishMutation = useUnpublishProblem()
+  const accessibilityMutation = useUpdateAccessibility()
   const deleteMutation = useDeleteProblem()
   const adminRejudgeMutation = useAdminRejudgeProblem()
   const exportMutation = useExportProblem()
   const rejudgeContestMutation = useRejudgeContestProblem()
 
+  // The upload outlives FilesManager (tab switches unmount it), so its state comes from the mutation
+  // cache; the ZIP structure check runs before the upload starts and is reported up by FilesManager.
+  const isUploadMutating = useIsUploadingProblemFile(resolvedSlug || '')
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
+  const isUploadingFile = isUploadMutating || isCheckingZip
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmSlug, setConfirmSlug] = useState('')
   const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
   const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
   const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
+  // Tied to the problem that opened it: the route reuses this component when :slug changes
+  // (browser back), and a stale open flag would confirm the publication of the wrong problem.
+  const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
+  const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
+  // Same idea for the "make private" confirmation: it must never confirm over a different problem
+  const [makePrivateSlug, setMakePrivateSlug] = useState<string | null>(null)
+  const makePrivateDialogOpen = !!resolvedSlug && makePrivateSlug === resolvedSlug
+  // Drop a stale confirmation as soon as another problem is shown, so coming back doesn't reopen it
+  if (makePrivateSlug !== null && makePrivateSlug !== resolvedSlug) setMakePrivateSlug(null)
   const [publishResult, setPublishResult] = useState<
     | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
     | { kind: 'failure'; data: PublishFailureResponse }
     | null
   >(null)
+  // Set by the checklist's "Subir"/"Agregar" actions: FilesManager opens the matching file picker once, then clears it.
+  const [pendingAutoUpload, setPendingAutoUpload] = useState<ProblemFileType | null>(null)
 
   // A contest problem letter that doesn't exist (or a contest that can't be seen) resolves to no slug.
   if (isContestContext && !isContestLoading && !resolvedSlug) return <NotFoundPage />
@@ -150,8 +189,8 @@ export function ProblemDetailPage() {
       key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
       hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
     },
-    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: goToFiles },
-    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: goToFiles },
+    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: () => { goToFiles(); setPendingAutoUpload('testCases') }, warning: testCasesWarning, disabled: isUploadingFile },
+    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: () => { goToFiles(); setPendingAutoUpload('solution') }, disabled: isUploadingFile },
   ]
   const requirementsMet = missingPublishRequirements.length === 0
   const validationRunning = validateMutation.isPending || publishMutation.isPending || (!!validation?.found && !validation.terminal)
@@ -178,6 +217,20 @@ export function ProblemDetailPage() {
     loading: validationRunning,
     onDetail: validationFailed ? goToFiles : undefined,
   })
+  const hasWarnings = checklistSteps.some((s) => s.met && !!s.warning)
+  const publishWarnings = checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning)
+  const publishDialogTitle = hasWarnings
+    ? 'El problema tiene advertencias'
+    : testCasesUnchecked
+      ? 'Casos de prueba sin comprobar'
+      : 'Publicar problema'
+  const publishDialogDescription = hasWarnings
+    ? publishWarnings.join(' ')
+    : testCasesUnchecked
+      ? testCasesError
+        ? 'No se pudieron revisar los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+        : 'Todavía se están revisando los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+      : 'Los casos de prueba ya se revisaron y no hay advertencias.'
   const showChecklist = showManagementTabs && problem.status === 'DRAFT'
   const optionalMissing = [
     ...(problem.files && !problem.files.checker ? ['checker'] : []),
@@ -217,7 +270,7 @@ export function ProblemDetailPage() {
             </TooltipContent>
           </Tooltip>
         ) : (
-          <Button variant="primary" className="gap-2" onClick={handlePublish} isLoading={publishMutation.isPending}>
+          <Button variant="primary" className="gap-2" onClick={handlePublishClick} isLoading={publishMutation.isPending}>
             <ArrowUpCircle className="h-4 w-4" />
             Publicar
           </Button>
@@ -237,6 +290,22 @@ export function ProblemDetailPage() {
               {problem.status === 'PUBLISHED' && (
                 <span className="block text-xs text-neutral-text-muted">Despublica el problema para editarlo</span>
               )}
+            </span>
+          </DropdownMenuItem>
+          {/* Unlike editing, the backend lets this change while the problem is published: no need to unpublish first */}
+          <DropdownMenuItem onClick={handleAccessibilityClick} disabled={accessibilityMutation.isPending}>
+            {problem.accessibility === 'PUBLIC' ? (
+              <Lock className="mr-2 h-4 w-4 shrink-0" />
+            ) : (
+              <Globe className="mr-2 h-4 w-4 shrink-0" />
+            )}
+            <span>
+              {problem.accessibility === 'PUBLIC' ? 'Hacer privado' : 'Hacer público'}
+              <span className="block text-xs text-neutral-text-muted">
+                {problem.accessibility === 'PUBLIC'
+                  ? 'Solo los modificadores podrán añadirlo a nuevas competencias'
+                  : 'Cualquier creador de competencias podrá añadirlo'}
+              </span>
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
@@ -328,7 +397,18 @@ export function ProblemDetailPage() {
     <>
       {/* Files: always readable; uploading and deleting only while it's a draft — the backend
           rejects changes to a published problem */}
-      {problem.files && <FilesManager problem={problem} readOnly={problem.status === 'PUBLISHED'} />}
+      {problem.files && (
+        <FilesManager
+          problem={problem}
+          readOnly={problem.status === 'PUBLISHED'}
+          testCasesWarning={testCasesWarning}
+          autoUpload={pendingAutoUpload}
+          onAutoUploadConsumed={() => setPendingAutoUpload(null)}
+          isUploading={isUploadMutating}
+          isCheckingZip={isCheckingZip}
+          onCheckingZipChange={setIsCheckingZip}
+        />
+      )}
 
       {/* What happened with the last publish attempt: persists, follows a running validation */}
       <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending || validateMutation.isPending} />
@@ -343,6 +423,14 @@ export function ProblemDetailPage() {
     validateMutation.mutate(problem.slug, {
       onError: (err) => toast({ variant: 'error', title: 'No se pudo validar', description: getErrorMessage(err) }),
     })
+  }
+
+  function handlePublishClick() {
+    if (hasWarnings || testCasesUnchecked) {
+      setPublishWarningSlug(resolvedSlug ?? null)
+    } else {
+      handlePublish()
+    }
   }
 
   function handlePublish() {
@@ -363,6 +451,32 @@ export function ProblemDetailPage() {
         }
       },
     })
+  }
+
+  function changeAccessibility(accessibility: ProblemAccessibility) {
+    if (!problem) return
+    accessibilityMutation.mutate(
+      { slug: problem.slug, accessibility },
+      {
+        onSuccess: () =>
+          toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
+        onSettled: () => setMakePrivateSlug(null),
+      },
+    )
+  }
+
+  // Going private restricts who can see and add the problem, so it asks first; going public does not
+  function handleAccessibilityClick() {
+    if (!problem) return
+    if (problem.accessibility === 'PUBLIC') setMakePrivateSlug(problem.slug)
+    else changeAccessibility('PUBLIC')
+  }
+
+  function handleMakePrivateConfirm() {
+    // Only the problem that opened the confirmation may be changed by it
+    if (!problem || makePrivateSlug !== problem.slug) return
+    changeAccessibility('PRIVATE')
   }
 
   function handleUnpublish() {
@@ -762,6 +876,28 @@ export function ProblemDetailPage() {
         isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
       />
 
+      <ConfirmDialog
+        open={makePrivateDialogOpen}
+        onOpenChange={(open) => setMakePrivateSlug(open ? (resolvedSlug ?? null) : null)}
+        title="Hacer privado el problema"
+        description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
+        variant="warning"
+        confirmLabel="Hacer privado"
+        onConfirm={handleMakePrivateConfirm}
+        isLoading={accessibilityMutation.isPending}
+      />
+
+      {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
+      <ConfirmDialog
+        open={publishWarningOpen}
+        onOpenChange={(open) => setPublishWarningSlug(open ? (resolvedSlug ?? null) : null)}
+        title={publishDialogTitle}
+        description={publishDialogDescription}
+        variant="warning"
+        confirmLabel="Publicar de todas formas"
+        onConfirm={() => { setPublishWarningSlug(null); handlePublish() }}
+      />
+
       {/* Publish validation result — success (validation logs) or failure (real detail from
           the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
       <Dialog open={!!publishResult} onOpenChange={(open) => !open && setPublishResult(null)}>
@@ -914,16 +1050,54 @@ async function checkTestCasesZipStructure(file: File): Promise<string | null> {
   return null
 }
 
-interface FilesManagerProps { problem: ProblemDetail; readOnly?: boolean }
+interface FilesManagerProps {
+  problem: ProblemDetail
+  readOnly?: boolean
+  testCasesWarning?: string
+  autoUpload?: ProblemFileType | null
+  onAutoUploadConsumed?: () => void
+  /** An upload of this problem is running, possibly one started before this component was mounted. */
+  isUploading?: boolean
+  /** The ZIP structure check (which runs before the upload starts) is in progress, possibly one started before this component was mounted. */
+  isCheckingZip?: boolean
+  /** Reports the ZIP structure check. Its state is owned by the parent: this component unmounts on tab switches. */
+  onCheckingZipChange?: (checking: boolean) => void
+}
 
-function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
+function FilesManager({ problem, readOnly = false, testCasesWarning, autoUpload, onAutoUploadConsumed, isUploading = false, isCheckingZip = false, onCheckingZipChange }: FilesManagerProps) {
   const uploadMutation = useUploadProblemFile()
   const deleteMutation = useDeleteProblemFile()
   const { toast } = useToastContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [pendingFileType, setPendingFileType] = useState<ProblemFileType | null>(null)
-  const [isCheckingZip, setIsCheckingZip] = useState(false)
+  // From the mutation cache, not local state: the upload outlives this component (tab switches unmount it)
+  const uploadProgress = useUploadProgress(problem.slug)
   const [deleteTarget, setDeleteTarget] = useState<{ fileType: string; fileName?: string; label: string } | null>(null)
+
+  // Must stay above the early return below: the checklist sets autoUpload and switches to this tab.
+  useEffect(() => {
+    if (!autoUpload || readOnly) return
+    triggerUpload(autoUpload)
+    onAutoUploadConsumed?.()
+    // triggerUpload and onAutoUploadConsumed are stable; readOnly is intentionally excluded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoUpload])
+
+  // Per-call onSettled can be dropped by TanStack Query if the component re-renders during the
+  // mutation (e.g. the invalidation refetch lands before the callback fires). This effect is the
+  // reliable fallback: it reacts to an active upload finishing regardless of callback timing.
+  // It must not run on mount (isPending is already false): that would clear the pendingFileType the
+  // checklist's autoUpload just set, and the file the user picks would be silently discarded.
+  const wasPendingRef = useRef(false)
+  useEffect(() => {
+    if (uploadMutation.isPending) {
+      wasPendingRef.current = true
+      return
+    }
+    if (!wasPendingRef.current) return
+    wasPendingRef.current = false
+    setPendingFileType(null)
+  }, [uploadMutation.isPending])
 
   if (!problem.files) return null
   const files = problem.files
@@ -952,9 +1126,14 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
     }
 
     if (pendingFileType === 'testCases' && !exceedsZipStructureCheckSize(file)) {
-      setIsCheckingZip(true)
-      const structureError = await checkTestCasesZipStructure(file)
-      setIsCheckingZip(false)
+      // Busy from the start of the check: otherwise the checklist stays enabled while it runs
+      onCheckingZipChange?.(true)
+      let structureError: string | null
+      try {
+        structureError = await checkTestCasesZipStructure(file)
+      } finally {
+        onCheckingZipChange?.(false)
+      }
       if (structureError) {
         toast({ variant: 'error', title: 'Estructura del ZIP incorrecta', description: structureError })
         setPendingFileType(null)
@@ -964,20 +1143,8 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
 
     uploadMutation.mutate(
       { slug: problem.slug, fileType: pendingFileType, file },
-      {
-        onSuccess: () => toast({ variant: 'success', title: 'Archivo subido' }),
-        onError: (err) => {
-          if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
-            toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
-          } else if (err instanceof ApiClientError) {
-            toast({ variant: 'error', title: 'Error al subir el archivo', description: getErrorMessage(err) })
-          } else {
-            toast({ variant: 'error', title: 'Error al subir el archivo' })
-          }
-        },
-      },
+      { onSettled: () => setPendingFileType(null) },
     )
-    setPendingFileType(null)
   }
 
   function handleDeleteConfirm() {
@@ -1007,7 +1174,8 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
 
         {(['testCases', 'checker', 'validator'] as const).map((fileType) => (
-          <div key={fileType} className="flex items-center justify-between text-sm py-1">
+          <div key={fileType}>
+          <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${files[fileType] ? 'bg-status-success' : 'bg-neutral-border'}`} />
               <span className="text-neutral-text-primary inline-flex items-center gap-1">
@@ -1032,7 +1200,7 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => triggerUpload(fileType)}
-                  isLoading={(uploadMutation.isPending || isCheckingZip) && pendingFileType === fileType}
+                  disabled={uploadMutation.isPending || isUploading || isCheckingZip}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1" />
                   {files[fileType] ? 'Reemplazar' : 'Subir'}
@@ -1050,6 +1218,13 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
               )}
             </div>
           </div>
+          {fileType === 'testCases' && testCasesWarning && (
+            <p className="text-xs text-status-warning flex items-center gap-1 pl-4 pb-1">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              {testCasesWarning}
+            </p>
+          )}
+          </div>
         ))}
 
         <div className="pt-2 border-t border-neutral-border">
@@ -1063,7 +1238,7 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => triggerUpload('solution')}
-                isLoading={uploadMutation.isPending && pendingFileType === 'solution'}
+                disabled={uploadMutation.isPending || isUploading || isCheckingZip}
               >
                 <Upload className="h-3.5 w-3.5 mr-1" />
                 Agregar
@@ -1107,6 +1282,11 @@ function FilesManager({ problem, readOnly = false }: FilesManagerProps) {
           <p className="pt-2 border-t border-neutral-border text-xs text-neutral-text-muted">
             Para subir o eliminar archivos, despublica el problema primero.
           </p>
+        )}
+        {isCheckingZip ? (
+          <RotatingStatus phrases={ZIP_CHECK_PHRASES} className="mt-2" />
+        ) : (
+          <UploadProgressBar progress={uploadProgress} className="mt-2" />
         )}
       </CardContent>
 

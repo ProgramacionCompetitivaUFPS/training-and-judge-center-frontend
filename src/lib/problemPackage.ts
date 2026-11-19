@@ -40,7 +40,7 @@ export interface PackageReview {
 export const PACKAGE_LIMITS = {
   maxSampleFiles: 10, // maxFileCountSample: .in and .ans files both count
   maxFiles: 10_000, // maxFileCountTestCase
-  maxTotalBytes: 100 * 1024 * 1024, // maxFileSizeTestCaseMB
+  maxTotalBytes: 150 * 1024 * 1024, // maxExtractedSizeMB (backend: config/virtual_object.json)
   maxInputBytes: 64 * 1024 * 1024, // maxFileSizeTestCaseInputMB
   maxAnswerBytes: 8 * 1024 * 1024, // maxFileSizeTestCaseAnswerMB
   maxAuxBytes: 2 * 1024 * 1024, // maxFileSizeDefaultMB: yaml, statement, solutions, checker, validator

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useIsMutating, keepPreviousData } from '@tanstack/react-query'
 import * as problemsApi from '@/api/problems'
 import type {
   ProblemListParams,
@@ -10,6 +10,9 @@ import type {
   ProblemSourceFileType,
 } from '@/types/problem'
 import { saveBlobAs } from '@/lib/download'
+import { useToastContext } from '@/hooks/useToastContext'
+import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
 
 // === Query Keys ===
 
@@ -56,11 +59,11 @@ export function useProblemDetail(slug: string) {
   })
 }
 
-export function useProblemStatistics(slug: string) {
+export function useProblemStatistics(slug: string, enabled = true) {
   return useQuery({
     queryKey: problemKeys.statistics(slug),
     queryFn: () => problemsApi.getProblemStatistics(slug),
-    enabled: !!slug,
+    enabled: !!slug && enabled,
   })
 }
 
@@ -162,16 +165,71 @@ export function useUnpublishProblem() {
   })
 }
 
+const uploadProblemFileMutationKey = ['problems', 'upload-file'] as const
+
+/**
+ * True while a file upload of this problem is running, wherever it was started from. The upload keeps
+ * running when the component that started it unmounts (e.g. the user switches tabs), so the state
+ * lives in the mutation cache instead of in that component.
+ */
+export function useIsUploadingProblemFile(slug: string): boolean {
+  const running = useIsMutating({
+    mutationKey: uploadProblemFileMutationKey,
+    predicate: (mutation) => (mutation.state.variables as { slug?: string } | undefined)?.slug === slug,
+  })
+  return running > 0
+}
+
+// Outside ['problems', …] on purpose: invalidating problems must not touch it. Kept in the query cache
+// (not in component state) so the progress survives the component that started the upload unmounting.
+const uploadProgressKey = (slug: string) => ['upload-progress', slug] as const
+
+/** Percentage of the running upload of this problem (0–100), or null when none is running. */
+export function useUploadProgress(slug: string): number | null {
+  const { data } = useQuery<number | null>({
+    queryKey: uploadProgressKey(slug),
+    queryFn: () => null,
+    enabled: false,
+    staleTime: Infinity,
+    // Longer than two upload attempts (5 min XHR timeout each, the second one after a 401 refresh):
+    // with the files tab closed there is no observer, and the default 5 min would drop the bar mid-upload
+    gcTime: 15 * 60 * 1000,
+  })
+  return data ?? null
+}
+
 export function useUploadProblemFile() {
   const queryClient = useQueryClient()
+  const { toast } = useToastContext()
   return useMutation({
-    mutationFn: ({ slug, fileType, file }: { slug: string; fileType: string; file: File }) =>
-      problemsApi.uploadProblemFile(slug, fileType, file),
+    mutationKey: uploadProblemFileMutationKey,
+    // Hook-level callbacks run even if the component that called mutate() is gone
+    onMutate: ({ slug }) => {
+      queryClient.setQueryData(uploadProgressKey(slug), 0)
+    },
+    mutationFn: ({ slug, fileType, file, onProgress }: { slug: string; fileType: string; file: File; onProgress?: (pct: number) => void }) =>
+      problemsApi.uploadProblemFile(slug, fileType, file, (pct) => {
+        queryClient.setQueryData(uploadProgressKey(slug), pct)
+        onProgress?.(pct)
+      }),
+    onSettled: (_data, _error, { slug }) => {
+      queryClient.setQueryData(uploadProgressKey(slug), null)
+    },
     onSuccess: (_, { slug }) => {
       queryClient.invalidateQueries({ queryKey: problemKeys.detail(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.validation(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.testCases(slug) })
       queryClient.invalidateQueries({ queryKey: problemKeys.sourceFiles(slug) })
+      toast({ variant: 'success', title: 'Archivo subido' })
+    },
+    onError: (err) => {
+      if (err instanceof ApiClientError && err.code === 'PROBLEM_IS_PUBLISHED') {
+        toast({ variant: 'error', title: 'No se puede subir el archivo', description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.' })
+      } else if (err instanceof ApiClientError) {
+        toast({ variant: 'error', title: 'Error al subir el archivo', description: getErrorMessage(err) })
+      } else {
+        toast({ variant: 'error', title: 'Error al subir el archivo' })
+      }
     },
   })
 }
@@ -265,7 +323,8 @@ export function useRemoveModifier() {
 export function useImportProblem() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ file, slug }: { file: File; slug: string }) => problemsApi.importProblem(file, slug),
+    mutationFn: ({ file, slug, onProgress }: { file: File; slug: string; onProgress?: (pct: number) => void }) =>
+      problemsApi.importProblem(file, slug, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: problemKeys.all })
     },

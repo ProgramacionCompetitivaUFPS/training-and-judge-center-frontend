@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
@@ -24,7 +24,22 @@ import {
   useUpdateAccessibility,
   useAddModifier,
   useRemoveModifier,
+  useUploadProblemFile,
+  useIsUploadingProblemFile,
+  useUploadProgress,
 } from './useProblems'
+import * as problemsApi from '@/api/problems'
+import { ApiClientError } from '@/lib/errors'
+
+const mockToast = vi.fn()
+vi.mock('@/hooks/useToastContext', () => ({
+  useToastContext: () => ({ toast: mockToast }),
+}))
+
+vi.mock('@/api/problems', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/problems')>()
+  return { ...actual, uploadProblemFile: vi.fn() }
+})
 
 function makeWrapper() {
   const queryClient = createTestQueryClient()
@@ -178,6 +193,14 @@ describe('useProblemStatistics', () => {
     const { result } = renderHook(() => useProblemStatistics(''), { wrapper })
 
     expect(result.current.isFetching).toBe(false)
+  })
+
+  it('no hace fetch cuando enabled es false', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useProblemStatistics('two-sum', false), { wrapper })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(result.current.data).toBeUndefined()
   })
 })
 
@@ -340,5 +363,147 @@ describe('useRemoveModifier', () => {
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.detail('two-sum') }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: problemKeys.validation('two-sum') }))
+  })
+})
+
+describe('useUploadProblemFile', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('muestra toast de éxito al subir el archivo', async () => {
+    uploadMock.mockResolvedValue(undefined as never)
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({ variant: 'success', title: 'Archivo subido' })
+  })
+
+  it('muestra toast de problema publicado si el backend rechaza el upload', async () => {
+    uploadMock.mockRejectedValue(new ApiClientError(409, 'PROBLEM_IS_PUBLISHED', 'published'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({
+      variant: 'error',
+      title: 'No se puede subir el archivo',
+      description: 'Este problema está publicado. Despublícalo primero para modificar sus archivos.',
+    })
+  })
+
+  it('muestra toast de error genérico si el upload falla por otra causa', async () => {
+    uploadMock.mockRejectedValue(new Error('network down'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(mockToast).toHaveBeenCalledWith({ variant: 'error', title: 'Error al subir el archivo' })
+  })
+})
+
+describe('useIsUploadingProblemFile', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('stays true while the upload runs, even after the component that started it unmounts', async () => {
+    let failUpload = () => {}
+    uploadMock.mockReturnValue(new Promise<never>((_, reject) => { failUpload = () => reject(new Error('fail')) }))
+    const { wrapper } = makeWrapper()
+    const uploader = renderHook(() => useUploadProblemFile(), { wrapper })
+    const observer = renderHook(() => useIsUploadingProblemFile('two-sum'), { wrapper })
+    const otherProblem = renderHook(() => useIsUploadingProblemFile('otro-problema'), { wrapper })
+    expect(observer.result.current).toBe(false)
+
+    act(() => uploader.result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file }))
+    await waitFor(() => expect(observer.result.current).toBe(true))
+    expect(otherProblem.result.current).toBe(false)
+
+    uploader.unmount()
+    expect(observer.result.current).toBe(true)
+
+    act(() => failUpload())
+    await waitFor(() => expect(observer.result.current).toBe(false))
+  })
+})
+
+describe('useUploadProgress', () => {
+  const file = new File(['x'], 'tests.zip', { type: 'application/zip' })
+  const uploadMock = vi.mocked(problemsApi.uploadProblemFile)
+
+  beforeEach(() => {
+    mockToast.mockClear()
+    uploadMock.mockReset()
+  })
+
+  it('starts at 0, follows the progress, survives the uploader unmounting and resets when the upload ends', async () => {
+    let report: (pct: number) => void = () => {}
+    let failUpload = () => {}
+    uploadMock.mockImplementation((_slug, _fileType, _file, onProgress) => {
+      report = (pct) => onProgress?.(pct)
+      return new Promise<never>((_, reject) => { failUpload = () => reject(new Error('fail')) })
+    })
+    const { wrapper } = makeWrapper()
+    const uploader = renderHook(() => useUploadProblemFile(), { wrapper })
+    const observer = renderHook(() => useUploadProgress('two-sum'), { wrapper })
+    const otherProblem = renderHook(() => useUploadProgress('otro-problema'), { wrapper })
+    expect(observer.result.current).toBeNull()
+
+    act(() => uploader.result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file }))
+    await waitFor(() => expect(observer.result.current).toBe(0))
+    await waitFor(() => expect(uploadMock).toHaveBeenCalled())
+
+    act(() => report(40))
+    await waitFor(() => expect(observer.result.current).toBe(40))
+    expect(otherProblem.result.current).toBeNull()
+
+    uploader.unmount()
+    act(() => report(70))
+    await waitFor(() => expect(observer.result.current).toBe(70))
+
+    act(() => failUpload())
+    await waitFor(() => expect(observer.result.current).toBeNull())
+  })
+
+  it('also forwards the progress to the onProgress the caller passes', async () => {
+    const onProgress = vi.fn()
+    uploadMock.mockImplementation(async (_slug, _fileType, _file, report) => {
+      report?.(55)
+      throw new Error('fail')
+    })
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useUploadProblemFile(), { wrapper })
+
+    result.current.mutate({ slug: 'two-sum', fileType: 'testCases', file, onProgress })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(onProgress).toHaveBeenCalledWith(55)
+  })
+})
+
+describe('useUploadProgress — retención en cache', () => {
+  it('conserva la consulta de progreso más tiempo que dos intentos de subida (5 min cada uno)', () => {
+    const { wrapper, queryClient } = makeWrapper()
+    renderHook(() => useUploadProgress('two-sum'), { wrapper })
+
+    const query = queryClient.getQueryCache().find({ queryKey: ['upload-progress', 'two-sum'] })
+
+    expect(query?.gcTime).toBeGreaterThan(10 * 60 * 1000)
   })
 })

@@ -318,6 +318,31 @@ export const problemsHandlers = [
     return HttpResponse.json({ ...latest, stale })
   }),
 
+  // Allowed whatever the problem's status: it never requires unpublishing first
+  http.patch(url('/problems/p/:slug/accessibility'), async ({ params, request }) => {
+    await delay(200)
+    const { slug } = params as { slug: string }
+    const body = (await request.json()) as { accessibility?: string }
+    const problem = mockProblems.find((p) => p.slug === slug)
+    if (!problem) {
+      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Problema no encontrado' }, { status: 404 })
+    }
+    if (body.accessibility !== 'PUBLIC' && body.accessibility !== 'PRIVATE') {
+      return HttpResponse.json(
+        { error: 'INVALID_ACCESSIBILITY', message: 'Valor de accesibilidad inválido. Valores permitidos: PUBLIC, PRIVATE' },
+        { status: 400 },
+      )
+    }
+    problem.accessibility = body.accessibility
+    problem.updatedAt = new Date().toISOString()
+    return HttpResponse.json({
+      slug,
+      accessibility: problem.accessibility,
+      status: problem.status,
+      message: `Problem accessibility changed to ${problem.accessibility}`,
+    })
+  }),
+
   http.post(url('/problems/p/:slug/unpublish'), async ({ params }) => {
     await delay(300)
     const { slug } = params as { slug: string }

@@ -315,3 +315,34 @@ export const PATHS = {
   material: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}`,
   materialEdit: (groupId: string, materialId: string) => `/groups/${groupId}/materials/${materialId}/edit`,
 }
+
+// Shown while the test-cases ZIP structure is checked. The first one is the plain description
+// (what screen readers get); the rest are just for company while the user waits.
+export const ZIP_CHECK_PHRASES = [
+  'Revisando el ZIP…',
+  'Contando los casos de prueba…',
+  'Buscando data/sample y data/secret…',
+  'Desempolvando los .in y los .ans…',
+  'Despertando al juez…',
+  'Negociando con el Time Limit Exceeded…',
+  'Convenciendo al Wrong Answer de que se vaya…',
+  'Cazando el off-by-one que se escondió…',
+  'Verificando que ningún int se desborde…',
+  'Descomprimiendo con mucho cuidado…',
+  'Pidiéndole al Accepted que sea amable…',
+  'Ordenando los casos por dificultad (mentira)…',
+] as const
+
+// Shown while the server handles a file that has already been fully sent (upload at 100%).
+// Generic on purpose: it is also used by the problem import. The first one is the plain description.
+export const PROCESSING_PHRASES = [
+  'Procesando…',
+  'Despertando al juez…',
+  'Contando hasta 10^9 (con calma)…',
+  'Negociando con el Time Limit Exceeded…',
+  'Buscando el caso de prueba que lo rompe todo…',
+  'Convenciendo al Wrong Answer de que se quede quieto…',
+  'Pidiéndole al Accepted que sea amable…',
+  'Cazando el off-by-one que se escondió…',
+  'Ordenando los bytes por dificultad (mentira)…',
+] as const
