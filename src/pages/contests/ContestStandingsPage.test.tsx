@@ -316,10 +316,14 @@ describe('ContestStandingsPage con competencia congelada', () => {
   })
 
   it('no cuenta lo congelado en el pie de contadores', async () => {
+    // Arrange
     renderPage('group-1', 'contest-6')
+
+    // Act
     const acceptedRow = (await screen.findByText('Aceptados')).closest('tr')!
     const triedRow = screen.getByText('Intentos').closest('tr')!
 
+    // Assert
     const counters = (row: HTMLElement) => within(row).getAllByRole('cell').slice(4).map((cell) => cell.textContent)
     expect(counters(acceptedRow)).toEqual(['3', '0'])
     expect(counters(triedRow)).toEqual(['3', '1'])

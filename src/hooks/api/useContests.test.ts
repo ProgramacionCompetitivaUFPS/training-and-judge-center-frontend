@@ -444,10 +444,31 @@ describe('useStandings congelado (mock)', () => {
   }
 
   it('marca la competencia como congelada y expone el inicio del congelamiento', async () => {
+    // Arrange / Act
     const data = await load('contest-6')
 
+    // Assert
     expect(data.contest.isFrozen).toBe(true)
     expect(data.contest.frozenAt).toEqual(expect.any(String))
+  })
+
+  it('fija el inicio del congelamiento 60 minutos antes del fin de la competencia', async () => {
+    // Arrange / Act
+    const data = await load('contest-6')
+
+    // Assert
+    const minutesBeforeEnd = (Date.parse(data.contest.endTime) - Date.parse(data.contest.frozenAt!)) / 60_000
+    expect(minutesBeforeEnd).toBe(60)
+  })
+
+  it('no marca como congelada una competencia activa sin freeze configurado', async () => {
+    // Arrange / Act
+    const data = await load('contest-7')
+
+    // Assert
+    expect(data.contest.freezeMinutes).toBeNull()
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.frozenAt).toBeNull()
   })
 
   it('no marca como congelada una competencia activa sin freeze vigente', async () => {
