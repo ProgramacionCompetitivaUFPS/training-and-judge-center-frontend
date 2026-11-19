@@ -110,6 +110,7 @@ export function ContestDetailPage() {
   // there's no "find me" endpoint, so we fetch the full table and search client-side.
   const { data: standingsData } = useStandings(groupId || '', id || '', { limit: 10000 }, {
     enabled: contest?.status === 'ACTIVE' && !!contest?.isRegistered,
+    activeIntervalMs: 30_000,
   })
   const myStanding = standingsData?.standings.find((entry) =>
     entry.participant.type === 'TEAM'
