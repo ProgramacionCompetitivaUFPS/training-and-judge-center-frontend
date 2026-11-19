@@ -98,6 +98,25 @@ describe('ProblemDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Two Sum' })).toBeInTheDocument()
   })
 
+  it('copia la entrada y la salida de un ejemplo con sus botones Copiar', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    renderPage('two-sum')
+    const inputButton = await screen.findByRole('button', { name: 'Copiar entrada del ejemplo 1' })
+    const outputButton = screen.getByRole('button', { name: 'Copiar salida del ejemplo 1' })
+
+    // Act
+    await user.click(inputButton)
+    const copiedInput = await navigator.clipboard.readText()
+    await user.click(outputButton)
+    const copiedOutput = await navigator.clipboard.readText()
+
+    // Assert
+    expect(copiedInput).toBe('4 9\n2 7 11 15')
+    expect(copiedOutput).toBe('0 1')
+    expect(screen.getByRole('button', { name: 'Copiar entrada del ejemplo 2' })).toBeInTheDocument()
+  })
+
   it('shows admin actions for ADMIN role', async () => {
     renderPage()
     await screen.findByRole('heading', { name: 'Two Sum' })
