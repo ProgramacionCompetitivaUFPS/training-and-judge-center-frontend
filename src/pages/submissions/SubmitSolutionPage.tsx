@@ -19,6 +19,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { PROGRAMMING_LANGUAGES, PATHS, JUDGE_LANGUAGES, judgeLanguage, languageForFilename, isLanguageTemplate } from '@/lib/constants'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { readLastSubmissionLanguage, saveLastSubmissionLanguage } from '@/lib/lastSubmissionLanguage'
 import { PyodideRunner } from '@/components/features/blockly/PyodideRunner'
 import type { BlocklyEditorHandle } from '@/components/features/BlocklyEditor'
 
@@ -44,8 +45,11 @@ export function SubmitSolutionPage() {
   const [problemSearchQuery, setProblemSearchQuery] = useState('')
   const debouncedProblemSearch = useDebounce(problemSearchQuery)
   const { data: problemSearchData, isFetching: isSearchingProblems } = useProblemSearch(debouncedProblemSearch)
-  const [language, setLanguage] = useState('')
-  const [code, setCode] = useState('')
+  // The language of the last solution sent from this browser, so the next one starts with it (and with its
+  // template, as if it had been picked).
+  const [lastLanguage] = useState(readLastSubmissionLanguage)
+  const [language, setLanguage] = useState(lastLanguage ?? '')
+  const [code, setCode] = useState(judgeLanguage(lastLanguage ?? '')?.template ?? '')
   const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const blocklyRef = useRef<BlocklyEditorHandle>(null)
@@ -240,6 +244,7 @@ export function SubmitSolutionPage() {
 
       const onSuccess = (res: { id: string }) => {
         toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
+        saveLastSubmissionLanguage(language)
       }
       const onError = (err: unknown) => {
         toast({ variant: 'error', title: 'No se pudo enviar la solución', description: getErrorMessage(err) })
@@ -267,6 +272,7 @@ export function SubmitSolutionPage() {
 
     const onSuccess = (res: { id: string }) => {
       toast({ variant: 'success', title: 'Solución enviada', description: `Envío ${res.id.slice(0, 12)} creado` })
+      saveLastSubmissionLanguage(language)
       // Back to the starting point, so the next attempt doesn't begin from an empty editor.
       setCode(config?.template ?? '')
       setUploadedFile(null)
