@@ -1524,7 +1524,7 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 110,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true },
       { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
       { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
     ],

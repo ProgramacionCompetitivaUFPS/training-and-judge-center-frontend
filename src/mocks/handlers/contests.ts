@@ -263,8 +263,29 @@ export const contestsHandlers = [
         isFrozen: false,
         frozenAt: null,
       },
-      problems: contest.problems.map((p) => ({ position: p.position, slug: p.slug, title: p.title })),
-      standings: paged,
+      problems: contest.problems.map((p) => ({
+        position: p.position,
+        slug: p.slug,
+        title: p.title,
+        color: p.color ?? null,
+        // Contadores globales: no dependen de filtros ni de la página.
+        accepted: mockStandings.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        tried: mockStandings.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+      })),
+      standings: paged.map((entry) => ({
+        ...entry,
+        // Una celda por problema de la competencia, aunque la fila tenga menos resultados.
+        problems: contest.problems.map(
+          (p) =>
+            entry.problems.find((r) => r.position === p.position) ?? {
+              position: p.position,
+              status: 'NOT_ATTEMPTED' as const,
+              attempts: 0,
+              time: null,
+              penalty: 0,
+            },
+        ),
+      })),
       pagination: {
         page,
         limit,
