@@ -12,7 +12,7 @@ interface CopyButtonProps {
   className?: string
 }
 
-/** Small "Copiar" button that copies `text` to the clipboard and confirms with "Copiado" for 2 s. */
+/** Icon-only button that copies `text` to the clipboard and shows a check ("Copiado" tooltip) for 2 s. */
 export function CopyButton({ text, label, className }: CopyButtonProps) {
   const { toast } = useToastContext()
   const [copied, setCopied] = useState(false)
@@ -34,14 +34,14 @@ export function CopyButton({ text, label, className }: CopyButtonProps) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="ghost"
       size="sm"
       onClick={handleCopy}
-      className={cn('gap-1.5', className)}
+      className={cn('h-8 w-8 p-0 text-neutral-text-muted hover:text-neutral-text-primary', className)}
       aria-label={label}
+      title={copied ? 'Copiado' : 'Copiar'}
     >
-      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? 'Copiado' : 'Copiar'}
+      {copied ? <Check className="h-4 w-4 text-status-success" /> : <Copy className="h-4 w-4" />}
     </Button>
   )
 }

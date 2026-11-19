@@ -47,27 +47,27 @@ describe('CopyButton', () => {
     expect(screen.getByRole('button', { name: 'Copiar salida del ejemplo 1' })).toHaveAttribute('type', 'button')
   })
 
-  it('muestra "Copiado" tras copiar y vuelve a "Copiar" a los 2 segundos', async () => {
+  it('cambia a "Copiado" tras copiar y vuelve a "Copiar" a los 2 segundos', async () => {
     // Arrange
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup({ delay: null })
     render(<CopyButton text="0 1" label="Copiar salida" />)
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).toHaveTextContent('Copiar')
+    expect(screen.getByTitle('Copiar')).toBeInTheDocument()
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Copiar salida' }))
 
     // Assert
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).toHaveTextContent('Copiado')
+    expect(screen.getByTitle('Copiado')).toBeInTheDocument()
     act(() => {
       vi.advanceTimersByTime(1500)
     })
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).toHaveTextContent('Copiado')
+    expect(screen.getByTitle('Copiado')).toBeInTheDocument()
     act(() => {
       vi.advanceTimersByTime(600)
     })
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).toHaveTextContent('Copiar')
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).not.toHaveTextContent('Copiado')
+    expect(screen.getByTitle('Copiar')).toBeInTheDocument()
+    expect(screen.queryByTitle('Copiado')).not.toBeInTheDocument()
   })
 
   it('muestra un toast de error y sigue en "Copiar" si el portapapeles falla', async () => {
@@ -85,7 +85,8 @@ describe('CopyButton', () => {
       title: 'No se pudo copiar',
       description: 'El navegador no permitió acceder al portapapeles.',
     })
-    expect(screen.getByRole('button', { name: 'Copiar salida' })).not.toHaveTextContent('Copiado')
+    expect(screen.getByTitle('Copiar')).toBeInTheDocument()
+    expect(screen.queryByTitle('Copiado')).not.toBeInTheDocument()
   })
 
   it('no actualiza el estado ni falla al desmontar antes de que venza el temporizador', async () => {
