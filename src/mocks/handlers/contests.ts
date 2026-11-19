@@ -1,6 +1,35 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
+import type { StandingProblemResult } from '@/types/contest'
+
+/** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
+function countsAsTried(cell: StandingProblemResult): boolean {
+  if (cell.status === 'NOT_ATTEMPTED') return false
+  return !(cell.status === 'PENDING' && cell.attempts === 0)
+}
+
+/** Inicio del congelamiento (null si la competencia no tiene freeze) y si está vigente ahora mismo. */
+function freezeStateOf(contest: (typeof mockContests)[number]) {
+  const freezeStartMs = contest.freezeMinutes != null ? Date.parse(contest.endTime) - contest.freezeMinutes * 60_000 : null
+  const isFrozen =
+    computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE' && freezeStartMs !== null && Date.now() >= freezeStartMs
+  return { isFrozen, freezeStartMs }
+}
+
+/**
+ * Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post.
+ * `isFrozen` viene de `freezeStateOf`, para que las filas y el `isFrozen` de la respuesta salgan del mismo
+ * momento: `contest-6` muestra celdas pendientes mientras dura el congelamiento y, al terminar, resultados visibles.
+ */
+function standingsRowsFor(contest: (typeof mockContests)[number], isFrozen: boolean) {
+  const frozenOrRevealed = isFrozen ? mockFrozenStandings : mockStandings
+  const officialRows = contest.id === 'contest-6' ? frozenOrRevealed : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+  const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
+  const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
+  return { officialRows, postRows }
+}
 
 export const contestsHandlers = [
   // List all contests accessible to the user (across all groups)
@@ -117,7 +146,7 @@ export const contestsHandlers = [
     }
     const contest = mockContests[idx]
     const body = (await request.json()) as Record<string, unknown> & {
-      problems?: Array<{ slug: string; order: number }>
+      problems?: Array<{ slug: string; order: number; color?: string | null }>
     }
 
     const changesTeamShape = 'participationMode' in body || 'teamSizeMin' in body || 'teamSizeMax' in body
@@ -127,6 +156,16 @@ export const contestsHandlers = [
         error: 'CONTEST_HAS_TEAM_REGISTRATIONS',
         message: 'No se puede cambiar la modalidad o el tamaño de equipo: ya hay equipos registrados en esta competencia',
       }, { status: 409 })
+    }
+
+    if (body.problems && computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED') {
+      return HttpResponse.json({
+        error: 'CONTEST_PROBLEMS_LOCKED',
+        message: 'No se pueden cambiar los problemas de una competencia finalizada',
+      }, { status: 409 })
+    }
+    if (body.problems?.some((p) => p.color !== undefined && p.color !== null && !isValidBalloonColor(p.color))) {
+      return HttpResponse.json({ error: 'INVALID_PROBLEM_COLOR', message: 'Color inválido' }, { status: 400 })
     }
 
     const resolvedProblems = body.problems
@@ -140,6 +179,9 @@ export const contestsHandlers = [
             title: problem.title,
             timeLimit: problem.timeLimit ?? 1000,
             memoryLimit: problem.memoryLimit ?? 256,
+            color: p.color !== undefined
+              ? (p.color === null ? null : p.color.toLowerCase())
+              : (contest.problems.find((cp) => cp.slug === p.slug)?.color ?? null),
           }
         })
         .filter((p): p is NonNullable<typeof p> => p !== null)
@@ -161,9 +203,15 @@ export const contestsHandlers = [
   http.delete(url('/groups/:groupId/contests/:contestId'), async ({ params }) => {
     await delay(300)
     const { contestId } = params as { groupId: string; contestId: string }
-    const idx = mockContests.findIndex((c) => c.id === contestId)
-    if (idx === -1) {
-      return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
+    const contest = mockContests.find((c) => c.id === contestId)
+    if (!contest) {
+      return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
+    }
+    if (contest.locked === true) {
+      return HttpResponse.json({ error: 'CONTEST_LOCKED', message: 'Competencia bloqueada' }, { status: 403 })
+    }
+    if (computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE') {
+      return HttpResponse.json({ error: 'CONTEST_IS_ACTIVE', message: 'Competencia en curso' }, { status: 409 })
     }
     return new HttpResponse(null, { status: 204 })
   }),
@@ -219,7 +267,22 @@ export const contestsHandlers = [
     const city = sp.get('city')?.toLowerCase() || undefined
     const institution = sp.get('institution')?.toLowerCase() || undefined
 
-    const filtered = mockStandings.filter((entry) => {
+    const phase = sp.get('phase') ?? 'all'
+    if (phase !== 'competition' && phase !== 'postcompetition' && phase !== 'all') {
+      return HttpResponse.json(
+        { error: 'BAD_REQUEST', message: "phase must be 'competition', 'postcompetition' or 'all'" },
+        { status: 400 },
+      )
+    }
+
+    const { isFrozen, freezeStartMs } = freezeStateOf(contest)
+    const { officialRows, postRows } = standingsRowsFor(contest, isFrozen)
+    const base =
+      phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
+    // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
+    const countRows = phase === 'postcompetition' ? postRows : officialRows
+
+    const filtered = base.filter((entry) => {
       const p = entry.participant
       if (country && !p.country?.toLowerCase().includes(country)) return false
       if (city && !p.city?.toLowerCase().includes(city)) return false
@@ -240,11 +303,31 @@ export const contestsHandlers = [
         endTime: contest.endTime,
         penalty: contest.penalty,
         freezeMinutes: contest.freezeMinutes,
-        isFrozen: false,
-        frozenAt: null,
+        isFrozen,
+        frozenAt: isFrozen && freezeStartMs !== null ? new Date(freezeStartMs).toISOString() : null,
       },
-      problems: contest.problems.map((p) => ({ position: p.position, slug: p.slug, title: p.title })),
-      standings: paged,
+      problems: contest.problems.map((p) => ({
+        position: p.position,
+        slug: p.slug,
+        title: p.title,
+        color: p.color ?? null,
+        // Contadores globales: no dependen de filtros ni de la página.
+        accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && countsAsTried(r))).length,
+        // Contadores de post-competencia: siempre presentes, 0 si no hay filas de post.
+        postAccepted: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && countsAsTried(r))).length,
+      })),
+      standings: paged.map((entry) => ({
+        ...entry,
+        // Una celda por problema de la competencia, aunque la fila tenga menos resultados.
+        problems: contest.problems.map((p) => {
+          const cell = entry.problems.find((r) => r.position === p.position)
+          return cell
+            ? { ...cell, pending: cell.pending ?? 0 }
+            : { position: p.position, status: 'NOT_ATTEMPTED' as const, attempts: 0, time: null, penalty: 0, pending: 0 }
+        }),
+      })),
       pagination: {
         page,
         limit,
@@ -270,10 +353,14 @@ export const contestsHandlers = [
     const distinct = (values: Array<string | null | undefined>) =>
       [...new Set(values.filter((v): v is string => !!v))].sort()
 
+    // Los filtros aplican a las dos secciones, así que las opciones salen de oficiales y post.
+    const { officialRows, postRows } = standingsRowsFor(contest, freezeStateOf(contest).isFrozen)
+    const participants = [...officialRows, ...postRows].map((e) => e.participant)
+
     return HttpResponse.json({
-      countries: distinct(mockStandings.map((e) => e.participant.country)),
-      cities: distinct(mockStandings.map((e) => e.participant.city)),
-      institutions: distinct(mockStandings.map((e) => e.participant.institution)),
+      countries: distinct(participants.map((p) => p.country)),
+      cities: distinct(participants.map((p) => p.city)),
+      institutions: distinct(participants.map((p) => p.institution)),
     })
   }),
 

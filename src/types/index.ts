@@ -88,13 +88,17 @@ export type {
   RegistrationListResponse,
   StandingProblemStatus,
   StandingProblemResult,
+  StandingsProblem,
   StandingParticipant,
   StandingEntry,
   StandingsResponse,
   StandingsParams,
+  StandingsPhase,
   ContestSubmissionItem,
   ContestSubmissionsResponse,
   ContestSubmissionsParams,
+  ContestProblemPayload,
+  UpdateContestResponse,
 } from './contest'
 
 // Submission types

@@ -70,6 +70,18 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Format minutes elapsed since the contest start as HH:MM, e.g. 155 → "02:35".
+ * Non-finite or negative values give '00:00'.
+ */
+export function formatContestTime(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 0) return '00:00'
+  const total = Math.floor(minutes)
+  const hh = String(Math.floor(total / 60)).padStart(2, '0')
+  const mm = String(total % 60).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+/**
  * Convert a 1-based problem position to its letter label (A, B, ... Z, AA, AB, ...),
  * spreadsheet-column style so it never runs out past 26 problems.
  */

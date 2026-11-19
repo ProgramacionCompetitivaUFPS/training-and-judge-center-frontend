@@ -1293,9 +1293,9 @@ export const mockContests: ContestDetail[] = [
     group: { id: 'group-1', name: 'ICPC Colombia' },
     owner: { id: 'u1', nickname: 'luisadmin' },
     problems: [
-      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
-      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
-      { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256 },
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256, color: '#e11d48' },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128, color: '#2563eb' },
+      { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256, color: null },
     ],
     problemCount: 3,
     createdAt: '2026-03-10T08:00:00Z',
@@ -1320,10 +1320,10 @@ export const mockContests: ContestDetail[] = [
     group: { id: 'group-1', name: 'ICPC Colombia' },
     owner: { id: 'u2', nickname: 'mariacoach' },
     problems: [
-      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
-      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
-      { position: 3, slug: 'dynamic-knapsack', title: 'Dynamic Knapsack', timeLimit: 2000, memoryLimit: 256 },
-      { position: 4, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256 },
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256, color: '#e11d48' },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128, color: '#2563eb' },
+      { position: 3, slug: 'dynamic-knapsack', title: 'Dynamic Knapsack', timeLimit: 2000, memoryLimit: 256, color: null },
+      { position: 4, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256, color: null },
     ],
     problemCount: 4,
     createdAt: '2026-03-01T10:00:00Z',
@@ -1404,6 +1404,68 @@ export const mockContests: ContestDetail[] = [
       { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
     ],
     problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
+  {
+    // ACTIVE con 13 problemas (A–M) y 30 participantes (ver mockLargeStandings): sirve para revisar
+    // el tablero de posiciones con muchas columnas y filas.
+    id: 'contest-7',
+    name: 'Maratón Demo (13 problemas)',
+    description: 'Competencia de demostración con muchos problemas y participantes.',
+    startTime: oneHourAgo.toISOString(),
+    endTime: inFourHours.toISOString(),
+    duration: 18000,
+    status: 'ACTIVE',
+    penalty: 20,
+    freezeMinutes: null,
+    enablePostContest: false,
+    locked: false,
+    participantCount: 30,
+    isRegistered: true,
+    participationMode: 'MIXED',
+    showTeamMembers: true,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u1', nickname: 'luisadmin' },
+    problems: [
+      '#e11d48', '#2563eb', null, '#f59e0b', '#7c3aed', '#0891b2', '#db2777',
+      '#84cc16', '#0d9488', '#f97316', '#475569', '#c026d3', '#16a34a',
+    ].map((color, i) => ({
+      position: i + 1,
+      slug: `demo-${i + 1}`,
+      title: `Problema demo ${i + 1}`,
+      timeLimit: 1000,
+      memoryLimit: 128,
+      color,
+    })),
+    problemCount: 13,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
+  {
+    id: 'contest-8',
+    name: 'Reto Clásicos con Post-competencia',
+    description: 'Competencia finalizada con post-competencia habilitada.',
+    startTime: yesterday.toISOString(),
+    endTime: yesterdayEnd.toISOString(),
+    duration: 10800,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: null,
+    enablePostContest: true,
+    locked: false,
+    participantCount: 8,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256, color: '#e11d48' },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128, color: '#2563eb' },
+      { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256, color: null },
+    ],
+    problemCount: 3,
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
@@ -1524,7 +1586,7 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 110,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true },
       { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
       { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
     ],
@@ -1603,6 +1665,167 @@ export const mockStandings: StandingEntry[] = [
     ],
   },
 ]
+
+// Filas de post-competencia de contest-8: sin rank, no oficiales, sin penalización ni horas.
+export const mockPostStandings: StandingEntry[] = [
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-1',
+      type: 'INDIVIDUAL',
+      displayName: 'lauramendez',
+      nickname: 'lauramendez',
+      country: 'Colombia',
+      city: 'Cúcuta',
+      institution: 'UFPS',
+    },
+    problemsSolved: 2,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-2',
+      type: 'INDIVIDUAL',
+      displayName: 'andresrojas',
+      nickname: 'andresrojas',
+      country: 'Colombia',
+      city: 'Bogotá',
+      institution: 'UNAL',
+    },
+    problemsSolved: 1,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+    ],
+  },
+  {
+    rank: null,
+    isOfficial: false,
+    participant: {
+      id: 'u-post-3',
+      type: 'INDIVIDUAL',
+      displayName: 'carlosvega',
+      nickname: 'carlosvega',
+      country: 'Colombia',
+      city: 'Cali',
+      institution: 'UNIVALLE',
+    },
+    problemsSolved: 0,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
+    ],
+  },
+]
+
+// Standings de contest-6 (congelada): celdas PENDING con contadores de envíos ocultos; solo cuenta lo visible.
+export const mockFrozenStandings: StandingEntry[] = [
+  {
+    rank: 1,
+    participant: {
+      id: 'u6',
+      type: 'INDIVIDUAL',
+      displayName: 'sofiarodriguez',
+      nickname: 'sofiarodriguez',
+      country: 'Colombia',
+      city: 'Medellín',
+      institution: 'EAFIT',
+    },
+    problemsSolved: 1,
+    totalPenalty: 20,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: {
+      id: 'team-1',
+      type: 'TEAM',
+      displayName: 'Competitive Coders',
+      members: ['luisadmin', 'carloscp', 'anagarcia'],
+    },
+    problemsSolved: 1,
+    totalPenalty: 35,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0, pending: 0 },
+      { position: 2, status: 'PENDING', attempts: 1, time: null, penalty: 0, isFirstSolve: false, pending: 2 },
+    ],
+  },
+  {
+    rank: 3,
+    participant: {
+      id: 'u3',
+      type: 'INDIVIDUAL',
+      displayName: 'carloscp',
+      nickname: 'carloscp',
+      country: 'Argentina',
+      city: 'Buenos Aires',
+      institution: 'UBA',
+    },
+    problemsSolved: 1,
+    totalPenalty: 70,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 2, time: 50, penalty: 20, pending: 0 },
+      { position: 2, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 1 },
+    ],
+  },
+  {
+    rank: 4,
+    participant: {
+      id: 'u4',
+      type: 'INDIVIDUAL',
+      displayName: 'anagarcia',
+      nickname: 'anagarcia',
+      country: 'Chile',
+      city: 'Santiago',
+      institution: 'Universidad de Chile',
+    },
+    problemsSolved: 0,
+    totalPenalty: 0,
+    problems: [
+      { position: 1, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 3 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+]
+
+// Standings de contest-7: 30 participantes (1 de cada 4 es equipo) con 13 problemas, datos deterministas.
+export const mockLargeStandings: StandingEntry[] = Array.from({ length: 30 }, (_, i) => {
+  const solved = Math.max(0, 13 - Math.floor(i / 2.5))
+  return {
+    rank: i + 1,
+    participant:
+      i % 4 === 0
+        ? { id: `demo-t${i}`, type: 'TEAM' as const, displayName: `Equipo Demo ${i + 1}`, members: ['ana', 'luis', 'sofia'] }
+        : { id: `demo-u${i}`, type: 'INDIVIDUAL' as const, displayName: `participante${i + 1}`, nickname: `participante${i + 1}`, institution: 'UFPS' },
+    problemsSolved: solved,
+    totalPenalty: 40 + i * 37,
+    problems: Array.from({ length: 13 }, (_, j) => {
+      const position = j + 1
+      if (j < solved) {
+        return { position, status: 'ACCEPTED' as const, attempts: 1 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
+      }
+      if ((i + j) % 4 === 0) {
+        return { position, status: 'WRONG_ANSWER' as const, attempts: 1 + ((i + j) % 5), time: null, penalty: 0 }
+      }
+      return { position, status: 'NOT_ATTEMPTED' as const, attempts: 0, time: null, penalty: 0 }
+    }),
+  }
+})
 
 // === Mock Contest Submissions ===
 

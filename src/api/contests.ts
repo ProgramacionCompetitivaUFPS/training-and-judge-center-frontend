@@ -6,6 +6,7 @@ import type {
   ContestListResponse,
   CreateContestRequest,
   UpdateContestRequest,
+  UpdateContestResponse,
   RegistrationStatus,
   RegistrationListResponse,
   StandingsResponse,
@@ -53,7 +54,7 @@ export function updateContest(
   groupId: string,
   contestId: string,
   data: UpdateContestRequest,
-): Promise<ContestDetail> {
+): Promise<UpdateContestResponse> {
   return apiClient.put(`/groups/${groupId}/contests/${contestId}`, data)
 }
 

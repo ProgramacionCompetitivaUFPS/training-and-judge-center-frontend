@@ -31,6 +31,13 @@ describe('ERROR_MESSAGES', () => {
   it('contiene mensaje en español para MATERIAL_NOT_FOUND (materiales)', () => {
     expect(ERROR_MESSAGES['MATERIAL_NOT_FOUND']).toBe('Material no encontrado')
   })
+
+  it.each([
+    ['CONTEST_PROBLEMS_LOCKED', 'No se pueden cambiar los problemas de una competencia finalizada'],
+    ['INVALID_PROBLEM_COLOR', 'El color del problema no es válido'],
+  ])('tiene el mensaje en español para %s', (code, message) => {
+    expect(ERROR_MESSAGES[code]).toBe(message)
+  })
 })
 
 describe('getErrorMessage', () => {

@@ -1,10 +1,14 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as contestsApi from '@/api/contests'
+import { mergeContestUpdate } from '@/lib/contestProblems'
 import type {
+  ContestDetail,
   ContestListParams,
   CreateContestRequest,
   UpdateContestRequest,
+  ContestStatus,
   StandingsParams,
+  StandingsPhase,
   ContestSubmissionsParams,
 } from '@/types/contest'
 
@@ -91,20 +95,42 @@ export function useRegistrations(
   })
 }
 
+export const STANDINGS_REFETCH_MS = 10_000
+
+/**
+ * Intervalo de refresco de los standings. Activa: cada `activeIntervalMs`. Finalizada: cada 10 s solo
+ * si se piden filas de post-competencia (pueden llegar envíos tardíos); en cualquier otro caso no refresca.
+ * Sin `phase` el backend aplica `all`, así que aquí también se trata como `all`.
+ */
+export function standingsRefetchInterval(
+  status: ContestStatus | undefined,
+  phase: StandingsPhase | undefined,
+  activeIntervalMs: number = STANDINGS_REFETCH_MS,
+): number | false {
+  if (status === 'ACTIVE') return activeIntervalMs
+  const effectivePhase = phase ?? 'all'
+  if (status === 'FINISHED' && (effectivePhase === 'all' || effectivePhase === 'postcompetition')) {
+    return STANDINGS_REFETCH_MS
+  }
+  return false
+}
+
 export function useStandings(
   groupId: string,
   contestId: string,
   params?: StandingsParams,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; activeIntervalMs?: number },
 ) {
   return useQuery({
     queryKey: contestKeys.standings(groupId, contestId, params),
     queryFn: () => contestsApi.getStandings(groupId, contestId, params),
     enabled: !!groupId && !!contestId && (options?.enabled ?? true),
-    refetchInterval: (query) => {
-      const status = query.state.data?.contest?.status
-      return status === 'ACTIVE' ? 30_000 : false
-    },
+    refetchInterval: (query) =>
+      standingsRefetchInterval(
+        query.state.data?.contest?.status,
+        params?.phase,
+        options?.activeIntervalMs,
+      ),
   })
 }
 
@@ -158,11 +184,16 @@ export function useUpdateContest() {
       data: UpdateContestRequest
     }) => contestsApi.updateContest(groupId, contestId, data),
     onSuccess: (data, { groupId, contestId }) => {
-      // The PUT response carries the full updated contest (problems included), but the GET used to
-      // refetch on invalidation is more permission-restricted and can omit problems for some Coaches
-      // (see hallazgo #6 del manual). Seed the cache with the PUT response directly and mark it merely
-      // stale (no immediate refetch) so this edit stays visible; a later full reload still hits GET.
-      queryClient.setQueryData(contestKeys.detail(groupId, contestId), data)
+      // The PUT response carries the updated problems, but the GET used to refetch on invalidation is
+      // more permission-restricted and can omit problems for some Coaches (see hallazgo #6 del manual).
+      // So merge the PUT response into the cached detail (it is partial: problems come with `order` and
+      // no limits, and fields like participantCount are missing) instead of replacing it, and mark it
+      // merely stale (no immediate refetch) so this edit stays visible; a later full reload still hits GET.
+      // Without a cached detail there is nothing to merge into: seed with the response as before.
+      queryClient.setQueryData<ContestDetail>(
+        contestKeys.detail(groupId, contestId),
+        (previous) => mergeContestUpdate(previous, data) ?? (data as ContestDetail),
+      )
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId), refetchType: 'none' })
       queryClient.invalidateQueries({ queryKey: contestKeys.all })
     },

@@ -14,6 +14,22 @@ export interface ContestProblem {
   title: string
   timeLimit: number
   memoryLimit: number
+  color?: string | null
+}
+
+/**
+ * Lo que responde el PUT de la competencia. NO es un ContestDetail completo: los problemas
+ * vienen con `order` (el GET usa `position`), sin límites de tiempo/memoria, y faltan campos
+ * como `participantCount`. Hay que fusionarlo con el detalle cacheado (ver `mergeContestUpdate`).
+ */
+export type UpdateContestResponse = Partial<Omit<ContestDetail, 'problems'>> & {
+  problems?: Array<Partial<ContestProblem> & { slug: string; order?: number }>
+}
+
+export interface ContestProblemPayload {
+  slug: string
+  order: number
+  color?: string | null
 }
 
 export interface ContestDetail {
@@ -112,7 +128,7 @@ export interface UpdateContestRequest {
   penalty?: number
   freezeMinutes?: number | null
   enablePostContest?: boolean
-  problems?: Array<{ slug: string; order: number }>
+  problems?: ContestProblemPayload[]
   locked?: boolean
   participationMode?: ParticipationMode
   teamSizeMin?: number
@@ -163,6 +179,10 @@ export interface StandingProblemResult {
   attempts: number
   time: number | null // minutes from start to AC
   penalty: number
+  /** Primer AC de ese problema en toda la competencia. */
+  isFirstSolve?: boolean
+  /** Envíos posteriores al freeze aún ocultos (siempre presente en el backend actual; 0 si no hay). */
+  pending?: number
 }
 
 export interface StandingParticipant {
@@ -177,12 +197,31 @@ export interface StandingParticipant {
   institution?: string | null
 }
 
+/** `all` = oficiales y post-competencia; `competition` = solo oficiales; `postcompetition` = solo post. */
+export type StandingsPhase = 'all' | 'competition' | 'postcompetition'
+
 export interface StandingEntry {
-  rank: number
+  /** null en filas de post-competencia. */
+  rank: number | null
+  /** Ausente = oficial (backend anterior). */
+  isOfficial?: boolean
   participant: StandingParticipant
   problemsSolved: number
   totalPenalty: number
   problems: StandingProblemResult[]
+}
+
+export interface StandingsProblem {
+  position: number
+  slug: string
+  title: string
+  color?: string | null
+  /** Contadores globales (no dependen de la página ni de los filtros). */
+  accepted?: number
+  tried?: number
+  /** Contadores de las filas de post-competencia (siempre presentes en el backend actual; 0 sin fase post). */
+  postAccepted?: number
+  postTried?: number
 }
 
 export interface StandingsResponse {
@@ -197,7 +236,7 @@ export interface StandingsResponse {
     isFrozen: boolean
     frozenAt: string | null
   }
-  problems: Array<{ position: number; slug: string; title: string }>
+  problems: StandingsProblem[]
   standings: StandingEntry[]
   pagination: {
     page: number
@@ -219,6 +258,7 @@ export interface StandingsParams extends PaginationParams {
   country?: string
   city?: string
   institution?: string
+  phase?: StandingsPhase
   realtime?: boolean
 }
 

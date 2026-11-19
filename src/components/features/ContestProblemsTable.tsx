@@ -2,25 +2,29 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui'
+import { BalloonColorPicker } from '@/components/features/BalloonColorPicker'
+import { BalloonIcon } from '@/components/features/BalloonIcon'
 import { PATHS } from '@/lib/constants'
+import { resolveBalloonColor } from '@/lib/balloon'
 import { problemLabel } from '@/lib/utils'
+import type { ContestProblem } from '@/types/contest'
 
-interface ContestProblem {
-  position: number
-  slug: string
-  title: string
-  timeLimit: number
-  memoryLimit: number
-}
+// Un problema recién agregado llega del PUT sin límites hasta que se refresca el detalle.
+type TableProblem = Omit<ContestProblem, 'timeLimit' | 'memoryLimit'> & Partial<Pick<ContestProblem, 'timeLimit' | 'memoryLimit'>>
+const EMPTY_LIMIT = '—'
 
 interface ContestProblemsTableProps {
-  problems: ContestProblem[]
+  problems: TableProblem[]
   groupId: string
   contestId: string
   showSubmit?: boolean
+  /** Si se pasa, los globos son editables: recibe el slug y el color nuevo ("#rrggbb"). */
+  onColorChange?: (slug: string, color: string) => void
+  /** Deshabilita la edición de color (p. ej. mientras se guarda un cambio). */
+  colorsDisabled?: boolean
 }
 
-export function ContestProblemsTable({ problems, groupId, contestId, showSubmit }: ContestProblemsTableProps) {
+export function ContestProblemsTable({ problems, groupId, contestId, showSubmit, onColorChange, colorsDisabled }: ContestProblemsTableProps) {
   const navigate = useNavigate()
 
   if (problems.length === 0) {
@@ -44,9 +48,20 @@ export function ContestProblemsTable({ problems, groupId, contestId, showSubmit 
           return (
             <TableRow key={p.slug} className="group">
               <TableCell className="pl-6">
-                <span className="w-10 h-10 flex items-center justify-center rounded-lg bg-neutral-background font-extrabold text-brand-primary text-lg">
-                  {letter}
-                </span>
+                {onColorChange ? (
+                  <BalloonColorPicker
+                    variant="letter"
+                    letter={letter}
+                    title={p.title}
+                    color={p.color}
+                    disabled={colorsDisabled}
+                    onChange={(color) => onColorChange(p.slug, color)}
+                  />
+                ) : (
+                  <span role="img" aria-label={`Problema ${letter}`} className="flex w-fit p-1">
+                    <BalloonIcon color={resolveBalloonColor(p.color)} letter={letter} className="h-11 w-9" />
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 <Link
@@ -56,8 +71,8 @@ export function ContestProblemsTable({ problems, groupId, contestId, showSubmit 
                   {p.title}
                 </Link>
               </TableCell>
-              <TableCell className="text-sm font-medium">{p.timeLimit}ms</TableCell>
-              <TableCell className="text-sm font-medium">{p.memoryLimit} MiB</TableCell>
+              <TableCell className="text-sm font-medium">{p.timeLimit === undefined ? EMPTY_LIMIT : `${p.timeLimit}ms`}</TableCell>
+              <TableCell className="text-sm font-medium">{p.memoryLimit === undefined ? EMPTY_LIMIT : `${p.memoryLimit} MiB`}</TableCell>
               {showSubmit && (
                 <TableCell className="text-right pr-6">
                   <Button
