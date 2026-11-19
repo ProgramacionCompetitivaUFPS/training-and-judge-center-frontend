@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { StandingEntry, StandingsPhase, StandingsProblem } from '@/types/contest'
+import type { StandingEntry, StandingProblemResult, StandingsPhase, StandingsProblem } from '@/types/contest'
 import { StandingsTable } from './StandingsTable'
 
 const problems: StandingsProblem[] = [
@@ -402,5 +402,78 @@ describe('StandingsTable con contadores de post-competencia', () => {
 
     // Assert
     expect(footerCounters('Aceptados (post-competencia)')).toEqual(['4', '3', '3'])
+  })
+})
+
+describe('StandingsTable con celdas pendientes', () => {
+  function renderPendingCell(cell: Partial<StandingProblemResult> & { status: StandingProblemResult['status'] }) {
+    const entry: StandingEntry = {
+      rank: 1,
+      participant: { id: 'u-frozen', type: 'INDIVIDUAL', displayName: 'congelado' },
+      problemsSolved: 0,
+      totalPenalty: 0,
+      problems: [{ position: 1, attempts: 1, time: null, penalty: 0, ...cell }],
+    }
+    renderTable([problems[0]], [entry])
+  }
+
+  it.each([
+    [2, '2', '2 envíos sin revelar'],
+    [1, '1', '1 envío sin revelar'],
+    [0, null, 'Pendiente de revelar'],
+    [undefined, null, 'Pendiente de revelar'],
+  ])('muestra la cantidad oculta %s debajo del signo de interrogación', (pending, visible, screenReaderText) => {
+    renderPendingCell({ status: 'PENDING', pending })
+
+    const cell = screen.getByText(screenReaderText).closest('td')!
+    expect(cell.textContent).toBe(visible === null ? `?${screenReaderText}` : `?${visible}${screenReaderText}`)
+  })
+
+  it('pinta el ? en gris y la cantidad oculta en letra pequeña', () => {
+    renderPendingCell({ status: 'PENDING', pending: 2 })
+
+    const cell = screen.getByText('2 envíos sin revelar').closest('td')!
+    expect(within(cell).getByText('?')).toHaveClass('text-neutral-text-muted')
+    expect(within(cell).getByText('?')).not.toHaveClass('text-status-warning')
+    expect(within(cell).getByText('2')).toHaveClass('text-xs')
+  })
+
+  it('no muestra los intentos visibles en una celda pendiente', () => {
+    renderPendingCell({ status: 'PENDING', attempts: 5, pending: 2 })
+
+    expect(screen.queryByText('-5')).not.toBeInTheDocument()
+    expect(screen.getByText('2 envíos sin revelar').closest('td')!.textContent).toBe('?22 envíos sin revelar')
+  })
+
+  it('no muestra ? en una celda aceptada aunque tenga pending en cero', () => {
+    renderPendingCell({ status: 'ACCEPTED', attempts: 1, time: 20, pending: 0 })
+
+    expect(screen.getByText('00:20')).toBeInTheDocument()
+    expect(screen.queryByText('?')).not.toBeInTheDocument()
+  })
+
+  it('renderiza una fila donde todas las celdas están pendientes y no hay resueltos', () => {
+    // Arrange
+    const entry: StandingEntry = {
+      rank: 4,
+      participant: { id: 'u-all', type: 'INDIVIDUAL', displayName: 'todopendiente' },
+      problemsSolved: 0,
+      totalPenalty: 0,
+      problems: [
+        { position: 1, status: 'PENDING', attempts: 0, time: null, penalty: 0, pending: 3 },
+        { position: 2, status: 'PENDING', attempts: 0, time: null, penalty: 0, pending: 1 },
+        { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+      ],
+    }
+
+    // Act
+    renderTable(problems, [entry])
+
+    // Assert
+    const row = screen.getByText('todopendiente').closest('tr')!
+    expect(within(row).getAllByText('?')).toHaveLength(2)
+    expect(within(row).getByText('3 envíos sin revelar').closest('td')!.textContent).toBe('?33 envíos sin revelar')
+    expect(within(row).getByText('1 envío sin revelar').closest('td')!.textContent).toBe('?11 envío sin revelar')
+    expect(within(row).getAllByRole('cell')).toHaveLength(7)
   })
 })

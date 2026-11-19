@@ -80,7 +80,7 @@ export function ContestStandingsPage() {
 
           {data?.contest.isFrozen && (
             <div className="border rounded-md p-3 text-sm bg-status-warning/10 border-status-warning/30 text-status-warning">
-              La tabla de posiciones está congelada. Los resultados finales se revelarán al terminar la competencia.
+              La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán al terminar la competencia.
             </div>
           )}
 

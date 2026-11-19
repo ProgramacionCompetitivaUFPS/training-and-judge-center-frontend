@@ -4,7 +4,7 @@ import { UsersRound } from 'lucide-react'
 import { Badge } from '@/components/ui'
 import { BalloonIcon } from '@/components/features/BalloonIcon'
 import { resolveBalloonColor } from '@/lib/balloon'
-import { cn, formatContestTime, problemLabel } from '@/lib/utils'
+import { cn, formatContestTime, pluralize, problemLabel } from '@/lib/utils'
 import type { StandingEntry, StandingProblemResult, StandingsPhase, StandingsProblem } from '@/types/contest'
 
 const HEAD_CELL =
@@ -90,7 +90,18 @@ function ProblemCell({ result, post }: { result: StandingProblemResult | undefin
     )
   }
   if (result.status === 'PENDING') {
-    return <span className="font-bold text-status-warning">?</span>
+    const pending = result.pending ?? 0
+    return (
+      <>
+        <span aria-hidden="true" className="font-bold text-neutral-text-muted">?</span>
+        {pending > 0 && (
+          <span aria-hidden="true" className="block text-xs font-medium text-neutral-text-muted">{pending}</span>
+        )}
+        <span className="sr-only">
+          {pending > 0 ? `${pluralize(pending, 'envío')} sin revelar` : 'Pendiente de revelar'}
+        </span>
+      </>
+    )
   }
   return <span className="font-semibold text-status-error">-{result.attempts}</span>
 }

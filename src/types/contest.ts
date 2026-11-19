@@ -181,6 +181,8 @@ export interface StandingProblemResult {
   penalty: number
   /** Primer AC de ese problema en toda la competencia. */
   isFirstSolve?: boolean
+  /** Envíos posteriores al freeze aún ocultos (siempre presente en el backend actual; 0 si no hay). */
+  pending?: number
 }
 
 export interface StandingParticipant {
