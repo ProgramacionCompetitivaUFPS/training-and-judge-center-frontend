@@ -100,6 +100,7 @@ export const STANDINGS_REFETCH_MS = 10_000
 /**
  * Intervalo de refresco de los standings. Activa: cada `activeIntervalMs`. Finalizada: cada 10 s solo
  * si se piden filas de post-competencia (pueden llegar envíos tardíos); en cualquier otro caso no refresca.
+ * Sin `phase` el backend aplica `all`, así que aquí también se trata como `all`.
  */
 export function standingsRefetchInterval(
   status: ContestStatus | undefined,
@@ -107,7 +108,8 @@ export function standingsRefetchInterval(
   activeIntervalMs: number = STANDINGS_REFETCH_MS,
 ): number | false {
   if (status === 'ACTIVE') return activeIntervalMs
-  if (status === 'FINISHED' && (phase === 'all' || phase === 'postcompetition')) {
+  const effectivePhase = phase ?? 'all'
+  if (status === 'FINISHED' && (effectivePhase === 'all' || effectivePhase === 'postcompetition')) {
     return STANDINGS_REFETCH_MS
   }
   return false
