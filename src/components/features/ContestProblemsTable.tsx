@@ -14,8 +14,8 @@ interface ContestProblemsTableProps {
   groupId: string
   contestId: string
   showSubmit?: boolean
-  /** Si se pasa, los globos son editables: recibe el slug y el color nuevo (null = quitar). */
-  onColorChange?: (slug: string, color: string | null) => void
+  /** Si se pasa, los globos son editables: recibe el slug y el color nuevo ("#rrggbb"). */
+  onColorChange?: (slug: string, color: string) => void
   /** Deshabilita la edición de color (p. ej. mientras se guarda un cambio). */
   colorsDisabled?: boolean
 }

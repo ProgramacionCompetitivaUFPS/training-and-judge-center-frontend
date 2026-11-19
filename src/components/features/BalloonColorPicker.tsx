@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { BalloonIcon } from '@/components/features/BalloonIcon'
-import { BALLOON_PALETTE, isValidBalloonColor, resolveBalloonColor } from '@/lib/balloon'
+import { BALLOON_PALETTE, DEFAULT_BALLOON_COLOR, isValidBalloonColor, resolveBalloonColor } from '@/lib/balloon'
 import { cn } from '@/lib/utils'
 
 interface BalloonColorPickerProps {
@@ -9,10 +9,10 @@ interface BalloonColorPickerProps {
   letter: string
   /** Título del problema, se muestra en el panel. */
   title: string
-  /** Color guardado o elegido. null/undefined/inválido = sin color (se ve blanco). */
+  /** Color guardado o elegido. null/undefined/inválido se tratan como blanco (el color por defecto). */
   color: string | null | undefined
-  /** Recibe "#rrggbb" en minúsculas, o null cuando se quita el color. */
-  onChange: (color: string | null) => void
+  /** Recibe siempre un "#rrggbb" en minúsculas (restablecer entrega el blanco). */
+  onChange: (color: string) => void
   disabled?: boolean
   /** 'chip': globo + hex (formularios). 'letter': globo grande con la letra (tabla). */
   variant?: 'chip' | 'letter'
@@ -24,17 +24,17 @@ export function BalloonColorPicker({ letter, title, color, onChange, disabled, v
   const [invalid, setInvalid] = useState(false)
 
   const current = resolveBalloonColor(color)
-  const hasColor = isValidBalloonColor(color)
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     if (next) {
-      setDraft(hasColor ? current : '')
+      setDraft(current)
       setInvalid(false)
     }
   }
 
-  const choose = (value: string | null) => {
+  const choose = (value: string) => {
+    if (disabled) return
     onChange(value)
     setOpen(false)
   }
@@ -45,7 +45,7 @@ export function BalloonColorPicker({ letter, title, color, onChange, disabled, v
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+    <Popover.Root open={open && !disabled} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         {variant === 'letter' ? (
           <button
@@ -65,7 +65,7 @@ export function BalloonColorPicker({ letter, title, color, onChange, disabled, v
             className="inline-flex items-center gap-2 rounded-pill border border-neutral-border bg-neutral-surface py-1 pl-2 pr-3 text-xs font-semibold text-neutral-text-primary transition-colors hover:border-brand-primary hover:bg-brand-primary-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-neutral-border disabled:hover:bg-neutral-surface"
           >
             <BalloonIcon color={current} />
-            <span className={cn(!hasColor && 'text-neutral-text-muted')}>{hasColor ? current : 'Sin color'}</span>
+            <span>{current}</span>
           </button>
         )}
       </Popover.Trigger>
@@ -92,12 +92,12 @@ export function BalloonColorPicker({ letter, title, color, onChange, disabled, v
                 key={swatch}
                 type="button"
                 aria-label={swatch}
-                aria-pressed={hasColor && swatch === current}
+                aria-pressed={swatch === current}
                 onClick={() => choose(swatch)}
                 style={{ backgroundColor: swatch }}
                 className={cn(
                   'aspect-square w-full rounded-full ring-1 ring-inset ring-black/10 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
-                  hasColor && swatch === current && 'outline outline-2 outline-offset-2 outline-brand-primary',
+                  swatch === current && 'outline outline-2 outline-offset-2 outline-brand-primary',
                 )}
               />
             ))}
@@ -148,10 +148,10 @@ export function BalloonColorPicker({ letter, title, color, onChange, disabled, v
 
           <button
             type="button"
-            onClick={() => choose(null)}
-            className="mt-3 text-xs font-semibold text-neutral-text-muted hover:text-status-error"
+            onClick={() => choose(DEFAULT_BALLOON_COLOR)}
+            className="mt-3 text-xs font-semibold text-neutral-text-muted hover:text-brand-primary"
           >
-            Quitar color
+            Restablecer a blanco
           </button>
         </Popover.Content>
       </Popover.Portal>

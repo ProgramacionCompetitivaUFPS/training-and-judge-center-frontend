@@ -4,10 +4,15 @@ import userEvent from '@testing-library/user-event'
 
 import { BalloonColorPicker } from './BalloonColorPicker'
 
-function renderPicker(props: Partial<React.ComponentProps<typeof BalloonColorPicker>> = {}) {
+type PickerProps = Partial<React.ComponentProps<typeof BalloonColorPicker>>
+
+function renderPicker(props: PickerProps = {}) {
   const onChange = vi.fn()
-  render(<BalloonColorPicker letter="A" title="Watermelon" color="#e11d48" onChange={onChange} {...props} />)
-  return { onChange }
+  const ui = (p: PickerProps) => (
+    <BalloonColorPicker letter="A" title="Watermelon" color="#e11d48" onChange={onChange} {...p} />
+  )
+  const { rerender } = render(ui(props))
+  return { onChange, rerenderWith: (next: PickerProps) => rerender(ui({ ...props, ...next })) }
 }
 
 describe('BalloonColorPicker', () => {
@@ -17,10 +22,10 @@ describe('BalloonColorPicker', () => {
     expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#e11d48')
   })
 
-  it.each<string | null | undefined>([null, undefined, 'red'])('muestra "Sin color" cuando el color es %j', (color) => {
+  it.each<string | null | undefined>([null, undefined, 'red'])('muestra blanco (#ffffff) cuando el color es %j', (color) => {
     renderPicker({ color })
 
-    expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('Sin color')
+    expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#ffffff')
   })
 
   it('abre el panel con los 12 colores sugeridos y marca el actual', async () => {
@@ -78,14 +83,31 @@ describe('BalloonColorPicker', () => {
     expect(onChange).toHaveBeenCalledWith('#112233')
   })
 
-  it('al quitar el color llama onChange con null', async () => {
+  it('al restablecer llama onChange con el blanco y cierra el panel', async () => {
     const user = userEvent.setup()
     const { onChange } = renderPicker()
     await user.click(screen.getByRole('button', { name: 'Color del problema A' }))
 
-    await user.click(await screen.findByRole('button', { name: 'Quitar color' }))
+    await user.click(await screen.findByRole('button', { name: 'Restablecer a blanco' }))
 
-    expect(onChange).toHaveBeenCalledWith(null)
+    expect(onChange).toHaveBeenCalledWith('#ffffff')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cierra el panel y no emite cambios si se deshabilita mientras está abierto', async () => {
+    // Arrange
+    const user = userEvent.setup()
+    const { onChange, rerenderWith } = renderPicker()
+    await user.click(screen.getByRole('button', { name: 'Color del problema A' }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+
+    // Act
+    rerenderWith({ disabled: true })
+
+    // Assert
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Color del problema A' })).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it.each(['red', '#fff', '#GGGGGG', ''])('rechaza el hexadecimal inválido %j con un aviso y sin llamar onChange', async (value) => {

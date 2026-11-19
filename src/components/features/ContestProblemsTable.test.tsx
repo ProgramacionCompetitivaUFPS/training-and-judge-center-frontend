@@ -51,15 +51,15 @@ describe('ContestProblemsTable', () => {
     expect(onColorChange).toHaveBeenCalledWith('binary-search', '#7c3aed')
   })
 
-  it('reporta null cuando se quita el color', async () => {
+  it('reporta el blanco cuando se restablece el color', async () => {
     const user = userEvent.setup()
     const onColorChange = vi.fn()
     renderTable({ onColorChange })
 
     await user.click(screen.getByRole('button', { name: 'Color del problema A' }))
-    await user.click(await screen.findByRole('button', { name: 'Quitar color' }))
+    await user.click(await screen.findByRole('button', { name: 'Restablecer a blanco' }))
 
-    expect(onColorChange).toHaveBeenCalledWith('two-sum', null)
+    expect(onColorChange).toHaveBeenCalledWith('two-sum', '#ffffff')
   })
 
   it('deshabilita los globos cuando colorsDisabled es true', () => {

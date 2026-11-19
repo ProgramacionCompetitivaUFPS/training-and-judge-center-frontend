@@ -21,6 +21,7 @@ import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
+import { DEFAULT_BALLOON_COLOR } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
@@ -246,11 +247,16 @@ export function ContestDetailPage() {
     )
   }
 
+  // Un PUT con `problems` manda la lista completa: dos en vuelo a la vez harían que el último en
+  // terminar pise lo del otro (p. ej. un cambio de color retrasado borraría un problema recién agregado).
+  const isSavingProblems = updateMutation.isPending || colorMutation.isPending
+
   const handleAddProblem = (slug: string) => {
-    if (!slug.trim()) return
+    if (!slug.trim() || isSavingProblems) return
+    // Los ya existentes van sin `color` (el backend conserva el suyo); el nuevo entra en blanco.
     const newProblems = [
       ...contest.problems.map((p) => ({ slug: p.slug, order: p.position })),
-      { slug, order: contest.problems.length + 1 },
+      { slug, order: contest.problems.length + 1, color: DEFAULT_BALLOON_COLOR },
     ]
     updateMutation.mutate(
       { groupId, contestId: contest.id, data: { problems: newProblems } },
@@ -265,6 +271,7 @@ export function ContestDetailPage() {
   }
 
   const handleRemoveProblem = (slug: string) => {
+    if (isSavingProblems) return
     const remaining = contest.problems
       .filter((p) => p.slug !== slug)
       .map((p, i) => ({ slug: p.slug, order: i + 1 }))
@@ -280,7 +287,7 @@ export function ContestDetailPage() {
   // El backend no deja cambiar problemas (ni colores) una vez finalizada; bloqueada tampoco se edita.
   const canEditColors = isLead && !contest.locked && contest.status !== 'FINISHED'
 
-  const handleColorChange = (slug: string, color: string | null) => {
+  const handleColorChange = (slug: string, color: string) => {
     const target = contest.problems.find((p) => p.slug === slug)
     const problems = buildColorUpdatePayload(contest.problems, { [slug]: color })
     if (!target || !problems) return
@@ -392,7 +399,7 @@ export function ContestDetailPage() {
                       contestId={contest.id}
                       showSubmit={contest.isRegistered}
                       onColorChange={canEditColors ? handleColorChange : undefined}
-                      colorsDisabled={colorMutation.isPending || updateMutation.isPending}
+                      colorsDisabled={isSavingProblems}
                     />
                   )}
                 </CardContent>
@@ -641,7 +648,7 @@ export function ContestDetailPage() {
                       groupId={groupId}
                       contestId={contest.id}
                       onColorChange={canEditColors ? handleColorChange : undefined}
-                      colorsDisabled={colorMutation.isPending || updateMutation.isPending}
+                      colorsDisabled={isSavingProblems}
                     />
                   )}
                 </CardContent>
@@ -672,6 +679,7 @@ export function ContestDetailPage() {
                         </div>
                       )}
                       onSelect={(p) => handleAddProblem(p.slug)}
+                      disabled={isSavingProblems}
                     />
                     {updateMutation.isPending && (
                       <p className="text-xs text-neutral-text-muted">Agregando...</p>
@@ -687,7 +695,7 @@ export function ContestDetailPage() {
                             <button
                               type="button"
                               onClick={() => handleRemoveProblem(p.slug)}
-                              disabled={updateMutation.isPending || colorMutation.isPending}
+                              disabled={isSavingProblems}
                               className="p-1 rounded hover:bg-status-error/10 text-neutral-text-muted hover:text-status-error transition-colors"
                               aria-label={`Remover ${p.title}`}
                             >

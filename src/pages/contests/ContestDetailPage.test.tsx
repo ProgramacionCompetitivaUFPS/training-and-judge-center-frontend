@@ -276,7 +276,7 @@ describe('ContestDetailPage', () => {
       expect(screen.getByRole('button', { name: 'Bloquear competencia' })).toBeDisabled()
     })
 
-    it('quitar el color de un problema envía color null solo para ese problema', async () => {
+    it('restablecer a blanco guarda #ffffff solo para ese problema', async () => {
       // Arrange
       const user = userEvent.setup()
       const bodies = recordPutBodies()
@@ -284,15 +284,41 @@ describe('ContestDetailPage', () => {
 
       // Act
       await user.click(await screen.findByRole('button', { name: 'Color del problema A' }))
-      await user.click(await screen.findByRole('button', { name: 'Quitar color' }))
+      await user.click(await screen.findByRole('button', { name: 'Restablecer a blanco' }))
 
       // Assert
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Color guardado' }))
       })
       expect(bodies).toEqual([
-        { problems: [{ slug: 'two-sum', order: 1, color: null }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
+        { problems: [{ slug: 'two-sum', order: 1, color: '#ffffff' }, { slug: 'binary-search', order: 2 }, { slug: 'graph-bfs', order: 3 }] },
       ])
+    })
+
+    it('mientras se guarda un color no deja agregar un problema (evita que un PUT pise al otro)', async () => {
+      // Arrange: contest-2 como programada (ahí existe el buscador) y un PUT que nunca responde
+      const user = userEvent.setup()
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      const bodies: unknown[] = []
+      server.use(
+        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ ...contest2, status: 'SCHEDULED' }),
+        ),
+        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
+          bodies.push(await request.clone().json())
+          return delay('infinite')
+        }),
+      )
+      renderPage('group-1', 'contest-2')
+      const search = await screen.findByPlaceholderText('Buscar problema publicado por título...')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: 'Color del problema B' }))
+      await user.click(await screen.findByRole('button', { name: '#7c3aed' }))
+
+      // Assert
+      await waitFor(() => expect(search).toBeDisabled())
+      expect(bodies).toHaveLength(1)
     })
 
     it('ante CONTEST_CONFLICT avisa y recarga el contest con los datos nuevos', async () => {
@@ -365,7 +391,7 @@ describe('ContestDetailPage', () => {
       mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
     })
 
-    it('agrega y quita problemas sin enviar nunca la clave color', async () => {
+    it('agrega cada problema nuevo en blanco sin tocar el color de los demás, y al quitar no manda color', async () => {
       // Arrange
       const user = userEvent.setup()
       const bodies = recordPutBodies()
@@ -388,8 +414,8 @@ describe('ContestDetailPage', () => {
 
       // Assert
       expect(bodies).toEqual([
-        { problems: [{ slug: 'two-sum', order: 1 }] },
-        { problems: [{ slug: 'two-sum', order: 1 }, { slug: 'binary-search', order: 2 }] },
+        { problems: [{ slug: 'two-sum', order: 1, color: '#ffffff' }] },
+        { problems: [{ slug: 'two-sum', order: 1 }, { slug: 'binary-search', order: 2, color: '#ffffff' }] },
         { problems: [{ slug: 'binary-search', order: 1 }] },
       ])
     })

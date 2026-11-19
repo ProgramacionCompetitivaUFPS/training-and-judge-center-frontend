@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { isValidBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
@@ -51,7 +52,7 @@ export function ContestFormPage() {
   const updateMutation = useUpdateContest()
   const queryClient = useQueryClient()
   // Solo los slugs que la usuaria cambió. Vive fuera de react-hook-form para sobrevivir a las recargas de `values`.
-  const [balloonColors, setBalloonColors] = useState<Record<string, string | null>>({})
+  const [balloonColors, setBalloonColors] = useState<Record<string, string>>({})
 
   const form = useForm<CreateContestFormData>({
     resolver: zodResolver(createContestSchema),
@@ -66,6 +67,9 @@ export function ContestFormPage() {
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
     },
+    // Al recargar el contest (p. ej. tras un CONTEST_CONFLICT) se actualizan los campos que la usuaria
+    // no tocó y se conservan los que sí editó.
+    resetOptions: { keepDirtyValues: true },
     values: isEditing && existing
       ? {
           name: existing.name,
@@ -95,6 +99,8 @@ export function ContestFormPage() {
   // (e.g. extending a running contest), and once finished, neither.
   const startLocked = isEditing && !!existing && existing.status !== 'SCHEDULED'
   const endLocked = isEditing && existing?.status === 'FINISHED'
+  // Una competencia finalizada o bloqueada no admite cambios de problemas, ni de sus colores.
+  const colorsDisabled = isEditing && (existing?.status === 'FINISHED' || existing?.locked === true)
 
   // Same default the backend applies when freeze is omitted (create_contest.go): 60 min for
   // contests of 4 h or more, none for shorter ones. Follows the dates until the user edits it,
@@ -132,7 +138,7 @@ export function ContestFormPage() {
       if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
       if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
 
-      if (existing) {
+      if (existing && !colorsDisabled) {
         const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
         if (problemsPayload) updatePayload.problems = problemsPayload
       }
@@ -398,8 +404,19 @@ export function ContestFormPage() {
                           letter={letter}
                           title={problem.title}
                           color={color}
-                          disabled={existing.status === 'FINISHED' || existing.locked === true}
-                          onChange={(next) => setBalloonColors((c) => ({ ...c, [problem.slug]: next }))}
+                          disabled={colorsDisabled || isSubmitting}
+                          onChange={(next) =>
+                            setBalloonColors((draft) => {
+                              // Elegir el color ya guardado no es un cambio: se descarta del borrador para que,
+                              // si una recarga trae otro color, no lo pise con uno viejo.
+                              const saved = isValidBalloonColor(problem.color) ? problem.color.toLowerCase() : null
+                              if (next === saved) {
+                                const { [problem.slug]: _unchanged, ...rest } = draft
+                                return rest
+                              }
+                              return { ...draft, [problem.slug]: next }
+                            })
+                          }
                         />
                         <span className="text-sm font-medium text-neutral-text-primary">
                           {letter}. {problem.title} <span className="text-neutral-text-muted">({problem.slug})</span>

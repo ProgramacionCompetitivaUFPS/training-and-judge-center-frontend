@@ -1,28 +1,26 @@
 import type { ContestDetail, ContestProblem, ContestProblemPayload, UpdateContestResponse } from '@/types/contest'
 
-import { isValidBalloonColor, resolveBalloonColor } from './balloon'
+import { isValidBalloonColor } from './balloon'
 
 /**
  * Arma el `problems` del PUT de la competencia para cambiar colores.
- * `colors[slug]`: "#rrggbb" = nuevo color, `null` = quitar el color.
- * Solo los problemas que realmente cambian llevan `color` (el backend conserva el color
- * de los items que lo omiten). Devuelve `null` si no hay ningún cambio real.
+ * `colors[slug]` es el "#rrggbb" elegido. Solo los problemas cuyo color elegido difiere del guardado
+ * llevan `color` (el backend conserva el color de los items que lo omiten); un problema sin color
+ * guardado (null/ausente) cuenta como distinto de cualquier color, incluido el blanco.
+ * Devuelve `null` si no hay ningún cambio real.
  */
 export function buildColorUpdatePayload(
   problems: ContestProblem[],
-  colors: Record<string, string | null>,
+  colors: Record<string, string>,
 ): ContestProblemPayload[] | null {
   const sorted = [...problems].sort((a, b) => a.position - b.position)
 
-  const changed = new Map<string, string | null>()
+  const changed = new Set<string>()
   for (const problem of sorted) {
-    if (!(problem.slug in colors)) continue
     const chosen = colors[problem.slug]
-    if (chosen === null) {
-      if (problem.color != null) changed.set(problem.slug, null)
-    } else if (isValidBalloonColor(chosen) && chosen.toLowerCase() !== resolveBalloonColor(problem.color)) {
-      changed.set(problem.slug, chosen.toLowerCase())
-    }
+    if (!isValidBalloonColor(chosen)) continue
+    const stored = isValidBalloonColor(problem.color) ? problem.color.toLowerCase() : null
+    if (chosen.toLowerCase() !== stored) changed.add(problem.slug)
   }
 
   if (changed.size === 0) return null
@@ -30,7 +28,7 @@ export function buildColorUpdatePayload(
   return sorted.map((problem, index) => {
     const item: ContestProblemPayload = { slug: problem.slug, order: index + 1 }
     if (changed.has(problem.slug)) {
-      item.color = changed.get(problem.slug)
+      item.color = colors[problem.slug].toLowerCase()
     }
     return item
   })

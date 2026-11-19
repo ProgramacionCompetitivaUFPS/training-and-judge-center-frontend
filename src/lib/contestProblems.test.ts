@@ -55,23 +55,24 @@ describe('buildColorUpdatePayload', () => {
     expect(unsorted.map((p) => p.slug)).toEqual(['graph-bfs', 'two-sum', 'binary-search'])
   })
 
-  it('manda color null al quitar el color de un problema que lo tenía', () => {
-    const result = buildColorUpdatePayload(problems, { 'two-sum': null })
+  it.each([
+    ['null', 'binary-search', 2],
+    ['ausente', 'graph-bfs', 3],
+  ])('guarda el blanco elegido en un problema sin color (%s)', (_caso, slug, order) => {
+    const result = buildColorUpdatePayload(problems, { [slug]: '#FFFFFF' })
 
-    expect(result).toEqual([
-      { slug: 'two-sum', order: 1, color: null },
-      { slug: 'binary-search', order: 2 },
-      { slug: 'graph-bfs', order: 3 },
-    ])
+    expect(result?.find((item) => item.slug === slug)).toEqual({ slug, order, color: '#ffffff' })
+  })
+
+  it('guarda el blanco elegido sobre un problema que tenía otro color', () => {
+    const result = buildColorUpdatePayload(problems, { 'two-sum': '#ffffff' })
+
+    expect(result?.[0]).toEqual({ slug: 'two-sum', order: 1, color: '#ffffff' })
   })
 
   it.each([
     ['no hay colores elegidos', {}],
-    ['se quita el color de un problema sin color (null)', { 'binary-search': null }],
-    ['se quita el color de un problema sin color (ausente)', { 'graph-bfs': null }],
     ['el color es el mismo que el guardado con otra capitalización', { 'two-sum': '#E11D48' }],
-    ['se elige blanco en un problema sin color (null)', { 'binary-search': '#FFFFFF' }],
-    ['se elige blanco en un problema sin color (ausente)', { 'graph-bfs': '#ffffff' }],
     ['el color elegido es inválido', { 'two-sum': 'red' }],
     ['el slug no existe en la competencia', { 'no-existe': '#112233' }],
   ])('retorna null cuando %s', (_caso, colors) => {
