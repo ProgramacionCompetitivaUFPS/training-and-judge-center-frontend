@@ -137,14 +137,16 @@ describe('SubmitSolutionPage remembers the last language', () => {
     // Arrange: nothing remembered; the .py extension picks Python
     const { container } = renderPage('/submit?problem=two-sum')
     await uploadPythonSolution(container)
-    await waitFor(() => expect((screen.getByTestId('code-editor') as HTMLTextAreaElement).value).toBe('print(1)'))
+    await waitFor(() => expect((screen.getByTestId('code-editor') as HTMLTextAreaElement).value).toBe('print(1)'), { timeout: 3000 })
 
     // Act
     await user.click(screen.getByRole('button', { name: /enviar solución/i }))
 
     // Assert
-    await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Solución enviada' })),
+    // The mock submit handler answers after 500 ms: the default 1000 ms of waitFor leaves no margin on a slow machine
+    await waitFor(
+      () => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Solución enviada' })),
+      { timeout: 3000 },
     )
     expect(localStorage.getItem('last-submission-language')).toBe('python310')
   })
@@ -158,14 +160,15 @@ describe('SubmitSolutionPage remembers the last language', () => {
     )
     const { container } = renderPage('/submit?problem=two-sum')
     await uploadPythonSolution(container)
-    await waitFor(() => expect((screen.getByTestId('code-editor') as HTMLTextAreaElement).value).toBe('print(1)'))
+    await waitFor(() => expect((screen.getByTestId('code-editor') as HTMLTextAreaElement).value).toBe('print(1)'), { timeout: 3000 })
 
     // Act
     await user.click(screen.getByRole('button', { name: /enviar solución/i }))
 
     // Assert
-    await waitFor(() =>
-      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo enviar la solución' })),
+    await waitFor(
+      () => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo enviar la solución' })),
+      { timeout: 3000 },
     )
     expect(localStorage.getItem('last-submission-language')).toBeNull()
   })
