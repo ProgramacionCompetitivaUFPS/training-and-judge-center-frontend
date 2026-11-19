@@ -2,6 +2,13 @@ import { http, HttpResponse, delay } from 'msw'
 import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
+import type { StandingProblemResult } from '@/types/contest'
+
+/** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
+function countsAsTried(cell: StandingProblemResult): boolean {
+  if (cell.status === 'NOT_ATTEMPTED') return false
+  return !(cell.status === 'PENDING' && cell.attempts === 0)
+}
 
 /** Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post. */
 function standingsRowsFor(contest: (typeof mockContests)[number]) {
@@ -296,10 +303,10 @@ export const contestsHandlers = [
         color: p.color ?? null,
         // Contadores globales: no dependen de filtros ni de la página.
         accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED' && !(r.status === 'PENDING' && r.attempts === 0))).length,
+        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && countsAsTried(r))).length,
         // Contadores de post-competencia: siempre presentes, 0 si no hay filas de post.
         postAccepted: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED' && !(r.status === 'PENDING' && r.attempts === 0))).length,
+        postTried: postRows.filter((e) => e.problems.some((r) => r.position === p.position && countsAsTried(r))).length,
       })),
       standings: paged.map((entry) => ({
         ...entry,
