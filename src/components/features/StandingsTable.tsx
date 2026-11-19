@@ -7,9 +7,9 @@ import { cn, formatContestTime, problemLabel } from '@/lib/utils'
 import type { StandingEntry, StandingProblemResult, StandingsProblem } from '@/types/contest'
 
 const HEAD_CELL =
-  'sticky top-0 z-10 border-b border-neutral-border bg-neutral-background px-1 py-2 text-center text-xs font-semibold text-neutral-text-muted'
+  'sticky top-0 z-10 border-b border-neutral-border bg-neutral-background px-1 py-2 text-center text-sm font-semibold text-neutral-text-muted'
 const BODY_CELL = 'border-b border-neutral-border px-1 py-[7px] text-center'
-const FOOT_CELL = 'bg-slate-50 px-1 py-1 text-center text-xs'
+const FOOT_CELL = 'bg-slate-50 px-1 py-1.5 text-center text-sm'
 
 const RANK_COLORS: Record<number, string> = {
   1: 'text-amber-700',
@@ -31,7 +31,7 @@ function ProblemCell({ result }: { result: StandingProblemResult | undefined }) 
       <>
         <span className="font-bold text-status-success">+{result.attempts > 1 ? result.attempts - 1 : ''}</span>
         {result.time !== null && (
-          <span className="block font-mono text-[11px] font-medium text-neutral-text-muted">
+          <span className="block font-mono text-xs font-medium text-neutral-text-muted">
             {formatContestTime(result.time)}
           </span>
         )}
@@ -52,9 +52,9 @@ function ParticipantCell({ entry }: { entry: StandingEntry }) {
       <>
         <UsersRound className="mr-1.5 inline h-3.5 w-3.5 text-brand-primary" />
         {participant.displayName}
-        <Badge variant="outline" className="ml-1.5 px-1.5 py-0 text-[11px]">Equipo</Badge>
+        <Badge variant="outline" className="ml-1.5 px-1.5 py-0 text-xs">Equipo</Badge>
         {participant.members && participant.members.length > 0 && (
-          <span className="ml-1.5 text-xs font-normal text-neutral-text-muted">
+          <span className="ml-1.5 text-sm font-normal text-neutral-text-muted">
             {participant.members.join(', ')}
           </span>
         )}
@@ -72,7 +72,7 @@ function ParticipantCell({ entry }: { entry: StandingEntry }) {
         <span>{participant.displayName}</span>
       )}
       {participant.institution && (
-        <span className="ml-1.5 text-xs font-normal text-neutral-text-muted">{participant.institution}</span>
+        <span className="ml-1.5 text-sm font-normal text-neutral-text-muted">{participant.institution}</span>
       )}
     </>
   )
@@ -83,7 +83,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
 
   return (
     <div className="max-h-[calc(100vh-16rem)] overflow-auto border-t border-neutral-border">
-      <table className="w-full border-separate border-spacing-0 text-sm">
+      <table className="w-full border-separate border-spacing-0 text-base">
         <thead>
           <tr>
             <th scope="col" className={cn(HEAD_CELL, 'w-11')}>#</th>
@@ -112,7 +112,7 @@ export function StandingsTable({ problems, entries }: StandingsTableProps) {
                 <ParticipantCell entry={entry} />
               </td>
               <td className={cn(BODY_CELL, 'font-bold text-brand-primary')}>{entry.problemsSolved}</td>
-              <td className={cn(BODY_CELL, 'text-xs text-neutral-text-muted')}>{entry.totalPenalty}</td>
+              <td className={cn(BODY_CELL, 'text-sm text-neutral-text-muted')}>{entry.totalPenalty}</td>
               {problems.map((problem) => {
                 const result = entry.problems.find((r) => r.position === problem.position)
                 const firstSolve = result?.status === 'ACCEPTED' && result.isFirstSolve === true
