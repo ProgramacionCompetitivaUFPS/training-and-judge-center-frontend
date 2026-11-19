@@ -8,7 +8,7 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 import { mockContests } from '@/mocks/data'
-import type { ContestDetail, CreateContestRequest } from '@/types/contest'
+import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase } from '@/types/contest'
 import {
   contestKeys,
   standingsRefetchInterval,
@@ -276,6 +276,104 @@ describe('useStandings (contest-7 con muchos datos)', () => {
     expect(result.current.data?.standings).toHaveLength(30)
     expect(result.current.data?.pagination.total).toBe(30)
     expect(result.current.data?.standings[29].problems).toHaveLength(13)
+  })
+})
+
+describe('useStandings con phase (mock)', () => {
+  async function load(contestId: string, params?: StandingsParams) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, params), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('devuelve solo las filas de post-competencia sin rank y no oficiales', async () => {
+    // Arrange / Act
+    const data = await load('contest-8', { phase: 'postcompetition' })
+
+    // Assert
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual(['lauramendez', 'andresrojas', 'carlosvega'])
+    expect(data.standings[0].rank).toBeNull()
+    expect(data.standings[0].isOfficial).toBe(false)
+    expect(data.standings[2].problemsSolved).toBe(0)
+  })
+
+  it('calcula los contadores de post-competencia sobre las filas de post', async () => {
+    const data = await load('contest-8', { phase: 'postcompetition' })
+
+    expect(data.problems[0]).toMatchObject({ color: '#e11d48', accepted: 1, tried: 2 })
+    expect(data.problems[1]).toMatchObject({ accepted: 1, tried: 1 })
+    expect(data.problems[2]).toMatchObject({ accepted: 1, tried: 1 })
+  })
+
+  it('devuelve solo las filas oficiales con la fase competition', async () => {
+    const data = await load('contest-8', { phase: 'competition' })
+
+    expect(data.standings).toHaveLength(5)
+    expect(data.standings.every((e) => e.isOfficial !== false)).toBe(true)
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+
+  it('devuelve oficiales primero y luego post con la fase all', async () => {
+    const data = await load('contest-8', { phase: 'all' })
+
+    expect(data.standings).toHaveLength(8)
+    expect(data.standings[0].participant.displayName).toBe('Competitive Coders')
+    expect(data.standings[5].participant.displayName).toBe('lauramendez')
+    expect(data.pagination.total).toBe(8)
+    expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+
+  it('trata la ausencia de phase como all', async () => {
+    const data = await load('contest-8')
+
+    expect(data.standings).toHaveLength(8)
+  })
+
+  it('pagina cruzando de las filas oficiales a las de post', async () => {
+    const data = await load('contest-8', { phase: 'all', limit: 3, page: 2 })
+
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual(['Algorithm Masters', 'sofiarodriguez', 'lauramendez'])
+    expect(data.pagination.totalPages).toBe(3)
+  })
+
+  it('aplica el filtro de país a las dos secciones', async () => {
+    const data = await load('contest-8', { phase: 'all', country: 'Colombia' })
+
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'sofiarodriguez',
+      'lauramendez',
+      'andresrojas',
+      'carlosvega',
+    ])
+  })
+
+  it('no devuelve filas de post en una competencia ACTIVE aunque tenga post habilitada', async () => {
+    const postOnly = await load('contest-2', { phase: 'postcompetition' })
+    const all = await load('contest-2', { phase: 'all' })
+
+    expect(postOnly.standings).toEqual([])
+    expect(all.standings).toHaveLength(5)
+  })
+
+  it('no devuelve filas de post en una competencia finalizada sin post-competencia', async () => {
+    const data = await load('contest-3', { phase: 'all' })
+
+    expect(data.standings).toHaveLength(5)
+  })
+
+  it('responde 400 BAD_REQUEST ante una phase inválida', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => useStandings('group-1', 'contest-8', { phase: 'bogus' as unknown as StandingsPhase }),
+      { wrapper },
+    )
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(400)
+    expect((result.current.error as ApiClientError).code).toBe('BAD_REQUEST')
   })
 })
 

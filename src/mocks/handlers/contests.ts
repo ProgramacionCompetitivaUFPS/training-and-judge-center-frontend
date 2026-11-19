@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url } from './utils'
 
@@ -239,8 +239,23 @@ export const contestsHandlers = [
     const city = sp.get('city')?.toLowerCase() || undefined
     const institution = sp.get('institution')?.toLowerCase() || undefined
 
-    const source = contestId === 'contest-7' ? mockLargeStandings : mockStandings
-    const filtered = source.filter((entry) => {
+    const phase = sp.get('phase') ?? 'all'
+    if (phase !== 'competition' && phase !== 'postcompetition' && phase !== 'all') {
+      return HttpResponse.json(
+        { error: 'BAD_REQUEST', message: "phase must be 'competition', 'postcompetition' or 'all'" },
+        { status: 400 },
+      )
+    }
+
+    const officialRows = contestId === 'contest-7' ? mockLargeStandings : mockStandings
+    const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
+    const postRows = postAvailable && contestId === 'contest-8' ? mockPostStandings : []
+    const base =
+      phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
+    // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
+    const countRows = phase === 'postcompetition' ? postRows : officialRows
+
+    const filtered = base.filter((entry) => {
       const p = entry.participant
       if (country && !p.country?.toLowerCase().includes(country)) return false
       if (city && !p.city?.toLowerCase().includes(city)) return false
@@ -270,8 +285,8 @@ export const contestsHandlers = [
         title: p.title,
         color: p.color ?? null,
         // Contadores globales: no dependen de filtros ni de la página.
-        accepted: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
-        tried: source.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
+        accepted: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status === 'ACCEPTED')).length,
+        tried: countRows.filter((e) => e.problems.some((r) => r.position === p.position && r.status !== 'NOT_ATTEMPTED')).length,
       })),
       standings: paged.map((entry) => ({
         ...entry,
