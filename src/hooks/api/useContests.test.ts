@@ -377,6 +377,44 @@ describe('useStandings con phase (mock)', () => {
   })
 })
 
+describe('useStandings refresco automático', () => {
+  const STANDINGS_URL = 'http://localhost:8080/api/groups/:groupId/contests/:contestId/standings'
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function countRequestsAfter10Seconds(contestId: string, phase: StandingsPhase) {
+    let requests = 0
+    server.use(
+      http.get(STANDINGS_URL, () => {
+        requests += 1
+      }),
+    )
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, { phase }), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(1_000)
+    return requests
+  }
+
+  it('vuelve a pedir los standings cada 10 s en una competencia finalizada cuando se piden filas de post', async () => {
+    const requests = await countRequestsAfter10Seconds('contest-8', 'all')
+
+    expect(requests).toBe(2)
+  })
+
+  it('no vuelve a pedir los standings de una competencia finalizada cuando solo se piden las oficiales', async () => {
+    const requests = await countRequestsAfter10Seconds('contest-8', 'competition')
+
+    expect(requests).toBe(1)
+  })
+})
+
 describe('standingsRefetchInterval', () => {
   it.each([
     ['ACTIVE', undefined, undefined, 10000],
