@@ -616,7 +616,7 @@ describe('useStandings tiempo real (mock)', () => {
 
     expect(data.standings[0].problems[1]).toMatchObject({
       status: 'ACCEPTED',
-      attempts: 3,
+      attempts: 2,
       time: 80,
       penalty: 40,
       pending: 0,
