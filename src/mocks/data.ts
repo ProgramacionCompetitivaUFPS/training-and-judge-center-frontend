@@ -1730,19 +1730,46 @@ export const mockPostStandings: StandingEntry[] = [
   },
 ]
 
+// Participantes de contest-6: los comparten la tabla congelada y la revelada.
+const frozenCompetitiveCoders: StandingEntry['participant'] = {
+  id: 'team-1',
+  type: 'TEAM',
+  displayName: 'Competitive Coders',
+  members: ['luisadmin', 'carloscp', 'anagarcia'],
+}
+const frozenSofiaRodriguez: StandingEntry['participant'] = {
+  id: 'u6',
+  type: 'INDIVIDUAL',
+  displayName: 'sofiarodriguez',
+  nickname: 'sofiarodriguez',
+  country: 'Colombia',
+  city: 'Medellín',
+  institution: 'EAFIT',
+}
+const frozenCarlosCp: StandingEntry['participant'] = {
+  id: 'u3',
+  type: 'INDIVIDUAL',
+  displayName: 'carloscp',
+  nickname: 'carloscp',
+  country: 'Argentina',
+  city: 'Buenos Aires',
+  institution: 'UBA',
+}
+const frozenAnaGarcia: StandingEntry['participant'] = {
+  id: 'u4',
+  type: 'INDIVIDUAL',
+  displayName: 'anagarcia',
+  nickname: 'anagarcia',
+  country: 'Chile',
+  city: 'Santiago',
+  institution: 'Universidad de Chile',
+}
+
 // Standings de contest-6 (congelada): celdas PENDING con contadores de envíos ocultos; solo cuenta lo visible.
 export const mockFrozenStandings: StandingEntry[] = [
   {
     rank: 1,
-    participant: {
-      id: 'u6',
-      type: 'INDIVIDUAL',
-      displayName: 'sofiarodriguez',
-      nickname: 'sofiarodriguez',
-      country: 'Colombia',
-      city: 'Medellín',
-      institution: 'EAFIT',
-    },
+    participant: frozenSofiaRodriguez,
     problemsSolved: 1,
     totalPenalty: 20,
     problems: [
@@ -1752,12 +1779,7 @@ export const mockFrozenStandings: StandingEntry[] = [
   },
   {
     rank: 2,
-    participant: {
-      id: 'team-1',
-      type: 'TEAM',
-      displayName: 'Competitive Coders',
-      members: ['luisadmin', 'carloscp', 'anagarcia'],
-    },
+    participant: frozenCompetitiveCoders,
     problemsSolved: 1,
     totalPenalty: 35,
     problems: [
@@ -1767,15 +1789,7 @@ export const mockFrozenStandings: StandingEntry[] = [
   },
   {
     rank: 3,
-    participant: {
-      id: 'u3',
-      type: 'INDIVIDUAL',
-      displayName: 'carloscp',
-      nickname: 'carloscp',
-      country: 'Argentina',
-      city: 'Buenos Aires',
-      institution: 'UBA',
-    },
+    participant: frozenCarlosCp,
     problemsSolved: 1,
     totalPenalty: 70,
     problems: [
@@ -1785,19 +1799,55 @@ export const mockFrozenStandings: StandingEntry[] = [
   },
   {
     rank: 4,
-    participant: {
-      id: 'u4',
-      type: 'INDIVIDUAL',
-      displayName: 'anagarcia',
-      nickname: 'anagarcia',
-      country: 'Chile',
-      city: 'Santiago',
-      institution: 'Universidad de Chile',
-    },
+    participant: frozenAnaGarcia,
     problemsSolved: 0,
     totalPenalty: 0,
     problems: [
       { position: 1, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 3 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+]
+
+// Standings de contest-6 con los resultados ya revelados (modo tiempo real y fin del congelamiento).
+export const mockRevealedFrozenStandings: StandingEntry[] = [
+  {
+    rank: 1,
+    participant: frozenCompetitiveCoders,
+    problemsSolved: 2,
+    totalPenalty: 155,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 3, time: 80, penalty: 40, isFirstSolve: true, pending: 0 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: frozenCarlosCp,
+    problemsSolved: 2,
+    totalPenalty: 160,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 2, time: 50, penalty: 20, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 1, time: 90, penalty: 0, pending: 0 },
+    ],
+  },
+  {
+    rank: 3,
+    participant: frozenSofiaRodriguez,
+    problemsSolved: 1,
+    totalPenalty: 20,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+  {
+    rank: 4,
+    participant: frozenAnaGarcia,
+    problemsSolved: 1,
+    totalPenalty: 140,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 3, time: 100, penalty: 40, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
