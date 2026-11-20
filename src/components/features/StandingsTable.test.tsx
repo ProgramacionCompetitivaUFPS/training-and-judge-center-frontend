@@ -22,9 +22,9 @@ const entries: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 110,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true },
-      { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true },
+      { position: 2, status: 'ACCEPTED', attempts: 0, time: 45, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: 75, penalty: 20 },
     ],
   },
   {
@@ -39,7 +39,7 @@ const entries: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 125,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 30, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 30, penalty: 0 },
       { position: 2, status: 'WRONG_ANSWER', attempts: 4, time: null, penalty: 0 },
       { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
     ],
@@ -61,8 +61,8 @@ const postEntries: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 0,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: null, penalty: 0 },
       { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
@@ -75,7 +75,7 @@ const postEntries: StandingEntry[] = [
     problems: [
       { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
   {
@@ -183,7 +183,7 @@ describe('StandingsTable', () => {
           participant: { id: 'u1', type: 'INDIVIDUAL', displayName: 'sinhora' },
           problemsSolved: 1,
           totalPenalty: 0,
-          problems: [{ position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 }],
+          problems: [{ position: 1, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 }],
         },
       ],
     )
@@ -310,7 +310,7 @@ describe('StandingsTable con post-competencia', () => {
     // Arrange
     const firstSolveInPost: StandingEntry = {
       ...postEntries[0],
-      problems: [{ position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0, isFirstSolve: true }],
+      problems: [{ position: 1, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0, isFirstSolve: true }],
     }
 
     // Act
@@ -446,7 +446,7 @@ describe('StandingsTable con celdas pendientes', () => {
   })
 
   it('no muestra ? en una celda aceptada aunque tenga pending en cero', () => {
-    renderPendingCell({ status: 'ACCEPTED', attempts: 1, time: 20, pending: 0 })
+    renderPendingCell({ status: 'ACCEPTED', attempts: 0, time: 20, pending: 0 })
 
     expect(screen.getByText('00:20')).toBeInTheDocument()
     expect(screen.queryByText('?')).not.toBeInTheDocument()
@@ -475,5 +475,36 @@ describe('StandingsTable con celdas pendientes', () => {
     expect(within(row).getByText('3 envíos sin revelar').closest('td')!.textContent).toBe('?33 envíos sin revelar')
     expect(within(row).getByText('1 envío sin revelar').closest('td')!.textContent).toBe('?11 envío sin revelar')
     expect(within(row).getAllByRole('cell')).toHaveLength(7)
+  })
+})
+
+describe('StandingsTable intentos en celdas aceptadas', () => {
+  // `attempts` en una celda ACCEPTED son los fallos previos al AC (0 = a la primera).
+  function cellText(attempts: number) {
+    renderTable(
+      [{ position: 1, slug: 'two-sum', title: 'Two Sum' }],
+      [
+        {
+          rank: 1,
+          participant: { id: 'u1', type: 'INDIVIDUAL', displayName: 'solver' },
+          problemsSolved: 1,
+          totalPenalty: 0,
+          problems: [{ position: 1, status: 'ACCEPTED', attempts, time: 30, penalty: 0 }],
+        },
+      ],
+    )
+    return screen.getByText('00:30').closest('td')!.textContent
+  }
+
+  it('muestra "+" cuando se resolvió a la primera (0 fallos)', () => {
+    expect(cellText(0)).toBe('+00:30')
+  })
+
+  it('muestra "+1" cuando hubo un fallo antes del AC', () => {
+    expect(cellText(1)).toBe('+100:30')
+  })
+
+  it('muestra "+N" con N igual al número de fallos previos al AC', () => {
+    expect(cellText(3)).toBe('+300:30')
   })
 })

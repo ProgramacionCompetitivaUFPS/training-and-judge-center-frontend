@@ -42,7 +42,9 @@ export interface ContestDetail {
   status: ContestStatus
   penalty: number
   freezeMinutes: number | null
+  autoRevealMinutes: number | null
   enablePostContest: boolean
+  allowLateRegistration: boolean
   locked?: boolean // only for Leads/Admin
   participantCount: number
   isRegistered: boolean
@@ -70,6 +72,7 @@ export interface ContestListItem {
   status: ContestStatus
   penalty: number
   freezeMinutes: number | null
+  autoRevealMinutes: number | null
   enablePostContest: boolean
   participationMode: ParticipationMode
   participantCount: number
@@ -109,7 +112,9 @@ export interface CreateContestRequest {
   endTime: string
   penalty?: number
   freezeMinutes?: number | null
+  autoRevealMinutes?: number | null
   enablePostContest?: boolean
+  allowLateRegistration?: boolean
   problems?: string[] // slugs
   participationMode?: ParticipationMode
   teamSizeMin?: number
@@ -127,7 +132,10 @@ export interface UpdateContestRequest {
   endTime?: string
   penalty?: number
   freezeMinutes?: number | null
+  /** null vuelve al revelado manual; omitirlo lo deja igual */
+  autoRevealMinutes?: number | null
   enablePostContest?: boolean
+  allowLateRegistration?: boolean
   problems?: ContestProblemPayload[]
   locked?: boolean
   participationMode?: ParticipationMode
@@ -176,6 +184,7 @@ export type StandingProblemStatus = 'ACCEPTED' | 'WRONG_ANSWER' | 'PENDING' | 'N
 export interface StandingProblemResult {
   position: number
   status: StandingProblemStatus
+  /** Intentos fallidos (sin contar CE/SE). En ACCEPTED son los previos al AC: 0 = a la primera. */
   attempts: number
   time: number | null // minutes from start to AC
   penalty: number
@@ -235,6 +244,8 @@ export interface StandingsResponse {
     freezeMinutes: number | null
     isFrozen: boolean
     frozenAt: string | null
+    resultsRevealedAt: string | null
+    autoRevealAt: string | null
   }
   problems: StandingsProblem[]
   standings: StandingEntry[]

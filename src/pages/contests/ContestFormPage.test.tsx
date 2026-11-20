@@ -69,6 +69,43 @@ function recordPutBodies() {
   return bodies
 }
 
+// Registra el body de cada POST de creación y devuelve undefined para que aplique el handler por defecto.
+function recordPostBodies() {
+  const bodies: unknown[] = []
+  server.use(
+    http.post('http://localhost:8080/api/groups/:groupId/contests', async ({ request }) => {
+      bodies.push(await request.clone().json())
+    }),
+  )
+  return bodies
+}
+
+// Primer PUT: CONTEST_CONFLICT. Los siguientes pasan al handler por defecto. Registra todos los bodies.
+function conflictOnFirstPut() {
+  const bodies: unknown[] = []
+  server.use(
+    http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
+      bodies.push(await request.clone().json())
+      if (bodies.length === 1) return HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 })
+      return undefined
+    }),
+  )
+  return bodies
+}
+
+// Primer GET: handler por defecto. Los siguientes (recarga tras el conflicto) devuelven `reloaded`.
+function reloadAfterFirstGet(reloaded: (base: NonNullable<ReturnType<typeof mockContests.find>>) => object) {
+  const base = mockContests.find((c) => c.id === 'contest-2')
+  let getCalls = 0
+  server.use(
+    http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
+      getCalls += 1
+      if (getCalls === 1 || !base) return undefined
+      return HttpResponse.json(reloaded(base))
+    }),
+  )
+}
+
 describe('ContestFormPage', () => {
   beforeEach(() => {
     mockLogout.mockClear()
@@ -272,32 +309,6 @@ describe('ContestFormPage', () => {
       expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#7c3aed')
     })
 
-    // Primer PUT: CONTEST_CONFLICT. Los siguientes pasan al handler por defecto. Registra todos los bodies.
-    function conflictOnFirstPut() {
-      const bodies: unknown[] = []
-      server.use(
-        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
-          bodies.push(await request.clone().json())
-          if (bodies.length === 1) return HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 })
-          return undefined
-        }),
-      )
-      return bodies
-    }
-
-    // Primer GET: handler por defecto. Los siguientes (recarga tras el conflicto) devuelven `reloaded`.
-    function reloadAfterFirstGet(reloaded: (base: NonNullable<ReturnType<typeof mockContests.find>>) => object) {
-      const base = mockContests.find((c) => c.id === 'contest-2')
-      let getCalls = 0
-      server.use(
-        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
-          getCalls += 1
-          if (getCalls === 1 || !base) return undefined
-          return HttpResponse.json(reloaded(base))
-        }),
-      )
-    }
-
     it('al recargar tras un conflicto conserva el campo que la usuaria editó y actualiza los demás', async () => {
       // Arrange
       const user = userEvent.setup()
@@ -406,6 +417,304 @@ describe('ContestFormPage', () => {
       expect(
         screen.getByText('No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.'),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('inscripción tardía', () => {
+    beforeEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    async function fillCreateForm(user: ReturnType<typeof userEvent.setup>) {
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
+      // datetime-local: userEvent no maneja bien estos inputs (excepción de TESTING_STANDARDS §13b)
+      fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), { target: { value: '2027-06-01T10:00' } })
+      fireEvent.change(screen.getByLabelText(/fecha y hora de fin/i), { target: { value: '2027-06-01T12:00' } })
+    }
+
+    it('envía allowLateRegistration en true al crear con el checkbox marcado', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user)
+
+      // Act
+      await user.click(screen.getByRole('checkbox', { name: /permitir inscripción tardía/i }))
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ allowLateRegistration: true })
+    })
+
+    it('envía allowLateRegistration en false por defecto al crear', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user)
+
+      // Act
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ allowLateRegistration: false })
+    })
+
+    it('carga el valor guardado al editar', async () => {
+      // Arrange
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest2) throw new Error('contest-2 missing from mocks')
+      Object.assign(contest2, { allowLateRegistration: true })
+
+      // Act
+      renderEdit('group-1', 'contest-2')
+
+      // Assert
+      expect(await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })).toBeChecked()
+    })
+
+    it('permite activarlo con la competencia en curso y manda solo ese campo', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      const checkbox = await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })
+      expect(checkbox).toBeEnabled()
+
+      // Act
+      await user.click(checkbox)
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success' }))
+      })
+      expect(bodies).toEqual([{ allowLateRegistration: true }])
+    })
+
+    it('queda deshabilitado en una competencia finalizada y explica por qué', async () => {
+      renderEdit('group-1', 'contest-3')
+
+      expect(await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })).toBeDisabled()
+      expect(screen.getByText('La competencia ya finalizó: la inscripción tardía no aplica.')).toBeInTheDocument()
+    })
+  })
+
+  describe('revelado automático', () => {
+    beforeEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    async function fillCreateForm(user: ReturnType<typeof userEvent.setup>, freeze: string) {
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
+      // datetime-local: userEvent no maneja bien estos inputs (excepción de TESTING_STANDARDS §13b)
+      fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), { target: { value: '2027-06-01T10:00' } })
+      fireEvent.change(screen.getByLabelText(/fecha y hora de fin/i), { target: { value: '2027-06-01T12:00' } })
+      // Las fechas auto-rellenan el freeze mientras no se haya tocado: se escribe después.
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+      await user.clear(freezeInput)
+      await user.type(freezeInput, freeze)
+    }
+
+    it('no muestra el revelado cuando el freeze es 0', async () => {
+      renderCreate()
+
+      expect(await screen.findByRole('textbox', { name: /nombre/i })).toBeInTheDocument()
+      expect(screen.queryByRole('radio', { name: 'Solo manualmente' })).not.toBeInTheDocument()
+    })
+
+    it('muestra el revelado en modo manual al poner un freeze mayor que 0', async () => {
+      const user = userEvent.setup()
+      renderCreate()
+
+      await fillCreateForm(user, '30')
+
+      expect(screen.getByRole('radio', { name: 'Solo manualmente' })).toBeChecked()
+    })
+
+    it('no envía autoRevealMinutes ni los campos de UI al crear en modo manual', async () => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
+      expect(bodies[0]).not.toHaveProperty('autoRevealMode')
+      expect(bodies[0]).not.toHaveProperty('autoRevealDelay')
+    })
+
+    it.each([
+      ['Al terminar la competencia', 0, null],
+      ['Minutos después del fin', 45, '45'],
+    ] as const)('al crear con «%s» envía autoRevealMinutes %s', async (label, expected, delayText) => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('radio', { name: label }))
+      if (delayText) await user.type(screen.getByLabelText('Minutos de espera'), delayText)
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ autoRevealMinutes: expected })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMode')
+      expect(bodies[0]).not.toHaveProperty('autoRevealDelay')
+    })
+
+    it('guarda aunque el modo minutos quede vacío si el freeze se baja a 0 (el campo se oculta)', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+
+      // Act
+      await user.clear(freezeInput)
+      await user.type(freezeInput, '0')
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
+    })
+
+    it('con un freeze negativo solo marca el error del freeze y no el de los minutos de espera', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+
+      // Act
+      await user.clear(freezeInput)
+      await user.type(freezeInput, '-5')
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      expect(await screen.findByText('Los minutos de freeze deben ser positivos')).toBeInTheDocument()
+      expect(screen.queryByText('Ingresa los minutos de espera (entero, mínimo 1)')).not.toBeInTheDocument()
+      expect(bodies).toHaveLength(0)
+    })
+
+    it('tras un conflicto conserva la espera editada junto con su modo aunque el servidor haya pasado a manual', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 missing from mocks')
+      contest.autoRevealMinutes = 30
+      const bodies = conflictOnFirstPut()
+      reloadAfterFirstGet((base) => ({ ...base, autoRevealMinutes: null }))
+      renderEdit('group-1', 'contest-2')
+      const delayInput = await screen.findByLabelText('Minutos de espera')
+
+      // Act
+      await user.clear(delayInput)
+      await user.type(delayInput, '45')
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'La competencia cambió' }))
+      })
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => expect(bodies).toHaveLength(2))
+      expect(screen.getByRole('radio', { name: 'Minutos después del fin' })).toBeChecked()
+      expect(bodies[1]).toEqual({ autoRevealMinutes: 45 })
+    })
+
+    it('tras un conflicto sin cambios en el revelado adopta lo que dejó el servidor', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 missing from mocks')
+      contest.autoRevealMinutes = 30
+      conflictOnFirstPut()
+      reloadAfterFirstGet((base) => ({ ...base, autoRevealMinutes: null }))
+      renderEdit('group-1', 'contest-2')
+      const name = await screen.findByRole('textbox', { name: /nombre/i })
+
+      // Act
+      await user.clear(name)
+      await user.type(name, 'Nuevo nombre')
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'Solo manualmente' })).toBeChecked())
+    })
+
+    it('en modo minutos sin minutos muestra el error y no envía', async () => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      expect(await screen.findByText('Ingresa los minutos de espera (entero, mínimo 1)')).toBeInTheDocument()
+      expect(bodies).toEqual([])
+    })
+
+    it('carga el modo guardado al editar', async () => {
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+
+      renderEdit('group-1', 'contest-2')
+
+      expect(await screen.findByRole('radio', { name: 'Minutos después del fin' })).toBeChecked()
+      expect(screen.getByLabelText('Minutos de espera')).toHaveValue(30)
+    })
+
+    it('volver a manual al editar envía null explícito', async () => {
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      await user.click(await screen.findByRole('radio', { name: 'Solo manualmente' }))
+
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(bodies).toHaveLength(1))
+      expect(bodies).toEqual([{ autoRevealMinutes: null }])
+    })
+
+    it('no envía autoRevealMinutes si no se toca al editar', async () => {
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), ' editado')
+
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(bodies).toHaveLength(1))
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
     })
   })
 })

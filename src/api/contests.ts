@@ -114,6 +114,12 @@ export function getStandingsFilterOptions(
   return apiClient.get(`/groups/${groupId}/contests/${contestId}/standings/filters`)
 }
 
+// === Reveal results ===
+
+export function revealContestResults(groupId: string, contestId: string): Promise<void> {
+  return apiClient.post(`/groups/${groupId}/contests/${contestId}/reveal-results`)
+}
+
 // === Contest Submissions ===
 
 export async function getContestSubmissions(

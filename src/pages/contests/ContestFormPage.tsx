@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +9,7 @@ import { Button, Input, Textarea, Checkbox, Card, CardContent } from '@/componen
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BalloonColorPicker } from '@/components/features/BalloonColorPicker'
+import { AutoRevealField } from '@/components/features/AutoRevealField'
 import { contestKeys, useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
@@ -16,8 +17,19 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
+import {
+  autoRevealDelayOf,
+  autoRevealDraftOf,
+  autoRevealModeOf,
+  isFreezeEnabled,
+  parseAutoRevealDelay,
+  toAutoRevealMinutes,
+  type AutoRevealDraft,
+  type AutoRevealMode,
+} from '@/lib/autoReveal'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
 import { formatDuration, problemLabel } from '@/lib/utils'
@@ -64,8 +76,10 @@ export function ContestFormPage() {
       penalty: 20,
       freezeMinutes: 0,
       enablePostContest: false,
+      allowLateRegistration: false,
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
+      autoRevealMode: 'manual',
     },
     // Al recargar el contest (p. ej. tras un CONTEST_CONFLICT) se actualizan los campos que la usuaria
     // no tocó y se conservan los que sí editó.
@@ -79,20 +93,50 @@ export function ContestFormPage() {
           penalty: existing.penalty,
           freezeMinutes: existing.freezeMinutes,
           enablePostContest: existing.enablePostContest,
+          allowLateRegistration: existing.allowLateRegistration,
           participationMode: existing.participationMode,
           teamSizeMin: existing.teamSizeMin,
           teamSizeMax: existing.teamSizeMax,
           showTeamMembers: existing.showTeamMembers,
+          autoRevealMode: autoRevealModeOf(existing.autoRevealMinutes),
+          autoRevealDelay: autoRevealDelayOf(existing.autoRevealMinutes),
         }
       : undefined,
   })
 
-  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, control } = form
+  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, getValues, control } = form
   const enablePostContest = useWatch({ control, name: 'enablePostContest' })
+  const allowLateRegistration = useWatch({ control, name: 'allowLateRegistration' })
   const startTime = useWatch({ control, name: 'startTime' })
   const endTime = useWatch({ control, name: 'endTime' })
   const participationMode = useWatch({ control, name: 'participationMode' })
   const showTeamMembers = useWatch({ control, name: 'showTeamMembers' })
+  const autoRevealMode = useWatch({ control, name: 'autoRevealMode' })
+  const freezeMinutes = useWatch({ control, name: 'freezeMinutes' })
+  const hasFreeze = isFreezeEnabled(freezeMinutes)
+
+  // El revelado (modo + espera) se trata como una unidad: `keepDirtyValues` conserva campo a campo, así que si
+  // otra persona cambia el revelado y recargamos tras un CONTEST_CONFLICT, la espera editada quedaría con el
+  // modo del servidor y se perdería. Se guarda lo que la usuaria dejó y se reaplica tras cada recarga.
+  const revealDraftRef = useRef<AutoRevealDraft | null>(null)
+  const rememberRevealDraft = (mode: AutoRevealMode, delay: number | undefined) => {
+    revealDraftRef.current = autoRevealDraftOf(existing?.autoRevealMinutes, mode, delay)
+  }
+  useEffect(() => {
+    const draft = revealDraftRef.current
+    if (!draft) return
+    setValue('autoRevealMode', draft.mode, { shouldDirty: true })
+    setValue('autoRevealDelay', draft.delay, { shouldDirty: true })
+  }, [existing?.autoRevealMinutes, setValue])
+
+  const delayField = register('autoRevealDelay')
+  const delayInputProps: typeof delayField = {
+    ...delayField,
+    onChange: (event: { target: { value: string }; type?: string }) => {
+      rememberRevealDraft(autoRevealMode ?? 'manual', parseAutoRevealDelay(event.target.value))
+      return delayField.onChange(event)
+    },
+  }
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
   // The backend rejects a start (or end) time in the past, and moving either one after the fact
   // would shift every submission's time and penalty — so once started, only the end can move
@@ -114,8 +158,11 @@ export function ContestFormPage() {
   }, [isEditing, freezeTouched, startTime, endTime, setValue])
 
   const onSubmit = (data: CreateContestFormData) => {
+    // Los campos de UI del revelado no llegan al API: se convierten a `autoRevealMinutes` abajo.
+    const { autoRevealMode: mode, autoRevealDelay: delay, ...apiData } = data
+    const autoRevealMinutes = toAutoRevealMinutes(mode ?? 'manual', delay)
     const payload = {
-      ...data,
+      ...apiData,
       startTime: new Date(data.startTime).toISOString(),
       endTime: new Date(data.endTime).toISOString(),
       description: data.description || undefined,
@@ -133,10 +180,14 @@ export function ContestFormPage() {
       if (dirtyFields.penalty) updatePayload.penalty = payload.penalty
       if (dirtyFields.freezeMinutes) updatePayload.freezeMinutes = payload.freezeMinutes
       if (dirtyFields.enablePostContest) updatePayload.enablePostContest = payload.enablePostContest
+      if (dirtyFields.allowLateRegistration) updatePayload.allowLateRegistration = payload.allowLateRegistration
       if (dirtyFields.participationMode) updatePayload.participationMode = payload.participationMode
       if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
       if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
       if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
+      if (hasFreeze && (dirtyFields.autoRevealMode || dirtyFields.autoRevealDelay)) {
+        updatePayload.autoRevealMinutes = autoRevealMinutes
+      }
 
       if (existing && !colorsDisabled) {
         const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
@@ -169,7 +220,7 @@ export function ContestFormPage() {
       )
     } else if (groupId) {
       createMutation.mutate(
-        { groupId, data: payload },
+        { groupId, data: { ...payload, autoRevealMinutes: hasFreeze && mode !== 'manual' ? autoRevealMinutes : undefined } },
         {
           onSuccess: (created) => {
             toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
@@ -203,7 +254,7 @@ export function ContestFormPage() {
   // Real leadership of the group, not just having the Coach role platform-wide — the backend
   // already rejects create/update on a group the Coach doesn't lead (create_contest.go,
   // update_contest.go); this just prevents a non-lead Coach from reaching the form via direct URL.
-  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
+  const isLead = isGroupLeadOrAdmin(user?.role, groupDetail?.userMembership.role)
   if (groupDetail && !isLead) {
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
@@ -334,15 +385,12 @@ export function ContestFormPage() {
                       placeholder="4"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={showTeamMembers || false}
-                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked, { shouldDirty: true })}
-                    />
-                    <label className="text-sm text-neutral-text-primary">
-                      Mostrar los miembros del equipo en la tabla de posiciones y en los envíos
-                    </label>
-                  </div>
+                  <CheckboxField
+                    id="showTeamMembers"
+                    checked={showTeamMembers || false}
+                    onCheckedChange={(v) => setValue('showTeamMembers', v, { shouldDirty: true })}
+                    label="Mostrar los miembros del equipo en la tabla de posiciones y en los envíos"
+                  />
                 </>
               )}
               {isEditing && (
@@ -378,15 +426,33 @@ export function ContestFormPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={enablePostContest || false}
-                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked, { shouldDirty: true })}
+              {hasFreeze && (
+                <AutoRevealField
+                  mode={autoRevealMode ?? 'manual'}
+                  onModeChange={(mode) => {
+                    rememberRevealDraft(mode, parseAutoRevealDelay(getValues('autoRevealDelay')))
+                    setValue('autoRevealMode', mode, { shouldDirty: true, shouldValidate: true })
+                  }}
+                  delayInputProps={delayInputProps}
+                  delayError={errors.autoRevealDelay?.message}
                 />
-                <label className="text-sm text-neutral-text-primary">
-                  Habilitar post-competencia (submissions después del fin no afectan standings)
-                </label>
-              </div>
+              )}
+              <CheckboxField
+                id="enablePostContest"
+                checked={enablePostContest || false}
+                onCheckedChange={(v) => setValue('enablePostContest', v, { shouldDirty: true })}
+                label="Habilitar post-competencia (submissions después del fin no afectan standings)"
+              />
+              <CheckboxField
+                id="allowLateRegistration"
+                checked={allowLateRegistration || false}
+                onCheckedChange={(v) => setValue('allowLateRegistration', v, { shouldDirty: true })}
+                label="Permitir inscripción tardía"
+                hint={existing?.status === 'FINISHED'
+                  ? 'La competencia ya finalizó: la inscripción tardía no aplica.'
+                  : 'Permite inscribirse mientras la competencia está en curso. Quien se inscriba tarde ya no podrá cancelar su registro. Desactivarlo no saca a quienes ya se inscribieron.'}
+                disabled={existing?.status === 'FINISHED'}
+              />
             </div>
           </FormSection>
 
@@ -465,5 +531,26 @@ function FormSection({ icon, title, children }: FormSectionProps) {
         {children}
       </CardContent>
     </Card>
+  )
+}
+
+interface CheckboxFieldProps {
+  id: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  label: string
+  hint?: string
+  disabled?: boolean
+}
+
+function CheckboxField({ id, checked, onCheckedChange, label, hint, disabled }: CheckboxFieldProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(value) => onCheckedChange(value === true)} />
+        <label htmlFor={id} className="text-sm text-neutral-text-primary">{label}</label>
+      </div>
+      {hint && <p className="text-xs text-neutral-text-muted mt-1 ml-7">{hint}</p>}
+    </div>
   )
 }

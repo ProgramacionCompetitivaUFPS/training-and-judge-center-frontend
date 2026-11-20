@@ -7,8 +7,8 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
-import { mockContests } from '@/mocks/data'
-import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase } from '@/types/contest'
+import { mockContests, mockContestReveals } from '@/mocks/data'
+import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase, StandingsResponse } from '@/types/contest'
 import {
   contestKeys,
   standingsRefetchInterval,
@@ -25,6 +25,7 @@ import {
   useDeleteContest,
   useRegisterToContest,
   useUnregisterFromContest,
+  useRevealContestResults,
 } from './useContests'
 
 function makeWrapper() {
@@ -443,6 +444,10 @@ describe('useStandings congelado (mock)', () => {
     return result.current.data!
   }
 
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
   it('marca la competencia como congelada y expone el inicio del congelamiento', async () => {
     // Arrange / Act
     const data = await load('contest-6')
@@ -461,7 +466,7 @@ describe('useStandings congelado (mock)', () => {
     expect(minutesBeforeEnd).toBe(60)
   })
 
-  it('revela los resultados cuando termina el congelamiento', async () => {
+  it('sigue congelado tras el fin de la competencia hasta que se revele', async () => {
     // Arrange: 30 minutos después, contest-6 (que termina en 20) ya acabó
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(Date.now() + 30 * 60_000)
@@ -471,8 +476,29 @@ describe('useStandings congelado (mock)', () => {
       const data = await load('contest-6')
 
       // Assert
+      expect(data.contest.status).toBe('FINISHED')
+      expect(data.contest.isFrozen).toBe(true)
+      expect(data.contest.resultsRevealedAt).toBeNull()
+      expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('muestra los resultados reales una vez revelados', async () => {
+    // Arrange: 30 minutos después, contest-6 ya terminó y se reveló a mano
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(Date.now() + 30 * 60_000)
+    mockContestReveals.set('contest-6', new Date().toISOString())
+
+    try {
+      // Act
+      const data = await load('contest-6')
+
+      // Assert
       expect(data.contest.isFrozen).toBe(false)
       expect(data.contest.frozenAt).toBeNull()
+      expect(data.contest.resultsRevealedAt).toEqual(expect.any(String))
       expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(false)
     } finally {
       vi.useRealTimers()
@@ -558,6 +584,105 @@ describe('useStandings congelado (mock)', () => {
   })
 })
 
+describe('useStandings tiempo real (mock)', () => {
+  async function load(contestId: string, params?: StandingsParams) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, params), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  const hasPending = (data: StandingsResponse) =>
+    data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')
+
+  it('devuelve los resultados reales de una competencia congelada cuando el admin pide realtime', async () => {
+    // Arrange / Act
+    const data = await load('contest-6', { realtime: true })
+
+    // Assert
+    expect(data.contest.isFrozen).toBe(true)
+    expect(hasPending(data)).toBe(false)
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'Competitive Coders',
+      'carloscp',
+      'sofiarodriguez',
+      'anagarcia',
+    ])
+    expect(data.standings.map((e) => e.rank)).toEqual([1, 2, 3, 4])
+  })
+
+  it('devuelve la celda revelada con sus tiempos y el primer AC marcado', async () => {
+    const data = await load('contest-6', { realtime: true })
+
+    expect(data.standings[0].problems[1]).toMatchObject({
+      status: 'ACCEPTED',
+      attempts: 2,
+      time: 80,
+      penalty: 40,
+      pending: 0,
+      isFirstSolve: true,
+    })
+  })
+
+  it('cuenta los contadores de cabecera con los resultados reales', async () => {
+    const data = await load('contest-6', { realtime: true })
+
+    expect(data.problems[0]).toMatchObject({ accepted: 4, tried: 4 })
+    expect(data.problems[1]).toMatchObject({ accepted: 2, tried: 2 })
+  })
+
+  it('sigue devolviendo la vista congelada cuando no se pide realtime', async () => {
+    const data = await load('contest-6')
+
+    expect(data.contest.isFrozen).toBe(true)
+    expect(hasPending(data)).toBe(true)
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'sofiarodriguez',
+      'Competitive Coders',
+      'carloscp',
+      'anagarcia',
+    ])
+  })
+
+  it('devuelve los resultados reales a un líder que no es admin', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-mariacoach')
+
+    // Act
+    const data = await load('contest-6', { realtime: true })
+
+    // Assert
+    expect(hasPending(data)).toBe(false)
+  })
+
+  it('responde 403 INSUFFICIENT_PERMISSIONS a quien no es admin ni líder del grupo', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-carloscp')
+    const { wrapper } = makeWrapper()
+
+    // Act
+    const { result } = renderHook(() => useStandings('group-1', 'contest-6', { realtime: true }), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(403)
+    expect((result.current.error as ApiClientError).code).toBe('INSUFFICIENT_PERMISSIONS')
+  })
+
+  it('ignora realtime en una competencia sin congelamiento y no responde 403', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-carloscp')
+
+    // Act
+    const data = await load('contest-2', { realtime: true })
+
+    // Assert
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.standings).toHaveLength(5)
+  })
+})
+
 describe('standingsRefetchInterval', () => {
   it.each([
     ['ACTIVE', undefined, undefined, 10000],
@@ -576,6 +701,136 @@ describe('standingsRefetchInterval', () => {
       expect(standingsRefetchInterval(status, phase, interval)).toBe(expected)
     },
   )
+
+  it.each([
+    ['FINISHED', 'competition', undefined, true, 10000],
+    ['FINISHED', 'competition', 30000, true, 10000],
+    ['FINISHED', 'competition', undefined, false, false],
+    ['ACTIVE', 'competition', undefined, true, 10000],
+    ['SCHEDULED', 'competition', undefined, true, false],
+  ] as const)(
+    'con estado %s, fase %s, intervalo %s e isFrozen=%s devuelve %s',
+    (status, phase, interval, isFrozen, expected) => {
+      expect(standingsRefetchInterval(status, phase, interval, isFrozen)).toBe(expected)
+    },
+  )
+})
+
+describe('useStandings finalizado sin revelar (mock)', () => {
+  async function load(contestId: string) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
+  afterEach(() => {
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+
+  it('marca como congelado un contest terminado con freeze que aún no se revela', async () => {
+    const data = await load('contest-9')
+
+    expect(data.contest.status).toBe('FINISHED')
+    expect(data.contest.isFrozen).toBe(true)
+    expect(data.contest.resultsRevealedAt).toBeNull()
+    expect(data.contest.autoRevealAt).toBeNull()
+  })
+
+  it('no marca como congelado un contest terminado sin freeze', async () => {
+    const data = await load('contest-3')
+
+    expect(data.contest.isFrozen).toBe(false)
+  })
+
+  it('no sigue congelado cuando el revelado automático coincide con el fin de la competencia', async () => {
+    const contest = mockContests.find((c) => c.id === 'contest-9')
+    if (!contest) throw new Error('contest-9 no existe en el mock')
+    contest.autoRevealMinutes = 0
+
+    const data = await load('contest-9')
+
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.autoRevealAt).toBe(data.contest.endTime)
+  })
+})
+
+describe('useRevealContestResults', () => {
+  async function loadFrozenStandings(contestId: string) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
+  it('revela los resultados de un contest congelado y sin revelar', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const data = await loadFrozenStandings('contest-9')
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.resultsRevealedAt).toEqual(expect.any(String))
+  })
+
+  it('invalida standings, filtros y envíos del contest', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledTimes(3)
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'standings', 'group-1', 'contest-9'] }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'standings-filter-options', 'group-1', 'contest-9'] }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'submissions', 'group-1', 'contest-9'] }),
+    )
+  })
+
+  it.each([
+    ['contest-2', 409, 'CONTEST_NOT_FINISHED'],
+    ['contest-3', 409, 'CONTEST_HAS_NO_FREEZE'],
+    ['contest-nope', 404, 'CONTEST_NOT_FOUND'],
+  ] as const)('rechaza el contest %s con %s y código %s', async (contestId, status, code) => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(status)
+    expect((result.current.error as ApiClientError).code).toBe(code)
+  })
+
+  it('rechaza con 403 a quien no es Lead ni Admin', async () => {
+    setAccessToken('mock-jwt-token-carloscp')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(403)
+    expect((result.current.error as ApiClientError).code).toBe('INSUFFICIENT_PERMISSIONS')
+  })
 })
 
 describe('useStandingsFilterOptions', () => {
@@ -625,6 +880,65 @@ describe('useContestSubmissions', () => {
     const { result } = renderHook(() => useContestSubmissions('group-1', ''), { wrapper })
 
     expect(result.current.isFetching).toBe(false)
+  })
+})
+
+describe('useContestSubmissions congelado (mock)', () => {
+  beforeEach(() => mockContestReveals.clear())
+
+  async function load(contestId: string, viewerToken = 'mock-jwt-token-carloscp') {
+    setAccessToken(viewerToken)
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useContestSubmissions('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('a un participante le oculta los veredictos de una competencia terminada y sin revelar', async () => {
+    // Arrange / Act
+    const data = await load('contest-9')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+    expect(data.submissions.length).toBeGreaterThan(0)
+    expect(data.submissions.every((submission) => submission.status === '?')).toBe(true)
+  })
+
+  it('no oculta nada a un admin aunque la competencia no se haya revelado', async () => {
+    // Arrange / Act
+    const data = await load('contest-9', 'mock-jwt-token-luisadmin')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+    expect(data.submissions.some((submission) => submission.status === 'ACCEPTED')).toBe(true)
+  })
+
+  it('muestra los veredictos una vez revelados los resultados', async () => {
+    // Arrange
+    mockContestReveals.set('contest-9', new Date().toISOString())
+
+    // Act
+    const data = await load('contest-9')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(false)
+    expect(data.submissions.some((submission) => submission.status === 'ACCEPTED')).toBe(true)
+  })
+
+  it('sigue ocultando los veredictos en una competencia activa dentro de su freeze', async () => {
+    // Arrange / Act
+    const data = await load('contest-6')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+  })
+
+  it('no marca congelada una competencia terminada sin freeze', async () => {
+    // Arrange / Act
+    const data = await load('contest-3')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(false)
   })
 })
 

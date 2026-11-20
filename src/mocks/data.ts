@@ -1248,6 +1248,9 @@ const yesterdayEnd = new Date(yesterday.getTime() + 3 * 60 * 60 * 1000)
 const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 
+/** contestId → ISO de cuándo se reveló a mano el contest (estado compartido del mock de revelado). */
+export const mockContestReveals = new Map<string, string>()
+
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
@@ -1259,7 +1262,9 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 25,
     isRegistered: false,
@@ -1284,7 +1289,9 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: true,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 18,
     isRegistered: true,
@@ -1311,7 +1318,9 @@ export const mockContests: ContestDetail[] = [
     status: 'FINISHED',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: false,
+    allowLateRegistration: false,
     locked: true,
     participantCount: 42,
     isRegistered: true,
@@ -1339,7 +1348,9 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 30,
     freezeMinutes: 30,
+    autoRevealMinutes: null,
     enablePostContest: true,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 5,
     isRegistered: false,
@@ -1366,7 +1377,9 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 0,
     isRegistered: false,
@@ -1391,7 +1404,9 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 12,
     isRegistered: true,
@@ -1419,7 +1434,9 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: false,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 30,
     isRegistered: true,
@@ -1452,7 +1469,9 @@ export const mockContests: ContestDetail[] = [
     status: 'FINISHED',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: true,
+    allowLateRegistration: false,
     locked: false,
     participantCount: 8,
     isRegistered: true,
@@ -1469,6 +1488,34 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
+  {
+    id: 'contest-9',
+    name: 'Reto Congelado sin Revelar',
+    description: 'Competencia terminada con freeze, aún sin revelar resultados.',
+    startTime: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString(),
+    endTime: oneHourAgo.toISOString(),
+    duration: 14400,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: 60,
+    autoRevealMinutes: null,
+    enablePostContest: false,
+    allowLateRegistration: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1482,6 +1529,7 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     status: computeContestStatus(c.startTime, c.endTime),
     penalty: c.penalty,
     freezeMinutes: c.freezeMinutes,
+    autoRevealMinutes: c.autoRevealMinutes,
     enablePostContest: c.enablePostContest,
     participationMode: c.participationMode,
     participantCount: c.participantCount,
@@ -1586,9 +1634,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 110,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true },
-      { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true },
+      { position: 2, status: 'ACCEPTED', attempts: 0, time: 45, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: 75, penalty: 20 },
     ],
   },
   {
@@ -1605,9 +1653,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 125,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 30, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 2, time: 55, penalty: 20 },
-      { position: 3, status: 'ACCEPTED', attempts: 1, time: 80, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 30, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 1, time: 55, penalty: 20 },
+      { position: 3, status: 'ACCEPTED', attempts: 0, time: 80, penalty: 0 },
     ],
   },
   {
@@ -1624,9 +1672,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 90,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 25, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 25, penalty: 0 },
       { position: 2, status: 'WRONG_ANSWER', attempts: 4, time: null, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 3, time: 65, penalty: 40 },
+      { position: 3, status: 'ACCEPTED', attempts: 2, time: 65, penalty: 40 },
     ],
   },
   {
@@ -1640,8 +1688,8 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 95,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: 60, penalty: 40 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: 60, penalty: 40 },
       { position: 3, status: 'WRONG_ANSWER', attempts: 1, time: null, penalty: 0 },
     ],
   },
@@ -1659,7 +1707,7 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 45,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 2, time: 45, penalty: 20 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 20 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 3, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
     ],
@@ -1683,8 +1731,8 @@ export const mockPostStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 0,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: null, penalty: 0 },
       { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
@@ -1705,7 +1753,7 @@ export const mockPostStandings: StandingEntry[] = [
     problems: [
       { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
   {
@@ -1730,74 +1778,124 @@ export const mockPostStandings: StandingEntry[] = [
   },
 ]
 
+// Participantes de contest-6: los comparten la tabla congelada y la revelada.
+const frozenCompetitiveCoders: StandingEntry['participant'] = {
+  id: 'team-1',
+  type: 'TEAM',
+  displayName: 'Competitive Coders',
+  members: ['luisadmin', 'carloscp', 'anagarcia'],
+}
+const frozenSofiaRodriguez: StandingEntry['participant'] = {
+  id: 'u6',
+  type: 'INDIVIDUAL',
+  displayName: 'sofiarodriguez',
+  nickname: 'sofiarodriguez',
+  country: 'Colombia',
+  city: 'Medellín',
+  institution: 'EAFIT',
+}
+const frozenCarlosCp: StandingEntry['participant'] = {
+  id: 'u3',
+  type: 'INDIVIDUAL',
+  displayName: 'carloscp',
+  nickname: 'carloscp',
+  country: 'Argentina',
+  city: 'Buenos Aires',
+  institution: 'UBA',
+}
+const frozenAnaGarcia: StandingEntry['participant'] = {
+  id: 'u4',
+  type: 'INDIVIDUAL',
+  displayName: 'anagarcia',
+  nickname: 'anagarcia',
+  country: 'Chile',
+  city: 'Santiago',
+  institution: 'Universidad de Chile',
+}
+
 // Standings de contest-6 (congelada): celdas PENDING con contadores de envíos ocultos; solo cuenta lo visible.
 export const mockFrozenStandings: StandingEntry[] = [
   {
     rank: 1,
-    participant: {
-      id: 'u6',
-      type: 'INDIVIDUAL',
-      displayName: 'sofiarodriguez',
-      nickname: 'sofiarodriguez',
-      country: 'Colombia',
-      city: 'Medellín',
-      institution: 'EAFIT',
-    },
+    participant: frozenSofiaRodriguez,
     problemsSolved: 1,
     totalPenalty: 20,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
   {
     rank: 2,
-    participant: {
-      id: 'team-1',
-      type: 'TEAM',
-      displayName: 'Competitive Coders',
-      members: ['luisadmin', 'carloscp', 'anagarcia'],
-    },
+    participant: frozenCompetitiveCoders,
     problemsSolved: 1,
     totalPenalty: 35,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0, pending: 0 },
       { position: 2, status: 'PENDING', attempts: 1, time: null, penalty: 0, isFirstSolve: false, pending: 2 },
     ],
   },
   {
     rank: 3,
-    participant: {
-      id: 'u3',
-      type: 'INDIVIDUAL',
-      displayName: 'carloscp',
-      nickname: 'carloscp',
-      country: 'Argentina',
-      city: 'Buenos Aires',
-      institution: 'UBA',
-    },
+    participant: frozenCarlosCp,
     problemsSolved: 1,
     totalPenalty: 70,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 2, time: 50, penalty: 20, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 50, penalty: 20, pending: 0 },
       { position: 2, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 1 },
     ],
   },
   {
     rank: 4,
-    participant: {
-      id: 'u4',
-      type: 'INDIVIDUAL',
-      displayName: 'anagarcia',
-      nickname: 'anagarcia',
-      country: 'Chile',
-      city: 'Santiago',
-      institution: 'Universidad de Chile',
-    },
+    participant: frozenAnaGarcia,
     problemsSolved: 0,
     totalPenalty: 0,
     problems: [
       { position: 1, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 3 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+]
+
+// Standings de contest-6 con los resultados ya revelados (modo tiempo real y fin del congelamiento).
+export const mockRevealedFrozenStandings: StandingEntry[] = [
+  {
+    rank: 1,
+    participant: frozenCompetitiveCoders,
+    problemsSolved: 2,
+    totalPenalty: 155,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: 80, penalty: 40, isFirstSolve: true, pending: 0 },
+    ],
+  },
+  {
+    rank: 2,
+    participant: frozenCarlosCp,
+    problemsSolved: 2,
+    totalPenalty: 160,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 50, penalty: 20, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 0, time: 90, penalty: 0, pending: 0 },
+    ],
+  },
+  {
+    rank: 3,
+    participant: frozenSofiaRodriguez,
+    problemsSolved: 1,
+    totalPenalty: 20,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
+    ],
+  },
+  {
+    rank: 4,
+    participant: frozenAnaGarcia,
+    problemsSolved: 1,
+    totalPenalty: 140,
+    problems: [
+      { position: 1, status: 'ACCEPTED', attempts: 2, time: 100, penalty: 40, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
@@ -1817,7 +1915,7 @@ export const mockLargeStandings: StandingEntry[] = Array.from({ length: 30 }, (_
     problems: Array.from({ length: 13 }, (_, j) => {
       const position = j + 1
       if (j < solved) {
-        return { position, status: 'ACCEPTED' as const, attempts: 1 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
+        return { position, status: 'ACCEPTED' as const, attempts: 0 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
       }
       if ((i + j) % 4 === 0) {
         return { position, status: 'WRONG_ANSWER' as const, attempts: 1 + ((i + j) % 5), time: null, penalty: 0 }
@@ -1892,6 +1990,8 @@ export function buildContestSubmissionsList(params: {
   nickname?: string
   isPrivileged: boolean
   viewerNickname?: string
+  /** Estado de congelamiento ya calculado (`freezeStateOf`), para que standings y envíos coincidan. */
+  freeze: { isFrozen: boolean; freezeStartMs: number | null }
 }) {
   const contest = mockContests.find((c) => c.id === params.contestId)
   if (!contest) return null
@@ -1916,10 +2016,7 @@ export function buildContestSubmissionsList(params: {
 
   // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
   // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
-  const nowMs = Date.now()
-  const endMs = new Date(contest.endTime).getTime()
-  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
-  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+  const { isFrozen: inFreeze, freezeStartMs } = params.freeze
 
   filtered = filtered.map((s) => {
     // Mirrors list_contest_submissions.go: Lead/Admin, own or team submission, or PUBLIC.
@@ -1927,7 +2024,7 @@ export function buildContestSubmissionsList(params: {
       ? s.submittedBy.nickname === params.viewerNickname
       : !!s.submittedBy.members?.includes(params.viewerNickname))
     const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
-    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && freezeStartMs !== null && new Date(s.submittedAt).getTime() >= freezeStartMs
     return isFrozenSubmission
       ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryKb: undefined }
       : { ...s, canViewDetail }

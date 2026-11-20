@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import * as contestsApi from '@/api/contests'
 import { mergeContestUpdate } from '@/lib/contestProblems'
+import { isAwaitingReveal } from '@/lib/contestReveal'
 import type {
   ContestDetail,
   ContestListParams,
@@ -30,8 +31,12 @@ export const contestKeys = {
     ['contests', 'standings', groupId, contestId, params] as const,
   standingsFilterOptions: (groupId: string, contestId: string) =>
     ['contests', 'standings-filter-options', groupId, contestId] as const,
+  standingsScope: (groupId: string, contestId: string) =>
+    ['contests', 'standings', groupId, contestId] as const,
   submissions: (groupId: string, contestId: string, params?: ContestSubmissionsParams) =>
     ['contests', 'submissions', groupId, contestId, params] as const,
+  submissionsScope: (groupId: string, contestId: string) =>
+    ['contests', 'submissions', groupId, contestId] as const,
 }
 
 // === Queries ===
@@ -106,8 +111,10 @@ export function standingsRefetchInterval(
   status: ContestStatus | undefined,
   phase: StandingsPhase | undefined,
   activeIntervalMs: number = STANDINGS_REFETCH_MS,
+  isFrozen = false,
 ): number | false {
   if (status === 'ACTIVE') return activeIntervalMs
+  if (isAwaitingReveal({ status, isFrozen })) return STANDINGS_REFETCH_MS
   const effectivePhase = phase ?? 'all'
   if (status === 'FINISHED' && (effectivePhase === 'all' || effectivePhase === 'postcompetition')) {
     return STANDINGS_REFETCH_MS
@@ -130,6 +137,7 @@ export function useStandings(
         query.state.data?.contest?.status,
         params?.phase,
         options?.activeIntervalMs,
+        query.state.data?.contest?.isFrozen,
       ),
   })
 }
@@ -237,6 +245,21 @@ export function useUnregisterFromContest() {
       queryClient.invalidateQueries({ queryKey: contestKeys.registrationStatus(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, contestId) })
       queryClient.invalidateQueries({ queryKey: ['contests', 'registrations', groupId, contestId] })
+    },
+  })
+}
+
+// === Reveal results ===
+
+export function useRevealContestResults() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, contestId }: { groupId: string; contestId: string }) =>
+      contestsApi.revealContestResults(groupId, contestId),
+    onSuccess: (_, { groupId, contestId }) => {
+      queryClient.invalidateQueries({ queryKey: contestKeys.standingsScope(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.standingsFilterOptions(groupId, contestId) })
+      queryClient.invalidateQueries({ queryKey: contestKeys.submissionsScope(groupId, contestId) })
     },
   })
 }

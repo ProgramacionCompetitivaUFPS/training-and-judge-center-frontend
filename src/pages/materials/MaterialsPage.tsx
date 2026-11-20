@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import type { MaterialListParams, MaterialStatus } from '@/types/material'
 
 const PINNED_OPTIONS: { value: string; label: string }[] = [
@@ -46,7 +47,7 @@ export function MaterialsPage() {
   const { data: groupDetail } = useGroupDetail(groupId!)
   // Real leadership of this specific group — the backend already rejects create/pin/unpin from
   // a Coach who isn't actually a leader of this group (create_material.go, pin_material.go).
-  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
+  const isLead = isGroupLeadOrAdmin(user?.role, groupDetail?.userMembership.role)
 
   const [search, setSearch] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)

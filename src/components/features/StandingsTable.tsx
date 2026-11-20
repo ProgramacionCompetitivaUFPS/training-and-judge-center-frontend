@@ -79,7 +79,7 @@ function ProblemCell({ result, post }: { result: StandingProblemResult | undefin
     return (
       <>
         <span className={cn('font-bold', post ? 'text-brand-accent' : 'text-status-success')}>
-          +{result.attempts > 1 ? result.attempts - 1 : ''}
+          +{result.attempts > 0 ? result.attempts : ''}
         </span>
         {!post && result.time !== null && (
           <span className="block font-mono text-xs font-medium text-neutral-text-muted">

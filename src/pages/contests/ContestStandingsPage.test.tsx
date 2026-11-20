@@ -7,17 +7,24 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser, mockContests } from '@/mocks/data'
+import { mockCurrentUser, mockContests, mockContestReveals, mockGroupDetails } from '@/mocks/data'
 import { ContestStandingsPage } from './ContestStandingsPage'
 
 vi.mock('@/hooks/useContestSession', () => ({
   useContestSession: () => ({ contest: null }),
 }))
 
+const mockToast = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/useToastContext', () => ({
+  useToastContext: () => ({ toast: mockToast }),
+}))
+
+const authState = vi.hoisted(() => ({ role: 'ADMIN' as 'ADMIN' | 'CONTESTANT' }))
+
 const mockLogout = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: mockCurrentUser,
+    user: { ...mockCurrentUser, role: authState.role },
     isLoading: false,
     isAuthenticated: true,
     hasRole: () => true,
@@ -25,6 +32,8 @@ vi.mock('@/hooks/useAuth', () => ({
     logout: mockLogout,
   }),
 }))
+
+const initialContests = structuredClone(mockContests)
 
 function renderPage(groupId = 'group-1', contestId = 'contest-2') {
   render(
@@ -40,6 +49,8 @@ function renderPage(groupId = 'group-1', contestId = 'contest-2') {
 
 describe('ContestStandingsPage', () => {
   beforeEach(() => {
+    authState.role = 'ADMIN'
+    mockToast.mockClear()
     mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
   })
@@ -143,6 +154,8 @@ describe('ContestStandingsPage con fases', () => {
   const user = userEvent.setup()
 
   beforeEach(() => {
+    authState.role = 'ADMIN'
+    mockToast.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
   })
   afterEach(() => clearAccessToken())
@@ -292,6 +305,8 @@ describe('ContestStandingsPage con fases', () => {
 
 describe('ContestStandingsPage con competencia congelada', () => {
   beforeEach(() => {
+    authState.role = 'ADMIN'
+    mockToast.mockClear()
     mockLogout.mockClear()
     setAccessToken('mock-jwt-token-luisadmin')
   })
@@ -302,7 +317,7 @@ describe('ContestStandingsPage con competencia congelada', () => {
 
     expect(
       await screen.findByText(
-        'La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán al terminar la competencia.',
+        'La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán cuando se publiquen los resultados.',
       ),
     ).toBeInTheDocument()
   })
@@ -334,5 +349,259 @@ describe('ContestStandingsPage con competencia congelada', () => {
 
     await screen.findByText('Competitive Coders')
     expect(screen.queryByText(/está congelada/)).not.toBeInTheDocument()
+  })
+})
+
+describe('ContestStandingsPage con tiempo real', () => {
+  const user = userEvent.setup()
+  const toggleName = { name: 'Ver resultados reales' }
+
+  beforeEach(() => {
+    authState.role = 'ADMIN'
+    mockToast.mockClear()
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
+  afterEach(() => clearAccessToken())
+
+  it('muestra el botón de tiempo real apagado y el aviso de congelado con la tabla congelada', async () => {
+    renderPage('group-1', 'contest-6')
+
+    expect(await screen.findByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('status')).toHaveTextContent('La tabla de posiciones está congelada.')
+    expect(screen.getByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.queryByText('Resultados reales')).not.toBeInTheDocument()
+  })
+
+  it('muestra la vista real al pulsar el botón: marca, aviso oscuro y filas reveladas', async () => {
+    renderPage('group-1', 'contest-6')
+    await user.click(await screen.findByRole('button', toggleName))
+
+    expect(await screen.findByText('Resultados reales')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Estás viendo los resultados reales.')
+    expect(screen.queryByText('2 envíos sin revelar')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Competitive Coders')
+  })
+
+  it('muestra en el pie los contadores reales al ver los resultados reales', async () => {
+    // Arrange
+    renderPage('group-1', 'contest-6')
+    await user.click(await screen.findByRole('button', toggleName))
+    await screen.findByText('Resultados reales')
+
+    // Act
+    const acceptedRow = screen.getByText('Aceptados').closest('tr')!
+    const triedRow = screen.getByText('Intentos').closest('tr')!
+
+    // Assert
+    const counters = (row: HTMLElement) => within(row).getAllByRole('cell').slice(4).map((cell) => cell.textContent)
+    expect(counters(acceptedRow)).toEqual(['4', '2'])
+    expect(counters(triedRow)).toEqual(['4', '2'])
+  })
+
+  it('marca el botón como pulsado y muestra el tooltip para volver a participantes', async () => {
+    renderPage('group-1', 'contest-6')
+    await user.click(await screen.findByRole('button', toggleName))
+    await screen.findByText('Resultados reales')
+
+    await user.unhover(screen.getByRole('button', toggleName))
+    await user.hover(screen.getByRole('button', toggleName))
+
+    expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Volver a la vista de participantes')
+  })
+
+  it('vuelve a la vista congelada al pulsar de nuevo el botón', async () => {
+    // Arrange
+    renderPage('group-1', 'contest-6')
+    await user.click(await screen.findByRole('button', toggleName))
+    await screen.findByText('Resultados reales')
+
+    // Act
+    await user.click(screen.getByRole('button', toggleName))
+
+    // Assert
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.queryByText('Resultados reales')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('manda realtime=true solo mientras la vista real está encendida', async () => {
+    // Arrange
+    const requests = recordStandingsRequests()
+    renderPage('group-1', 'contest-6')
+    await screen.findByText('2 envíos sin revelar')
+
+    // Act
+    await user.click(screen.getByRole('button', toggleName))
+    await waitFor(() => expect(lastRequest(requests)?.get('realtime')).toBe('true'))
+    await user.click(await screen.findByRole('button', toggleName))
+
+    // Assert
+    await waitFor(() => expect(lastRequest(requests)?.get('realtime')).toBeNull())
+    expect(requests[0].get('realtime')).toBeNull()
+  })
+
+  it('no muestra el botón en una competencia sin congelamiento', async () => {
+    renderPage('group-1', 'contest-2')
+
+    await screen.findByText('Competitive Coders')
+
+    expect(screen.queryByRole('button', toggleName)).not.toBeInTheDocument()
+  })
+
+  it('no muestra el botón a quien no es admin ni líder y nunca manda realtime', async () => {
+    // Arrange
+    authState.role = 'CONTESTANT'
+    server.use(
+      http.get('http://localhost:8080/api/groups/:id', () =>
+        HttpResponse.json({ ...mockGroupDetails['group-1'], userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-07-10T12:00:00Z' } }),
+      ),
+    )
+    const requests = recordStandingsRequests()
+
+    // Act
+    renderPage('group-1', 'contest-6')
+    await screen.findByText('2 envíos sin revelar')
+
+    // Assert
+    expect(screen.queryByRole('button', toggleName)).not.toBeInTheDocument()
+    expect(requests.every((params) => params.get('realtime') === null)).toBe(true)
+  })
+
+  it('muestra el botón a un líder del grupo que no es admin', async () => {
+    authState.role = 'CONTESTANT'
+
+    renderPage('group-1', 'contest-6')
+
+    expect(await screen.findByRole('button', toggleName)).toBeInTheDocument()
+  })
+
+  it('apaga el modo y avisa si el backend responde 403 con realtime encendido', async () => {
+    // Arrange
+    server.use(
+      http.get(STANDINGS_URL, ({ request }) => {
+        if (new URL(request.url).searchParams.get('realtime') === 'true') {
+          return HttpResponse.json({ error: 'INSUFFICIENT_PERMISSIONS', message: 'sin permiso' }, { status: 403 })
+        }
+      }),
+    )
+    renderPage('group-1', 'contest-6')
+    await screen.findByText('2 envíos sin revelar')
+
+    // Act
+    await user.click(screen.getByRole('button', toggleName))
+
+    // Assert
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'error',
+          title: 'No se pudo ver en tiempo real',
+          description: 'No tienes permisos para realizar esta acción',
+        }),
+      ),
+    )
+    expect(mockToast).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('conserva el botón para volver a la vista congelada si la consulta realtime falla con 500', async () => {
+    // Arrange
+    server.use(
+      http.get(STANDINGS_URL, ({ request }) => {
+        if (new URL(request.url).searchParams.get('realtime') === 'true') {
+          return HttpResponse.json({ error: 'INTERNAL_ERROR', message: 'fallo' }, { status: 500 })
+        }
+      }),
+    )
+    renderPage('group-1', 'contest-6')
+    await screen.findByText('2 envíos sin revelar')
+
+    // Act
+    await user.click(screen.getByRole('button', toggleName))
+
+    await screen.findByRole('button', { ...toggleName, pressed: true })
+    expect(screen.queryByText('Resultados reales')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', toggleName))
+
+    // Assert
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('ContestStandingsPage con resultados sin revelar', () => {
+  const user = userEvent.setup()
+  const revealName = { name: 'Revelar resultados' }
+
+  beforeEach(() => {
+    authState.role = 'ADMIN'
+    mockToast.mockClear()
+    mockContestReveals.clear()
+    setAccessToken('mock-jwt-token-luisadmin')
+  })
+  afterEach(() => {
+    clearAccessToken()
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+
+  it('muestra el aviso de resultados sin revelar y el botón Revelar resultados a un admin', async () => {
+    renderPage('group-1', 'contest-9')
+
+    expect(await screen.findByRole('button', revealName)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('La competencia terminó, pero los resultados aún no se revelan.')
+    expect(screen.getByRole('status')).toHaveTextContent('Los revelará un líder del grupo o un administrador.')
+  })
+
+  it('muestra la fecha de revelado automático cuando el contest la tiene', async () => {
+    const contest = mockContests.find((c) => c.id === 'contest-9')
+    if (!contest) throw new Error('contest-9 no existe en el mock')
+    contest.autoRevealMinutes = 600
+
+    renderPage('group-1', 'contest-9')
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Se revelarán automáticamente el')
+  })
+
+  it('no muestra el botón a quien no es admin ni líder, pero sí el aviso', async () => {
+    authState.role = 'CONTESTANT'
+    server.use(
+      http.get('http://localhost:8080/api/groups/:id', () =>
+        HttpResponse.json({ ...mockGroupDetails['group-1'], userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-07-10T12:00:00Z' } }),
+      ),
+    )
+
+    renderPage('group-1', 'contest-9')
+
+    expect(await screen.findByText(/aún no se revelan/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', revealName)).not.toBeInTheDocument()
+  })
+
+  it('no muestra el botón en un contest activo congelado', async () => {
+    renderPage('group-1', 'contest-6')
+
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.queryByRole('button', revealName)).not.toBeInTheDocument()
+  })
+
+  it('revela los resultados y quita el botón y el aviso sin recargar', async () => {
+    renderPage('group-1', 'contest-9')
+    await user.click(await screen.findByRole('button', revealName))
+    await user.click(screen.getByRole('button', { name: 'Revelar' }))
+
+    // El diálogo esconde el fondo (aria-hidden), así que se espera a que cierre antes de mirar el botón.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('button', revealName)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/aún no se revelan/)).not.toBeInTheDocument())
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: 'success', title: 'Resultados revelados' }),
+    )
+  })
+
+  it('sigue mostrando el botón de ver resultados reales al admin mientras no se revela', async () => {
+    renderPage('group-1', 'contest-9')
+
+    expect(await screen.findByRole('button', { name: 'Ver resultados reales' })).toBeInTheDocument()
   })
 })

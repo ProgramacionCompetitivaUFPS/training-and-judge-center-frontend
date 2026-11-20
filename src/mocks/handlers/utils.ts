@@ -1,4 +1,5 @@
 import { http, HttpResponse, delay, passthrough } from 'msw'
+import { mockUsers, mockGroupMembers } from '../data'
 
 // MSW intercepta peticiones por URL exacta. Esta variable no es para hacer llamadas
 // al backend — es para construir el patrón que MSW va a escuchar. Debe coincidir
@@ -35,6 +36,21 @@ const MODULE_ENV_KEYS: Record<MockModule, string> = {
 export function isModuleMocked(module: MockModule): boolean {
   if (import.meta.env.VITE_ENABLE_MOCKS === 'true') return true
   return import.meta.env[MODULE_ENV_KEYS[module]] === 'true'
+}
+
+export function viewerNicknameOf(request: Request): string {
+  const auth = request.headers.get('Authorization')
+  const token = auth?.replace('Bearer ', '') || ''
+  return token.replace('mock-jwt-token-', '')
+}
+
+export function isPrivilegedViewer(request: Request, groupId: string): boolean {
+  const viewerNickname = viewerNicknameOf(request)
+  const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
+  const isRealLead = (mockGroupMembers[groupId] || []).some(
+    (m) => m.nickname === viewerNickname && m.role === 'LEAD',
+  )
+  return viewer?.role === 'ADMIN' || isRealLead
 }
 
 export { http, HttpResponse, delay, passthrough }

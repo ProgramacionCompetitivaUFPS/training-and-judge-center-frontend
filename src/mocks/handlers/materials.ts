@@ -1,18 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockMaterials, buildMaterialList, distinctMaterialTags, distinctMaterialAuthors, mockGroupMembers, mockUsers } from '../data'
+import { mockMaterials, buildMaterialList, distinctMaterialTags, distinctMaterialAuthors } from '../data'
 import type { MaterialStatus } from '@/types/material'
-import { url } from './utils'
-
-function isPrivilegedViewer(request: Request, groupId: string): boolean {
-  const auth = request.headers.get('Authorization')
-  const token = auth?.replace('Bearer ', '') || ''
-  const viewerNickname = token.replace('mock-jwt-token-', '')
-  const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
-  const isRealLead = (mockGroupMembers[groupId] || []).some(
-    (m) => m.nickname === viewerNickname && m.role === 'LEAD',
-  )
-  return viewer?.role === 'ADMIN' || isRealLead
-}
+import { url, isPrivilegedViewer } from './utils'
 
 export const materialsHandlers = [
   // List materials in group

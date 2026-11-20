@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
+import { Clock, Users, Trophy, Lock, Unlock, Globe, Swords, Calendar, User, UserPlus, EyeOff, UsersRound, Flag, Loader2, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
 import {
   Button, Card, CardContent, CardHeader, CardTitle, Badge, SearchSelect, Input,
@@ -11,6 +12,8 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestProblemsTable } from '@/components/features/ContestProblemsTable'
 import { ContestInfoSidebar, ContestQuickLinks, ContestOrganizerCard, ContestAdminActions } from '@/components/features/ContestInfoSidebar'
 import { TeamContestRegistration } from '@/components/features/TeamContestRegistration'
+import { LateRegistrationConfirmDialog } from '@/components/features/LateRegistrationConfirmDialog'
+import { getRegistrationAvailability } from '@/lib/contestRegistration'
 import { useContestDetail, useRegisterToContest, useUnregisterFromContest, useDeleteContest, useUpdateContest, useStandings } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useProblemSearch } from '@/hooks/api/useProblems'
@@ -19,6 +22,7 @@ import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, u
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
 import { DEFAULT_BALLOON_COLOR } from '@/lib/balloon'
@@ -58,6 +62,15 @@ function LockedProblemsPlaceholder({
   )
 }
 
+function ModalityRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
+      <Icon className="h-4 w-4 text-brand-primary" />
+      <span className="text-sm font-semibold">{children}</span>
+    </div>
+  )
+}
+
 export function ContestDetailPage() {
   const { groupId, id } = useParams<{ groupId: string; id: string }>()
   const navigate = useNavigate()
@@ -82,6 +95,7 @@ export function ContestDetailPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmName, setConfirmName] = useState('')
+  const [lateConfirmOpen, setLateConfirmOpen] = useState(false)
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const { data: teamsData, isLoading: isLoadingTeams } = useMyTeams()
@@ -142,7 +156,7 @@ export function ContestDetailPage() {
   // Real leadership of the group that owns this contest — not just having the Coach role
   // platform-wide, which the backend already rejects for management actions on contests
   // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
-  const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
+  const isLead = isGroupLeadOrAdmin(user?.role, ownerGroup?.userMembership.role)
   // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
   // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
   const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
@@ -156,9 +170,11 @@ export function ContestDetailPage() {
   // Suppress CTAs until the group membership is known — avoids a flash of "Registrarse"/"Registrar equipo"
   // for leads/admins/non-members while ownerGroup is still loading (registrationBlock is null during that window).
   const groupMembershipKnown = !groupId || ownerGroup !== undefined
-  const offersIndividualRegistration = contest.status === 'SCHEDULED' && !contest.isRegistered &&
+  const registrationAvailability = getRegistrationAvailability(contest)
+  const offersIndividualRegistration = registrationAvailability !== 'closed' && !contest.isRegistered &&
     (contest.participationMode === 'INDIVIDUAL' || contest.participationMode === 'MIXED')
   const canRegisterIndividual = groupMembershipKnown && offersIndividualRegistration && !registrationBlock
+  const showTeamRegistration = groupMembershipKnown && contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
   // Excludes team registrations: those show their own status/actions in TeamContestRegistration.
   const canUnregister = contest.status === 'SCHEDULED' && contest.isRegistered && !myRegistration
 
@@ -170,6 +186,19 @@ export function ContestDetailPage() {
         onError: (err) => toast({ variant: 'error', title: 'Error', description: getErrorMessage(err) }),
       },
     )
+  }
+
+  const handleRegisterClick = () => {
+    // El contador puede llegar a startTime antes de que el refetch actualice el estado: si ya empezó
+    // con inscripción tardía habilitada, el servidor la tratará como tardía, así que se confirma igual.
+    const startedWithLateRegistration = contest.allowLateRegistration && new Date(contest.startTime).getTime() <= Date.now()
+    if (registrationAvailability === 'late' || startedWithLateRegistration) setLateConfirmOpen(true)
+    else handleRegister()
+  }
+
+  const handleConfirmLateRegister = () => {
+    setLateConfirmOpen(false)
+    handleRegister()
   }
 
   const handleUnregister = () => {
@@ -306,11 +335,98 @@ export function ContestDetailPage() {
     )
   }
 
+  // Bloque de botones de inscripción: se muestra en el hero (SCHEDULED) y en la tarjeta lateral (ACTIVE con inscripción tardía).
+  const registrationActions = (
+    <>
+      {!groupMembershipKnown && !groupError && (
+        <div className="h-11 w-36 bg-neutral-background animate-pulse rounded-pill" />
+      )}
+      {!groupMembershipKnown && groupError && (
+        <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
+          <span>No se pudo cargar tu membresía.</span>
+          <button
+            onClick={() => void refetchGroup()}
+            className="underline hover:text-neutral-text-primary transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+      {canRegisterIndividual && (
+        <Button variant="primary" size="lg" onClick={handleRegisterClick} isLoading={registerMutation.isPending}>
+          <User className="h-4 w-4 mr-2" />
+          Registrarse
+        </Button>
+      )}
+      {offersIndividualRegistration && registrationBlock === 'nonmember' && (
+        <p className="text-sm text-neutral-text-muted self-center">
+          Para registrarte, primero únete al grupo{' '}
+          <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
+            {ownerGroup?.name}
+          </Link>
+          .
+        </p>
+      )}
+      {offersIndividualRegistration && (registrationBlock === 'admin' || registrationBlock === 'lead') && (
+        <p className="text-sm text-neutral-text-muted self-center">
+          {registrationBlock === 'admin'
+            ? 'Los administradores no participan en competencias.'
+            : 'Como líder del grupo organizas esta competencia, así que no puedes registrarte.'}
+        </p>
+      )}
+      {showTeamRegistration && (
+        <TeamContestRegistration
+          contestId={contest.id}
+          contestStatus={contest.status}
+          allowLateRegistration={contest.allowLateRegistration}
+          participationMode={contest.participationMode}
+          teamSizeMin={contest.teamSizeMin}
+          teamSizeMax={contest.teamSizeMax}
+          isRegistered={contest.isRegistered}
+          variant="inline"
+          teams={teamsData?.teams ?? []}
+          isLoadingTeams={isLoadingTeams}
+          eligibility={eligibility}
+          isLoadingEligibility={isLoadingEligibility}
+          isFetchingEligibility={isFetchingEligibility}
+          eligibilityFailed={eligibilityFailed}
+          onRetryEligibility={() => refetchEligibility()}
+          myRegistration={myRegistration}
+          currentUserNickname={user?.nickname}
+          onRegisterTeam={handleRegisterTeam}
+          onUpdateTeamRegistration={handleUpdateTeamRegistration}
+          onUnregisterTeam={handleUnregisterTeam}
+          isRegistering={registerTeamMutation.isPending}
+          isUpdating={updateTeamRegistrationMutation.isPending}
+          isUnregistering={unregisterTeamMutation.isPending}
+          registrationError={registerTeamMutation.error ? getErrorMessage(registerTeamMutation.error) : undefined}
+          onTeamSelect={setSelectedTeamId}
+        />
+      )}
+      {canUnregister && (
+        <Button variant="outline" size="lg" onClick={handleUnregister} isLoading={unregisterMutation.isPending}>
+          Cancelar registro
+        </Button>
+      )}
+      {contest.isRegistered && !myRegistration && (
+        <Badge variant="success" className="self-center text-sm px-4 py-2">Registrado</Badge>
+      )}
+    </>
+  )
+
   const breadcrumbs = [
     { label: 'Grupos', href: '/groups' },
     { label: contest.group.name, href: PATHS.group(groupId) },
     { label: contest.name },
   ]
+
+  const lateRegistrationDialog = (
+    <LateRegistrationConfirmDialog
+      open={lateConfirmOpen}
+      onOpenChange={setLateConfirmOpen}
+      onConfirm={handleConfirmLateRegister}
+    />
+  )
 
   const deleteDialog = (
     <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -391,7 +507,11 @@ export function ContestDetailPage() {
                   {contest.problems.length === 0 && !contest.isRegistered ? (
                     <LockedProblemsPlaceholder
                       title="No estás inscrito en esta competencia"
-                      description="Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo."
+                      description={
+                        registrationAvailability === 'late'
+                          ? 'Inscríbete para acceder a los problemas de la competencia.'
+                          : 'Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo.'
+                      }
                       showSkeleton={false}
                     />
                   ) : (
@@ -409,6 +529,19 @@ export function ContestDetailPage() {
             </section>
 
             <aside className="lg:col-span-4 space-y-4">
+              {registrationAvailability === 'late' && !contest.isRegistered && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Inscripción abierta</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-neutral-text-muted">
+                      La competencia ya comenzó, pero todavía puedes inscribirte. Una vez inscrito no podrás cancelar.
+                    </p>
+                    <div className="flex flex-wrap gap-3">{registrationActions}</div>
+                  </CardContent>
+                </Card>
+              )}
               {/* User position — first in sidebar for visibility */}
               {contest.isRegistered && myStanding && (
                 <Card>
@@ -449,6 +582,7 @@ export function ContestDetailPage() {
             </aside>
           </div>
         </div>
+        {lateRegistrationDialog}
       </AppLayout>
     )
   }
@@ -457,8 +591,6 @@ export function ContestDetailPage() {
   // SCHEDULED: Hero countdown layout
   // ═══════════════════════════════════════════════
   if (contest.status === 'SCHEDULED') {
-    const showTeamRegistration = groupMembershipKnown && contest.participationMode !== 'INDIVIDUAL' && !registrationBlock
-
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
         <div className="space-y-8">
@@ -476,80 +608,7 @@ export function ContestDetailPage() {
                 variant="hero"
                 onComplete={handleCountdownEnd}
               />
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
-                {!groupMembershipKnown && !groupError && (
-                  <div className="h-11 w-36 bg-white/20 animate-pulse rounded-pill" />
-                )}
-                {!groupMembershipKnown && groupError && (
-                  <div className="flex items-center gap-2 text-sm text-white/70">
-                    <span>No se pudo cargar tu membresía.</span>
-                    <button
-                      onClick={() => void refetchGroup()}
-                      className="underline hover:text-white transition-colors"
-                    >
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-                {canRegisterIndividual && (
-                  <Button variant="primary" size="lg" onClick={handleRegister} isLoading={registerMutation.isPending}>
-                    <User className="h-4 w-4 mr-2" />
-                    Registrarse
-                  </Button>
-                )}
-                {offersIndividualRegistration && registrationBlock === 'nonmember' && (
-                  <p className="text-sm text-neutral-text-muted self-center">
-                    Para registrarte, primero únete al grupo{' '}
-                    <Link to={PATHS.group(groupId)} className="font-semibold text-brand-primary hover:underline">
-                      {ownerGroup?.name}
-                    </Link>
-                    .
-                  </p>
-                )}
-                {offersIndividualRegistration && (registrationBlock === 'admin' || registrationBlock === 'lead') && (
-                  <p className="text-sm text-neutral-text-muted self-center">
-                    {registrationBlock === 'admin'
-                      ? 'Los administradores no participan en competencias.'
-                      : 'Como líder del grupo organizas esta competencia, así que no puedes registrarte.'}
-                  </p>
-                )}
-                {showTeamRegistration && (
-                  <TeamContestRegistration
-                    contestId={contest.id}
-                    contestStatus={contest.status}
-                    participationMode={contest.participationMode}
-                    teamSizeMin={contest.teamSizeMin}
-                    teamSizeMax={contest.teamSizeMax}
-                    isRegistered={contest.isRegistered}
-                    variant="inline"
-                    teams={teamsData?.teams ?? []}
-                    isLoadingTeams={isLoadingTeams}
-                    eligibility={eligibility}
-                    isLoadingEligibility={isLoadingEligibility}
-                    isFetchingEligibility={isFetchingEligibility}
-                    eligibilityFailed={eligibilityFailed}
-                    onRetryEligibility={() => refetchEligibility()}
-                    myRegistration={myRegistration}
-                    currentUserNickname={user?.nickname}
-                    onRegisterTeam={handleRegisterTeam}
-                    onUpdateTeamRegistration={handleUpdateTeamRegistration}
-                    onUnregisterTeam={handleUnregisterTeam}
-                    isRegistering={registerTeamMutation.isPending}
-                    isUpdating={updateTeamRegistrationMutation.isPending}
-                    isUnregistering={unregisterTeamMutation.isPending}
-                    registrationError={registerTeamMutation.error ? getErrorMessage(registerTeamMutation.error) : undefined}
-                    onTeamSelect={setSelectedTeamId}
-                  />
-                )}
-                {canUnregister && (
-                  <Button variant="outline" size="lg" onClick={handleUnregister} isLoading={unregisterMutation.isPending}>
-                    Cancelar registro
-                  </Button>
-                )}
-                {contest.isRegistered && !myRegistration && (
-                  <Badge variant="success" className="self-center text-sm px-4 py-2">Registrado</Badge>
-                )}
-              </div>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">{registrationActions}</div>
             </div>
           </section>
 
@@ -719,28 +778,17 @@ export function ContestDetailPage() {
                   <CardTitle className="text-sm">Modalidad</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2.5">
-                  <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
-                    <Swords className="h-4 w-4 text-brand-primary" />
-                    <span className="text-sm font-semibold">{participationModeLabel(contest.participationMode)}</span>
-                  </div>
+                  <ModalityRow icon={Swords}>{participationModeLabel(contest.participationMode)}</ModalityRow>
                   {contest.participationMode !== 'INDIVIDUAL' && contest.teamSizeMin && contest.teamSizeMax && (
-                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
-                      <UsersRound className="h-4 w-4 text-brand-primary" />
-                      <span className="text-sm font-semibold">{contest.teamSizeMin}–{contest.teamSizeMax} miembros por equipo</span>
-                    </div>
+                    <ModalityRow icon={UsersRound}>{contest.teamSizeMin}–{contest.teamSizeMax} miembros por equipo</ModalityRow>
                   )}
                   {contest.freezeMinutes != null && (
-                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
-                      <Lock className="h-4 w-4 text-brand-primary" />
-                      <span className="text-sm font-semibold">Freeze: {contest.freezeMinutes} min</span>
-                    </div>
+                    <ModalityRow icon={Lock}>Freeze: {contest.freezeMinutes} min</ModalityRow>
                   )}
                   {contest.enablePostContest && (
-                    <div className="flex items-center gap-3 p-2.5 bg-neutral-background rounded-lg">
-                      <Globe className="h-4 w-4 text-brand-primary" />
-                      <span className="text-sm font-semibold">Post-competencia habilitada</span>
-                    </div>
+                    <ModalityRow icon={Globe}>Post-competencia habilitada</ModalityRow>
                   )}
+                  {contest.allowLateRegistration && <ModalityRow icon={UserPlus}>Inscripción tardía habilitada</ModalityRow>}
                 </CardContent>
               </Card>
 
@@ -776,6 +824,7 @@ export function ContestDetailPage() {
           </div>
         </div>
         {deleteDialog}
+        {lateRegistrationDialog}
       </AppLayout>
     )
   }
