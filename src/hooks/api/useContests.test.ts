@@ -25,6 +25,7 @@ import {
   useDeleteContest,
   useRegisterToContest,
   useUnregisterFromContest,
+  useRevealContestResults,
 } from './useContests'
 
 function makeWrapper() {
@@ -699,6 +700,136 @@ describe('standingsRefetchInterval', () => {
       expect(standingsRefetchInterval(status, phase, interval)).toBe(expected)
     },
   )
+
+  it.each([
+    ['FINISHED', 'competition', undefined, true, 10000],
+    ['FINISHED', 'competition', 30000, true, 10000],
+    ['FINISHED', 'competition', undefined, false, false],
+    ['ACTIVE', 'competition', undefined, true, 10000],
+    ['SCHEDULED', 'competition', undefined, true, false],
+  ] as const)(
+    'con estado %s, fase %s, intervalo %s e isFrozen=%s devuelve %s',
+    (status, phase, interval, isFrozen, expected) => {
+      expect(standingsRefetchInterval(status, phase, interval, isFrozen)).toBe(expected)
+    },
+  )
+})
+
+describe('useStandings finalizado sin revelar (mock)', () => {
+  async function load(contestId: string) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
+  afterEach(() => {
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+
+  it('marca como congelado un contest terminado con freeze que aún no se revela', async () => {
+    const data = await load('contest-9')
+
+    expect(data.contest.status).toBe('FINISHED')
+    expect(data.contest.isFrozen).toBe(true)
+    expect(data.contest.resultsRevealedAt).toBeNull()
+    expect(data.contest.autoRevealAt).toBeNull()
+  })
+
+  it('no marca como congelado un contest terminado sin freeze', async () => {
+    const data = await load('contest-3')
+
+    expect(data.contest.isFrozen).toBe(false)
+  })
+
+  it('no sigue congelado cuando el revelado automático coincide con el fin de la competencia', async () => {
+    const contest = mockContests.find((c) => c.id === 'contest-9')
+    if (!contest) throw new Error('contest-9 no existe en el mock')
+    contest.autoRevealMinutes = 0
+
+    const data = await load('contest-9')
+
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.autoRevealAt).toBe(data.contest.endTime)
+  })
+})
+
+describe('useRevealContestResults', () => {
+  async function loadFrozenStandings(contestId: string) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
+  it('revela los resultados de un contest congelado y sin revelar', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    const data = await loadFrozenStandings('contest-9')
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.contest.resultsRevealedAt).toEqual(expect.any(String))
+  })
+
+  it('invalida standings, filtros y envíos del contest', async () => {
+    const { wrapper, queryClient } = makeWrapper()
+    const spy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(spy).toHaveBeenCalledTimes(3)
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'standings', 'group-1', 'contest-9'] }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'standings-filter-options', 'group-1', 'contest-9'] }),
+    )
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['contests', 'submissions', 'group-1', 'contest-9'] }),
+    )
+  })
+
+  it.each([
+    ['contest-2', 409, 'CONTEST_NOT_FINISHED'],
+    ['contest-3', 409, 'CONTEST_HAS_NO_FREEZE'],
+    ['contest-nope', 404, 'CONTEST_NOT_FOUND'],
+  ] as const)('rechaza el contest %s con %s y código %s', async (contestId, status, code) => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(status)
+    expect((result.current.error as ApiClientError).code).toBe(code)
+  })
+
+  it('rechaza con 403 a quien no es Lead ni Admin', async () => {
+    setAccessToken('mock-jwt-token-carloscp')
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useRevealContestResults(), { wrapper })
+
+    result.current.mutate({ groupId: 'group-1', contestId: 'contest-9' })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(403)
+    expect((result.current.error as ApiClientError).code).toBe('INSUFFICIENT_PERMISSIONS')
+  })
 })
 
 describe('useStandingsFilterOptions', () => {
