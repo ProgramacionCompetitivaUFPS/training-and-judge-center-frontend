@@ -69,6 +69,17 @@ function recordPutBodies() {
   return bodies
 }
 
+// Registra el body de cada POST de creación y devuelve undefined para que aplique el handler por defecto.
+function recordPostBodies() {
+  const bodies: unknown[] = []
+  server.use(
+    http.post('http://localhost:8080/api/groups/:groupId/contests', async ({ request }) => {
+      bodies.push(await request.clone().json())
+    }),
+  )
+  return bodies
+}
+
 describe('ContestFormPage', () => {
   beforeEach(() => {
     mockLogout.mockClear()
@@ -406,6 +417,93 @@ describe('ContestFormPage', () => {
       expect(
         screen.getByText('No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.'),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('inscripción tardía', () => {
+    beforeEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    async function fillCreateForm(user: ReturnType<typeof userEvent.setup>) {
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
+      // datetime-local: userEvent no maneja bien estos inputs (excepción de TESTING_STANDARDS §13b)
+      fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), { target: { value: '2027-06-01T10:00' } })
+      fireEvent.change(screen.getByLabelText(/fecha y hora de fin/i), { target: { value: '2027-06-01T12:00' } })
+    }
+
+    it('envía allowLateRegistration en true al crear con el checkbox marcado', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user)
+
+      // Act
+      await user.click(screen.getByRole('checkbox', { name: /permitir inscripción tardía/i }))
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ allowLateRegistration: true })
+    })
+
+    it('envía allowLateRegistration en false por defecto al crear', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user)
+
+      // Act
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ allowLateRegistration: false })
+    })
+
+    it('carga el valor guardado al editar', async () => {
+      // Arrange
+      const contest2 = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest2) throw new Error('contest-2 missing from mocks')
+      Object.assign(contest2, { allowLateRegistration: true })
+
+      // Act
+      renderEdit('group-1', 'contest-2')
+
+      // Assert
+      expect(await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })).toBeChecked()
+    })
+
+    it('permite activarlo con la competencia en curso y manda solo ese campo', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      const checkbox = await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })
+      expect(checkbox).toBeEnabled()
+
+      // Act
+      await user.click(checkbox)
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success' }))
+      })
+      expect(bodies).toEqual([{ allowLateRegistration: true }])
+    })
+
+    it('queda deshabilitado en una competencia finalizada y explica por qué', async () => {
+      renderEdit('group-1', 'contest-3')
+
+      expect(await screen.findByRole('checkbox', { name: /permitir inscripción tardía/i })).toBeDisabled()
+      expect(screen.getByText('La competencia ya finalizó: la inscripción tardía no aplica.')).toBeInTheDocument()
     })
   })
 })

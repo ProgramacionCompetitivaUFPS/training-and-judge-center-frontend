@@ -3,6 +3,7 @@ import { mockContests, buildContestList, buildRegistrations, buildContestSubmiss
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url, viewerNicknameOf, isPrivilegedViewer } from './utils'
 import type { StandingProblemResult } from '@/types/contest'
+import { registrationClosedResponse, unregisterNotAllowedResponse } from './registrationRules'
 
 /** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
 function countsAsTried(cell: StandingProblemResult): boolean {
@@ -98,7 +99,7 @@ export const contestsHandlers = [
     if (!contest) {
       return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
-    return HttpResponse.json(contest)
+    return HttpResponse.json({ ...contest, status: computeContestStatus(contest.startTime, contest.endTime) })
   }),
 
   // Create contest
@@ -118,6 +119,7 @@ export const contestsHandlers = [
       penalty: (body.penalty as number) || 20,
       freezeMinutes: body.freezeMinutes !== undefined ? body.freezeMinutes as number | null : 60,
       enablePostContest: (body.enablePostContest as boolean) || false,
+      allowLateRegistration: (body.allowLateRegistration as boolean) ?? false,
       locked: false,
       participantCount: 0,
       isRegistered: false,
@@ -217,15 +219,19 @@ export const contestsHandlers = [
   }),
 
   // Register to contest
-  http.post(url('/groups/:groupId/contests/:contestId/register'), async () => {
+  http.post(url('/groups/:groupId/contests/:contestId/register'), async ({ params }) => {
     await delay(300)
-    return new HttpResponse(null, { status: 204 })
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    return (contest && registrationClosedResponse(contest)) ?? new HttpResponse(null, { status: 204 })
   }),
 
   // Unregister from contest
-  http.delete(url('/groups/:groupId/contests/:contestId/register'), async () => {
+  http.delete(url('/groups/:groupId/contests/:contestId/register'), async ({ params }) => {
     await delay(300)
-    return new HttpResponse(null, { status: 204 })
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    return (contest && unregisterNotAllowedResponse(contest)) ?? new HttpResponse(null, { status: 204 })
   }),
 
   // Registration status

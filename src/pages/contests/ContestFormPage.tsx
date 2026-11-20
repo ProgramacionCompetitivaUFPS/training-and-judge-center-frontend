@@ -65,6 +65,7 @@ export function ContestFormPage() {
       penalty: 20,
       freezeMinutes: 0,
       enablePostContest: false,
+      allowLateRegistration: false,
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
     },
@@ -80,6 +81,7 @@ export function ContestFormPage() {
           penalty: existing.penalty,
           freezeMinutes: existing.freezeMinutes,
           enablePostContest: existing.enablePostContest,
+          allowLateRegistration: existing.allowLateRegistration,
           participationMode: existing.participationMode,
           teamSizeMin: existing.teamSizeMin,
           teamSizeMax: existing.teamSizeMax,
@@ -90,6 +92,7 @@ export function ContestFormPage() {
 
   const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, control } = form
   const enablePostContest = useWatch({ control, name: 'enablePostContest' })
+  const allowLateRegistration = useWatch({ control, name: 'allowLateRegistration' })
   const startTime = useWatch({ control, name: 'startTime' })
   const endTime = useWatch({ control, name: 'endTime' })
   const participationMode = useWatch({ control, name: 'participationMode' })
@@ -134,6 +137,7 @@ export function ContestFormPage() {
       if (dirtyFields.penalty) updatePayload.penalty = payload.penalty
       if (dirtyFields.freezeMinutes) updatePayload.freezeMinutes = payload.freezeMinutes
       if (dirtyFields.enablePostContest) updatePayload.enablePostContest = payload.enablePostContest
+      if (dirtyFields.allowLateRegistration) updatePayload.allowLateRegistration = payload.allowLateRegistration
       if (dirtyFields.participationMode) updatePayload.participationMode = payload.participationMode
       if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
       if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
@@ -335,15 +339,12 @@ export function ContestFormPage() {
                       placeholder="4"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={showTeamMembers || false}
-                      onCheckedChange={(checked) => setValue('showTeamMembers', !!checked, { shouldDirty: true })}
-                    />
-                    <label className="text-sm text-neutral-text-primary">
-                      Mostrar los miembros del equipo en la tabla de posiciones y en los envíos
-                    </label>
-                  </div>
+                  <CheckboxField
+                    id="showTeamMembers"
+                    checked={showTeamMembers || false}
+                    onCheckedChange={(v) => setValue('showTeamMembers', v, { shouldDirty: true })}
+                    label="Mostrar los miembros del equipo en la tabla de posiciones y en los envíos"
+                  />
                 </>
               )}
               {isEditing && (
@@ -379,15 +380,22 @@ export function ContestFormPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={enablePostContest || false}
-                  onCheckedChange={(checked) => setValue('enablePostContest', !!checked, { shouldDirty: true })}
-                />
-                <label className="text-sm text-neutral-text-primary">
-                  Habilitar post-competencia (submissions después del fin no afectan standings)
-                </label>
-              </div>
+              <CheckboxField
+                id="enablePostContest"
+                checked={enablePostContest || false}
+                onCheckedChange={(v) => setValue('enablePostContest', v, { shouldDirty: true })}
+                label="Habilitar post-competencia (submissions después del fin no afectan standings)"
+              />
+              <CheckboxField
+                id="allowLateRegistration"
+                checked={allowLateRegistration || false}
+                onCheckedChange={(v) => setValue('allowLateRegistration', v, { shouldDirty: true })}
+                label="Permitir inscripción tardía"
+                hint={existing?.status === 'FINISHED'
+                  ? 'La competencia ya finalizó: la inscripción tardía no aplica.'
+                  : 'Permite inscribirse mientras la competencia está en curso. Quien se inscriba tarde ya no podrá cancelar su registro. Desactivarlo no saca a quienes ya se inscribieron.'}
+                disabled={existing?.status === 'FINISHED'}
+              />
             </div>
           </FormSection>
 
@@ -466,5 +474,26 @@ function FormSection({ icon, title, children }: FormSectionProps) {
         {children}
       </CardContent>
     </Card>
+  )
+}
+
+interface CheckboxFieldProps {
+  id: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  label: string
+  hint?: string
+  disabled?: boolean
+}
+
+function CheckboxField({ id, checked, onCheckedChange, label, hint, disabled }: CheckboxFieldProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(value) => onCheckedChange(value === true)} />
+        <label htmlFor={id} className="text-sm text-neutral-text-primary">{label}</label>
+      </div>
+      {hint && <p className="text-xs text-neutral-text-muted mt-1 ml-7">{hint}</p>}
+    </div>
   )
 }

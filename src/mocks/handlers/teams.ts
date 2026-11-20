@@ -1,6 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
 import { mockMyTeams, mockTeamDetails, mockTeamInvitations, mockTeamRegistrations, mockContests } from '../data'
 import { url } from './utils'
+import { registrationClosedResponse, unregisterNotAllowedResponse } from './registrationRules'
 
 export const teamsHandlers = [
   // My teams
@@ -266,6 +267,10 @@ export const teamsHandlers = [
       return HttpResponse.json({ error: 'TEAM_NOT_FOUND', message: 'Equipo no encontrado' }, { status: 404 })
     }
 
+    const contest = mockContests.find((c) => c.id === contestId)
+    const rejection = contest && registrationClosedResponse(contest)
+    if (rejection) return rejection
+
     const existing = mockTeamRegistrations[contestId] || []
     if (existing.some((r) => r.team.id === teamId)) {
       return HttpResponse.json({ error: 'ALREADY_REGISTERED', message: 'Este equipo ya está registrado' }, { status: 409 })
@@ -281,7 +286,6 @@ export const teamsHandlers = [
     }
     mockTeamRegistrations[contestId] = [...existing, registration]
 
-    const contest = mockContests.find((c) => c.id === contestId)
     if (contest) {
       contest.isRegistered = true
       contest.participantCount += 1
@@ -320,10 +324,13 @@ export const teamsHandlers = [
   http.delete(url('/groups/:groupId/contests/:contestId/team-registrations/:teamId'), async ({ params }) => {
     await delay(200)
     const { contestId, teamId } = params as { groupId: string; contestId: string; teamId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    const rejection = contest && unregisterNotAllowedResponse(contest)
+    if (rejection) return rejection
+
     const existing = mockTeamRegistrations[contestId] || []
     mockTeamRegistrations[contestId] = existing.filter((r) => r.team.id !== teamId)
 
-    const contest = mockContests.find((c) => c.id === contestId)
     if (contest) {
       contest.isRegistered = false
       contest.participantCount = Math.max(0, contest.participantCount - 1)

@@ -4,6 +4,8 @@ import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/compo
 import { Checkbox } from '@/components/ui/Checkbox'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { pluralize } from '@/lib/utils'
+import { getRegistrationAvailability } from '@/lib/contestRegistration'
+import { LateRegistrationConfirmDialog } from '@/components/features/LateRegistrationConfirmDialog'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ import type {
   TeamRegistrationEligibility,
   MemberIneligibilityReason,
 } from '@/types/team'
+import type { ContestStatus } from '@/types/contest'
 
 type TeamRegistration = ContestTeamRegistrationsResponse['teams'][number]
 
@@ -36,7 +39,8 @@ const INELIGIBILITY_LABELS: Record<MemberIneligibilityReason, string> = {
 
 interface TeamContestRegistrationProps {
   contestId: string
-  contestStatus: string
+  contestStatus: ContestStatus
+  allowLateRegistration: boolean
   participationMode: string
   teamSizeMin?: number
   teamSizeMax?: number
@@ -69,6 +73,7 @@ interface TeamContestRegistrationProps {
 
 export function TeamContestRegistration({
   contestStatus,
+  allowLateRegistration,
   participationMode,
   teamSizeMin = 1,
   teamSizeMax = 5,
@@ -101,8 +106,10 @@ export function TeamContestRegistration({
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [cancelOpen, setCancelOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
+  const [pendingLateRegistration, setPendingLateRegistration] = useState<{ teamId: string; members: string[] } | null>(null)
 
-  const canRegisterTeam = contestStatus === 'SCHEDULED' && !isRegistered && !myRegistration &&
+  const availability = getRegistrationAvailability({ status: contestStatus, allowLateRegistration })
+  const canRegisterTeam = availability !== 'closed' && !isRegistered && !myRegistration &&
     (participationMode === 'TEAM' || participationMode === 'MIXED')
   const canManageRegistration = contestStatus === 'SCHEDULED' && !!myRegistration
 
@@ -146,6 +153,8 @@ export function TeamContestRegistration({
     if (!selectedTeamId || selectedMembers.length === 0) return
     if (isEditingRoster) {
       onUpdateTeamRegistration(selectedTeamId, selectedMembers)
+    } else if (availability === 'late') {
+      setPendingLateRegistration({ teamId: selectedTeamId, members: selectedMembers })
     } else {
       onRegisterTeam(selectedTeamId, selectedMembers)
     }
@@ -178,6 +187,22 @@ export function TeamContestRegistration({
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax &&
     !hasIneligibleSelected
   const eligibleCount = eligibleIds.size
+
+  // La elegibilidad pudo cambiar (refetch, reconexión) mientras el aviso estaba abierto: si hay una
+  // consulta en curso o algún miembro dejó de ser elegible, no se envía y se vuelve al selector con
+  // la selección conservada, donde el botón de inscribir ya refleja el estado actual.
+  const handleConfirmLateRegistration = () => {
+    if (!pendingLateRegistration) return
+    const { teamId, members } = pendingLateRegistration
+    setPendingLateRegistration(null)
+    if (isFetchingEligibility || members.some((id) => !eligibleIds.has(id))) {
+      setSelectedTeamId(teamId)
+      setSelectedMembers(members)
+      setShowDialog(true)
+      return
+    }
+    onRegisterTeam(teamId, members)
+  }
 
   const registerTrigger = (
     <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={openRegisterDialog}>
@@ -405,6 +430,12 @@ export function TeamContestRegistration({
         variant="warning"
         onConfirm={handleCancelRegistration}
         isLoading={isUnregistering}
+      />
+
+      <LateRegistrationConfirmDialog
+        open={pendingLateRegistration !== null}
+        onOpenChange={(open) => { if (!open) setPendingLateRegistration(null) }}
+        onConfirm={handleConfirmLateRegistration}
       />
     </>
   )

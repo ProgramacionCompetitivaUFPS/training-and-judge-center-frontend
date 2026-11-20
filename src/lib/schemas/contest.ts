@@ -25,6 +25,7 @@ const baseContestSchema = z.object({
     .nullable()
     .optional(),
   enablePostContest: z.boolean().optional(),
+  allowLateRegistration: z.boolean().optional(),
   problems: z.array(z.string()).optional(),
   participationMode: z.enum(['INDIVIDUAL', 'TEAM', 'MIXED']).optional(),
   teamSizeMin: z.coerce.number().int().min(1, 'Mínimo 1 miembro').optional(),

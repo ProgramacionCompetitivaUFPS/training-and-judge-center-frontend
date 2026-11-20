@@ -41,6 +41,12 @@ export function ContestInfoSidebar({ contest }: ContestInfoSidebarProps) {
             <span className="text-sm font-semibold">{contest.freezeMinutes} min</span>
           </div>
         )}
+        {contest.allowLateRegistration && (
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-neutral-text-muted">Inscripción tardía</span>
+            <span className="text-sm font-semibold">Habilitada</span>
+          </div>
+        )}
         <div className="border-t border-neutral-border my-2" />
         <div>
           <p className="text-[10px] font-semibold text-neutral-text-muted uppercase tracking-widest mb-1">Inicio</p>
