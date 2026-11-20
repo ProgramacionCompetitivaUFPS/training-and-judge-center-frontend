@@ -59,7 +59,7 @@ export function ContestStandingsPage() {
 
   const isFrozen = data?.contest.isFrozen === true
   const isRealtimeView = realtimeActive && isFrozen
-  const showRealtimeToggle = canViewRealtime && isFrozen
+  const showRealtimeToggle = canViewRealtime && (isFrozen || realtimeRequested)
 
   const isRealtimeDenied = realtimeRequested && error instanceof ApiClientError && error.status === 403
   if (isRealtimeDenied && error !== deniedError) {
@@ -105,17 +105,19 @@ export function ContestStandingsPage() {
               {data && <ContestStatusBadge status={data.contest.status} />}
               {isRealtimeView && <StandingsRealtimeBadge />}
             </div>
-            {data?.contest.status === 'ACTIVE' && (
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-neutral-text-muted" />
-                <ContestCountdown
-                  targetTime={data.contest.endTime}
-                  className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
-                />
-              </div>
-            )}
-            {showRealtimeToggle && <StandingsRealtimeToggle active={realtimeActive} onToggle={handleRealtimeToggle} />}
-            {postEnabled && <StandingsPhaseTabs value={phase} onChange={handlePhaseChange} />}
+            <div className="flex items-center gap-3">
+              {data?.contest.status === 'ACTIVE' && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-neutral-text-muted" />
+                  <ContestCountdown
+                    targetTime={data.contest.endTime}
+                    className="[&>p]:text-sm [&>p]:font-mono [&>p]:text-neutral-text"
+                  />
+                </div>
+              )}
+              {showRealtimeToggle && <StandingsRealtimeToggle active={realtimeActive} onToggle={handleRealtimeToggle} />}
+              {postEnabled && <StandingsPhaseTabs value={phase} onChange={handlePhaseChange} />}
+            </div>
           </div>
 
           {isFrozen && <StandingsFreezeNotice realtime={isRealtimeView} />}

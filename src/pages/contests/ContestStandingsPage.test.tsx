@@ -401,6 +401,7 @@ describe('ContestStandingsPage con tiempo real', () => {
     await user.click(await screen.findByRole('button', toggleName))
     await screen.findByText('Resultados reales')
 
+    await user.unhover(screen.getByRole('button', toggleName))
     await user.hover(screen.getByRole('button', toggleName))
 
     expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'true')
@@ -499,6 +500,30 @@ describe('ContestStandingsPage con tiempo real', () => {
       ),
     )
     expect(mockToast).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
+    expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('conserva el botón para volver a la vista congelada si la consulta realtime falla con 500', async () => {
+    // Arrange
+    server.use(
+      http.get(STANDINGS_URL, ({ request }) => {
+        if (new URL(request.url).searchParams.get('realtime') === 'true') {
+          return HttpResponse.json({ error: 'INTERNAL_ERROR', message: 'fallo' }, { status: 500 })
+        }
+      }),
+    )
+    renderPage('group-1', 'contest-6')
+    await screen.findByText('2 envíos sin revelar')
+
+    // Act
+    await user.click(screen.getByRole('button', toggleName))
+
+    await screen.findByRole('button', { ...toggleName, pressed: true })
+    expect(screen.queryByText('Resultados reales')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', toggleName))
+
+    // Assert
     expect(await screen.findByText('2 envíos sin revelar')).toBeInTheDocument()
     expect(screen.getByRole('button', toggleName)).toHaveAttribute('aria-pressed', 'false')
   })
