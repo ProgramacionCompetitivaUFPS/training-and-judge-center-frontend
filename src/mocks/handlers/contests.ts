@@ -1,7 +1,7 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockGroupMembers, mockUsers } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockRevealedFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
-import { url } from './utils'
+import { url, viewerNicknameOf, isPrivilegedViewer } from './utils'
 import type { StandingProblemResult } from '@/types/contest'
 
 /** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
@@ -23,8 +23,8 @@ function freezeStateOf(contest: (typeof mockContests)[number]) {
  * `isFrozen` viene de `freezeStateOf`, para que las filas y el `isFrozen` de la respuesta salgan del mismo
  * momento: `contest-6` muestra celdas pendientes mientras dura el congelamiento y, al terminar, resultados visibles.
  */
-function standingsRowsFor(contest: (typeof mockContests)[number], isFrozen: boolean) {
-  const frozenOrRevealed = isFrozen ? mockFrozenStandings : mockStandings
+function standingsRowsFor(contest: (typeof mockContests)[number], isFrozen: boolean, realtimeGranted: boolean) {
+  const frozenOrRevealed = isFrozen && !realtimeGranted ? mockFrozenStandings : mockRevealedFrozenStandings
   const officialRows = contest.id === 'contest-6' ? frozenOrRevealed : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
   const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
   const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
@@ -276,7 +276,15 @@ export const contestsHandlers = [
     }
 
     const { isFrozen, freezeStartMs } = freezeStateOf(contest)
-    const { officialRows, postRows } = standingsRowsFor(contest, isFrozen)
+    const realtimeRequested = sp.get('realtime') === 'true'
+    if (realtimeRequested && isFrozen && !isPrivilegedViewer(request, contest.group.id)) {
+      return HttpResponse.json(
+        { error: 'INSUFFICIENT_PERMISSIONS', message: 'No tienes permisos para ver los resultados en tiempo real' },
+        { status: 403 },
+      )
+    }
+    const realtimeGranted = realtimeRequested && isFrozen
+    const { officialRows, postRows } = standingsRowsFor(contest, isFrozen, realtimeGranted)
     const base =
       phase === 'competition' ? officialRows : phase === 'postcompetition' ? postRows : [...officialRows, ...postRows]
     // Contadores de la fase pedida: con postcompetition, sobre las filas de post (sin filtros).
@@ -354,7 +362,7 @@ export const contestsHandlers = [
       [...new Set(values.filter((v): v is string => !!v))].sort()
 
     // Los filtros aplican a las dos secciones, así que las opciones salen de oficiales y post.
-    const { officialRows, postRows } = standingsRowsFor(contest, freezeStateOf(contest).isFrozen)
+    const { officialRows, postRows } = standingsRowsFor(contest, freezeStateOf(contest).isFrozen, false)
     const participants = [...officialRows, ...postRows].map((e) => e.participant)
 
     return HttpResponse.json({
@@ -373,14 +381,8 @@ export const contestsHandlers = [
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
 
-    const auth = request.headers.get('Authorization')
-    const token = auth?.replace('Bearer ', '') || ''
-    const viewerNickname = token.replace('mock-jwt-token-', '')
-    const viewer = mockUsers.find((u) => u.nickname === viewerNickname)
-    const isRealLead = (mockGroupMembers[contest.group.id] || []).some(
-      (m) => m.nickname === viewerNickname && m.role === 'LEAD',
-    )
-    const isPrivileged = viewer?.role === 'ADMIN' || isRealLead
+    const viewerNickname = viewerNicknameOf(request)
+    const isPrivileged = isPrivilegedViewer(request, contest.group.id)
 
     const sp = new URL(request.url).searchParams
     const result = buildContestSubmissionsList({

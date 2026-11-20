@@ -8,7 +8,7 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 import { mockContests } from '@/mocks/data'
-import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase } from '@/types/contest'
+import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase, StandingsResponse } from '@/types/contest'
 import {
   contestKeys,
   standingsRefetchInterval,
@@ -555,6 +555,105 @@ describe('useStandings congelado (mock)', () => {
     const data = await load('contest-2')
 
     expect(data.problems[0]).toMatchObject({ accepted: 5, tried: 5 })
+  })
+})
+
+describe('useStandings tiempo real (mock)', () => {
+  async function load(contestId: string, params?: StandingsParams) {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useStandings('group-1', contestId, params), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  const hasPending = (data: StandingsResponse) =>
+    data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')
+
+  it('devuelve los resultados reales de una competencia congelada cuando el admin pide realtime', async () => {
+    // Arrange / Act
+    const data = await load('contest-6', { realtime: true })
+
+    // Assert
+    expect(data.contest.isFrozen).toBe(true)
+    expect(hasPending(data)).toBe(false)
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'Competitive Coders',
+      'carloscp',
+      'sofiarodriguez',
+      'anagarcia',
+    ])
+    expect(data.standings.map((e) => e.rank)).toEqual([1, 2, 3, 4])
+  })
+
+  it('devuelve la celda revelada con sus tiempos y el primer AC marcado', async () => {
+    const data = await load('contest-6', { realtime: true })
+
+    expect(data.standings[0].problems[1]).toMatchObject({
+      status: 'ACCEPTED',
+      attempts: 3,
+      time: 80,
+      penalty: 40,
+      pending: 0,
+      isFirstSolve: true,
+    })
+  })
+
+  it('cuenta los contadores de cabecera con los resultados reales', async () => {
+    const data = await load('contest-6', { realtime: true })
+
+    expect(data.problems[0]).toMatchObject({ accepted: 4, tried: 4 })
+    expect(data.problems[1]).toMatchObject({ accepted: 2, tried: 2 })
+  })
+
+  it('sigue devolviendo la vista congelada cuando no se pide realtime', async () => {
+    const data = await load('contest-6')
+
+    expect(data.contest.isFrozen).toBe(true)
+    expect(hasPending(data)).toBe(true)
+    expect(data.standings.map((e) => e.participant.displayName)).toEqual([
+      'sofiarodriguez',
+      'Competitive Coders',
+      'carloscp',
+      'anagarcia',
+    ])
+  })
+
+  it('devuelve los resultados reales a un líder que no es admin', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-mariacoach')
+
+    // Act
+    const data = await load('contest-6', { realtime: true })
+
+    // Assert
+    expect(hasPending(data)).toBe(false)
+  })
+
+  it('responde 403 INSUFFICIENT_PERMISSIONS a quien no es admin ni líder del grupo', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-carloscp')
+    const { wrapper } = makeWrapper()
+
+    // Act
+    const { result } = renderHook(() => useStandings('group-1', 'contest-6', { realtime: true }), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    // Assert
+    expect(result.current.error).toBeInstanceOf(ApiClientError)
+    expect((result.current.error as ApiClientError).status).toBe(403)
+    expect((result.current.error as ApiClientError).code).toBe('INSUFFICIENT_PERMISSIONS')
+  })
+
+  it('ignora realtime en una competencia sin congelamiento y no responde 403', async () => {
+    // Arrange
+    setAccessToken('mock-jwt-token-carloscp')
+
+    // Act
+    const data = await load('contest-2', { realtime: true })
+
+    // Assert
+    expect(data.contest.isFrozen).toBe(false)
+    expect(data.standings).toHaveLength(5)
   })
 })
 

@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { ApiClientError } from '@/lib/errors'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
@@ -203,7 +204,7 @@ export function ContestFormPage() {
   // Real leadership of the group, not just having the Coach role platform-wide — the backend
   // already rejects create/update on a group the Coach doesn't lead (create_contest.go,
   // update_contest.go); this just prevents a non-lead Coach from reaching the form via direct URL.
-  const isLead = user?.role === 'ADMIN' || groupDetail?.userMembership.role === 'LEAD'
+  const isLead = isGroupLeadOrAdmin(user?.role, groupDetail?.userMembership.role)
   if (groupDetail && !isLead) {
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
