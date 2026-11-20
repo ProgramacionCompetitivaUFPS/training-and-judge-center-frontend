@@ -476,6 +476,7 @@ describe('useStandings congelado (mock)', () => {
       const data = await load('contest-6')
 
       // Assert
+      expect(data.contest.status).toBe('FINISHED')
       expect(data.contest.isFrozen).toBe(true)
       expect(data.contest.resultsRevealedAt).toBeNull()
       expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(true)

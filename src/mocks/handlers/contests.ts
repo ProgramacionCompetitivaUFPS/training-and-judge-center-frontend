@@ -309,7 +309,7 @@ export const contestsHandlers = [
       contest: {
         id: contest.id,
         name: contest.name,
-        status: contest.status,
+        status: computeContestStatus(contest.startTime, contest.endTime),
         startTime: contest.startTime,
         endTime: contest.endTime,
         penalty: contest.penalty,
