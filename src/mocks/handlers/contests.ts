@@ -3,6 +3,7 @@ import { mockContests, buildContestList, buildRegistrations, buildContestSubmiss
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url, viewerNicknameOf, isPrivilegedViewer } from './utils'
 import type { StandingProblemResult } from '@/types/contest'
+import { registrationClosedResponse, unregisterNotAllowedResponse } from './registrationRules'
 
 /** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
 function countsAsTried(cell: StandingProblemResult): boolean {
@@ -218,15 +219,19 @@ export const contestsHandlers = [
   }),
 
   // Register to contest
-  http.post(url('/groups/:groupId/contests/:contestId/register'), async () => {
+  http.post(url('/groups/:groupId/contests/:contestId/register'), async ({ params }) => {
     await delay(300)
-    return new HttpResponse(null, { status: 204 })
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    return (contest && registrationClosedResponse(contest)) ?? new HttpResponse(null, { status: 204 })
   }),
 
   // Unregister from contest
-  http.delete(url('/groups/:groupId/contests/:contestId/register'), async () => {
+  http.delete(url('/groups/:groupId/contests/:contestId/register'), async ({ params }) => {
     await delay(300)
-    return new HttpResponse(null, { status: 204 })
+    const { contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    return (contest && unregisterNotAllowedResponse(contest)) ?? new HttpResponse(null, { status: 204 })
   }),
 
   // Registration status
