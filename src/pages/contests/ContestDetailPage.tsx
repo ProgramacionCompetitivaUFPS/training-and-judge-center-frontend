@@ -19,6 +19,7 @@ import { useMyTeams, useTeamRegistrationEligibility, useRegisterTeamToContest, u
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
 import { getErrorMessage } from '@/lib/errorMessages'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { PATHS } from '@/lib/constants'
 import { formatDateTz, formatDuration, participationModeLabel, problemLabel, pluralize } from '@/lib/utils'
 import { DEFAULT_BALLOON_COLOR } from '@/lib/balloon'
@@ -142,7 +143,7 @@ export function ContestDetailPage() {
   // Real leadership of the group that owns this contest — not just having the Coach role
   // platform-wide, which the backend already rejects for management actions on contests
   // belonging to a group the Coach doesn't actually lead (update_contest.go, delete_contest.go).
-  const isLead = user?.role === 'ADMIN' || ownerGroup?.userMembership.role === 'LEAD'
+  const isLead = isGroupLeadOrAdmin(user?.role, ownerGroup?.userMembership.role)
   // Locking/unlocking is restricted by the backend to the contest's actual owner (or Admin) —
   // unlike edit/delete/problem management, which accept any Lead of the group (update_contest.go).
   const isContestOwner = user?.role === 'ADMIN' || contest.owner.nickname === user?.nickname
