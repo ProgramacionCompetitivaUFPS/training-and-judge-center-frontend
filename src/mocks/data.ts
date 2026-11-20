@@ -1634,9 +1634,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 110,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true },
-      { position: 2, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 2, time: 75, penalty: 20 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true },
+      { position: 2, status: 'ACCEPTED', attempts: 0, time: 45, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 1, time: 75, penalty: 20 },
     ],
   },
   {
@@ -1653,9 +1653,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 3,
     totalPenalty: 125,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 30, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 2, time: 55, penalty: 20 },
-      { position: 3, status: 'ACCEPTED', attempts: 1, time: 80, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 30, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 1, time: 55, penalty: 20 },
+      { position: 3, status: 'ACCEPTED', attempts: 0, time: 80, penalty: 0 },
     ],
   },
   {
@@ -1672,9 +1672,9 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 90,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 25, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 25, penalty: 0 },
       { position: 2, status: 'WRONG_ANSWER', attempts: 4, time: null, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 3, time: 65, penalty: 40 },
+      { position: 3, status: 'ACCEPTED', attempts: 2, time: 65, penalty: 40 },
     ],
   },
   {
@@ -1688,8 +1688,8 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 95,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: 60, penalty: 40 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: 60, penalty: 40 },
       { position: 3, status: 'WRONG_ANSWER', attempts: 1, time: null, penalty: 0 },
     ],
   },
@@ -1707,7 +1707,7 @@ export const mockStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 45,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 2, time: 45, penalty: 20 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 45, penalty: 20 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 3, status: 'WRONG_ANSWER', attempts: 2, time: null, penalty: 0 },
     ],
@@ -1731,8 +1731,8 @@ export const mockPostStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 0,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: null, penalty: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: null, penalty: 0 },
       { position: 3, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
@@ -1753,7 +1753,7 @@ export const mockPostStandings: StandingEntry[] = [
     problems: [
       { position: 1, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0 },
-      { position: 3, status: 'ACCEPTED', attempts: 1, time: null, penalty: 0 },
+      { position: 3, status: 'ACCEPTED', attempts: 0, time: null, penalty: 0 },
     ],
   },
   {
@@ -1821,7 +1821,7 @@ export const mockFrozenStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 20,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
@@ -1831,7 +1831,7 @@ export const mockFrozenStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 35,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0, pending: 0 },
       { position: 2, status: 'PENDING', attempts: 1, time: null, penalty: 0, isFirstSolve: false, pending: 2 },
     ],
   },
@@ -1841,7 +1841,7 @@ export const mockFrozenStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 70,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 2, time: 50, penalty: 20, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 50, penalty: 20, pending: 0 },
       { position: 2, status: 'PENDING', attempts: 0, time: null, penalty: 0, isFirstSolve: false, pending: 1 },
     ],
   },
@@ -1865,8 +1865,8 @@ export const mockRevealedFrozenStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 155,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 35, penalty: 0, pending: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 3, time: 80, penalty: 40, isFirstSolve: true, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 35, penalty: 0, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 2, time: 80, penalty: 40, isFirstSolve: true, pending: 0 },
     ],
   },
   {
@@ -1875,8 +1875,8 @@ export const mockRevealedFrozenStandings: StandingEntry[] = [
     problemsSolved: 2,
     totalPenalty: 160,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 2, time: 50, penalty: 20, pending: 0 },
-      { position: 2, status: 'ACCEPTED', attempts: 1, time: 90, penalty: 0, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 1, time: 50, penalty: 20, pending: 0 },
+      { position: 2, status: 'ACCEPTED', attempts: 0, time: 90, penalty: 0, pending: 0 },
     ],
   },
   {
@@ -1885,7 +1885,7 @@ export const mockRevealedFrozenStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 20,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 1, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 0, time: 20, penalty: 0, isFirstSolve: true, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
@@ -1895,7 +1895,7 @@ export const mockRevealedFrozenStandings: StandingEntry[] = [
     problemsSolved: 1,
     totalPenalty: 140,
     problems: [
-      { position: 1, status: 'ACCEPTED', attempts: 3, time: 100, penalty: 40, pending: 0 },
+      { position: 1, status: 'ACCEPTED', attempts: 2, time: 100, penalty: 40, pending: 0 },
       { position: 2, status: 'NOT_ATTEMPTED', attempts: 0, time: null, penalty: 0, pending: 0 },
     ],
   },
@@ -1915,7 +1915,7 @@ export const mockLargeStandings: StandingEntry[] = Array.from({ length: 30 }, (_
     problems: Array.from({ length: 13 }, (_, j) => {
       const position = j + 1
       if (j < solved) {
-        return { position, status: 'ACCEPTED' as const, attempts: 1 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
+        return { position, status: 'ACCEPTED' as const, attempts: 0 + ((i + j) % 3), time: 5 + ((i * 7 + j * 13) % 170), penalty: 0, isFirstSolve: i === 0 && j % 3 === 0 }
       }
       if ((i + j) % 4 === 0) {
         return { position, status: 'WRONG_ANSWER' as const, attempts: 1 + ((i + j) % 5), time: null, penalty: 0 }

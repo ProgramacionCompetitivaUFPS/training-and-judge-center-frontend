@@ -184,6 +184,7 @@ export type StandingProblemStatus = 'ACCEPTED' | 'WRONG_ANSWER' | 'PENDING' | 'N
 export interface StandingProblemResult {
   position: number
   status: StandingProblemStatus
+  /** Intentos fallidos (sin contar CE/SE). En ACCEPTED son los previos al AC: 0 = a la primera. */
   attempts: number
   time: number | null // minutes from start to AC
   penalty: number
