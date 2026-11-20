@@ -7,7 +7,7 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
-import { mockContests } from '@/mocks/data'
+import { mockContests, mockContestReveals } from '@/mocks/data'
 import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase, StandingsResponse } from '@/types/contest'
 import {
   contestKeys,
@@ -443,6 +443,10 @@ describe('useStandings congelado (mock)', () => {
     return result.current.data!
   }
 
+  beforeEach(() => {
+    mockContestReveals.clear()
+  })
+
   it('marca la competencia como congelada y expone el inicio del congelamiento', async () => {
     // Arrange / Act
     const data = await load('contest-6')
@@ -461,7 +465,7 @@ describe('useStandings congelado (mock)', () => {
     expect(minutesBeforeEnd).toBe(60)
   })
 
-  it('revela los resultados cuando termina el congelamiento', async () => {
+  it('sigue congelado tras el fin de la competencia hasta que se revele', async () => {
     // Arrange: 30 minutos después, contest-6 (que termina en 20) ya acabó
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(Date.now() + 30 * 60_000)
@@ -471,8 +475,28 @@ describe('useStandings congelado (mock)', () => {
       const data = await load('contest-6')
 
       // Assert
+      expect(data.contest.isFrozen).toBe(true)
+      expect(data.contest.resultsRevealedAt).toBeNull()
+      expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('muestra los resultados reales una vez revelados', async () => {
+    // Arrange: 30 minutos después, contest-6 ya terminó y se reveló a mano
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(Date.now() + 30 * 60_000)
+    mockContestReveals.set('contest-6', new Date().toISOString())
+
+    try {
+      // Act
+      const data = await load('contest-6')
+
+      // Assert
       expect(data.contest.isFrozen).toBe(false)
       expect(data.contest.frozenAt).toBeNull()
+      expect(data.contest.resultsRevealedAt).toEqual(expect.any(String))
       expect(data.standings.flatMap((entry) => entry.problems).some((cell) => cell.status === 'PENDING')).toBe(false)
     } finally {
       vi.useRealTimers()

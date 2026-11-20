@@ -1248,6 +1248,9 @@ const yesterdayEnd = new Date(yesterday.getTime() + 3 * 60 * 60 * 1000)
 const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 
+/** contestId → ISO de cuándo se reveló a mano el contest (estado compartido del mock de revelado). */
+export const mockContestReveals = new Map<string, string>()
+
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
@@ -1482,6 +1485,34 @@ export const mockContests: ContestDetail[] = [
       { position: 3, slug: 'graph-bfs', title: 'Graph BFS', timeLimit: 2000, memoryLimit: 256, color: null },
     ],
     problemCount: 3,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
+  {
+    id: 'contest-9',
+    name: 'Reto Congelado sin Revelar',
+    description: 'Competencia terminada con freeze, aún sin revelar resultados.',
+    startTime: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString(),
+    endTime: oneHourAgo.toISOString(),
+    duration: 14400,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: 60,
+    autoRevealMinutes: null,
+    enablePostContest: false,
+    allowLateRegistration: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
