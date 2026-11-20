@@ -18,3 +18,8 @@ export function toAutoRevealMinutes(mode: AutoRevealMode, delay: number | undefi
   if (mode === 'onFinish') return 0
   return delay ?? null
 }
+
+/** El revelado solo existe con un freeze mayor que 0: negativos, vacío, null y NaN cuentan como sin freeze. */
+export function isFreezeEnabled(freezeMinutes: number | string | null | undefined): boolean {
+  return Number(freezeMinutes) > 0
+}

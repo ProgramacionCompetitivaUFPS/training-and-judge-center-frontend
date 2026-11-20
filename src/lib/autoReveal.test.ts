@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { autoRevealModeOf, autoRevealDelayOf, toAutoRevealMinutes } from './autoReveal'
+import { autoRevealModeOf, autoRevealDelayOf, isFreezeEnabled, toAutoRevealMinutes } from './autoReveal'
 import type { AutoRevealMode } from './autoReveal'
 
 describe('autoRevealModeOf', () => {
@@ -37,4 +37,22 @@ describe('toAutoRevealMinutes', () => {
       expect(toAutoRevealMinutes(mode, delay)).toBe(expected)
     },
   )
+})
+
+describe('isFreezeEnabled', () => {
+  it.each([
+    [30, true],
+    ['30', true],
+    [1, true],
+    [0, false],
+    ['0', false],
+    [-5, false],
+    ['-5', false],
+    [null, false],
+    [undefined, false],
+    ['', false],
+    [Number.NaN, false],
+  ] as [number | string | null | undefined, boolean][])('freeze %j → %s', (freeze, expected) => {
+    expect(isFreezeEnabled(freeze)).toBe(expected)
+  })
 })

@@ -20,7 +20,7 @@ import { getErrorMessage } from '@/lib/errorMessages'
 import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
-import { autoRevealDelayOf, autoRevealModeOf, toAutoRevealMinutes } from '@/lib/autoReveal'
+import { autoRevealDelayOf, autoRevealModeOf, isFreezeEnabled, toAutoRevealMinutes } from '@/lib/autoReveal'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
 import { formatDuration, problemLabel } from '@/lib/utils'
@@ -104,7 +104,7 @@ export function ContestFormPage() {
   const showTeamMembers = useWatch({ control, name: 'showTeamMembers' })
   const autoRevealMode = useWatch({ control, name: 'autoRevealMode' })
   const freezeMinutes = useWatch({ control, name: 'freezeMinutes' })
-  const hasFreeze = Number(freezeMinutes) > 0
+  const hasFreeze = isFreezeEnabled(freezeMinutes)
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
   // The backend rejects a start (or end) time in the past, and moving either one after the fact
   // would shift every submission's time and penalty — so once started, only the end can move

@@ -576,6 +576,47 @@ describe('ContestFormPage', () => {
       expect(bodies[0]).not.toHaveProperty('autoRevealDelay')
     })
 
+    it('guarda aunque el modo minutos quede vacío si el freeze se baja a 0 (el campo se oculta)', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+
+      // Act
+      await user.clear(freezeInput)
+      await user.type(freezeInput, '0')
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
+    })
+
+    it('con un freeze negativo solo marca el error del freeze y no el de los minutos de espera', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+
+      // Act
+      await user.clear(freezeInput)
+      await user.type(freezeInput, '-5')
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      // Assert
+      expect(await screen.findByText('Los minutos de freeze deben ser positivos')).toBeInTheDocument()
+      expect(screen.queryByText('Ingresa los minutos de espera (entero, mínimo 1)')).not.toBeInTheDocument()
+      expect(bodies).toHaveLength(0)
+    })
+
     it('en modo minutos sin minutos muestra el error y no envía', async () => {
       const user = userEvent.setup()
       const bodies = recordPostBodies()

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isFreezeEnabled } from '@/lib/autoReveal'
+
 const baseContestSchema = z.object({
   name: z
     .string()
@@ -36,9 +38,11 @@ const baseContestSchema = z.object({
   autoRevealDelay: z.coerce.number().optional(),
 })
 
-// Solo se exige la espera en modo «Minutos después del fin»; un input oculto con '' no bloquea el envío.
-function autoRevealDelayWhenDelayMode(data: { autoRevealMode?: string; autoRevealDelay?: number }) {
-  return data.autoRevealMode !== 'delay' || (Number.isInteger(data.autoRevealDelay) && (data.autoRevealDelay ?? 0) >= 1)
+// Solo se exige la espera en modo «Minutos después del fin» y con el campo visible (freeze > 0):
+// un campo oculto no puede bloquear el envío sin mostrar ningún error.
+function autoRevealDelayWhenDelayMode(data: { autoRevealMode?: string; autoRevealDelay?: number; freezeMinutes?: number | null }) {
+  if (data.autoRevealMode !== 'delay' || !isFreezeEnabled(data.freezeMinutes)) return true
+  return Number.isInteger(data.autoRevealDelay) && (data.autoRevealDelay ?? 0) >= 1
 }
 
 function hasValidTeamSizes(data: { participationMode?: string; teamSizeMin?: number; teamSizeMax?: number }) {
