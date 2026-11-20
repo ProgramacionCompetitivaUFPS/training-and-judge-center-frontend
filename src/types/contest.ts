@@ -43,6 +43,7 @@ export interface ContestDetail {
   penalty: number
   freezeMinutes: number | null
   enablePostContest: boolean
+  allowLateRegistration: boolean
   locked?: boolean // only for Leads/Admin
   participantCount: number
   isRegistered: boolean
@@ -110,6 +111,7 @@ export interface CreateContestRequest {
   penalty?: number
   freezeMinutes?: number | null
   enablePostContest?: boolean
+  allowLateRegistration?: boolean
   problems?: string[] // slugs
   participationMode?: ParticipationMode
   teamSizeMin?: number
@@ -128,6 +130,7 @@ export interface UpdateContestRequest {
   penalty?: number
   freezeMinutes?: number | null
   enablePostContest?: boolean
+  allowLateRegistration?: boolean
   problems?: ContestProblemPayload[]
   locked?: boolean
   participationMode?: ParticipationMode

@@ -118,6 +118,7 @@ export const contestsHandlers = [
       penalty: (body.penalty as number) || 20,
       freezeMinutes: body.freezeMinutes !== undefined ? body.freezeMinutes as number | null : 60,
       enablePostContest: (body.enablePostContest as boolean) || false,
+      allowLateRegistration: (body.allowLateRegistration as boolean) ?? false,
       locked: false,
       participantCount: 0,
       isRegistered: false,
