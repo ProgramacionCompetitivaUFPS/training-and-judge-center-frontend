@@ -158,3 +158,73 @@ describe('updateContestSchema', () => {
     expect(updateContestSchema.safeParse({ endTime: END }).success).toBe(true)
   })
 })
+
+// ─── autoReveal ────────────────────────────────────────────────────────────────
+
+const AUTO_REVEAL_DELAY_MESSAGE = 'Ingresa los minutos de espera (entero, mínimo 1)'
+
+describe('createContestSchema — autoReveal', () => {
+  it('falla en modo minutos sin minutos de espera', () => {
+    const r = createContestSchema.safeParse({ ...validBase, freezeMinutes: 30, autoRevealMode: 'delay' })
+
+    expect(r.success).toBe(false)
+    expect(r.error?.issues.map((issue) => issue.message)).toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+
+  it.each([0, 1.5, -5])('falla en modo minutos con una espera de %s', (delay) => {
+    const r = createContestSchema.safeParse({ ...validBase, freezeMinutes: 30, autoRevealMode: 'delay', autoRevealDelay: delay })
+
+    expect(r.success).toBe(false)
+  })
+
+  it('acepta modo minutos con una espera de 45', () => {
+    const r = createContestSchema.safeParse({ ...validBase, freezeMinutes: 30, autoRevealMode: 'delay', autoRevealDelay: 45 })
+
+    expect(r.success).toBe(true)
+  })
+
+  it.each(['manual', 'onFinish'] as const)('no bloquea el envío en modo %s aunque los minutos estén vacíos', (mode) => {
+    const r = createContestSchema.safeParse({ ...validBase, autoRevealMode: mode, autoRevealDelay: '' })
+
+    expect(r.success).toBe(true)
+  })
+
+  it.each([0, null, undefined, -5])('no exige minutos de espera si el freeze es %s (el campo está oculto)', (freezeMinutes) => {
+    const r = createContestSchema.safeParse({ ...validBase, freezeMinutes, autoRevealMode: 'delay', autoRevealDelay: '' })
+
+    expect(r.error?.issues.map((issue) => issue.message) ?? []).not.toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+
+  it('con freeze 0 y modo minutos vacío el formulario es válido', () => {
+    const r = createContestSchema.safeParse({ ...validBase, freezeMinutes: 0, autoRevealMode: 'delay', autoRevealDelay: '' })
+
+    expect(r.success).toBe(true)
+  })
+})
+
+describe('updateContestSchema — autoReveal', () => {
+  it('falla en modo minutos sin minutos de espera', () => {
+    const r = updateContestSchema.safeParse({ freezeMinutes: 30, autoRevealMode: 'delay' })
+
+    expect(r.success).toBe(false)
+    expect(r.error?.issues.map((issue) => issue.message)).toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+
+  it('acepta modo minutos con una espera de 45', () => {
+    const r = updateContestSchema.safeParse({ freezeMinutes: 30, autoRevealMode: 'delay', autoRevealDelay: 45 })
+
+    expect(r.success).toBe(true)
+  })
+
+  it('no bloquea la actualización en modo manual aunque los minutos estén vacíos', () => {
+    const r = updateContestSchema.safeParse({ autoRevealMode: 'manual', autoRevealDelay: '' })
+
+    expect(r.success).toBe(true)
+  })
+
+  it.each([0, null, undefined, -5])('no exige minutos de espera si el freeze es %s (el campo está oculto)', (freezeMinutes) => {
+    const r = updateContestSchema.safeParse({ freezeMinutes, autoRevealMode: 'delay', autoRevealDelay: '' })
+
+    expect(r.error?.issues.map((issue) => issue.message) ?? []).not.toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+})

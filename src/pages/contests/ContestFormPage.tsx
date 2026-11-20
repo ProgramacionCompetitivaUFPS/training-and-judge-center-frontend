@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +9,7 @@ import { Button, Input, Textarea, Checkbox, Card, CardContent } from '@/componen
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { BalloonColorPicker } from '@/components/features/BalloonColorPicker'
+import { AutoRevealField } from '@/components/features/AutoRevealField'
 import { contestKeys, useContestDetail, useCreateContest, useUpdateContest } from '@/hooks/api/useContests'
 import { PATHS } from '@/lib/constants'
 import { useGroupDetail } from '@/hooks/api/useGroups'
@@ -19,6 +20,16 @@ import { getErrorMessage } from '@/lib/errorMessages'
 import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { buildColorUpdatePayload } from '@/lib/contestProblems'
+import {
+  autoRevealDelayOf,
+  autoRevealDraftOf,
+  autoRevealModeOf,
+  isFreezeEnabled,
+  parseAutoRevealDelay,
+  toAutoRevealMinutes,
+  type AutoRevealDraft,
+  type AutoRevealMode,
+} from '@/lib/autoReveal'
 import { createContestSchema, type CreateContestFormData } from '@/lib/schemas/contest'
 import type { ParticipationMode, UpdateContestRequest } from '@/types/contest'
 import { formatDuration, problemLabel } from '@/lib/utils'
@@ -68,6 +79,7 @@ export function ContestFormPage() {
       allowLateRegistration: false,
       participationMode: 'INDIVIDUAL',
       showTeamMembers: false,
+      autoRevealMode: 'manual',
     },
     // Al recargar el contest (p. ej. tras un CONTEST_CONFLICT) se actualizan los campos que la usuaria
     // no tocó y se conservan los que sí editó.
@@ -86,17 +98,45 @@ export function ContestFormPage() {
           teamSizeMin: existing.teamSizeMin,
           teamSizeMax: existing.teamSizeMax,
           showTeamMembers: existing.showTeamMembers,
+          autoRevealMode: autoRevealModeOf(existing.autoRevealMinutes),
+          autoRevealDelay: autoRevealDelayOf(existing.autoRevealMinutes),
         }
       : undefined,
   })
 
-  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, control } = form
+  const { register, handleSubmit, formState: { errors, dirtyFields }, setValue, getValues, control } = form
   const enablePostContest = useWatch({ control, name: 'enablePostContest' })
   const allowLateRegistration = useWatch({ control, name: 'allowLateRegistration' })
   const startTime = useWatch({ control, name: 'startTime' })
   const endTime = useWatch({ control, name: 'endTime' })
   const participationMode = useWatch({ control, name: 'participationMode' })
   const showTeamMembers = useWatch({ control, name: 'showTeamMembers' })
+  const autoRevealMode = useWatch({ control, name: 'autoRevealMode' })
+  const freezeMinutes = useWatch({ control, name: 'freezeMinutes' })
+  const hasFreeze = isFreezeEnabled(freezeMinutes)
+
+  // El revelado (modo + espera) se trata como una unidad: `keepDirtyValues` conserva campo a campo, así que si
+  // otra persona cambia el revelado y recargamos tras un CONTEST_CONFLICT, la espera editada quedaría con el
+  // modo del servidor y se perdería. Se guarda lo que la usuaria dejó y se reaplica tras cada recarga.
+  const revealDraftRef = useRef<AutoRevealDraft | null>(null)
+  const rememberRevealDraft = (mode: AutoRevealMode, delay: number | undefined) => {
+    revealDraftRef.current = autoRevealDraftOf(existing?.autoRevealMinutes, mode, delay)
+  }
+  useEffect(() => {
+    const draft = revealDraftRef.current
+    if (!draft) return
+    setValue('autoRevealMode', draft.mode, { shouldDirty: true })
+    setValue('autoRevealDelay', draft.delay, { shouldDirty: true })
+  }, [existing?.autoRevealMinutes, setValue])
+
+  const delayField = register('autoRevealDelay')
+  const delayInputProps: typeof delayField = {
+    ...delayField,
+    onChange: (event: { target: { value: string }; type?: string }) => {
+      rememberRevealDraft(autoRevealMode ?? 'manual', parseAutoRevealDelay(event.target.value))
+      return delayField.onChange(event)
+    },
+  }
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
   // The backend rejects a start (or end) time in the past, and moving either one after the fact
   // would shift every submission's time and penalty — so once started, only the end can move
@@ -118,8 +158,11 @@ export function ContestFormPage() {
   }, [isEditing, freezeTouched, startTime, endTime, setValue])
 
   const onSubmit = (data: CreateContestFormData) => {
+    // Los campos de UI del revelado no llegan al API: se convierten a `autoRevealMinutes` abajo.
+    const { autoRevealMode: mode, autoRevealDelay: delay, ...apiData } = data
+    const autoRevealMinutes = toAutoRevealMinutes(mode ?? 'manual', delay)
     const payload = {
-      ...data,
+      ...apiData,
       startTime: new Date(data.startTime).toISOString(),
       endTime: new Date(data.endTime).toISOString(),
       description: data.description || undefined,
@@ -142,6 +185,9 @@ export function ContestFormPage() {
       if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
       if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
       if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
+      if (hasFreeze && (dirtyFields.autoRevealMode || dirtyFields.autoRevealDelay)) {
+        updatePayload.autoRevealMinutes = autoRevealMinutes
+      }
 
       if (existing && !colorsDisabled) {
         const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
@@ -174,7 +220,7 @@ export function ContestFormPage() {
       )
     } else if (groupId) {
       createMutation.mutate(
-        { groupId, data: payload },
+        { groupId, data: { ...payload, autoRevealMinutes: hasFreeze && mode !== 'manual' ? autoRevealMinutes : undefined } },
         {
           onSuccess: (created) => {
             toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
@@ -380,6 +426,17 @@ export function ContestFormPage() {
                   )}
                 </div>
               </div>
+              {hasFreeze && (
+                <AutoRevealField
+                  mode={autoRevealMode ?? 'manual'}
+                  onModeChange={(mode) => {
+                    rememberRevealDraft(mode, parseAutoRevealDelay(getValues('autoRevealDelay')))
+                    setValue('autoRevealMode', mode, { shouldDirty: true, shouldValidate: true })
+                  }}
+                  delayInputProps={delayInputProps}
+                  delayError={errors.autoRevealDelay?.message}
+                />
+              )}
               <CheckboxField
                 id="enablePostContest"
                 checked={enablePostContest || false}

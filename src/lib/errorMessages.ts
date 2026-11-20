@@ -117,6 +117,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PROBLEM_COLOR: 'El color del problema no es válido',
   CONTEST_IS_ACTIVE: 'No se puede eliminar una competencia activa',
   CONTEST_NOT_ACTIVE: 'El rejuzgamiento solo está permitido durante competencias activas',
+  CONTEST_NOT_FINISHED: 'La competencia aún no ha terminado, no se pueden revelar los resultados',
+  CONTEST_HAS_NO_FREEZE: 'Esta competencia no tiene freeze, no hay resultados que revelar',
   CONTEST_ALREADY_STARTED: 'La inscripción está cerrada porque la competencia ya inició',
   CANNOT_UNREGISTER_AFTER_START: 'No puedes cancelar el registro después de que la competencia haya comenzado',
   NOT_REGISTERED: 'Debes estar inscrito en la competencia para realizar esta acción',

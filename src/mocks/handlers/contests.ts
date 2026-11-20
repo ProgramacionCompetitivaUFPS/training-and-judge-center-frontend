@@ -1,9 +1,10 @@
 import { http, HttpResponse, delay } from 'msw'
-import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockRevealedFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails } from '../data'
+import { mockContests, buildContestList, buildRegistrations, buildContestSubmissionsList, computeContestStatus, mockStandings, mockPostStandings, mockFrozenStandings, mockRevealedFrozenStandings, mockLargeStandings, mockProblems, mockTeamRegistrations, mockGroupDetails, mockContestReveals } from '../data'
 import { isValidBalloonColor } from '@/lib/balloon'
 import { url, viewerNicknameOf, isPrivilegedViewer } from './utils'
 import type { StandingProblemResult } from '@/types/contest'
 import { registrationClosedResponse, unregisterNotAllowedResponse } from './registrationRules'
+import { freezeStateOf, revealRejection } from './revealRules'
 
 /** Cuenta como intento visible: ni NOT_ATTEMPTED ni una celda pendiente sin fallos anteriores al freeze. */
 function countsAsTried(cell: StandingProblemResult): boolean {
@@ -11,13 +12,8 @@ function countsAsTried(cell: StandingProblemResult): boolean {
   return !(cell.status === 'PENDING' && cell.attempts === 0)
 }
 
-/** Inicio del congelamiento (null si la competencia no tiene freeze) y si está vigente ahora mismo. */
-function freezeStateOf(contest: (typeof mockContests)[number]) {
-  const freezeStartMs = contest.freezeMinutes != null ? Date.parse(contest.endTime) - contest.freezeMinutes * 60_000 : null
-  const isFrozen =
-    computeContestStatus(contest.startTime, contest.endTime) === 'ACTIVE' && freezeStartMs !== null && Date.now() >= freezeStartMs
-  return { isFrozen, freezeStartMs }
-}
+/** Contests de demo con filas congeladas: `contest-6` (activo) y `contest-9` (terminado sin revelar). */
+const FROZEN_DEMO_CONTEST_IDS = new Set(['contest-6', 'contest-9'])
 
 /**
  * Filas de standings del mock: oficiales y, si la competencia terminó con post-competencia, las de post.
@@ -26,7 +22,7 @@ function freezeStateOf(contest: (typeof mockContests)[number]) {
  */
 function standingsRowsFor(contest: (typeof mockContests)[number], isFrozen: boolean, realtimeGranted: boolean) {
   const frozenOrRevealed = isFrozen && !realtimeGranted ? mockFrozenStandings : mockRevealedFrozenStandings
-  const officialRows = contest.id === 'contest-6' ? frozenOrRevealed : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
+  const officialRows = FROZEN_DEMO_CONTEST_IDS.has(contest.id) ? frozenOrRevealed : contest.id === 'contest-7' ? mockLargeStandings : mockStandings
   const postAvailable = computeContestStatus(contest.startTime, contest.endTime) === 'FINISHED' && contest.enablePostContest
   const postRows = postAvailable && contest.id === 'contest-8' ? mockPostStandings : []
   return { officialRows, postRows }
@@ -118,6 +114,7 @@ export const contestsHandlers = [
       status: 'SCHEDULED' as const,
       penalty: (body.penalty as number) || 20,
       freezeMinutes: body.freezeMinutes !== undefined ? body.freezeMinutes as number | null : 60,
+      autoRevealMinutes: (body.autoRevealMinutes as number | null | undefined) ?? null,
       enablePostContest: (body.enablePostContest as boolean) || false,
       allowLateRegistration: (body.allowLateRegistration as boolean) ?? false,
       locked: false,
@@ -281,7 +278,7 @@ export const contestsHandlers = [
       )
     }
 
-    const { isFrozen, freezeStartMs } = freezeStateOf(contest)
+    const { isFrozen, freezeStartMs, resultsRevealedAt, autoRevealAt } = freezeStateOf(contest)
     const realtimeRequested = sp.get('realtime') === 'true'
     if (realtimeRequested && isFrozen && !isPrivilegedViewer(request, contest.group.id)) {
       return HttpResponse.json(
@@ -312,13 +309,15 @@ export const contestsHandlers = [
       contest: {
         id: contest.id,
         name: contest.name,
-        status: contest.status,
+        status: computeContestStatus(contest.startTime, contest.endTime),
         startTime: contest.startTime,
         endTime: contest.endTime,
         penalty: contest.penalty,
         freezeMinutes: contest.freezeMinutes,
         isFrozen,
         frozenAt: isFrozen && freezeStartMs !== null ? new Date(freezeStartMs).toISOString() : null,
+        resultsRevealedAt,
+        autoRevealAt,
       },
       problems: contest.problems.map((p) => ({
         position: p.position,
@@ -378,6 +377,17 @@ export const contestsHandlers = [
     })
   }),
 
+  // Reveal results of a finished contest with freeze — Leads/Admins only; idempotent.
+  http.post(url('/groups/:groupId/contests/:contestId/reveal-results'), async ({ params, request }) => {
+    await delay(300)
+    const { groupId, contestId } = params as { groupId: string; contestId: string }
+    const contest = mockContests.find((c) => c.id === contestId)
+    const rejection = revealRejection(contest, groupId, isPrivilegedViewer(request, groupId))
+    if (rejection) return rejection
+    if (contest && !mockContestReveals.has(contest.id)) mockContestReveals.set(contest.id, new Date().toISOString())
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Contest submissions — Leads/Admins are exempt from freeze masking (list_contest_submissions.go).
   http.get(url('/groups/:groupId/contests/:contestId/submissions'), async ({ params, request }) => {
     await delay(300)
@@ -400,6 +410,7 @@ export const contestsHandlers = [
       nickname: sp.get('nickname') || undefined,
       isPrivileged,
       viewerNickname,
+      freeze: freezeStateOf(contest),
     })
     if (!result) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })

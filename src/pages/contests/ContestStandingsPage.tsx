@@ -12,7 +12,9 @@ import { StandingsPhaseTabs } from '@/components/features/StandingsPhaseTabs'
 import { StandingsRealtimeToggle } from '@/components/features/StandingsRealtimeToggle'
 import { StandingsRealtimeBadge } from '@/components/features/StandingsRealtimeBadge'
 import { StandingsFreezeNotice } from '@/components/features/StandingsFreezeNotice'
+import { RevealResultsButton } from '@/components/features/RevealResultsButton'
 import { useContestDetail, useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
+import { isAwaitingReveal } from '@/lib/contestReveal'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/hooks/useToastContext'
@@ -40,8 +42,8 @@ export function ContestStandingsPage() {
   const { data: contestDetail, isLoading: isLoadingDetail } = useContestDetail(groupId || '', id || '')
   const { data: ownerGroup } = useGroupDetail(groupId || '')
   const postEnabled = contestDetail?.enablePostContest === true && contestDetail.status === 'FINISHED'
-  const canViewRealtime = isGroupLeadOrAdmin(user?.role, ownerGroup?.userMembership.role)
-  const realtimeActive = realtimeRequested && canViewRealtime
+  const isLeadOrAdmin = isGroupLeadOrAdmin(user?.role, ownerGroup?.userMembership.role)
+  const realtimeActive = realtimeRequested && isLeadOrAdmin
 
   const params: StandingsParams = {
     ...pagination,
@@ -58,8 +60,9 @@ export function ContestStandingsPage() {
   const { data: filterOptions } = useStandingsFilterOptions(groupId || '', id || '')
 
   const isFrozen = data?.contest.isFrozen === true
+  const awaitingReveal = isAwaitingReveal({ status: data?.contest.status, isFrozen })
   const isRealtimeView = realtimeActive && isFrozen
-  const showRealtimeToggle = canViewRealtime && (isFrozen || realtimeRequested)
+  const showRealtimeToggle = isLeadOrAdmin && (isFrozen || realtimeRequested)
 
   const isRealtimeDenied = realtimeRequested && error instanceof ApiClientError && error.status === 403
   if (isRealtimeDenied && error !== deniedError) {
@@ -115,12 +118,19 @@ export function ContestStandingsPage() {
                   />
                 </div>
               )}
+              {isLeadOrAdmin && awaitingReveal && <RevealResultsButton groupId={groupId || ''} contestId={id || ''} />}
               {showRealtimeToggle && <StandingsRealtimeToggle active={realtimeActive} onToggle={handleRealtimeToggle} />}
               {postEnabled && <StandingsPhaseTabs value={phase} onChange={handlePhaseChange} />}
             </div>
           </div>
 
-          {isFrozen && <StandingsFreezeNotice realtime={isRealtimeView} />}
+          {isFrozen && (
+            <StandingsFreezeNotice
+              realtime={isRealtimeView}
+              awaitingReveal={awaitingReveal}
+              autoRevealAt={data?.contest.autoRevealAt ?? null}
+            />
+          )}
 
           {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap">

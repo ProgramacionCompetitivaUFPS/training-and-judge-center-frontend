@@ -1248,6 +1248,9 @@ const yesterdayEnd = new Date(yesterday.getTime() + 3 * 60 * 60 * 1000)
 const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 const inFourHours = new Date(now.getTime() + 4 * 60 * 60 * 1000)
 
+/** contestId → ISO de cuándo se reveló a mano el contest (estado compartido del mock de revelado). */
+export const mockContestReveals = new Map<string, string>()
+
 export const mockContests: ContestDetail[] = [
   {
     id: 'contest-1',
@@ -1259,6 +1262,7 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
     allowLateRegistration: false,
     locked: false,
@@ -1285,6 +1289,7 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: true,
     allowLateRegistration: false,
     locked: false,
@@ -1313,6 +1318,7 @@ export const mockContests: ContestDetail[] = [
     status: 'FINISHED',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: false,
     allowLateRegistration: false,
     locked: true,
@@ -1342,6 +1348,7 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 30,
     freezeMinutes: 30,
+    autoRevealMinutes: null,
     enablePostContest: true,
     allowLateRegistration: false,
     locked: false,
@@ -1370,6 +1377,7 @@ export const mockContests: ContestDetail[] = [
     status: 'SCHEDULED',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
     allowLateRegistration: false,
     locked: false,
@@ -1396,6 +1404,7 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: 60,
+    autoRevealMinutes: null,
     enablePostContest: false,
     allowLateRegistration: false,
     locked: false,
@@ -1425,6 +1434,7 @@ export const mockContests: ContestDetail[] = [
     status: 'ACTIVE',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: false,
     allowLateRegistration: false,
     locked: false,
@@ -1459,6 +1469,7 @@ export const mockContests: ContestDetail[] = [
     status: 'FINISHED',
     penalty: 20,
     freezeMinutes: null,
+    autoRevealMinutes: null,
     enablePostContest: true,
     allowLateRegistration: false,
     locked: false,
@@ -1477,6 +1488,34 @@ export const mockContests: ContestDetail[] = [
     createdAt: '2026-03-19T08:00:00Z',
     updatedAt: '2026-03-19T08:00:00Z',
   },
+  {
+    id: 'contest-9',
+    name: 'Reto Congelado sin Revelar',
+    description: 'Competencia terminada con freeze, aún sin revelar resultados.',
+    startTime: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString(),
+    endTime: oneHourAgo.toISOString(),
+    duration: 14400,
+    status: 'FINISHED',
+    penalty: 20,
+    freezeMinutes: 60,
+    autoRevealMinutes: null,
+    enablePostContest: false,
+    allowLateRegistration: false,
+    locked: false,
+    participantCount: 12,
+    isRegistered: true,
+    participationMode: 'INDIVIDUAL',
+    showTeamMembers: false,
+    group: { id: 'group-1', name: 'ICPC Colombia' },
+    owner: { id: 'u2', nickname: 'mariacoach' },
+    problems: [
+      { position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256 },
+      { position: 2, slug: 'binary-search', title: 'Binary Search', timeLimit: 1000, memoryLimit: 128 },
+    ],
+    problemCount: 2,
+    createdAt: '2026-03-19T08:00:00Z',
+    updatedAt: '2026-03-19T08:00:00Z',
+  },
 ]
 
 export function toContestListItem(c: ContestDetail): ContestListItem {
@@ -1490,6 +1529,7 @@ export function toContestListItem(c: ContestDetail): ContestListItem {
     status: computeContestStatus(c.startTime, c.endTime),
     penalty: c.penalty,
     freezeMinutes: c.freezeMinutes,
+    autoRevealMinutes: c.autoRevealMinutes,
     enablePostContest: c.enablePostContest,
     participationMode: c.participationMode,
     participantCount: c.participantCount,
@@ -1950,6 +1990,8 @@ export function buildContestSubmissionsList(params: {
   nickname?: string
   isPrivileged: boolean
   viewerNickname?: string
+  /** Estado de congelamiento ya calculado (`freezeStateOf`), para que standings y envíos coincidan. */
+  freeze: { isFrozen: boolean; freezeStartMs: number | null }
 }) {
   const contest = mockContests.find((c) => c.id === params.contestId)
   if (!contest) return null
@@ -1974,10 +2016,7 @@ export function buildContestSubmissionsList(params: {
 
   // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
   // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
-  const nowMs = Date.now()
-  const endMs = new Date(contest.endTime).getTime()
-  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
-  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+  const { isFrozen: inFreeze, freezeStartMs } = params.freeze
 
   filtered = filtered.map((s) => {
     // Mirrors list_contest_submissions.go: Lead/Admin, own or team submission, or PUBLIC.
@@ -1985,7 +2024,7 @@ export function buildContestSubmissionsList(params: {
       ? s.submittedBy.nickname === params.viewerNickname
       : !!s.submittedBy.members?.includes(params.viewerNickname))
     const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
-    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && freezeStartMs !== null && new Date(s.submittedAt).getTime() >= freezeStartMs
     return isFrozenSubmission
       ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryKb: undefined }
       : { ...s, canViewDetail }

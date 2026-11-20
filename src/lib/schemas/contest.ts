@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isFreezeEnabled } from '@/lib/autoReveal'
+
 const baseContestSchema = z.object({
   name: z
     .string()
@@ -31,7 +33,17 @@ const baseContestSchema = z.object({
   teamSizeMin: z.coerce.number().int().min(1, 'Mínimo 1 miembro').optional(),
   teamSizeMax: z.coerce.number().int().min(1, 'Mínimo 1 miembro').optional(),
   showTeamMembers: z.boolean().optional(),
+  // Solo de UI: el payload los convierte a `autoRevealMinutes` (ver lib/autoReveal.ts).
+  autoRevealMode: z.enum(['manual', 'onFinish', 'delay']).optional(),
+  autoRevealDelay: z.coerce.number().optional(),
 })
+
+// Solo se exige la espera en modo «Minutos después del fin» y con el campo visible (freeze > 0):
+// un campo oculto no puede bloquear el envío sin mostrar ningún error.
+function autoRevealDelayWhenDelayMode(data: { autoRevealMode?: string; autoRevealDelay?: number; freezeMinutes?: number | null }) {
+  if (data.autoRevealMode !== 'delay' || !isFreezeEnabled(data.freezeMinutes)) return true
+  return Number.isInteger(data.autoRevealDelay) && (data.autoRevealDelay ?? 0) >= 1
+}
 
 function hasValidTeamSizes(data: { participationMode?: string; teamSizeMin?: number; teamSizeMax?: number }) {
   return data.participationMode === 'INDIVIDUAL' || !data.participationMode ||
@@ -65,6 +77,7 @@ export const createContestSchema = baseContestSchema
   .refine(teamSizeMaxAboveMin, { message: 'El tamaño máximo debe ser mayor o igual al mínimo', path: ['teamSizeMax'] })
   .refine(endAfterStart, { message: 'La fecha de fin debe ser posterior a la fecha de inicio', path: ['endTime'] })
   .refine(freezeShorterThanDuration, { message: 'El freeze debe ser menor que la duración de la competencia', path: ['freezeMinutes'] })
+  .refine(autoRevealDelayWhenDelayMode, { message: 'Ingresa los minutos de espera (entero, mínimo 1)', path: ['autoRevealDelay'] })
 
 export type CreateContestFormData = z.infer<typeof createContestSchema>
 
@@ -73,5 +86,6 @@ export const updateContestSchema = baseContestSchema.partial()
   .refine(teamSizeMaxAboveMin, { message: 'El tamaño máximo debe ser mayor o igual al mínimo', path: ['teamSizeMax'] })
   .refine(endAfterStart, { message: 'La fecha de fin debe ser posterior a la fecha de inicio', path: ['endTime'] })
   .refine(freezeShorterThanDuration, { message: 'El freeze debe ser menor que la duración de la competencia', path: ['freezeMinutes'] })
+  .refine(autoRevealDelayWhenDelayMode, { message: 'Ingresa los minutos de espera (entero, mínimo 1)', path: ['autoRevealDelay'] })
 
 export type UpdateContestFormData = z.infer<typeof updateContestSchema>
