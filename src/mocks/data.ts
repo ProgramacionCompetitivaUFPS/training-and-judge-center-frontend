@@ -1990,6 +1990,8 @@ export function buildContestSubmissionsList(params: {
   nickname?: string
   isPrivileged: boolean
   viewerNickname?: string
+  /** Estado de congelamiento ya calculado (`freezeStateOf`), para que standings y envíos coincidan. */
+  freeze: { isFrozen: boolean; freezeStartMs: number | null }
 }) {
   const contest = mockContests.find((c) => c.id === params.contestId)
   if (!contest) return null
@@ -2014,10 +2016,7 @@ export function buildContestSubmissionsList(params: {
 
   // Freeze: mask verdicts submitted after the freeze window started, unless the viewer is
   // exempt (Lead/Admin) — mirrors list_contest_submissions.go's isAdmin/isLead exemption.
-  const nowMs = Date.now()
-  const endMs = new Date(contest.endTime).getTime()
-  const freezeStartMs = contest.freezeMinutes != null ? endMs - contest.freezeMinutes * 60000 : null
-  const inFreeze = contest.status === 'ACTIVE' && freezeStartMs != null && nowMs >= freezeStartMs && nowMs < endMs
+  const { isFrozen: inFreeze, freezeStartMs } = params.freeze
 
   filtered = filtered.map((s) => {
     // Mirrors list_contest_submissions.go: Lead/Admin, own or team submission, or PUBLIC.
@@ -2025,7 +2024,7 @@ export function buildContestSubmissionsList(params: {
       ? s.submittedBy.nickname === params.viewerNickname
       : !!s.submittedBy.members?.includes(params.viewerNickname))
     const canViewDetail = params.isPrivileged || isOwn || publicContestSubmissionIds.has(s.id)
-    const isFrozenSubmission = inFreeze && !params.isPrivileged && new Date(s.submittedAt).getTime() >= (freezeStartMs as number)
+    const isFrozenSubmission = inFreeze && !params.isPrivileged && freezeStartMs !== null && new Date(s.submittedAt).getTime() >= freezeStartMs
     return isFrozenSubmission
       ? { ...s, canViewDetail, status: '?', executionTime: undefined, memoryKb: undefined }
       : { ...s, canViewDetail }

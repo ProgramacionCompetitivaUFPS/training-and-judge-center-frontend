@@ -410,6 +410,7 @@ export const contestsHandlers = [
       nickname: sp.get('nickname') || undefined,
       isPrivileged,
       viewerNickname,
+      freeze: freezeStateOf(contest),
     })
     if (!result) {
       return HttpResponse.json({ error: 'NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })

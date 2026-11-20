@@ -883,6 +883,65 @@ describe('useContestSubmissions', () => {
   })
 })
 
+describe('useContestSubmissions congelado (mock)', () => {
+  beforeEach(() => mockContestReveals.clear())
+
+  async function load(contestId: string, viewerToken = 'mock-jwt-token-carloscp') {
+    setAccessToken(viewerToken)
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useContestSubmissions('group-1', contestId), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    return result.current.data!
+  }
+
+  it('a un participante le oculta los veredictos de una competencia terminada y sin revelar', async () => {
+    // Arrange / Act
+    const data = await load('contest-9')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+    expect(data.submissions.length).toBeGreaterThan(0)
+    expect(data.submissions.every((submission) => submission.status === '?')).toBe(true)
+  })
+
+  it('no oculta nada a un admin aunque la competencia no se haya revelado', async () => {
+    // Arrange / Act
+    const data = await load('contest-9', 'mock-jwt-token-luisadmin')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+    expect(data.submissions.some((submission) => submission.status === 'ACCEPTED')).toBe(true)
+  })
+
+  it('muestra los veredictos una vez revelados los resultados', async () => {
+    // Arrange
+    mockContestReveals.set('contest-9', new Date().toISOString())
+
+    // Act
+    const data = await load('contest-9')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(false)
+    expect(data.submissions.some((submission) => submission.status === 'ACCEPTED')).toBe(true)
+  })
+
+  it('sigue ocultando los veredictos en una competencia activa dentro de su freeze', async () => {
+    // Arrange / Act
+    const data = await load('contest-6')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(true)
+  })
+
+  it('no marca congelada una competencia terminada sin freeze', async () => {
+    // Arrange / Act
+    const data = await load('contest-3')
+
+    // Assert
+    expect(data.contest.inFreeze).toBe(false)
+  })
+})
+
 describe('useUpdateContest', () => {
   it('retorna el nombre actualizado, siembra el cache de detalle y marca contestKeys.all como stale', async () => {
     const { wrapper, queryClient } = makeWrapper()
