@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Clock } from 'lucide-react'
 import { AppLayout } from '@/components/layout'
@@ -9,9 +9,18 @@ import { ContestStatusBadge } from '@/components/features/ContestStatusBadge'
 import { ContestCountdown } from '@/components/features/ContestCountdown'
 import { StandingsTable } from '@/components/features/StandingsTable'
 import { StandingsPhaseTabs } from '@/components/features/StandingsPhaseTabs'
+import { StandingsRealtimeToggle } from '@/components/features/StandingsRealtimeToggle'
+import { StandingsRealtimeBadge } from '@/components/features/StandingsRealtimeBadge'
+import { StandingsFreezeNotice } from '@/components/features/StandingsFreezeNotice'
 import { useContestDetail, useStandings, useStandingsFilterOptions } from '@/hooks/api/useContests'
+import { useGroupDetail } from '@/hooks/api/useGroups'
+import { useAuth } from '@/hooks/useAuth'
+import { useToastContext } from '@/hooks/useToastContext'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { PATHS } from '@/lib/constants'
+import { ApiClientError } from '@/lib/errors'
+import { getErrorMessage } from '@/lib/errorMessages'
+import { isGroupLeadOrAdmin } from '@/lib/permissions'
 import type { StandingsParams, StandingsPhase } from '@/types/contest'
 
 export function ContestStandingsPage() {
@@ -22,10 +31,17 @@ export function ContestStandingsPage() {
   const [institutionFilter, setInstitutionFilter] = useState<string | undefined>(undefined)
   const [phase, setPhase] = useState<StandingsPhase>('all')
   const [pagination, setPagination] = useState({ page: 1, limit: 50 })
+  const [realtimeRequested, setRealtimeRequested] = useState(false)
+  const [deniedError, setDeniedError] = useState<unknown>(null)
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
+  const { user } = useAuth()
+  const { toast } = useToastContext()
 
   const { data: contestDetail, isLoading: isLoadingDetail } = useContestDetail(groupId || '', id || '')
+  const { data: ownerGroup } = useGroupDetail(groupId || '')
   const postEnabled = contestDetail?.enablePostContest === true && contestDetail.status === 'FINISHED'
+  const canViewRealtime = isGroupLeadOrAdmin(user?.role, ownerGroup?.userMembership.role)
+  const realtimeActive = realtimeRequested && canViewRealtime
 
   const params: StandingsParams = {
     ...pagination,
@@ -34,14 +50,36 @@ export function ContestStandingsPage() {
     institution: institutionFilter,
     // Sin post-competencia disponible se pide `competition` explícito, nunca se omite.
     phase: postEnabled ? phase : 'competition',
+    realtime: realtimeActive ? true : undefined,
   }
 
-  const { data, isLoading } = useStandings(groupId || '', id || '', params, { enabled: !isLoadingDetail })
+  const { data, isLoading, error } = useStandings(groupId || '', id || '', params, { enabled: !isLoadingDetail })
   const showSkeleton = isLoading || isLoadingDetail
   const { data: filterOptions } = useStandingsFilterOptions(groupId || '', id || '')
 
+  const isFrozen = data?.contest.isFrozen === true
+  const isRealtimeView = realtimeActive && isFrozen
+  const showRealtimeToggle = canViewRealtime && isFrozen
+
+  const isRealtimeDenied = realtimeRequested && error instanceof ApiClientError && error.status === 403
+  if (isRealtimeDenied && error !== deniedError) {
+    setDeniedError(error)
+    setRealtimeRequested(false)
+  }
+
+  useEffect(() => {
+    if (deniedError) {
+      toast({ variant: 'error', title: 'No se pudo ver en tiempo real', description: getErrorMessage(deniedError) })
+    }
+  }, [deniedError, toast])
+
   const handlePhaseChange = (next: StandingsPhase) => {
     setPhase(next)
+    setPagination((p) => ({ ...p, page: 1 }))
+  }
+
+  const handleRealtimeToggle = () => {
+    setRealtimeRequested((value) => !value)
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
@@ -65,6 +103,7 @@ export function ContestStandingsPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-extrabold text-neutral-text-primary">Tabla de Posiciones</h1>
               {data && <ContestStatusBadge status={data.contest.status} />}
+              {isRealtimeView && <StandingsRealtimeBadge />}
             </div>
             {data?.contest.status === 'ACTIVE' && (
               <div className="flex items-center gap-2 text-sm">
@@ -75,14 +114,11 @@ export function ContestStandingsPage() {
                 />
               </div>
             )}
+            {showRealtimeToggle && <StandingsRealtimeToggle active={realtimeActive} onToggle={handleRealtimeToggle} />}
             {postEnabled && <StandingsPhaseTabs value={phase} onChange={handlePhaseChange} />}
           </div>
 
-          {data?.contest.isFrozen && (
-            <div className="border rounded-md p-3 text-sm bg-status-warning/10 border-status-warning/30 text-status-warning">
-              La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán al terminar la competencia.
-            </div>
-          )}
+          {isFrozen && <StandingsFreezeNotice realtime={isRealtimeView} />}
 
           {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap">
