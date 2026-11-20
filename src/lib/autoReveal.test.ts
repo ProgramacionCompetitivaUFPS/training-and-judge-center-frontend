@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { autoRevealModeOf, autoRevealDelayOf, isFreezeEnabled, toAutoRevealMinutes } from './autoReveal'
+import { autoRevealDraftOf, autoRevealModeOf, autoRevealDelayOf, isFreezeEnabled, parseAutoRevealDelay, toAutoRevealMinutes } from './autoReveal'
 import type { AutoRevealMode } from './autoReveal'
 
 describe('autoRevealModeOf', () => {
@@ -55,4 +55,45 @@ describe('isFreezeEnabled', () => {
   ] as [number | string | null | undefined, boolean][])('freeze %j → %s', (freeze, expected) => {
     expect(isFreezeEnabled(freeze)).toBe(expected)
   })
+})
+
+describe('parseAutoRevealDelay', () => {
+  it.each([
+    ['45', 45],
+    [45, 45],
+    ['', undefined],
+    [null, undefined],
+    [undefined, undefined],
+    ['abc', undefined],
+    [Number.NaN, undefined],
+  ] as [string | number | null | undefined, number | undefined][])('%j → %s', (raw, expected) => {
+    expect(parseAutoRevealDelay(raw)).toBe(expected)
+  })
+})
+
+describe('autoRevealDraftOf', () => {
+  it.each([
+    [30, 'delay', 30],
+    [null, 'manual', undefined],
+    [undefined, 'manual', undefined],
+    [0, 'onFinish', undefined],
+  ] as [number | null | undefined, AutoRevealMode, number | undefined][])(
+    'guardado %s, modo %s y espera %s coincide con lo guardado: no hay borrador',
+    (saved, mode, delay) => {
+      expect(autoRevealDraftOf(saved, mode, delay)).toBeNull()
+    },
+  )
+
+  it.each([
+    [30, 'delay', 45],
+    [30, 'manual', undefined],
+    [30, 'delay', undefined],
+    [null, 'delay', undefined],
+    [0, 'delay', 0],
+  ] as [number | null, AutoRevealMode, number | undefined][])(
+    'guardado %s, modo %s y espera %s difiere de lo guardado: conserva modo y espera juntos',
+    (saved, mode, delay) => {
+      expect(autoRevealDraftOf(saved, mode, delay)).toEqual({ mode, delay })
+    },
+  )
 })

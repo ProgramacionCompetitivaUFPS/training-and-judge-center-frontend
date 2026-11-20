@@ -23,3 +23,26 @@ export function toAutoRevealMinutes(mode: AutoRevealMode, delay: number | undefi
 export function isFreezeEnabled(freezeMinutes: number | string | null | undefined): boolean {
   return Number(freezeMinutes) > 0
 }
+
+/** Minutos de espera a partir del valor crudo del input; undefined si está vacío o no es un número. */
+export function parseAutoRevealDelay(raw: string | number | null | undefined): number | undefined {
+  if (raw === '' || raw == null) return undefined
+  const value = Number(raw)
+  return Number.isNaN(value) ? undefined : value
+}
+
+/** Modo y espera tal como los dejó la usuaria; se conservan juntos aunque el servidor cambie al recargar. */
+export interface AutoRevealDraft {
+  mode: AutoRevealMode
+  delay: number | undefined
+}
+
+/** El borrador de la usuaria, o null si equivale a lo guardado (entonces no hay nada que conservar). */
+export function autoRevealDraftOf(
+  savedMinutes: number | null | undefined,
+  mode: AutoRevealMode,
+  delay: number | undefined,
+): AutoRevealDraft | null {
+  const unchanged = mode === autoRevealModeOf(savedMinutes) && toAutoRevealMinutes(mode, delay) === (savedMinutes ?? null)
+  return unchanged ? null : { mode, delay }
+}

@@ -80,6 +80,32 @@ function recordPostBodies() {
   return bodies
 }
 
+// Primer PUT: CONTEST_CONFLICT. Los siguientes pasan al handler por defecto. Registra todos los bodies.
+function conflictOnFirstPut() {
+  const bodies: unknown[] = []
+  server.use(
+    http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
+      bodies.push(await request.clone().json())
+      if (bodies.length === 1) return HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 })
+      return undefined
+    }),
+  )
+  return bodies
+}
+
+// Primer GET: handler por defecto. Los siguientes (recarga tras el conflicto) devuelven `reloaded`.
+function reloadAfterFirstGet(reloaded: (base: NonNullable<ReturnType<typeof mockContests.find>>) => object) {
+  const base = mockContests.find((c) => c.id === 'contest-2')
+  let getCalls = 0
+  server.use(
+    http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
+      getCalls += 1
+      if (getCalls === 1 || !base) return undefined
+      return HttpResponse.json(reloaded(base))
+    }),
+  )
+}
+
 describe('ContestFormPage', () => {
   beforeEach(() => {
     mockLogout.mockClear()
@@ -282,32 +308,6 @@ describe('ContestFormPage', () => {
       })
       expect(screen.getByRole('button', { name: 'Color del problema A' })).toHaveTextContent('#7c3aed')
     })
-
-    // Primer PUT: CONTEST_CONFLICT. Los siguientes pasan al handler por defecto. Registra todos los bodies.
-    function conflictOnFirstPut() {
-      const bodies: unknown[] = []
-      server.use(
-        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', async ({ request }) => {
-          bodies.push(await request.clone().json())
-          if (bodies.length === 1) return HttpResponse.json({ error: 'CONTEST_CONFLICT', message: 'x' }, { status: 409 })
-          return undefined
-        }),
-      )
-      return bodies
-    }
-
-    // Primer GET: handler por defecto. Los siguientes (recarga tras el conflicto) devuelven `reloaded`.
-    function reloadAfterFirstGet(reloaded: (base: NonNullable<ReturnType<typeof mockContests.find>>) => object) {
-      const base = mockContests.find((c) => c.id === 'contest-2')
-      let getCalls = 0
-      server.use(
-        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId', () => {
-          getCalls += 1
-          if (getCalls === 1 || !base) return undefined
-          return HttpResponse.json(reloaded(base))
-        }),
-      )
-    }
 
     it('al recargar tras un conflicto conserva el campo que la usuaria editó y actualiza los demás', async () => {
       // Arrange
@@ -615,6 +615,52 @@ describe('ContestFormPage', () => {
       expect(await screen.findByText('Los minutos de freeze deben ser positivos')).toBeInTheDocument()
       expect(screen.queryByText('Ingresa los minutos de espera (entero, mínimo 1)')).not.toBeInTheDocument()
       expect(bodies).toHaveLength(0)
+    })
+
+    it('tras un conflicto conserva la espera editada junto con su modo aunque el servidor haya pasado a manual', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 missing from mocks')
+      contest.autoRevealMinutes = 30
+      const bodies = conflictOnFirstPut()
+      reloadAfterFirstGet((base) => ({ ...base, autoRevealMinutes: null }))
+      renderEdit('group-1', 'contest-2')
+      const delayInput = await screen.findByLabelText('Minutos de espera')
+
+      // Act
+      await user.clear(delayInput)
+      await user.type(delayInput, '45')
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'La competencia cambió' }))
+      })
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => expect(bodies).toHaveLength(2))
+      expect(screen.getByRole('radio', { name: 'Minutos después del fin' })).toBeChecked()
+      expect(bodies[1]).toEqual({ autoRevealMinutes: 45 })
+    })
+
+    it('tras un conflicto sin cambios en el revelado adopta lo que dejó el servidor', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 missing from mocks')
+      contest.autoRevealMinutes = 30
+      conflictOnFirstPut()
+      reloadAfterFirstGet((base) => ({ ...base, autoRevealMinutes: null }))
+      renderEdit('group-1', 'contest-2')
+      const name = await screen.findByRole('textbox', { name: /nombre/i })
+
+      // Act
+      await user.clear(name)
+      await user.type(name, 'Nuevo nombre')
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      // Assert
+      await waitFor(() => expect(screen.getByRole('radio', { name: 'Solo manualmente' })).toBeChecked())
     })
 
     it('en modo minutos sin minutos muestra el error y no envía', async () => {
