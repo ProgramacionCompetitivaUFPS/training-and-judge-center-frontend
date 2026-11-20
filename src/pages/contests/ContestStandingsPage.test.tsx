@@ -315,7 +315,7 @@ describe('ContestStandingsPage con competencia congelada', () => {
 
     expect(
       await screen.findByText(
-        'La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán al terminar la competencia.',
+        'La tabla de posiciones está congelada. Los envíos posteriores al congelamiento se muestran con un ? y la cantidad de envíos debajo, y se revelarán cuando se publiquen los resultados.',
       ),
     ).toBeInTheDocument()
   })
