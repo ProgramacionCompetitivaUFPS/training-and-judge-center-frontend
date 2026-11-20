@@ -511,6 +511,67 @@ describe('ContestDetailPage', () => {
       })
     })
 
+    it('SCHEDULED que ya alcanzó su inicio con flag: el mock lo devuelve ACTIVE y pide el aviso', async () => {
+      // Arrange
+      const user = userEvent.setup()
+      useMemberGroup()
+      patchContest('contest-1', {
+        startTime: new Date(Date.now() - 60_000).toISOString(),
+        endTime: new Date(Date.now() + 3_600_000).toISOString(),
+        participationMode: 'INDIVIDUAL',
+        allowLateRegistration: true,
+      })
+      renderPage('group-1', 'contest-1')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: /^registrarse$/i }))
+
+      // Assert
+      expect(within(screen.getByRole('dialog')).getByText('Inscripción tardía')).toBeInTheDocument()
+    })
+
+    it('con el detalle aún en SCHEDULED pero ya iniciado y con flag, pide el aviso antes de inscribir', async () => {
+      // Arrange: respuesta desactualizada del backend (el contador llegó a startTime antes del refetch)
+      const user = userEvent.setup()
+      useMemberGroup()
+      let registerCalls = 0
+      const scheduledButStarted = {
+        ...mockContests.find((c) => c.id === 'contest-1')!,
+        startTime: new Date(Date.now() - 60_000).toISOString(),
+        endTime: new Date(Date.now() + 3_600_000).toISOString(),
+        participationMode: 'INDIVIDUAL',
+        allowLateRegistration: true,
+      }
+      server.use(
+        http.get('http://localhost:8080/api/groups/group-1/contests/contest-1', () => HttpResponse.json(scheduledButStarted)),
+        http.post('http://localhost:8080/api/groups/:groupId/contests/:contestId/register', () => {
+          registerCalls += 1
+          return new HttpResponse(null, { status: 204 })
+        }),
+      )
+      renderPage('group-1', 'contest-1')
+
+      // Act
+      await user.click(await screen.findByRole('button', { name: /^registrarse$/i }))
+
+      // Assert
+      expect(within(screen.getByRole('dialog')).getByText('Inscripción tardía')).toBeInTheDocument()
+      expect(registerCalls).toBe(0)
+    })
+
+    it('ACTIVE con flag y sin problemas visibles: pide inscribirse en vez de exigir haberse registrado antes', async () => {
+      // Arrange
+      useMemberGroup()
+      patchContest('contest-2', { isRegistered: false, participationMode: 'INDIVIDUAL', allowLateRegistration: true, problems: [] })
+
+      // Act
+      renderPage('group-1', 'contest-2')
+
+      // Assert
+      expect(await screen.findByText('Inscríbete para acceder a los problemas de la competencia.')).toBeInTheDocument()
+      expect(screen.queryByText(/Debiste haberte registrado antes/)).not.toBeInTheDocument()
+    })
+
     it('ACTIVE con flag: cancelar el aviso no inscribe', async () => {
       // Arrange
       const user = userEvent.setup()

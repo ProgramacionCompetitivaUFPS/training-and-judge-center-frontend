@@ -163,12 +163,6 @@ export function TeamContestRegistration({
     setSelectedMembers([])
   }
 
-  const handleConfirmLateRegistration = () => {
-    if (!pendingLateRegistration) return
-    onRegisterTeam(pendingLateRegistration.teamId, pendingLateRegistration.members)
-    setPendingLateRegistration(null)
-  }
-
   const handleCancelRegistration = () => {
     if (!myRegistration) return
     onUnregisterTeam(myRegistration.team.id)
@@ -193,6 +187,22 @@ export function TeamContestRegistration({
   const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax &&
     !hasIneligibleSelected
   const eligibleCount = eligibleIds.size
+
+  // La elegibilidad pudo cambiar (refetch, reconexión) mientras el aviso estaba abierto: si hay una
+  // consulta en curso o algún miembro dejó de ser elegible, no se envía y se vuelve al selector con
+  // la selección conservada, donde el botón de inscribir ya refleja el estado actual.
+  const handleConfirmLateRegistration = () => {
+    if (!pendingLateRegistration) return
+    const { teamId, members } = pendingLateRegistration
+    setPendingLateRegistration(null)
+    if (isFetchingEligibility || members.some((id) => !eligibleIds.has(id))) {
+      setSelectedTeamId(teamId)
+      setSelectedMembers(members)
+      setShowDialog(true)
+      return
+    }
+    onRegisterTeam(teamId, members)
+  }
 
   const registerTrigger = (
     <Button variant={variant === 'inline' ? 'outline' : 'primary'} size={variant === 'inline' ? 'lg' : 'md'} onClick={openRegisterDialog}>

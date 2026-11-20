@@ -99,7 +99,7 @@ export const contestsHandlers = [
     if (!contest) {
       return HttpResponse.json({ error: 'CONTEST_NOT_FOUND', message: 'Competencia no encontrada' }, { status: 404 })
     }
-    return HttpResponse.json(contest)
+    return HttpResponse.json({ ...contest, status: computeContestStatus(contest.startTime, contest.endTime) })
   }),
 
   // Create contest

@@ -189,7 +189,10 @@ export function ContestDetailPage() {
   }
 
   const handleRegisterClick = () => {
-    if (registrationAvailability === 'late') setLateConfirmOpen(true)
+    // El contador puede llegar a startTime antes de que el refetch actualice el estado: si ya empezó
+    // con inscripción tardía habilitada, el servidor la tratará como tardía, así que se confirma igual.
+    const startedWithLateRegistration = contest.allowLateRegistration && new Date(contest.startTime).getTime() <= Date.now()
+    if (registrationAvailability === 'late' || startedWithLateRegistration) setLateConfirmOpen(true)
     else handleRegister()
   }
 
@@ -417,6 +420,14 @@ export function ContestDetailPage() {
     { label: contest.name },
   ]
 
+  const lateRegistrationDialog = (
+    <LateRegistrationConfirmDialog
+      open={lateConfirmOpen}
+      onOpenChange={setLateConfirmOpen}
+      onConfirm={handleConfirmLateRegister}
+    />
+  )
+
   const deleteDialog = (
     <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
       <DialogContent>
@@ -496,7 +507,11 @@ export function ContestDetailPage() {
                   {contest.problems.length === 0 && !contest.isRegistered ? (
                     <LockedProblemsPlaceholder
                       title="No estás inscrito en esta competencia"
-                      description="Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo."
+                      description={
+                        registrationAvailability === 'late'
+                          ? 'Inscríbete para acceder a los problemas de la competencia.'
+                          : 'Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo.'
+                      }
                       showSkeleton={false}
                     />
                   ) : (
@@ -567,11 +582,7 @@ export function ContestDetailPage() {
             </aside>
           </div>
         </div>
-        <LateRegistrationConfirmDialog
-          open={lateConfirmOpen}
-          onOpenChange={setLateConfirmOpen}
-          onConfirm={handleConfirmLateRegister}
-        />
+        {lateRegistrationDialog}
       </AppLayout>
     )
   }
@@ -813,6 +824,7 @@ export function ContestDetailPage() {
           </div>
         </div>
         {deleteDialog}
+        {lateRegistrationDialog}
       </AppLayout>
     )
   }

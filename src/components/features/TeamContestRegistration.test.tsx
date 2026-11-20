@@ -209,6 +209,26 @@ describe('TeamContestRegistration — inscripción tardía', () => {
     expect(onRegisterTeam).not.toHaveBeenCalled()
   })
 
+  it.each<[string, Partial<typeof baseProps>]>([
+    ['hay una consulta de elegibilidad en curso', { isFetchingEligibility: true }],
+    ['el miembro dejó de ser elegible', { eligibility: { teamAlreadyRegistered: false, members: [{ id: 'u-1', nickname: 'luisadmin', eligible: false }] } }],
+  ])('en ACTIVE no inscribe al confirmar si %s y vuelve al selector', async (_caso, cambio) => {
+    // Arrange
+    const user = userEvent.setup()
+    const onRegisterTeam = vi.fn()
+    const props = { ...baseProps, contestStatus: 'ACTIVE' as ContestStatus, allowLateRegistration: true, eligibility, onRegisterTeam }
+    const { rerender } = render(<TeamContestRegistration {...props} />)
+    await submitTeamSelection(user)
+
+    // Act: la elegibilidad cambia mientras el aviso está abierto
+    rerender(<TeamContestRegistration {...props} {...cambio} />)
+    await user.click(screen.getByRole('button', { name: 'Inscribirme' }))
+
+    // Assert
+    expect(onRegisterTeam).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox', { name: 'Equipo a registrar' })).toBeInTheDocument()
+  })
+
   it('en SCHEDULED inscribe directo, sin aviso', async () => {
     const user = userEvent.setup()
     const onRegisterTeam = vi.fn()
