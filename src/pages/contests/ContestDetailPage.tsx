@@ -336,14 +336,14 @@ export function ContestDetailPage() {
   const registrationActions = (
     <>
       {!groupMembershipKnown && !groupError && (
-        <div className="h-11 w-36 bg-white/20 animate-pulse rounded-pill" />
+        <div className="h-11 w-36 bg-neutral-background animate-pulse rounded-pill" />
       )}
       {!groupMembershipKnown && groupError && (
-        <div className="flex items-center gap-2 text-sm text-white/70">
+        <div className="flex items-center gap-2 text-sm text-neutral-text-muted">
           <span>No se pudo cargar tu membresía.</span>
           <button
             onClick={() => void refetchGroup()}
-            className="underline hover:text-white transition-colors"
+            className="underline hover:text-neutral-text-primary transition-colors"
           >
             Reintentar
           </button>
