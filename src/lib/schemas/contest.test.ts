@@ -158,3 +158,55 @@ describe('updateContestSchema', () => {
     expect(updateContestSchema.safeParse({ endTime: END }).success).toBe(true)
   })
 })
+
+// ─── autoReveal ────────────────────────────────────────────────────────────────
+
+const AUTO_REVEAL_DELAY_MESSAGE = 'Ingresa los minutos de espera (entero, mínimo 1)'
+
+describe('createContestSchema — autoReveal', () => {
+  it('falla en modo minutos sin minutos de espera', () => {
+    const r = createContestSchema.safeParse({ ...validBase, autoRevealMode: 'delay' })
+
+    expect(r.success).toBe(false)
+    expect(r.error?.issues.map((issue) => issue.message)).toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+
+  it.each([0, 1.5])('falla en modo minutos con una espera de %s', (delay) => {
+    const r = createContestSchema.safeParse({ ...validBase, autoRevealMode: 'delay', autoRevealDelay: delay })
+
+    expect(r.success).toBe(false)
+  })
+
+  it('acepta modo minutos con una espera de 45', () => {
+    const r = createContestSchema.safeParse({ ...validBase, autoRevealMode: 'delay', autoRevealDelay: 45 })
+
+    expect(r.success).toBe(true)
+  })
+
+  it.each(['manual', 'onFinish'] as const)('no bloquea el envío en modo %s aunque los minutos estén vacíos', (mode) => {
+    const r = createContestSchema.safeParse({ ...validBase, autoRevealMode: mode, autoRevealDelay: '' })
+
+    expect(r.success).toBe(true)
+  })
+})
+
+describe('updateContestSchema — autoReveal', () => {
+  it('falla en modo minutos sin minutos de espera', () => {
+    const r = updateContestSchema.safeParse({ autoRevealMode: 'delay' })
+
+    expect(r.success).toBe(false)
+    expect(r.error?.issues.map((issue) => issue.message)).toContain(AUTO_REVEAL_DELAY_MESSAGE)
+  })
+
+  it('acepta modo minutos con una espera de 45', () => {
+    const r = updateContestSchema.safeParse({ autoRevealMode: 'delay', autoRevealDelay: 45 })
+
+    expect(r.success).toBe(true)
+  })
+
+  it('no bloquea la actualización en modo manual aunque los minutos estén vacíos', () => {
+    const r = updateContestSchema.safeParse({ autoRevealMode: 'manual', autoRevealDelay: '' })
+
+    expect(r.success).toBe(true)
+  })
+})

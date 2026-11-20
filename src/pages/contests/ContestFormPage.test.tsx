@@ -506,4 +506,128 @@ describe('ContestFormPage', () => {
       expect(screen.getByText('La competencia ya finalizó: la inscripción tardía no aplica.')).toBeInTheDocument()
     })
   })
+
+  describe('revelado automático', () => {
+    beforeEach(() => {
+      mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+    })
+
+    async function fillCreateForm(user: ReturnType<typeof userEvent.setup>, freeze: string) {
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), 'Mi Competencia Test')
+      // datetime-local: userEvent no maneja bien estos inputs (excepción de TESTING_STANDARDS §13b)
+      fireEvent.change(screen.getByLabelText(/fecha y hora de inicio/i), { target: { value: '2027-06-01T10:00' } })
+      fireEvent.change(screen.getByLabelText(/fecha y hora de fin/i), { target: { value: '2027-06-01T12:00' } })
+      // Las fechas auto-rellenan el freeze mientras no se haya tocado: se escribe después.
+      const freezeInput = screen.getByLabelText(/freeze \(minutos antes del fin\)/i)
+      await user.clear(freezeInput)
+      await user.type(freezeInput, freeze)
+    }
+
+    it('no muestra el revelado cuando el freeze es 0', async () => {
+      renderCreate()
+
+      expect(await screen.findByRole('textbox', { name: /nombre/i })).toBeInTheDocument()
+      expect(screen.queryByRole('radio', { name: 'Solo manualmente' })).not.toBeInTheDocument()
+    })
+
+    it('muestra el revelado en modo manual al poner un freeze mayor que 0', async () => {
+      const user = userEvent.setup()
+      renderCreate()
+
+      await fillCreateForm(user, '30')
+
+      expect(screen.getByRole('radio', { name: 'Solo manualmente' })).toBeChecked()
+    })
+
+    it('no envía autoRevealMinutes ni los campos de UI al crear en modo manual', async () => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
+      expect(bodies[0]).not.toHaveProperty('autoRevealMode')
+      expect(bodies[0]).not.toHaveProperty('autoRevealDelay')
+    })
+
+    it.each([
+      ['Al terminar la competencia', 0, null],
+      ['Minutos después del fin', 45, '45'],
+    ] as const)('al crear con «%s» envía autoRevealMinutes %s', async (label, expected, delayText) => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('radio', { name: label }))
+      if (delayText) await user.type(screen.getByLabelText('Minutos de espera'), delayText)
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Creado' }))
+      })
+      expect(bodies[0]).toMatchObject({ autoRevealMinutes: expected })
+      expect(bodies[0]).not.toHaveProperty('autoRevealMode')
+      expect(bodies[0]).not.toHaveProperty('autoRevealDelay')
+    })
+
+    it('en modo minutos sin minutos muestra el error y no envía', async () => {
+      const user = userEvent.setup()
+      const bodies = recordPostBodies()
+      renderCreate()
+      await fillCreateForm(user, '30')
+
+      await user.click(screen.getByRole('radio', { name: 'Minutos después del fin' }))
+      await user.click(screen.getByRole('button', { name: 'Crear competencia' }))
+
+      expect(await screen.findByText('Ingresa los minutos de espera (entero, mínimo 1)')).toBeInTheDocument()
+      expect(bodies).toEqual([])
+    })
+
+    it('carga el modo guardado al editar', async () => {
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+
+      renderEdit('group-1', 'contest-2')
+
+      expect(await screen.findByRole('radio', { name: 'Minutos después del fin' })).toBeChecked()
+      expect(screen.getByLabelText('Minutos de espera')).toHaveValue(30)
+    })
+
+    it('volver a manual al editar envía null explícito', async () => {
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      await user.click(await screen.findByRole('radio', { name: 'Solo manualmente' }))
+
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(bodies).toHaveLength(1))
+      expect(bodies).toEqual([{ autoRevealMinutes: null }])
+    })
+
+    it('no envía autoRevealMinutes si no se toca al editar', async () => {
+      const user = userEvent.setup()
+      const contest = mockContests.find((c) => c.id === 'contest-2')
+      if (!contest) throw new Error('contest-2 no existe en el mock')
+      contest.autoRevealMinutes = 30
+      const bodies = recordPutBodies()
+      renderEdit('group-1', 'contest-2')
+      await user.type(await screen.findByRole('textbox', { name: /nombre/i }), ' editado')
+
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+      await waitFor(() => expect(bodies).toHaveLength(1))
+      expect(bodies[0]).not.toHaveProperty('autoRevealMinutes')
+    })
+  })
 })
