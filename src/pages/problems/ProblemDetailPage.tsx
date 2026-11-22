@@ -1066,9 +1066,15 @@ interface ProblemDetailViewProps {
   route: RouteContext
   activeContest: ActiveContest
   contestGroup: ContestGroup
+  /**
+   * A ZIP structure check outlives this view (it unmounts while another problem loads), so its flag lives in the page:
+   * coming back to the problem before the check ends must still find the uploads blocked.
+   */
+  isCheckingZip: boolean
+  onCheckingZipChange: (checking: boolean) => void
 }
 
-function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }: Readonly<ProblemDetailViewProps>) {
+function ProblemDetailView({ problem, slug, route, activeContest, contestGroup, isCheckingZip, onCheckingZipChange }: Readonly<ProblemDetailViewProps>) {
   const navigate = useNavigate()
   // Which tab is open lives in the URL, so a file page's "Volver" and the browser's back button land on it
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1087,7 +1093,6 @@ function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }
   // The upload outlives FilesManager (tab switches unmount it), so its state comes from the mutation
   // cache; the ZIP structure check runs before the upload starts and is reported up by FilesManager.
   const isUploadMutating = useIsUploadingProblemFile(slug)
-  const [isCheckingZip, setIsCheckingZip] = useState(false)
   // Set by the checklist's "Subir"/"Agregar" actions: FilesManager opens the matching file picker once, then clears it.
   const [pendingAutoUpload, setPendingAutoUpload] = useState<ProblemFileType | null>(null)
 
@@ -1167,7 +1172,7 @@ function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }
           onAutoUploadConsumed={() => setPendingAutoUpload(null)}
           isUploading={isUploadMutating}
           isCheckingZip={isCheckingZip}
-          onCheckingZipChange={setIsCheckingZip}
+          onCheckingZipChange={onCheckingZipChange}
         />
       )}
 
@@ -1315,6 +1320,7 @@ function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }
 export function ProblemDetailPage() {
   const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
   const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
 
   const isContestContext = !!contestId
   const resolvedSlug = isContestContext
@@ -1351,6 +1357,8 @@ export function ProblemDetailPage() {
       route={{ groupId, contestId, letter }}
       activeContest={activeContest}
       contestGroup={contestGroup}
+      isCheckingZip={isCheckingZip}
+      onCheckingZipChange={setIsCheckingZip}
     />
   )
 }

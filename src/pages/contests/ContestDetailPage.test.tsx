@@ -8,6 +8,7 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockGroupDetails, mockContests } from '@/mocks/data'
+import { contestKeys } from '@/hooks/api/useContests'
 import type { User } from '@/types/user'
 import type { ContestDetail } from '@/types/contest'
 import { ContestDetailPage } from './ContestDetailPage'
@@ -45,9 +46,9 @@ vi.mock('@/hooks/useToastContext', () => ({
   useToastContext: () => ({ toast: mockToast }),
 }))
 
-function renderPage(groupId = 'group-1', contestId = 'contest-1') {
+function renderPage(groupId = 'group-1', contestId = 'contest-1', queryClient = createTestQueryClient()) {
   render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/groups/${groupId}/contests/${contestId}`]}>
         <Routes>
           <Route path="/groups/:groupId/contests/:id" element={<ContestDetailPage />} />
@@ -55,6 +56,7 @@ function renderPage(groupId = 'group-1', contestId = 'contest-1') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return queryClient
 }
 
 const initialContests = structuredClone(mockContests)
@@ -717,6 +719,19 @@ describe('ContestDetailPage — contenido por estado', () => {
     )
   }
 
+  // The owner of contest-1 and contest-3 is mariacoach: as a COACH (not ADMIN) the lock only works if it checks ownership
+  function asContestOwner() {
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+        }),
+      ),
+    )
+  }
+
   describe('programada', () => {
     it('muestra la información del concurso: fecha, duración, inscritos, penalización y descripción', async () => {
       renderPage('group-1', 'contest-1')
@@ -786,13 +801,15 @@ describe('ContestDetailPage — contenido por estado', () => {
       asGroupMember()
       renderPage('group-1', 'contest-1')
 
-      await screen.findByText('Información del concurso')
+      // Registrarse needs the MEMBER membership: once it is there the group has resolved and the absence means something
+      await screen.findByRole('button', { name: /^registrarse$/i })
       expect(screen.queryByRole('button', { name: 'Bloquear competencia' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Eliminar competencia' })).not.toBeInTheDocument()
     })
 
-    it('el dueño bloquea la competencia y se avisa', async () => {
+    it('el dueño (coach, no administrador) bloquea la competencia y se avisa', async () => {
       const user = userEvent.setup()
+      asContestOwner()
       renderPage('group-1', 'contest-1')
 
       await user.click(await screen.findByRole('button', { name: 'Bloquear competencia' }))
@@ -804,6 +821,7 @@ describe('ContestDetailPage — contenido por estado', () => {
 
     it('si bloquear falla avisa que no se pudo bloquear', async () => {
       const user = userEvent.setup()
+      asContestOwner()
       server.use(
         http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
           HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
@@ -820,6 +838,7 @@ describe('ContestDetailPage — contenido por estado', () => {
 
     it('desbloquear envía locked=false y avisa', async () => {
       const user = userEvent.setup()
+      asContestOwner()
       patchContest('contest-1', { locked: true })
       const bodies = recordPutBodies()
       renderPage('group-1', 'contest-1')
@@ -942,9 +961,18 @@ describe('ContestDetailPage — contenido por estado', () => {
       expect(screen.getByText('Inscripción abierta')).toBeInTheDocument()
     })
 
-    it('no muestra la posición a quien no está inscrito', async () => {
+    it('no muestra la posición a quien no está inscrito, aunque haya una fila suya disponible', async () => {
       patchContest('contest-2', { isRegistered: false })
-      renderPage('group-1', 'contest-2')
+      // Not registered, the standings query is disabled; a row already in the cache is what could leak the card
+      const queryClient = createTestQueryClient()
+      queryClient.setQueryData(contestKeys.standings('group-1', 'contest-2', { limit: 10000, phase: 'competition' }), {
+        standings: [
+          { rank: 3, participant: { type: 'USER', id: 'u1', nickname: 'luisadmin' }, problemsSolved: 2, totalPenalty: 45, problems: [] },
+        ],
+        problems: [],
+        pagination: { page: 1, limit: 10000, total: 1, totalPages: 1 },
+      })
+      renderPage('group-1', 'contest-2', queryClient)
 
       await screen.findByRole('heading', { name: 'Práctica Grafos' })
       expect(screen.queryByText('Tu posición actual')).not.toBeInTheDocument()
@@ -962,6 +990,29 @@ describe('ContestDetailPage — contenido por estado', () => {
 
       await screen.findByRole('heading', { name: 'Práctica Grafos' })
       expect(screen.queryByRole('button', { name: /editar competencia/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('cambio de estado', () => {
+    it('conserva el menú lateral abierto cuando la competencia pasa de programada a en curso', async () => {
+      const user = userEvent.setup()
+      const queryClient = renderPage('group-1', 'contest-1')
+      await screen.findByText('Información del concurso')
+      const menuButton = document.querySelector('svg.lucide-menu')?.closest('button')
+      await user.click(menuButton!)
+      const sidebarIsOpen = () => !!document.querySelector('div[aria-hidden="true"].fixed.inset-0')
+      expect(sidebarIsOpen()).toBe(true)
+
+      // The countdown reaches the start: the refetch brings the contest as ACTIVE
+      patchContest('contest-1', {
+        startTime: new Date(Date.now() - 60_000).toISOString(),
+        endTime: new Date(Date.now() + 3_600_000).toISOString(),
+      })
+      await queryClient.invalidateQueries({ queryKey: contestKeys.detail('group-1', 'contest-1') })
+
+      expect(await screen.findByText('Tiempo restante')).toBeInTheDocument()
+      expect(screen.queryByText('Información del concurso')).not.toBeInTheDocument()
+      expect(sidebarIsOpen()).toBe(true)
     })
   })
 
@@ -984,7 +1035,8 @@ describe('ContestDetailPage — contenido por estado', () => {
       expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument()
     })
 
-    it('el dueño ve el botón de desbloquear porque la competencia está bloqueada', async () => {
+    it('el dueño (coach, no administrador) ve el botón de desbloquear porque la competencia está bloqueada', async () => {
+      asContestOwner()
       renderPage('group-1', 'contest-3')
 
       expect(await screen.findByRole('button', { name: 'Desbloquear competencia' })).toBeInTheDocument()

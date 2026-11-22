@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { stubEndpoint } from '@/test/hookHarness'
+import { groupKeys } from '@/hooks/api/useGroups'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockGroupDetails } from '@/mocks/data'
 import type { User } from '@/types/user'
@@ -350,6 +351,34 @@ describe('GroupDetailPage — acciones de un no miembro', () => {
     await waitFor(() => expect(toastSpy).toHaveBeenCalledWith({ variant: 'success', title: 'Solicitud enviada' }))
     expect(sent[0].body).toEqual({ message: 'Quiero entrenar' })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('conserva lo escrito en la solicitud si la consulta del grupo falla un momento y se recupera', async () => {
+    stubGroup('group-1', { isMember: false, role: null })
+    server.use(http.get(`${API}/groups/group-1/requests/me`, () => HttpResponse.json({ request: null })))
+    const queryClient = createTestQueryClient()
+    const user = userEvent.setup()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/groups/group-1']}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Solicitar Ingreso' }))
+    await user.type(screen.getByLabelText('Mensaje (opcional)'), 'Quiero entrenar')
+
+    // A background refresh of the group fails: the page shows the error page and the dialog goes away...
+    server.use(http.get(`${API}/groups/group-1`, () => HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 })))
+    await act(() => queryClient.refetchQueries({ queryKey: groupKeys.detail('group-1') }))
+    expect(await screen.findByText('Algo salió mal')).toBeInTheDocument()
+
+    // ...and when it recovers the dialog is still open with what the user had typed
+    stubGroup('group-1', { isMember: false, role: null })
+    await act(() => queryClient.refetchQueries({ queryKey: groupKeys.detail('group-1') }))
+    expect(await screen.findByLabelText('Mensaje (opcional)')).toHaveValue('Quiero entrenar')
   })
 
   it('envía la solicitud sin cuerpo cuando no se escribe mensaje', async () => {
@@ -838,16 +867,24 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
   })
   afterEach(() => clearAccessToken())
 
+  function LocationProbe() {
+    const location = useLocation()
+    return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+  }
+
   function renderAt(path: string) {
+    const queryClient = createTestQueryClient()
     render(
-      <QueryClientProvider client={createTestQueryClient()}>
+      <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetailPage />} />
           </Routes>
+          <LocationProbe />
         </MemoryRouter>
       </QueryClientProvider>,
     )
+    return queryClient
   }
 
   function stubGroupDetail(overrides: Record<string, unknown>) {
@@ -919,12 +956,26 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
       expect(screen.queryByText('Global')).not.toBeInTheDocument()
     })
 
-    it('marca el grupo global y no ofrece editarlo ni salir', async () => {
+    it('marca el grupo global y un gestor no puede editarlo, eliminarlo ni salir de él', async () => {
       stubGroupDetail({ isGlobal: true })
       renderAt('/groups/group-1')
 
       expect(await screen.findByText('Global')).toBeInTheDocument()
       expect(screen.getByText('Visible')).toBeInTheDocument()
+      await user.click(await screen.findByRole('button', { name: 'Más acciones' }))
+      expect(await screen.findByRole('menuitem', { name: /Agregar miembro/ })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: /Editar/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: /Eliminar/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: /Salir del grupo/ })).not.toBeInTheDocument()
+    })
+
+    it('en un grupo normal un líder sí puede editarlo, eliminarlo y salir de él', async () => {
+      renderAt('/groups/group-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Más acciones' }))
+      expect(await screen.findByRole('menuitem', { name: /Editar/ })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: /Eliminar/ })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: /Salir del grupo/ })).toBeInTheDocument()
     })
   })
 
@@ -948,12 +999,14 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
       stubMaterials(['Guía de grafos', 'Notas de DP'])
       renderAt('/groups/group-1')
 
+      // "Materiales" and "Miembros" are also tab names (with their own badge): the card label is the one outside a tab
+      const cardOf = (label: string) => screen.getAllByText(label).find((el) => !el.closest('[role="tab"]'))!.parentElement
       await waitFor(() => {
         expect(screen.getByText('Competencias activas').parentElement).toHaveTextContent('3')
         expect(screen.getByText('Competencias totales').parentElement).toHaveTextContent('7')
-        expect(screen.getByText('Materiales', { selector: 'p, span, div' }).parentElement).toBeTruthy()
+        expect(cardOf('Materiales')).toHaveTextContent('2')
       })
-      expect(screen.getByText('Miembros', { selector: 'p, span, div' }).parentElement).toHaveTextContent('45')
+      expect(cardOf('Miembros')).toHaveTextContent('45')
     })
 
     it('muestra las fechas de creación y, si existe, la de actualización', async () => {
@@ -1018,17 +1071,21 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
 
       await user.click(screen.getByRole('tab', { name: /materiales/i }))
       expect(await screen.findByText('Guía de grafos')).toBeInTheDocument()
+      expect(screen.getByTestId('location')).toHaveTextContent('/groups/group-1?tab=materials')
 
       await user.click(screen.getByRole('tab', { name: /información/i }))
       expect(await screen.findByRole('heading', { name: 'Descripción' })).toBeInTheDocument()
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/groups\/group-1$/)
     })
 
     it('la pestaña Solicitudes aparece con política distinta de REQUEST si todavía hay solicitudes', async () => {
       stubGroupDetail({ joinPolicy: 'OPEN' })
+      // Only approved requests in the history: nothing pending, so the tab must not depend on the PENDING total
       server.use(
-        http.get(`${API}/groups/group-1/requests`, () =>
-          HttpResponse.json({ requests: [], pagination: page(1) }),
-        ),
+        http.get(`${API}/groups/group-1/requests`, ({ request }) => {
+          const unfiltered = !new URL(request.url).searchParams.get('status')
+          return HttpResponse.json({ requests: [], pagination: page(unfiltered ? 1 : 0) })
+        }),
       )
       renderAt('/groups/group-1')
 
@@ -1037,15 +1094,20 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
 
     it('la pestaña Solicitudes no aparece con política distinta de REQUEST y sin solicitudes', async () => {
       stubGroupDetail({ joinPolicy: 'OPEN' })
+      let unfilteredServed = false
       server.use(
-        http.get(`${API}/groups/group-1/requests`, () =>
-          HttpResponse.json({ requests: [], pagination: page(0) }),
-        ),
+        http.get(`${API}/groups/group-1/requests`, ({ request }) => {
+          if (new URL(request.url).searchParams.get('limit') === '1') unfilteredServed = true
+          return HttpResponse.json({ requests: [], pagination: page(0) })
+        }),
       )
-      renderAt('/groups/group-1')
+      const queryClient = renderAt('/groups/group-1')
 
       await screen.findByRole('tab', { name: /invitaciones/i })
-      await waitFor(() => expect(screen.queryByRole('tab', { name: /solicitudes/i })).not.toBeInTheDocument())
+      // "Invitaciones" can show up while the requests query is still pending: wait for it to answer
+      await waitFor(() => expect(unfilteredServed).toBe(true))
+      await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+      expect(screen.queryByRole('tab', { name: /solicitudes/i })).not.toBeInTheDocument()
     })
   })
 
@@ -1095,19 +1157,37 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
       { id: 'r3', groupId: 'group-1', requester: { userId: 'u32', nickname: 'tercero', name: 'Tercero' }, status: 'REJECTED', createdAt: '2025-03-02T10:00:00Z' },
     ]
 
-    it('lista las solicitudes con su estado, mensaje y acciones solo para las pendientes', async () => {
+    function stubRequestsByStatus() {
       server.use(
-        http.get(`${API}/groups/group-1/requests`, () => HttpResponse.json({ requests, pagination: page(3) })),
+        http.get(`${API}/groups/group-1/requests`, ({ request }) => {
+          const status = new URL(request.url).searchParams.get('status')
+          const shown = status ? requests.filter((r) => r.status === status) : requests
+          return HttpResponse.json({ requests: shown, pagination: page(shown.length) })
+        }),
       )
+    }
+
+    it('lista las solicitudes con su estado y mensaje, y solo la pendiente tiene acciones', async () => {
+      stubRequestsByStatus()
       renderAt('/groups/group-1?tab=requests')
 
+      // The page opens filtered by PENDING: only that request is listed
       expect(await screen.findByText('Quiero unirme')).toBeInTheDocument()
-      expect(screen.getByText('Pendiente', { selector: 'span, div' })).toBeInTheDocument()
-      expect(screen.getByText('Aprobada')).toBeInTheDocument()
+      expect(screen.queryByText('Aprobada')).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Todas' }))
+
+      expect(await screen.findByText('Aprobada')).toBeInTheDocument()
       expect(screen.getByText('Rechazada')).toBeInTheDocument()
+      expect(screen.getByText('Pendiente', { selector: 'span, div' })).toBeInTheDocument()
       expect(screen.getAllByText('—')).toHaveLength(2)
-      expect(screen.getAllByTitle('Aprobar')).toHaveLength(1)
-      expect(screen.getAllByTitle('Rechazar')).toHaveLength(1)
+      const rowOf = (text: string) => within(screen.getByText(text).closest('tr')!)
+      expect(rowOf('Quiero unirme').getByTitle('Aprobar')).toBeInTheDocument()
+      expect(rowOf('Quiero unirme').getByTitle('Rechazar')).toBeInTheDocument()
+      for (const name of ['Otro Dos', 'Tercero']) {
+        expect(rowOf(name).queryByTitle('Aprobar')).not.toBeInTheDocument()
+        expect(rowOf(name).queryByTitle('Rechazar')).not.toBeInTheDocument()
+      }
     })
 
     it('por omisión pide solo las pendientes y cada filtro pide su estado', async () => {
@@ -1213,7 +1293,9 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
       await user.click(screen.getByRole('button', { name: 'En curso' }))
 
       expect(await screen.findByText('No hay competencias con este estado')).toBeInTheDocument()
-      expect(queries.some((q) => q.get('status') === 'ACTIVE' && q.get('sortBy') === 'startTime' && q.get('order') === 'desc')).toBe(true)
+      await waitFor(() => {
+        expect(queries.some((q) => q.get('status') === 'ACTIVE' && q.get('sortBy') === 'startTime' && q.get('order') === 'desc')).toBe(true)
+      })
       expect(screen.queryByRole('button', { name: 'Crear primera competencia' })).not.toBeInTheDocument()
     })
 

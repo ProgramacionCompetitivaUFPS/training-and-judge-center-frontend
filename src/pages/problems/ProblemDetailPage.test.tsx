@@ -296,6 +296,42 @@ describe('ProblemDetailPage', () => {
       await act(async () => { finishCheck(null) })
     })
 
+    it('keeps the uploads blocked when the user opens another problem and comes back before the ZIP check ends', async () => {
+      // Arrange — hold the ZIP check of the first problem open
+      let finishCheck: (paths: string[] | null) => void = () => {}
+      zipPeek.override = () => new Promise((resolve) => { finishCheck = resolve })
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter initialEntries={['/problems/segment-tree-range']}>
+            <NavigatorProbe />
+            <Routes>
+              <Route path="/problems/:slug" element={<ProblemDetailPage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      )
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await pickerUser.click(subirButton)
+      await screen.findByText('Archivos')
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['x'], 'tests.zip', { type: 'application/zip' }))
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+
+      // Act — another problem that has to be loaded replaces the view, then back to the first one while the check is pending
+      act(() => navigateTo('/problems/graph-bfs'))
+      expect(await screen.findByRole('heading', { name: 'Graph BFS' })).toBeInTheDocument()
+      act(() => navigateTo('/problems/segment-tree-range?tab=files'))
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+
+      // Assert
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+      screen.getAllByRole('button', { name: /subir|reemplazar|agregar/i }).forEach((button) => expect(button).toBeDisabled())
+
+      await act(async () => { finishCheck(null) })
+    })
+
     it('keeps the progress bar and the blocked buttons when the user leaves the files tab and comes back mid-upload', async () => {
       // Arrange — an upload that stays running until the test ends it
       let report: (pct: number) => void = () => {}

@@ -820,16 +820,40 @@ function UserSearchField({ nickname, onNicknameChange, members }: Readonly<{
   )
 }
 
-function AddMemberDialog({ groupId, open, onOpenChange, members }: Readonly<{
+// The forms of the three dialogs live in the page, not in the dialogs: the page returns early (error page) and that
+// unmounts them, and what the user already typed must survive the query recovering.
+
+function useAddMemberForm() {
+  const [nickname, setNickname] = useState('')
+  const [role, setRole] = useState<GroupRole>('MEMBER')
+  return { nickname, setNickname, role, setRole }
+}
+
+type InviteMethod = 'nickname' | 'email'
+
+function useInviteForm() {
+  const [method, setMethod] = useState<InviteMethod>('nickname')
+  const [nickname, setNickname] = useState('')
+  const [email, setEmail] = useState('')
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+  return { method, setMethod, nickname, setNickname, email, setEmail, generatedUrl, setGeneratedUrl }
+}
+
+function useJoinRequestForm() {
+  const [message, setMessage] = useState('')
+  return { message, setMessage }
+}
+
+function AddMemberDialog({ groupId, open, onOpenChange, members, form }: Readonly<{
   groupId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   members: MembersData['members'] | undefined
+  form: ReturnType<typeof useAddMemberForm>
 }>) {
   const { toast } = useToastContext()
   const addMemberMutation = useAddMember()
-  const [nickname, setNickname] = useState('')
-  const [role, setRole] = useState<GroupRole>('MEMBER')
+  const { nickname, setNickname, role, setRole } = form
 
   const handleAddMember = async () => {
     if (!nickname.trim()) return
@@ -872,20 +896,16 @@ function AddMemberDialog({ groupId, open, onOpenChange, members }: Readonly<{
   )
 }
 
-type InviteMethod = 'nickname' | 'email'
-
-function InviteDialog({ groupId, open, onClose, members }: Readonly<{
+function InviteDialog({ groupId, open, onClose, members, form }: Readonly<{
   groupId: string
   open: boolean
   onClose: () => void
   members: MembersData['members'] | undefined
+  form: ReturnType<typeof useInviteForm>
 }>) {
   const { toast } = useToastContext()
   const inviteMutation = useCreateInvitation()
-  const [method, setMethod] = useState<InviteMethod>('nickname')
-  const [nickname, setNickname] = useState('')
-  const [email, setEmail] = useState('')
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+  const { method, setMethod, nickname, setNickname, email, setEmail, generatedUrl, setGeneratedUrl } = form
 
   const recipient = method === 'nickname' ? nickname.trim() : email.trim()
 
@@ -976,15 +996,16 @@ function InviteDialog({ groupId, open, onClose, members }: Readonly<{
 }
 
 /** Join request dialog (REQUEST policy). */
-function JoinRequestDialog({ groupId, open, onOpenChange, previousRequest }: Readonly<{
+function JoinRequestDialog({ groupId, open, onOpenChange, previousRequest, form }: Readonly<{
   groupId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   previousRequest: NonNullable<MyJoinRequest>['request'] | undefined
+  form: ReturnType<typeof useJoinRequestForm>
 }>) {
   const { toast } = useToastContext()
   const requestMutation = useCreateJoinRequest()
-  const [message, setMessage] = useState('')
+  const { message, setMessage } = form
 
   const handleSubmitRequest = async () => {
     try {
@@ -1230,6 +1251,9 @@ export function GroupDetailPage() {
   const [addMemberOpen, setAddMemberOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [requestOpen, setRequestOpen] = useState(false)
+  const addMemberForm = useAddMemberForm()
+  const inviteForm = useInviteForm()
+  const joinRequestForm = useJoinRequestForm()
 
   if (!id) return null
   if (isNotFoundError(error)) return <NotFoundPage />
@@ -1321,9 +1345,9 @@ export function GroupDetailPage() {
         isLoading={memberManagement.isRemoving}
       />
 
-      <AddMemberDialog groupId={id} open={addMemberOpen} onOpenChange={setAddMemberOpen} members={lists.membersData?.members} />
-      <InviteDialog groupId={id} open={inviteOpen} onClose={() => setInviteOpen(false)} members={lists.membersData?.members} />
-      <JoinRequestDialog groupId={id} open={requestOpen} onOpenChange={setRequestOpen} previousRequest={lists.myJoinRequest?.request} />
+      <AddMemberDialog groupId={id} open={addMemberOpen} onOpenChange={setAddMemberOpen} members={lists.membersData?.members} form={addMemberForm} />
+      <InviteDialog groupId={id} open={inviteOpen} onClose={() => setInviteOpen(false)} members={lists.membersData?.members} form={inviteForm} />
+      <JoinRequestDialog groupId={id} open={requestOpen} onOpenChange={setRequestOpen} previousRequest={lists.myJoinRequest?.request} form={joinRequestForm} />
     </>
   )
 }

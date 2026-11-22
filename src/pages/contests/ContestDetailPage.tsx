@@ -703,7 +703,7 @@ function ActiveContestView({ view, myStanding, onCountdownEnd }: Readonly<{
   const { contest, groupId, isLead, registrationAvailability } = view
   const noProblemsForOutsider = contest.problems.length === 0 && !contest.isRegistered
   return (
-    <AppLayout breadcrumbs={view.breadcrumbs}>
+    <>
       <div className="space-y-6">
         {/* Header with compact timer */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -787,7 +787,7 @@ function ActiveContestView({ view, myStanding, onCountdownEnd }: Readonly<{
           </aside>
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }
 
@@ -916,7 +916,7 @@ function ScheduledContestView({ view, search, onCountdownEnd }: Readonly<{
 }>) {
   const { contest, groupId, isLead } = view
   return (
-    <AppLayout breadcrumbs={view.breadcrumbs}>
+    <>
       <div className="space-y-8">
         {/* Hero Countdown */}
         <section className="relative overflow-hidden rounded-lg bg-neutral-surface border border-neutral-border p-8 md:p-12 text-center">
@@ -953,7 +953,7 @@ function ScheduledContestView({ view, search, onCountdownEnd }: Readonly<{
           </div>
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }
 
@@ -961,7 +961,7 @@ function ScheduledContestView({ view, search, onCountdownEnd }: Readonly<{
 function FinishedContestView({ view }: Readonly<{ view: ContestViewProps }>) {
   const { contest, groupId } = view
   return (
-    <AppLayout breadcrumbs={view.breadcrumbs}>
+    <>
       <div className="space-y-6">
         {/* Header with finished indicator */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1011,7 +1011,7 @@ function FinishedContestView({ view }: Readonly<{ view: ContestViewProps }>) {
           </aside>
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }
 
@@ -1129,35 +1129,38 @@ export function ContestDetailPage() {
     />
   )
 
-  if (contest.status === 'ACTIVE') {
-    return (
-      <>
-        <ActiveContestView view={view} myStanding={myStanding} onCountdownEnd={handleCountdownEnd} />
-        {lateRegistrationDialog}
-      </>
-    )
-  }
-
-  if (contest.status === 'SCHEDULED') {
-    const search: ProblemSearchProps = {
-      query: problemSearchQuery,
-      onQueryChange: setProblemSearchQuery,
-      results: problemSearchData?.problems ?? [],
-      isSearching: isSearchingProblems,
-    }
-    return (
-      <>
-        <ScheduledContestView view={view} search={search} onCountdownEnd={handleCountdownEnd} />
-        {deleteDialog}
-        {lateRegistrationDialog}
-      </>
-    )
-  }
-
+  // One AppLayout for every status: if each view had its own, a status change (the countdown flips SCHEDULED to
+  // ACTIVE, ACTIVE to FINISHED) would remount it and close the mobile menu the user has open.
   return (
-    <>
-      <FinishedContestView view={view} />
-      {deleteDialog}
-    </>
+    <AppLayout breadcrumbs={view.breadcrumbs}>
+      {contest.status === 'ACTIVE' && (
+        <>
+          <ActiveContestView view={view} myStanding={myStanding} onCountdownEnd={handleCountdownEnd} />
+          {lateRegistrationDialog}
+        </>
+      )}
+      {contest.status === 'SCHEDULED' && (
+        <>
+          <ScheduledContestView
+            view={view}
+            search={{
+              query: problemSearchQuery,
+              onQueryChange: setProblemSearchQuery,
+              results: problemSearchData?.problems ?? [],
+              isSearching: isSearchingProblems,
+            }}
+            onCountdownEnd={handleCountdownEnd}
+          />
+          {deleteDialog}
+          {lateRegistrationDialog}
+        </>
+      )}
+      {contest.status === 'FINISHED' && (
+        <>
+          <FinishedContestView view={view} />
+          {deleteDialog}
+        </>
+      )}
+    </AppLayout>
   )
 }
