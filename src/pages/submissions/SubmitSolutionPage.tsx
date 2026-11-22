@@ -70,7 +70,9 @@ function resolveProblemSlug(
 
 /** Name of a public top-level class other than Solution, if the Java code declares one. */
 function wrongJavaClassName(code: string): string | undefined {
-  const name = /^\s*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m.exec(code)?.[1]
+  // The indentation excludes line breaks: with `\s*` every blank line is a new start that rescans the whole run
+  // of blank lines after it, which is quadratic and runs on every keystroke.
+  const name = /^(?:(?![\r\n\u2028\u2029])\s)*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m.exec(code)?.[1]
   return name && name !== 'Solution' ? name : undefined
 }
 
@@ -675,7 +677,7 @@ export function SubmitSolutionPage() {
 
   const { isSubmitting, handleSubmit } = useSubmitActions({
     toast, isBlockly, language, code, resolvedSlug, blocklyRef, fileInputRef, setCode, setUploadedFile,
-    contestTarget: isContestContext && activeContest ? { groupId: activeContest.group.id, contestId: contestId! } : undefined,
+    contestTarget: contestId && activeContest ? { groupId: activeContest.group.id, contestId } : undefined,
   })
 
   // Contest problems for selector

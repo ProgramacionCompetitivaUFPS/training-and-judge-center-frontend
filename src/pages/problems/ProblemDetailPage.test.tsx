@@ -3,17 +3,20 @@ import { useEffect } from 'react'
 import { render, screen, waitFor, act, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { http, HttpResponse, delay } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
+import { stubEndpoint } from '@/test/hookHarness'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockProblems } from '@/mocks/data'
 import type { User } from '@/types/user'
 import { ProblemDetailPage } from './ProblemDetailPage'
 
+// Mutable so a test can place the page inside a contest
+const contestSession = vi.hoisted(() => ({ contest: null as unknown }))
 vi.mock('@/hooks/useContestSession', () => ({
-  useContestSession: () => ({ contest: null }),
+  useContestSession: () => ({ contest: contestSession.contest }),
 }))
 
 // Mutable so individual tests can switch to a different role
@@ -285,6 +288,42 @@ describe('ProblemDetailPage', () => {
       // Act — FilesManager unmounts and a new one mounts while the check is still pending
       await pickerUser.click(screen.getByRole('tab', { name: /problema/i }))
       await pickerUser.click(screen.getByRole('tab', { name: /archivos/i }))
+
+      // Assert
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+      screen.getAllByRole('button', { name: /subir|reemplazar|agregar/i }).forEach((button) => expect(button).toBeDisabled())
+
+      await act(async () => { finishCheck(null) })
+    })
+
+    it('keeps the uploads blocked when the user opens another problem and comes back before the ZIP check ends', async () => {
+      // Arrange — hold the ZIP check of the first problem open
+      let finishCheck: (paths: string[] | null) => void = () => {}
+      zipPeek.override = () => new Promise((resolve) => { finishCheck = resolve })
+      const pickerUser = userEvent.setup({ applyAccept: false })
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter initialEntries={['/problems/segment-tree-range']}>
+            <NavigatorProbe />
+            <Routes>
+              <Route path="/problems/:slug" element={<ProblemDetailPage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      )
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      const [subirButton] = await screen.findAllByRole('button', { name: /subir/i })
+      await pickerUser.click(subirButton)
+      await screen.findByText('Archivos')
+      const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+      await pickerUser.upload(input, new File(['x'], 'tests.zip', { type: 'application/zip' }))
+      expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
+
+      // Act — another problem that has to be loaded replaces the view, then back to the first one while the check is pending
+      act(() => navigateTo('/problems/graph-bfs'))
+      expect(await screen.findByRole('heading', { name: 'Graph BFS' })).toBeInTheDocument()
+      act(() => navigateTo('/problems/segment-tree-range?tab=files'))
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
 
       // Assert
       expect(await screen.findByRole('status')).toHaveTextContent(/revisando el zip/i)
@@ -687,5 +726,614 @@ describe('ProblemDetailPage — visibilidad (accesibilidad) desde el menú de ac
     await openActionsMenu(user, 'Segment Tree Range Query')
 
     expect(screen.getByRole('menuitem', { name: /hacer público/i })).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contenido de la página, acciones del menú y diálogos
+// ---------------------------------------------------------------------------
+
+describe('ProblemDetailPage — contenido y acciones', () => {
+  const API = 'http://localhost:8080/api'
+  const user = userEvent.setup()
+
+  beforeEach(() => {
+    _authUser = { ...mockCurrentUser }
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+    contestSession.contest = null
+  })
+  afterEach(() => {
+    clearAccessToken()
+    contestSession.contest = null
+  })
+
+  function LocationProbe() {
+    const location = useLocation()
+    return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+  }
+
+  function renderAt(path: string) {
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/problems/:slug" element={<ProblemDetailPage />} />
+            <Route path="/groups/:groupId/contests/:contestId/problems/:letter" element={<ProblemDetailPage />} />
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  function stubProblem(slug: string, overrides: Record<string, unknown>) {
+    const base = mockProblems.find((p) => p.slug === slug)
+    server.use(http.get(`${API}/problems/p/:slug`, () => HttpResponse.json({ ...base, ...overrides })))
+  }
+
+  async function openMenu() {
+    await user.click(await screen.findByRole('button', { name: /más acciones/i }))
+  }
+
+  describe('encabezado y metadatos', () => {
+    it('muestra las etiquetas, el slug, y para quien gestiona el estado y la visibilidad', async () => {
+      renderAt('/problems/two-sum')
+
+      expect(await screen.findByText('arrays')).toBeInTheDocument()
+      expect(screen.getByText('hash-table')).toBeInTheDocument()
+      expect(screen.getByText('two-sum')).toBeInTheDocument()
+      expect(screen.getByText('Publicado')).toBeInTheDocument()
+      expect(screen.getByText('Público')).toBeInTheDocument()
+    })
+
+    it('quien solo compite no ve el estado ni la visibilidad', async () => {
+      _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+      renderAt('/problems/two-sum')
+
+      await screen.findByRole('heading', { name: 'Two Sum' })
+      expect(screen.queryByText('Publicado')).not.toBeInTheDocument()
+      expect(screen.queryByText('Público')).not.toBeInTheDocument()
+    })
+
+    it('un borrador privado se rotula como Borrador y Privado', async () => {
+      renderAt('/problems/segment-tree-range')
+
+      expect(await screen.findByText('Borrador')).toBeInTheDocument()
+      expect(screen.getByText('Privado')).toBeInTheDocument()
+    })
+
+    it('la metadata lista autor, límites, overrides por lenguaje y fecha de creación', async () => {
+      renderAt('/problems/two-sum')
+
+      expect(await screen.findByText('María Coach', { selector: 'span' })).toBeInTheDocument()
+      expect(screen.getByText('2000 ms')).toBeInTheDocument()
+      expect(screen.getByText('256 MiB')).toBeInTheDocument()
+      expect(screen.getByText('Overrides por lenguaje')).toBeInTheDocument()
+      expect(screen.getByText('python310')).toBeInTheDocument()
+      expect(screen.getByText('4000ms')).toBeInTheDocument()
+      expect(screen.getByText('Creado')).toBeInTheDocument()
+    })
+
+    it('sin límites definidos dice «No definido»', async () => {
+      stubProblem('two-sum', { timeLimit: null, memoryLimit: null, languageOverrides: [] })
+      renderAt('/problems/two-sum')
+
+      expect(await screen.findAllByText('No definido')).toHaveLength(2)
+      expect(screen.queryByText('Overrides por lenguaje')).not.toBeInTheDocument()
+    })
+
+    it('un problema sin enunciado dice «Sin enunciado aún» y uno sin ejemplos no muestra la tarjeta', async () => {
+      renderAt('/problems/segment-tree-range')
+
+      expect(await screen.findByText('Sin enunciado aún')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Ejemplos' })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Enunciado' })).toBeInTheDocument()
+    })
+
+    it('un problema publicado no rotula el enunciado', async () => {
+      renderAt('/problems/two-sum')
+
+      await screen.findByRole('heading', { name: 'Ejemplos' })
+      expect(screen.queryByRole('heading', { name: 'Enunciado' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('estadísticas', () => {
+    it('muestra envíos, intentos, resueltos, tasa de éxito, veredictos y aceptación por lenguaje', async () => {
+      renderAt('/problems/two-sum')
+
+      expect(await screen.findByText('Estadísticas')).toBeInTheDocument()
+      expect(screen.getByText('1250')).toBeInTheDocument()
+      expect(screen.getByText('234')).toBeInTheDocument()
+      expect(screen.getByText('89')).toBeInTheDocument()
+      expect(screen.getByText('38%')).toBeInTheDocument()
+      expect(screen.getByText('Veredictos')).toBeInTheDocument()
+      expect(screen.getByText('36%')).toBeInTheDocument()
+      expect(screen.getByText('Por lenguaje')).toBeInTheDocument()
+      expect(screen.getByText('java17')).toBeInTheDocument()
+      expect(screen.getByText('70%')).toBeInTheDocument()
+    })
+
+    it('sin envíos no muestra la tarjeta de estadísticas', async () => {
+      server.use(http.get(`${API}/problems/p/:slug/statistics`, () => HttpResponse.json({ totalSubmissions: 0 })))
+      renderAt('/problems/two-sum')
+
+      await screen.findByRole('heading', { name: 'Two Sum' })
+      await waitFor(() => expect(screen.queryByText('Estadísticas')).not.toBeInTheDocument())
+    })
+
+    it('sin intentos no muestra la tasa de éxito', async () => {
+      server.use(
+        http.get(`${API}/problems/p/:slug/statistics`, () =>
+          HttpResponse.json({ totalSubmissions: 4, uniqueUsers: { attempted: 0, solved: 0 } }),
+        ),
+      )
+      renderAt('/problems/two-sum')
+
+      expect(await screen.findByText('Estadísticas')).toBeInTheDocument()
+      expect(screen.queryByText('Tasa de éxito')).not.toBeInTheDocument()
+      expect(screen.queryByText('Veredictos')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('enviar solución y ver envíos', () => {
+    it('Enviar solución lleva al formulario con el problema elegido', async () => {
+      renderAt('/problems/two-sum')
+
+      await user.click(await screen.findByRole('button', { name: 'Enviar solución' }))
+
+      expect(await screen.findByTestId('location')).toHaveTextContent('/submit?problem=two-sum')
+    })
+
+    it('Ver envíos lleva a los envíos del problema', async () => {
+      renderAt('/problems/two-sum')
+
+      await user.click(await screen.findByRole('button', { name: 'Ver envíos' }))
+
+      expect(await screen.findByTestId('location')).toHaveTextContent('/problems/two-sum/submissions')
+    })
+
+    it('un borrador no ofrece enviar soluciones', async () => {
+      renderAt('/problems/segment-tree-range')
+
+      await screen.findByRole('heading', { name: 'Segment Tree Range Query' })
+      expect(screen.queryByRole('button', { name: 'Enviar solución' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('pestañas', () => {
+    it('?tab=files abre la pestaña de archivos y no muestra el enunciado', async () => {
+      renderAt('/problems/two-sum?tab=files')
+
+      await screen.findByRole('heading', { name: 'Two Sum' })
+      expect(screen.queryByRole('heading', { name: 'Ejemplos' })).not.toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /archivos y colaboradores/i })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('cambiar de pestaña alterna entre el enunciado y los archivos', async () => {
+      renderAt('/problems/two-sum')
+      await screen.findByRole('heading', { name: 'Ejemplos' })
+
+      await user.click(screen.getByRole('tab', { name: /archivos y colaboradores/i }))
+      expect(screen.queryByRole('heading', { name: 'Ejemplos' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('tab', { name: 'Problema' }))
+      expect(await screen.findByRole('heading', { name: 'Ejemplos' })).toBeInTheDocument()
+    })
+
+    it('un borrador sin casos de prueba ni soluciones marca la pestaña de archivos', async () => {
+      renderAt('/problems/segment-tree-range')
+
+      expect(await screen.findByRole('img', { name: 'Faltan archivos por subir' })).toBeInTheDocument()
+    })
+
+    it('quien solo lee el problema no tiene pestañas', async () => {
+      _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+      renderAt('/problems/two-sum')
+
+      await screen.findByRole('heading', { name: 'Two Sum' })
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('menú de acciones', () => {
+    it('Editar lleva al formulario de edición de un borrador', async () => {
+      renderAt('/problems/segment-tree-range')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /editar/i }))
+
+      expect(await screen.findByTestId('location')).toHaveTextContent('/problems/segment-tree-range/edit')
+    })
+
+    it('un problema publicado explica que hay que despublicarlo para editarlo', async () => {
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      expect(screen.getByText('Despublica el problema para editarlo')).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: /despublicar/i })).toBeInTheDocument()
+    })
+
+    it('un borrador no ofrece despublicar', async () => {
+      renderAt('/problems/segment-tree-range')
+      await openMenu()
+
+      expect(screen.queryByRole('menuitem', { name: /despublicar/i })).not.toBeInTheDocument()
+    })
+
+    it('despublicar pide confirmación, llama al servidor y avisa', async () => {
+      const calls = stubEndpoint('post', '/problems/p/two-sum/unpublish', { body: { slug: 'two-sum', status: 'DRAFT' } })
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /despublicar/i }))
+      const dialog = await screen.findByRole('dialog')
+      expect(calls).toHaveLength(0)
+      await user.click(within(dialog).getByRole('button', { name: 'Despublicar' }))
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Problema despublicado' })))
+      expect(calls).toHaveLength(1)
+    })
+
+    it('si el problema está en una competencia activa explica por qué no se puede despublicar', async () => {
+      stubEndpoint('post', '/problems/p/two-sum/unpublish', { status: 409, body: { error: 'PROBLEM_IN_ACTIVE_CONTEST', message: 'x' } })
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /despublicar/i }))
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Despublicar' }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se puede despublicar' })),
+      )
+    })
+
+    it('si despublicar falla por otra causa muestra un aviso genérico', async () => {
+      stubEndpoint('post', '/problems/p/two-sum/unpublish', { status: 500, body: { error: 'INTERNAL_SERVER_ERROR' } })
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /despublicar/i }))
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Despublicar' }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Error al despublicar' })),
+      )
+    })
+
+    it('Rejuzgar (global) pide confirmación y lo inicia', async () => {
+      const calls = stubEndpoint('post', '/admin/problems/two-sum/rejudge', { body: { message: 'ok' } })
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /rejuzgar \(global\)/i }))
+      const dialog = await screen.findByRole('dialog')
+      expect(calls).toHaveLength(0)
+      await user.click(within(dialog).getByRole('button', { name: 'Rejuzgar' }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Rejuzgamiento global iniciado' })),
+      )
+      expect(calls[0].search).toBe('')
+    })
+
+    it('un coach que no es administrador no ve Rejuzgar (global)', async () => {
+      _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      expect(screen.queryByRole('menuitem', { name: /rejuzgar/i })).not.toBeInTheDocument()
+    })
+
+    it('si falla exportar avisa que no se pudo exportar', async () => {
+      server.use(http.get(`${API}/problems/p/:slug/export`, () => HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 })))
+      renderAt('/problems/two-sum')
+      await openMenu()
+
+      await user.click(screen.getByRole('menuitem', { name: /exportar zip/i }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo exportar el problema' })),
+      )
+    })
+  })
+
+  describe('eliminar', () => {
+    async function openDeleteDialog() {
+      await openMenu()
+      await user.click(screen.getByRole('menuitem', { name: /eliminar/i }))
+      return screen.findByRole('dialog')
+    }
+
+    it('exige escribir el slug, elimina y vuelve al listado', async () => {
+      const calls = stubEndpoint('delete', '/problems/p/segment-tree-range')
+      renderAt('/problems/segment-tree-range')
+
+      const dialog = await openDeleteDialog()
+      const confirm = within(dialog).getByRole('button', { name: 'Eliminar' })
+      expect(confirm).toBeDisabled()
+      await user.type(within(dialog).getByLabelText('Confirmar slug'), 'segment-tree-range')
+      await user.click(confirm)
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Problema eliminado' })))
+      expect(calls[0].body).toEqual({ confirmSlug: 'segment-tree-range' })
+      expect(await screen.findByTestId('location')).toHaveTextContent('/problems')
+    })
+
+    it('un problema publicado advierte y ofrece despublicar en vez de eliminar', async () => {
+      renderAt('/problems/two-sum')
+
+      const dialog = await openDeleteDialog()
+      expect(within(dialog).getByText('Este problema está publicado.')).toBeInTheDocument()
+      expect(within(dialog).getByRole('button', { name: 'Eliminar de todos modos' })).toBeDisabled()
+
+      await user.click(within(dialog).getByRole('button', { name: 'Despublicar en vez de eliminar' }))
+
+      expect(await screen.findByText('Despublicar problema')).toBeInTheDocument()
+    })
+
+    it('cancelar cierra el diálogo y olvida lo escrito', async () => {
+      renderAt('/problems/segment-tree-range')
+      const dialog = await openDeleteDialog()
+      await user.type(within(dialog).getByLabelText('Confirmar slug'), 'segm')
+
+      await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      const reopened = await openDeleteDialog()
+
+      expect(within(reopened).getByLabelText('Confirmar slug')).toHaveValue('')
+    })
+
+    it.each([
+      ['PROBLEM_IN_ACTIVE_CONTEST', 'No se puede eliminar', /competencia activa/],
+      ['PROBLEM_HAS_CONTEST_HISTORY', 'No se puede eliminar', /Despublícalo en su lugar/],
+      ['OTHER', 'Error al eliminar', undefined],
+    ])('si el servidor rechaza con %s avisa «%s»', async (code, title, description) => {
+      stubEndpoint('delete', '/problems/p/segment-tree-range', { status: 409, body: { error: code, message: 'x' } })
+      renderAt('/problems/segment-tree-range')
+      const dialog = await openDeleteDialog()
+      await user.type(within(dialog).getByLabelText('Confirmar slug'), 'segment-tree-range')
+
+      await user.click(within(dialog).getByRole('button', { name: 'Eliminar' }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({ variant: 'error', title, ...(description ? { description: expect.stringMatching(description) } : {}) }),
+        ),
+      )
+    })
+
+    it('solo el autor o un administrador ve Eliminar', async () => {
+      _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+      stubProblem('segment-tree-range', { modifiers: [{ nickname: 'mariacoach', name: 'María Coach' }], author: { nickname: 'luisadmin', name: 'Luis Admin' } })
+      renderAt('/problems/segment-tree-range')
+      await openMenu()
+
+      expect(screen.queryByRole('menuitem', { name: /eliminar/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('validar y publicar', () => {
+    const readyDraft = () => ({
+      status: 'DRAFT',
+      statement: 'Enunciado',
+      timeLimit: 1000,
+      memoryLimit: 256,
+      files: { testCases: true, solutions: [{ filename: 's.cpp', language: 'cpp20' }], checker: false, validator: false },
+    })
+
+    it('con los requisitos completos la lista invita a validar y Validar llama al servidor', async () => {
+      stubProblem('two-sum', readyDraft())
+      const calls = stubEndpoint('post', '/problems/p/two-sum/validate', { body: { message: 'ok' } })
+      renderAt('/problems/two-sum')
+
+      expect((await screen.findAllByText('Compila todo y lo prueba con tus soluciones.')).length).toBeGreaterThan(0)
+      await user.click((await screen.findAllByRole('button', { name: 'Validar' }))[0])
+
+      await waitFor(() => expect(calls).toHaveLength(1))
+    })
+
+    it('si validar falla avisa que no se pudo validar', async () => {
+      stubProblem('two-sum', readyDraft())
+      stubEndpoint('post', '/problems/p/two-sum/validate', { status: 500, body: { error: 'INTERNAL_SERVER_ERROR' } })
+      renderAt('/problems/two-sum')
+
+      await user.click((await screen.findAllByRole('button', { name: 'Validar' }))[0])
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo validar' })),
+      )
+    })
+
+    it('si faltan requisitos la validación pide completar los pasos anteriores y Publicar está deshabilitado', async () => {
+      renderAt('/problems/segment-tree-range')
+
+      expect((await screen.findAllByText('Antes completa los pasos de arriba')).length).toBeGreaterThan(0)
+      expect(screen.getByRole('button', { name: /^publicar$/i })).toBeDisabled()
+    })
+
+    it('si la última validación falló lo dice y ofrece reintentar', async () => {
+      stubProblem('two-sum', readyDraft())
+      server.use(
+        http.get(`${API}/problems/p/:slug/validation`, () =>
+          HttpResponse.json({ found: true, terminal: true, passed: false, status: 'DRAFT', validationLogs: [] }),
+        ),
+      )
+      renderAt('/problems/two-sum')
+
+      expect((await screen.findAllByText('La última validación falló.')).length).toBeGreaterThan(0)
+      expect((await screen.findAllByRole('button', { name: 'Reintentar' })).length).toBeGreaterThan(0)
+    })
+
+    it('si el problema cambió después de validarlo lo avisa y no deja publicar', async () => {
+      stubProblem('two-sum', readyDraft())
+      server.use(
+        http.get(`${API}/problems/p/:slug/validation`, () =>
+          HttpResponse.json({ found: true, terminal: true, passed: true, stale: true, status: 'DRAFT', validationLogs: [] }),
+        ),
+      )
+      renderAt('/problems/two-sum')
+
+      expect((await screen.findAllByText('Cambiaste el problema después de validarlo.')).length).toBeGreaterThan(0)
+      expect(screen.getByRole('button', { name: /^publicar$/i })).toBeDisabled()
+    })
+
+    it('publicar sin advertencias muestra el detalle de la validación cuando el servidor lo devuelve', async () => {
+      stubProblem('two-sum', readyDraft())
+      server.use(
+        http.get(`${API}/problems/p/:slug/testcases`, () =>
+          HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 3, cases: [] }),
+        ),
+        http.get(`${API}/problems/p/:slug/validation`, () =>
+          HttpResponse.json({ found: true, terminal: true, passed: true, stale: false, status: 'DRAFT', validationLogs: [] }),
+        ),
+      )
+      stubEndpoint('post', '/problems/p/two-sum/publish', { body: { validationLogs: ['Caso 1 correcto', 'Caso 2 correcto'] } })
+      renderAt('/problems/two-sum')
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /^publicar$/i })).not.toBeDisabled())
+      await user.click(screen.getByRole('button', { name: /^publicar$/i }))
+
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText('Detalle de la validación')).toBeInTheDocument()
+      expect(within(dialog).getByText('Caso 1 correcto')).toBeInTheDocument()
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Problema publicado' }))
+      const closeButtons = within(dialog).getAllByRole('button', { name: 'Cerrar' })
+      await user.click(closeButtons[closeButtons.length - 1])
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    })
+
+    it('si la validación falla al publicar muestra el detalle: campos faltantes y mensaje', async () => {
+      stubProblem('two-sum', readyDraft())
+      server.use(
+        http.get(`${API}/problems/p/:slug/testcases`, () =>
+          HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 3, cases: [] }),
+        ),
+        http.get(`${API}/problems/p/:slug/validation`, () =>
+          HttpResponse.json({ found: true, terminal: true, passed: true, stale: false, status: 'DRAFT', validationLogs: [] }),
+        ),
+      )
+      stubEndpoint('post', '/problems/p/two-sum/publish', {
+        status: 422,
+        body: { error: 'VALIDATION_FAILED', message: 'Faltan cosas', missingFields: ['statement', 'campoRaro'] },
+      })
+      renderAt('/problems/two-sum')
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /^publicar$/i })).not.toBeDisabled())
+      await user.click(screen.getByRole('button', { name: /^publicar$/i }))
+
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByText('No se pudo publicar')).toBeInTheDocument()
+      expect(within(dialog).getByText('Faltan cosas')).toBeInTheDocument()
+      expect(within(dialog).getByText('Enunciado')).toBeInTheDocument()
+      expect(within(dialog).getByText('campoRaro')).toBeInTheDocument()
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo publicar' }))
+    })
+
+    it('si publicar falla por otra causa avisa del error sin abrir el detalle', async () => {
+      stubProblem('two-sum', readyDraft())
+      server.use(
+        http.get(`${API}/problems/p/:slug/testcases`, () =>
+          HttpResponse.json({ hasTestCases: true, sampleCount: 2, secretCount: 3, cases: [] }),
+        ),
+        http.get(`${API}/problems/p/:slug/validation`, () =>
+          HttpResponse.json({ found: true, terminal: true, passed: true, stale: false, status: 'DRAFT', validationLogs: [] }),
+        ),
+      )
+      stubEndpoint('post', '/problems/p/two-sum/publish', { status: 500, body: { error: 'INTERNAL_SERVER_ERROR' } })
+      renderAt('/problems/two-sum')
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /^publicar$/i })).not.toBeDisabled())
+      await user.click(screen.getByRole('button', { name: /^publicar$/i }))
+
+      await waitFor(() =>
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Error al publicar' })),
+      )
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('dentro de una competencia', () => {
+    const contest = {
+      id: 'contest-2',
+      name: 'Práctica Grafos',
+      status: 'ACTIVE',
+      owner: { id: 'u2', nickname: 'mariacoach' },
+      group: { id: 'group-1', name: 'ICPC Colombia' },
+      problems: [{ position: 1, slug: 'two-sum', title: 'Two Sum', timeLimit: 2000, memoryLimit: 256, color: null }],
+    }
+
+    it('antecede el título con la letra, oculta etiquetas y estadísticas y no muestra gestión del problema', async () => {
+      contestSession.contest = contest
+      renderAt('/groups/group-1/contests/contest-2/problems/a')
+
+      expect(await screen.findByRole('heading', { name: 'A. Two Sum' })).toBeInTheDocument()
+      expect(screen.queryByText('arrays')).not.toBeInTheDocument()
+      expect(screen.queryByText('Estadísticas')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /más acciones/i })).not.toBeInTheDocument()
+      expect(screen.queryByText('Publicado')).not.toBeInTheDocument()
+      expect(screen.getByText('Problema A')).toBeInTheDocument()
+    })
+
+    it('Enviar solución va al formulario de envío de la competencia', async () => {
+      contestSession.contest = contest
+      renderAt('/groups/group-1/contests/contest-2/problems/a')
+
+      await user.click(await screen.findByRole('button', { name: 'Enviar solución' }))
+      expect(await screen.findByTestId('location')).toHaveTextContent('/groups/group-1/contests/contest-2/submit')
+    })
+
+    it('una letra que no existe en la competencia muestra la página no encontrada', async () => {
+      contestSession.contest = contest
+      renderAt('/groups/group-1/contests/contest-2/problems/z')
+
+      expect(await screen.findByText('Página no encontrada')).toBeInTheDocument()
+    })
+
+    it('el dueño de la competencia rejuzga con el endpoint de la competencia', async () => {
+      _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+      contestSession.contest = contest
+      const calls = stubEndpoint('post', '/groups/group-1/contests/contest-2/problems/two-sum/rejudge', { body: { message: 'ok' } })
+      renderAt('/groups/group-1/contests/contest-2/problems/a')
+
+      await user.click(await screen.findByRole('button', { name: 'Rejuzgar envíos' }))
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rejuzgar' }))
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Rejuzgamiento iniciado' })))
+      expect(calls).toHaveLength(1)
+    })
+
+    it('un administrador que no es dueño ni líder rejuzga con el endpoint de administración y el contestId', async () => {
+      contestSession.contest = { ...contest, owner: { id: 'u9', nickname: 'otro' } }
+      server.use(
+        http.get(`${API}/groups/group-1`, () =>
+          HttpResponse.json({ id: 'group-1', name: 'ICPC Colombia', userMembership: { isMember: false, role: null }, leads: [], statistics: { memberCount: 1, leadCount: 0 } }),
+        ),
+      )
+      const calls = stubEndpoint('post', '/admin/problems/two-sum/rejudge', { body: { message: 'ok' } })
+      renderAt('/groups/group-1/contests/contest-2/problems/a')
+
+      await user.click(await screen.findByRole('button', { name: 'Rejuzgar envíos' }))
+      await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rejuzgar' }))
+
+      await waitFor(() => expect(calls).toHaveLength(1))
+      expect(calls[0].search).toBe('?contestId=contest-2')
+    })
+
+    it('quien no lidera la competencia no ve Rejuzgar envíos', async () => {
+      _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+      contestSession.contest = contest
+      server.use(
+        http.get(`${API}/groups/group-1`, () =>
+          HttpResponse.json({ id: 'group-1', name: 'ICPC Colombia', userMembership: { isMember: true, role: 'MEMBER' }, leads: [], statistics: { memberCount: 1, leadCount: 0 } }),
+        ),
+      )
+      renderAt('/groups/group-1/contests/contest-2/problems/a')
+
+      await screen.findByRole('heading', { name: 'A. Two Sum' })
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      expect(screen.queryByRole('button', { name: 'Rejuzgar envíos' })).not.toBeInTheDocument()
+    })
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
@@ -253,6 +253,43 @@ describe('SubmitSolutionPage — panel y editor', () => {
       await user.paste('public class Main { }')
 
       expect(await screen.findByText(/Tu clase pública se llama "Main"/)).toBeInTheDocument()
+    })
+
+    it('detecta la clase aunque haya líneas en blanco y sangría antes', async () => {
+      localStorage.setItem('last-submission-language', 'java17')
+      renderPage()
+      const editor = await screen.findByTestId('code-editor')
+
+      await user.clear(editor)
+      await user.click(editor)
+      await user.paste(['', '', '   \t public final class Main { }'].join('\n'))
+
+      expect(await screen.findByText(/Tu clase pública se llama "Main"/)).toBeInTheDocument()
+    })
+
+    it('no avisa si la clase pública ya se llama Solution', async () => {
+      localStorage.setItem('last-submission-language', 'java17')
+      renderPage()
+      const editor = await screen.findByTestId('code-editor')
+
+      await user.clear(editor)
+      await user.click(editor)
+      await user.paste('public class Solution { }')
+
+      expect(await screen.findByText(/la clase principal debe llamarse/)).toBeInTheDocument()
+      expect(screen.queryByText(/Tu clase pública se llama/)).not.toBeInTheDocument()
+    })
+
+    it('no se bloquea con un código enorme de líneas en blanco', async () => {
+      localStorage.setItem('last-submission-language', 'java17')
+      renderPage()
+      const editor = (await screen.findByTestId('code-editor')) as HTMLTextAreaElement
+      const start = performance.now()
+
+      fireEvent.change(editor, { target: { value: `${'\n'.repeat(200_000)}x` } })
+
+      expect(performance.now() - start).toBeLessThan(2000)
+      expect(await screen.findByText(/la clase principal debe llamarse/)).toBeInTheDocument()
     })
 
     it('no avisa en otros lenguajes', async () => {

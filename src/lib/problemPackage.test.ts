@@ -79,6 +79,46 @@ describe('parseProblemYaml', () => {
     expect(parseProblemYaml(line).name).toBe(expected)
   })
 
+  it.each([
+    ['name: Suma # uno # dos', 'Suma'],
+    ['name: Suma#no es comentario', 'Suma#no es comentario'],
+    ['name: a#b #c', 'a#b'],
+    ['name: 	 Suma 	  ', 'Suma'],
+    ['name: "Suma # no se corta"', 'Suma # no se corta'],
+    ['name:   ', ''],
+    ['name: # pendiente', ''],
+    ['name:    #pendiente', ''],
+    ['name:#no es comentario', '#no es comentario'],
+    ['name: "#entre comillas"', '#entre comillas'],
+  ])('interpreta el valor de %j como %j (comentarios y espacios)', (line, expected) => {
+    expect(parseProblemYaml(line).name).toBe(expected)
+  })
+
+  it('no se bloquea con líneas enormes de espacios (tiempo lineal)', () => {
+    const spaces = ' '.repeat(300_000)
+    const start = performance.now()
+
+    const parsed = parseProblemYaml(`name: a${spaces}b
+time_limit: 2${spaces}# c
+memory_limit: ${spaces}x`)
+
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(parsed.name).toBe(`a${spaces}b`)
+    expect(parsed.timeLimit).toBe('2')
+  })
+
+  it('no se bloquea con espacios seguidos de un separador de línea raro dentro del valor (tiempo lineal)', () => {
+    // U+2028 is a line terminator for `.` but is not split by the importer's \r?\n, so it can sit inside a "line"
+    const lineSeparator = String.fromCharCode(0x2028)
+    const start = performance.now()
+
+    const parsed = parseProblemYaml(`name:${' '.repeat(300_000)}x${lineSeparator}y\ntime_limit: 3`)
+
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(parsed.name).toBeUndefined()
+    expect(parsed.timeLimit).toBe('3')
+  })
+
   it('ignora las claves con sangría y las que no usa el importador', () => {
     const yaml = 'author: Ana\nlimits:\n  time_limit: 9\n  memory_limit: 9\nname: Suma\n'
 
@@ -95,6 +135,21 @@ describe('parseProblemYaml', () => {
 })
 
 describe('reviewProblemPackage', () => {
+  it('un título que es solo un comentario cuenta como nombre ausente', async () => {
+    const result = await review(variant({ 'problem.yaml': 'name: # pendiente\ntime_limit: 2\nmemory_limit: 256\n' }))
+
+    expect(messages(result, 'error')).toEqual(['problem.yaml no tiene el campo name.'])
+    expect(result.summary.title).toBeUndefined()
+    expect(result.canImport).toBe(false)
+  })
+
+  it('un título que contiene # sin espacio antes sigue siendo un nombre válido', async () => {
+    const result = await review(variant({ 'problem.yaml': 'name: Suma#texto\ntime_limit: 2\nmemory_limit: 256\n' }))
+
+    expect(messages(result, 'error')).toEqual([])
+    expect(result.summary.title).toBe('Suma#texto')
+  })
+
   it('acepta sin hallazgos un paquete completo y resume su contenido', async () => {
     const result = await review(VALID_PACKAGE)
 

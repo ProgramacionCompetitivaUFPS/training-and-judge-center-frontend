@@ -8,6 +8,7 @@ import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockCurrentUser, mockGroupDetails, mockContests } from '@/mocks/data'
+import { contestKeys } from '@/hooks/api/useContests'
 import type { User } from '@/types/user'
 import type { ContestDetail } from '@/types/contest'
 import { ContestDetailPage } from './ContestDetailPage'
@@ -45,9 +46,9 @@ vi.mock('@/hooks/useToastContext', () => ({
   useToastContext: () => ({ toast: mockToast }),
 }))
 
-function renderPage(groupId = 'group-1', contestId = 'contest-1') {
+function renderPage(groupId = 'group-1', contestId = 'contest-1', queryClient = createTestQueryClient()) {
   render(
-    <QueryClientProvider client={createTestQueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/groups/${groupId}/contests/${contestId}`]}>
         <Routes>
           <Route path="/groups/:groupId/contests/:id" element={<ContestDetailPage />} />
@@ -55,6 +56,7 @@ function renderPage(groupId = 'group-1', contestId = 'contest-1') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return queryClient
 }
 
 const initialContests = structuredClone(mockContests)
@@ -682,6 +684,362 @@ describe('ContestDetailPage', () => {
 
       // Assert
       expect(await screen.findByText('Inscripción tardía habilitada')).toBeInTheDocument()
+    })
+  })
+})
+
+describe('ContestDetailPage — contenido por estado', () => {
+  beforeEach(() => {
+    mockLogout.mockClear()
+    _authUser = { ...mockCurrentUser }
+    setAccessToken('mock-jwt-token-luisadmin')
+    mockToast.mockClear()
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+  afterEach(() => {
+    clearAccessToken()
+    mockContests.splice(0, mockContests.length, ...structuredClone(initialContests))
+  })
+
+  function patchContest(id: string, overrides: Partial<ContestDetail>) {
+    const contest = mockContests.find((c) => c.id === id)
+    if (!contest) throw new Error(`${id} missing from mocks`)
+    Object.assign(contest, overrides)
+  }
+
+  function asGroupMember() {
+    _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'MEMBER', joinedAt: '2024-09-01T12:00:00Z' },
+        }),
+      ),
+    )
+  }
+
+  // The owner of contest-1 and contest-3 is mariacoach: as a COACH (not ADMIN) the lock only works if it checks ownership
+  function asContestOwner() {
+    _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'mariacoach' }
+    server.use(
+      http.get('http://localhost:8080/api/groups/group-1', () =>
+        HttpResponse.json({
+          ...mockGroupDetails['group-1'],
+          userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+        }),
+      ),
+    )
+  }
+
+  describe('programada', () => {
+    it('muestra la información del concurso: fecha, duración, inscritos, penalización y descripción', async () => {
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Información del concurso')).toBeInTheDocument()
+      expect(screen.getByText('Duración')).toBeInTheDocument()
+      expect(screen.getByText('25 inscritos')).toBeInTheDocument()
+      expect(screen.getByText('20 minutos')).toBeInTheDocument()
+      expect(screen.getByText('Por envío incorrecto')).toBeInTheDocument()
+      expect(screen.getByText('Competencia de práctica semanal enfocada en programación dinámica y grafos.')).toBeInTheDocument()
+    })
+
+    it('sin descripción no muestra la sección Descripción', async () => {
+      patchContest('contest-1', { description: null })
+      renderPage('group-1', 'contest-1')
+
+      await screen.findByText('Información del concurso')
+      expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument()
+    })
+
+    it('la tarjeta Modalidad lista modalidad, tamaño de equipo y freeze; sin post-competencia ni inscripción tardía', async () => {
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Modalidad')).toBeInTheDocument()
+      expect(screen.getByText('2–3 miembros por equipo')).toBeInTheDocument()
+      expect(screen.getByText('Freeze: 60 min')).toBeInTheDocument()
+      expect(screen.queryByText('Post-competencia habilitada')).not.toBeInTheDocument()
+      expect(screen.queryByText('Inscripción tardía habilitada')).not.toBeInTheDocument()
+    })
+
+    it('una competencia individual no muestra el tamaño de equipo y una con post-competencia lo indica', async () => {
+      patchContest('contest-1', { participationMode: 'INDIVIDUAL', enablePostContest: true, freezeMinutes: null })
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Post-competencia habilitada')).toBeInTheDocument()
+      expect(screen.queryByText(/miembros por equipo/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Freeze:/)).not.toBeInTheDocument()
+    })
+
+    it('un líder sin problemas ve que todavía no hay y dónde agregarlos', async () => {
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Todavía no hay problemas')).toBeInTheDocument()
+      expect(screen.getByText(/Agrégalos desde "Gestión de problemas"/)).toBeInTheDocument()
+      expect(screen.queryByText('Acceso restringido')).not.toBeInTheDocument()
+    })
+
+    it('un líder con la competencia bloqueada ve «Competencia bloqueada» y no la gestión de problemas', async () => {
+      patchContest('contest-1', { locked: true })
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Competencia bloqueada')).toBeInTheDocument()
+      expect(screen.queryByText('Gestión de problemas')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Eliminar competencia' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Desbloquear competencia' })).toBeInTheDocument()
+    })
+
+    it('un miembro sin problemas visibles ve que se revelarán al iniciar y el acceso restringido', async () => {
+      asGroupMember()
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Los problemas se revelarán al iniciar la competencia')).toBeInTheDocument()
+      expect(screen.getByText('Acceso restringido')).toBeInTheDocument()
+    })
+
+    it('un miembro no ve el bloqueo ni la gestión de la competencia', async () => {
+      asGroupMember()
+      renderPage('group-1', 'contest-1')
+
+      // Registrarse needs the MEMBER membership: once it is there the group has resolved and the absence means something
+      await screen.findByRole('button', { name: /^registrarse$/i })
+      expect(screen.queryByRole('button', { name: 'Bloquear competencia' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Eliminar competencia' })).not.toBeInTheDocument()
+    })
+
+    it('el dueño (coach, no administrador) bloquea la competencia y se avisa', async () => {
+      const user = userEvent.setup()
+      asContestOwner()
+      renderPage('group-1', 'contest-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Bloquear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Bloqueado' }))
+      })
+    })
+
+    it('si bloquear falla avisa que no se pudo bloquear', async () => {
+      const user = userEvent.setup()
+      asContestOwner()
+      server.use(
+        http.put('http://localhost:8080/api/groups/:groupId/contests/:contestId', () =>
+          HttpResponse.json({ error: 'INTERNAL_SERVER_ERROR' }, { status: 500 }),
+        ),
+      )
+      renderPage('group-1', 'contest-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Bloquear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'No se pudo bloquear' }))
+      })
+    })
+
+    it('desbloquear envía locked=false y avisa', async () => {
+      const user = userEvent.setup()
+      asContestOwner()
+      patchContest('contest-1', { locked: true })
+      const bodies = recordPutBodies()
+      renderPage('group-1', 'contest-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Desbloquear competencia' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Desbloqueado' }))
+      })
+      expect(bodies).toEqual([{ locked: false }])
+    })
+
+    it('quien no es dueño ni administrador no ve el botón de bloquear', async () => {
+      _authUser = { ...mockCurrentUser, role: 'COACH', nickname: 'otrocoach' }
+      server.use(
+        http.get('http://localhost:8080/api/groups/group-1', () =>
+          HttpResponse.json({
+            ...mockGroupDetails['group-1'],
+            userMembership: { isMember: true, role: 'LEAD', joinedAt: '2024-08-01T00:00:00Z' },
+          }),
+        ),
+      )
+      renderPage('group-1', 'contest-1')
+
+      await screen.findByText('Información del concurso')
+      expect(screen.queryByRole('button', { name: 'Bloquear competencia' })).not.toBeInTheDocument()
+      expect(await screen.findByRole('button', { name: 'Eliminar competencia' })).toBeInTheDocument()
+    })
+
+    it('eliminar con el nombre correcto avisa que se eliminó', async () => {
+      const user = userEvent.setup()
+      renderPage('group-1', 'contest-1')
+
+      await user.click(await screen.findByRole('button', { name: 'Eliminar competencia' }))
+      const confirm = screen.getByRole('button', { name: 'Eliminar' })
+      expect(confirm).toBeDisabled()
+      await user.type(screen.getByPlaceholderText('Nombre de la competencia'), 'Competencia Semanal #12')
+      await user.click(confirm)
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Eliminado' }))
+      })
+    })
+
+    it('inscrita individualmente muestra «Registrado» y permite cancelar el registro', async () => {
+      const user = userEvent.setup()
+      asGroupMember()
+      patchContest('contest-1', { isRegistered: true, participationMode: 'INDIVIDUAL' })
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText('Registrado')).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Cancelar registro' }))
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'success', title: 'Desregistrado' }))
+      })
+    })
+
+    it('un no miembro ve que debe unirse al grupo para registrarse', async () => {
+      _authUser = { ...mockCurrentUser, role: 'CONTESTANT', nickname: 'carloscp' }
+      patchContest('contest-1', { participationMode: 'INDIVIDUAL' })
+      server.use(
+        http.get('http://localhost:8080/api/groups/group-1', () =>
+          HttpResponse.json({
+            ...mockGroupDetails['group-1'],
+            userMembership: { isMember: false, role: null, joinedAt: null },
+          }),
+        ),
+      )
+      renderPage('group-1', 'contest-1')
+
+      expect(await screen.findByText(/primero únete al grupo/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^registrarse$/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('en curso', () => {
+    it('muestra la posición actual de quien está inscrito', async () => {
+      server.use(
+        http.get('http://localhost:8080/api/groups/:groupId/contests/:contestId/standings', () =>
+          HttpResponse.json({
+            standings: [
+              {
+                rank: 3,
+                participant: { type: 'USER', id: 'u1', nickname: 'luisadmin' },
+                problemsSolved: 2,
+                totalPenalty: 45,
+                problems: [],
+              },
+            ],
+            problems: [],
+            pagination: { page: 1, limit: 10000, total: 1, totalPages: 1 },
+          }),
+        ),
+      )
+      renderPage('group-1', 'contest-2')
+
+      expect(await screen.findByText('Tu posición actual')).toBeInTheDocument()
+      expect(screen.getByText('#3')).toBeInTheDocument()
+      expect(screen.getByText('/ 18')).toBeInTheDocument()
+      expect(screen.getByText('2 Resueltos')).toBeInTheDocument()
+      expect(screen.getByText('45 min')).toBeInTheDocument()
+    })
+
+    it('sin inscripción ni problemas visibles avisa que no está inscrito y que no pudo hacerlo a tiempo', async () => {
+      patchContest('contest-2', { isRegistered: false, problems: [], problemCount: 0 })
+      renderPage('group-1', 'contest-2')
+
+      expect(await screen.findByText('No estás inscrito en esta competencia')).toBeInTheDocument()
+      expect(screen.getByText(/Debiste haberte registrado antes de que iniciara/)).toBeInTheDocument()
+      expect(screen.getByText('Acceso restringido')).toBeInTheDocument()
+    })
+
+    it('con inscripción tardía habilitada invita a inscribirse para ver los problemas', async () => {
+      asGroupMember()
+      patchContest('contest-2', { isRegistered: false, problems: [], problemCount: 0, allowLateRegistration: true })
+      renderPage('group-1', 'contest-2')
+
+      expect(await screen.findByText('Inscríbete para acceder a los problemas de la competencia.')).toBeInTheDocument()
+      expect(screen.getByText('Inscripción abierta')).toBeInTheDocument()
+    })
+
+    it('no muestra la posición a quien no está inscrito, aunque haya una fila suya disponible', async () => {
+      patchContest('contest-2', { isRegistered: false })
+      // Not registered, the standings query is disabled; a row already in the cache is what could leak the card
+      const queryClient = createTestQueryClient()
+      queryClient.setQueryData(contestKeys.standings('group-1', 'contest-2', { limit: 10000, phase: 'competition' }), {
+        standings: [
+          { rank: 3, participant: { type: 'USER', id: 'u1', nickname: 'luisadmin' }, problemsSolved: 2, totalPenalty: 45, problems: [] },
+        ],
+        problems: [],
+        pagination: { page: 1, limit: 10000, total: 1, totalPages: 1 },
+      })
+      renderPage('group-1', 'contest-2', queryClient)
+
+      await screen.findByRole('heading', { name: 'Práctica Grafos' })
+      expect(screen.queryByText('Tu posición actual')).not.toBeInTheDocument()
+    })
+
+    it('muestra la descripción en la barra lateral', async () => {
+      renderPage('group-1', 'contest-2')
+
+      expect(await screen.findByText('Problemas de grafos: BFS, DFS, Dijkstra, MST.')).toBeInTheDocument()
+    })
+
+    it('con la competencia bloqueada un líder no ve las acciones de edición', async () => {
+      patchContest('contest-2', { locked: true })
+      renderPage('group-1', 'contest-2')
+
+      await screen.findByRole('heading', { name: 'Práctica Grafos' })
+      expect(screen.queryByRole('button', { name: /editar competencia/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('cambio de estado', () => {
+    it('conserva el menú lateral abierto cuando la competencia pasa de programada a en curso', async () => {
+      const user = userEvent.setup()
+      const queryClient = renderPage('group-1', 'contest-1')
+      await screen.findByText('Información del concurso')
+      const menuButton = document.querySelector('svg.lucide-menu')?.closest('button')
+      await user.click(menuButton!)
+      const sidebarIsOpen = () => !!document.querySelector('div[aria-hidden="true"].fixed.inset-0')
+      expect(sidebarIsOpen()).toBe(true)
+
+      // The countdown reaches the start: the refetch brings the contest as ACTIVE
+      patchContest('contest-1', {
+        startTime: new Date(Date.now() - 60_000).toISOString(),
+        endTime: new Date(Date.now() + 3_600_000).toISOString(),
+      })
+      await queryClient.invalidateQueries({ queryKey: contestKeys.detail('group-1', 'contest-1') })
+
+      expect(await screen.findByText('Tiempo restante')).toBeInTheDocument()
+      expect(screen.queryByText('Información del concurso')).not.toBeInTheDocument()
+      expect(sidebarIsOpen()).toBe(true)
+    })
+  })
+
+  describe('finalizada', () => {
+    it('muestra los problemas, la descripción y la fecha de fin', async () => {
+      renderPage('group-1', 'contest-3')
+
+      expect(await screen.findByRole('heading', { name: 'Reto Algoritmos Clásicos' })).toBeInTheDocument()
+      expect(screen.getByText('Problemas del concurso')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Descripción' })).toBeInTheDocument()
+      expect(screen.getByText('Competencia de algoritmos clásicos: sorting, búsqueda, DP.')).toBeInTheDocument()
+      expect(screen.getByText('Dynamic Knapsack')).toBeInTheDocument()
+    })
+
+    it('sin descripción no muestra esa tarjeta', async () => {
+      patchContest('contest-3', { description: null })
+      renderPage('group-1', 'contest-3')
+
+      await screen.findByRole('heading', { name: 'Reto Algoritmos Clásicos' })
+      expect(screen.queryByRole('heading', { name: 'Descripción' })).not.toBeInTheDocument()
+    })
+
+    it('el dueño (coach, no administrador) ve el botón de desbloquear porque la competencia está bloqueada', async () => {
+      asContestOwner()
+      renderPage('group-1', 'contest-3')
+
+      expect(await screen.findByRole('button', { name: 'Desbloquear competencia' })).toBeInTheDocument()
     })
   })
 })
