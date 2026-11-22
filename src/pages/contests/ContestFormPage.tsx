@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm, useWatch, type UseFormStateReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { Info, Calendar, Settings, Clock, UsersRound, Palette } from 'lucide-react'
@@ -50,6 +50,181 @@ function toDateTimeLocalValue(iso: string): string {
 }
 
 const FREEZE_DEFAULT_MIN_DURATION_MS = 4 * 60 * 60 * 1000
+
+const errorCode = (err: unknown) => (err instanceof ApiClientError ? err.code : undefined)
+
+type ToastOptions = Parameters<ReturnType<typeof useToastContext>['toast']>[0]
+
+/** The toast for a failed update; a conflict and a team-registration clash have their own wording. */
+function updateErrorToast(err: unknown): ToastOptions {
+  const code = errorCode(err)
+  if (code === 'CONTEST_CONFLICT') return { variant: 'error', title: 'La competencia cambió', description: getErrorMessage(err) }
+  if (code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
+    return { variant: 'error', title: 'No se puede cambiar la modalidad', description: 'Ya hay equipos registrados en esta competencia.' }
+  }
+  return { variant: 'error', title: 'No se pudo actualizar', description: getErrorMessage(err) }
+}
+
+// Form fields sent to the API as they are once the user changed them.
+const COPIED_WHEN_DIRTY = [
+  'name', 'startTime', 'endTime', 'penalty', 'freezeMinutes', 'enablePostContest',
+  'allowLateRegistration', 'participationMode', 'teamSizeMin', 'teamSizeMax', 'showTeamMembers',
+] as const
+
+type DirtyFields = UseFormStateReturn<CreateContestFormData>['dirtyFields']
+
+/**
+ * Only send what the user changed: the backend re-validates every field it receives, so
+ * resending an untouched startTime breaks editing a contest that already started
+ * (START_TIME_IN_PAST), and an untouched participationMode breaks it once teams registered.
+ */
+function buildUpdatePayload(
+  dirtyFields: DirtyFields,
+  payload: Omit<CreateContestFormData, 'autoRevealMode' | 'autoRevealDelay'>,
+  description: string | undefined,
+  autoRevealMinutes: number | null | undefined,
+): UpdateContestRequest {
+  const update: UpdateContestRequest = {}
+  for (const field of COPIED_WHEN_DIRTY) {
+    if (dirtyFields[field]) Object.assign(update, { [field]: payload[field] })
+  }
+  if (dirtyFields.description) update.description = description || null
+  const revealChanged = dirtyFields.autoRevealMode || dirtyFields.autoRevealDelay
+  if (autoRevealMinutes !== undefined && revealChanged) update.autoRevealMinutes = autoRevealMinutes
+  return update
+}
+
+const lateRegistrationHint = (finished: boolean) =>
+  finished
+    ? 'La competencia ya finalizó: la inscripción tardía no aplica.'
+    : 'Permite inscribirse mientras la competencia está en curso. Quien se inscriba tarde ya no podrá cancelar su registro. Desactivarlo no saca a quienes ya se inscribieron.'
+
+function LockedDatesNote({ endLocked }: Readonly<{ endLocked: boolean }>) {
+  return (
+    <p className="text-xs text-neutral-text-muted">
+      {endLocked
+        ? 'La competencia ya finalizó: sus fechas no se pueden modificar.'
+        : 'La competencia ya comenzó: la fecha de inicio no se puede modificar, pero puedes extender o adelantar la hora de fin (siempre a un momento futuro).'}
+    </p>
+  )
+}
+
+type ContestDetailData = NonNullable<ReturnType<typeof useContestDetail>['data']>
+
+/**
+ * The next draft of changed balloon colors. Picking the color already saved is not a change: it is dropped
+ * from the draft so that, if a reload brings another color, an old pick does not overwrite it.
+ */
+function nextBalloonDraft(draft: Record<string, string>, slug: string, next: string, savedColor: string | null | undefined): Record<string, string> {
+  const saved = savedColor && isValidBalloonColor(savedColor) ? savedColor.toLowerCase() : null
+  if (next === saved) {
+    const { [slug]: _unchanged, ...rest } = draft
+    return rest
+  }
+  return { ...draft, [slug]: next }
+}
+
+interface ColorsSectionProps {
+  contest: ContestDetailData
+  balloonColors: Record<string, string>
+  onBalloonColorsChange: (update: (draft: Record<string, string>) => Record<string, string>) => void
+  disabled: boolean
+}
+
+function ColorsSection({ contest, balloonColors, onBalloonColorsChange, disabled }: Readonly<ColorsSectionProps>) {
+  return (
+    <FormSection icon={<Palette className="h-4 w-4" />} title="Gestión de colores">
+      <ul className="divide-y divide-neutral-border">
+        {[...contest.problems]
+          .sort((a, b) => a.position - b.position)
+          .map((problem) => {
+            const letter = problemLabel(problem.position)
+            const color = problem.slug in balloonColors ? balloonColors[problem.slug] : problem.color
+            return (
+              <li key={problem.slug} className="flex items-center gap-3 py-3">
+                <BalloonColorPicker
+                  letter={letter}
+                  title={problem.title}
+                  color={color}
+                  disabled={disabled}
+                  onChange={(next) => onBalloonColorsChange((draft) => nextBalloonDraft(draft, problem.slug, next, problem.color))}
+                />
+                <span className="text-sm font-medium text-neutral-text-primary">
+                  {letter}. {problem.title} <span className="text-neutral-text-muted">({problem.slug})</span>
+                </span>
+              </li>
+            )
+          })}
+      </ul>
+      {contest.status === 'FINISHED' && (
+        <p className="mt-3 text-xs text-neutral-text-muted">
+          No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.
+        </p>
+      )}
+      {contest.status !== 'FINISHED' && contest.locked === true && (
+        <p className="mt-3 text-xs text-neutral-text-muted">
+          La competencia está bloqueada: desbloquéala para cambiar los colores de los globos.
+        </p>
+      )}
+    </FormSection>
+  )
+}
+
+type ExistingContest = ReturnType<typeof useContestDetail>['data']
+
+/**
+ * The backend rejects a start (or end) time in the past, and moving either one after the fact
+ * would shift every submission's time and penalty — so once started, only the end can move
+ * (e.g. extending a running contest), and once finished, neither. A finished or locked contest
+ * admits no change of problems, nor of their colors.
+ */
+function editLocks(isEditing: boolean, existing: ExistingContest) {
+  return {
+    startLocked: isEditing && !!existing && existing.status !== 'SCHEDULED',
+    endLocked: isEditing && existing?.status === 'FINISHED',
+    colorsDisabled: isEditing && (existing?.status === 'FINISHED' || existing?.locked === true),
+  }
+}
+
+function NoPermission({ isEditing, onBack }: Readonly<{ isEditing: boolean; onBack: () => void }>) {
+  return (
+    <div className="text-center py-12">
+      <p className="text-neutral-text-muted">No tienes permiso para {isEditing ? 'editar' : 'crear'} competencias en este grupo.</p>
+      <Button variant="outline" className="mt-4" onClick={onBack}>
+        Volver al grupo
+      </Button>
+    </div>
+  )
+}
+
+interface FormHeaderProps {
+  isEditing: boolean
+  isSubmitting: boolean
+  onCancel: () => void
+}
+
+function FormHeader({ isEditing, isSubmitting, onCancel }: Readonly<FormHeaderProps>) {
+  return (
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-neutral-text-primary">
+          {isEditing ? 'Editar competencia' : 'Nueva competencia'}
+        </h1>
+        <p className="text-sm text-neutral-text-muted mt-1">
+          {isEditing ? 'Modifica la configuración de la competencia' : 'Configura una nueva competencia para el grupo'}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" variant="primary" isLoading={isSubmitting}>
+          {isEditing ? 'Guardar cambios' : 'Crear competencia'}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export function ContestFormPage() {
   const { groupId, id } = useParams<{ groupId: string; id?: string }>()
@@ -138,13 +313,7 @@ export function ContestFormPage() {
     },
   }
   const isTeamMode = participationMode === 'TEAM' || participationMode === 'MIXED'
-  // The backend rejects a start (or end) time in the past, and moving either one after the fact
-  // would shift every submission's time and penalty — so once started, only the end can move
-  // (e.g. extending a running contest), and once finished, neither.
-  const startLocked = isEditing && !!existing && existing.status !== 'SCHEDULED'
-  const endLocked = isEditing && existing?.status === 'FINISHED'
-  // Una competencia finalizada o bloqueada no admite cambios de problemas, ni de sus colores.
-  const colorsDisabled = isEditing && (existing?.status === 'FINISHED' || existing?.locked === true)
+  const { startLocked, endLocked, colorsDisabled } = editLocks(isEditing, existing)
 
   // Same default the backend applies when freeze is omitted (create_contest.go): 60 min for
   // contests of 4 h or more, none for shorter ones. Follows the dates until the user edits it,
@@ -168,68 +337,59 @@ export function ContestFormPage() {
       description: data.description || undefined,
     }
 
-    if (isEditing && groupId && id) {
-      // Only send what the user changed: the backend re-validates every field it receives, so
-      // resending an untouched startTime breaks editing a contest that already started
-      // (START_TIME_IN_PAST), and an untouched participationMode breaks it once teams registered.
-      const updatePayload: UpdateContestRequest = {}
-      if (dirtyFields.name) updatePayload.name = payload.name
-      if (dirtyFields.description) updatePayload.description = data.description || null
-      if (dirtyFields.startTime) updatePayload.startTime = payload.startTime
-      if (dirtyFields.endTime) updatePayload.endTime = payload.endTime
-      if (dirtyFields.penalty) updatePayload.penalty = payload.penalty
-      if (dirtyFields.freezeMinutes) updatePayload.freezeMinutes = payload.freezeMinutes
-      if (dirtyFields.enablePostContest) updatePayload.enablePostContest = payload.enablePostContest
-      if (dirtyFields.allowLateRegistration) updatePayload.allowLateRegistration = payload.allowLateRegistration
-      if (dirtyFields.participationMode) updatePayload.participationMode = payload.participationMode
-      if (dirtyFields.teamSizeMin) updatePayload.teamSizeMin = payload.teamSizeMin
-      if (dirtyFields.teamSizeMax) updatePayload.teamSizeMax = payload.teamSizeMax
-      if (dirtyFields.showTeamMembers) updatePayload.showTeamMembers = payload.showTeamMembers
-      if (hasFreeze && (dirtyFields.autoRevealMode || dirtyFields.autoRevealDelay)) {
-        updatePayload.autoRevealMinutes = autoRevealMinutes
-      }
+    if (isEditing && groupId && id) submitUpdate(groupId, id, data, payload, hasFreeze ? autoRevealMinutes : undefined)
+    else if (groupId) submitCreate(groupId, payload, hasFreeze && mode !== 'manual' ? autoRevealMinutes : undefined)
+  }
 
-      if (existing && !colorsDisabled) {
-        const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
-        if (problemsPayload) updatePayload.problems = problemsPayload
-      }
+  type ContestPayload = Parameters<typeof buildUpdatePayload>[1]
 
-      if (Object.keys(updatePayload).length === 0) {
-        navigate(PATHS.contest(groupId, id))
-        return
-      }
+  const submitUpdate = (
+    gId: string,
+    contestId: string,
+    data: CreateContestFormData,
+    payload: ContestPayload,
+    autoRevealMinutes: number | null | undefined,
+  ) => {
+    const updatePayload = buildUpdatePayload(dirtyFields, payload, data.description, autoRevealMinutes)
 
-      updateMutation.mutate(
-        { groupId, contestId: id, data: updatePayload },
-        {
-          onSuccess: () => {
-            toast({ variant: 'success', title: 'Actualizado', description: 'Competencia actualizada' })
-            navigate(PATHS.contest(groupId, id))
-          },
-          onError: (err) => {
-            if (err instanceof ApiClientError && err.code === 'CONTEST_CONFLICT') {
-              toast({ variant: 'error', title: 'La competencia cambió', description: getErrorMessage(err) })
-              queryClient.invalidateQueries({ queryKey: contestKeys.detail(groupId, id) })
-            } else if (err instanceof ApiClientError && err.code === 'CONTEST_HAS_TEAM_REGISTRATIONS') {
-              toast({ variant: 'error', title: 'No se puede cambiar la modalidad', description: 'Ya hay equipos registrados en esta competencia.' })
-            } else {
-              toast({ variant: 'error', title: 'No se pudo actualizar', description: getErrorMessage(err) })
-            }
-          },
-        },
-      )
-    } else if (groupId) {
-      createMutation.mutate(
-        { groupId, data: { ...payload, autoRevealMinutes: hasFreeze && mode !== 'manual' ? autoRevealMinutes : undefined } },
-        {
-          onSuccess: (created) => {
-            toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
-            navigate(PATHS.contest(groupId, created.id))
-          },
-          onError: (err) => toast({ variant: 'error', title: 'No se pudo crear', description: getErrorMessage(err) }),
-        },
-      )
+    if (existing && !colorsDisabled) {
+      const problemsPayload = buildColorUpdatePayload(existing.problems, balloonColors)
+      if (problemsPayload) updatePayload.problems = problemsPayload
     }
+
+    if (Object.keys(updatePayload).length === 0) {
+      navigate(PATHS.contest(gId, contestId))
+      return
+    }
+
+    updateMutation.mutate(
+      { groupId: gId, contestId, data: updatePayload },
+      {
+        onSuccess: () => {
+          toast({ variant: 'success', title: 'Actualizado', description: 'Competencia actualizada' })
+          navigate(PATHS.contest(gId, contestId))
+        },
+        onError: (err) => {
+          toast(updateErrorToast(err))
+          if (errorCode(err) === 'CONTEST_CONFLICT') {
+            queryClient.invalidateQueries({ queryKey: contestKeys.detail(gId, contestId) })
+          }
+        },
+      },
+    )
+  }
+
+  const submitCreate = (gId: string, payload: ContestPayload, autoRevealMinutes: number | null | undefined) => {
+    createMutation.mutate(
+      { groupId: gId, data: { ...payload, autoRevealMinutes } },
+      {
+        onSuccess: (created) => {
+          toast({ variant: 'success', title: 'Creado', description: 'Competencia creada exitosamente' })
+          navigate(PATHS.contest(gId, created.id))
+        },
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo crear', description: getErrorMessage(err) }),
+      },
+    )
   }
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
@@ -258,12 +418,7 @@ export function ContestFormPage() {
   if (groupDetail && !isLead) {
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
-        <div className="text-center py-12">
-          <p className="text-neutral-text-muted">No tienes permiso para {isEditing ? 'editar' : 'crear'} competencias en este grupo.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate(`/groups/${groupId}`)}>
-            Volver al grupo
-          </Button>
-        </div>
+        <NoPermission isEditing={isEditing} onBack={() => navigate(`/groups/${groupId}`)} />
       </AppLayout>
     )
   }
@@ -271,28 +426,11 @@ export function ContestFormPage() {
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-neutral-text-primary">
-              {isEditing ? 'Editar competencia' : 'Nueva competencia'}
-            </h1>
-            <p className="text-sm text-neutral-text-muted mt-1">
-              {isEditing ? 'Modifica la configuración de la competencia' : 'Configura una nueva competencia para el grupo'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(isEditing && groupId && id ? PATHS.contest(groupId, id) : `/groups/${groupId}`)}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
-              {isEditing ? 'Guardar cambios' : 'Crear competencia'}
-            </Button>
-          </div>
-        </div>
+        <FormHeader
+          isEditing={isEditing}
+          isSubmitting={isSubmitting}
+          onCancel={() => navigate(isEditing && groupId && id ? PATHS.contest(groupId, id) : `/groups/${groupId}`)}
+        />
 
         <div className="space-y-6">
           <FormSection icon={<Info className="h-4 w-4" />} title="Información básica">
@@ -335,13 +473,7 @@ export function ContestFormPage() {
                   error={errors.endTime?.message}
                 />
               </div>
-              {startLocked && (
-                <p className="text-xs text-neutral-text-muted">
-                  {endLocked
-                    ? 'La competencia ya finalizó: sus fechas no se pueden modificar.'
-                    : 'La competencia ya comenzó: la fecha de inicio no se puede modificar, pero puedes extender o adelantar la hora de fin (siempre a un momento futuro).'}
-                </p>
-              )}
+              {startLocked && <LockedDatesNote endLocked={endLocked} />}
               {startTime && endTime && (
                 <div className="flex items-center gap-2 text-sm text-neutral-text-muted bg-neutral-surface rounded-lg px-4 py-2">
                   <Clock className="h-4 w-4" />
@@ -448,61 +580,19 @@ export function ContestFormPage() {
                 checked={allowLateRegistration || false}
                 onCheckedChange={(v) => setValue('allowLateRegistration', v, { shouldDirty: true })}
                 label="Permitir inscripción tardía"
-                hint={existing?.status === 'FINISHED'
-                  ? 'La competencia ya finalizó: la inscripción tardía no aplica.'
-                  : 'Permite inscribirse mientras la competencia está en curso. Quien se inscriba tarde ya no podrá cancelar su registro. Desactivarlo no saca a quienes ya se inscribieron.'}
+                hint={lateRegistrationHint(existing?.status === 'FINISHED')}
                 disabled={existing?.status === 'FINISHED'}
               />
             </div>
           </FormSection>
 
           {isEditing && existing && existing.problems.length > 0 && (
-            <FormSection icon={<Palette className="h-4 w-4" />} title="Gestión de colores">
-              <ul className="divide-y divide-neutral-border">
-                {[...existing.problems]
-                  .sort((a, b) => a.position - b.position)
-                  .map((problem) => {
-                    const letter = problemLabel(problem.position)
-                    const color = problem.slug in balloonColors ? balloonColors[problem.slug] : problem.color
-                    return (
-                      <li key={problem.slug} className="flex items-center gap-3 py-3">
-                        <BalloonColorPicker
-                          letter={letter}
-                          title={problem.title}
-                          color={color}
-                          disabled={colorsDisabled || isSubmitting}
-                          onChange={(next) =>
-                            setBalloonColors((draft) => {
-                              // Elegir el color ya guardado no es un cambio: se descarta del borrador para que,
-                              // si una recarga trae otro color, no lo pise con uno viejo.
-                              const saved = isValidBalloonColor(problem.color) ? problem.color.toLowerCase() : null
-                              if (next === saved) {
-                                const { [problem.slug]: _unchanged, ...rest } = draft
-                                return rest
-                              }
-                              return { ...draft, [problem.slug]: next }
-                            })
-                          }
-                        />
-                        <span className="text-sm font-medium text-neutral-text-primary">
-                          {letter}. {problem.title} <span className="text-neutral-text-muted">({problem.slug})</span>
-                        </span>
-                      </li>
-                    )
-                  })}
-              </ul>
-              {existing.status === 'FINISHED' ? (
-                <p className="mt-3 text-xs text-neutral-text-muted">
-                  No se pueden cambiar los problemas de una competencia finalizada, por eso tampoco sus colores.
-                </p>
-              ) : (
-                existing.locked === true && (
-                  <p className="mt-3 text-xs text-neutral-text-muted">
-                    La competencia está bloqueada: desbloquéala para cambiar los colores de los globos.
-                  </p>
-                )
-              )}
-            </FormSection>
+            <ColorsSection
+              contest={existing}
+              balloonColors={balloonColors}
+              onBalloonColorsChange={setBalloonColors}
+              disabled={colorsDisabled || isSubmitting}
+            />
           )}
         </div>
       </form>
