@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockContests, computeContestStatus } from '@/mocks/data'
 import { ContestsPage } from './ContestsPage'
 
 const mockLogout = vi.fn()
@@ -149,5 +149,72 @@ describe('ContestsPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('No hay competencias').length).toBeGreaterThanOrEqual(1)
     })
+  })
+
+  it('keeps a single skeleton while any grouped section is still loading', async () => {
+    // Arrange: ACTIVE y SCHEDULED responden de inmediato; FINISHED queda pendiente hasta liberarla
+    let releaseFinished!: () => void
+    const finishedGate = new Promise<void>((resolve) => { releaseFinished = resolve })
+    const served = new Set<string>()
+    server.use(
+      http.get('http://localhost:8080/api/contests', async ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status') ?? 'ALL'
+        if (status === 'FINISHED') await finishedGate
+        served.add(status)
+        const items = mockContests
+          .map((c) => ({ ...c, status: computeContestStatus(c.startTime, c.endTime) }))
+          .filter((c) => c.status === status)
+        return HttpResponse.json({
+          items,
+          pagination: { page: 1, limit: 20, total: items.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+        })
+      }),
+    )
+    renderPage()
+
+    // Assert: con dos de las tres consultas resueltas, el skeleton sigue y no se dibuja ninguna sección
+    await waitFor(() => {
+      expect(served.has('ACTIVE') && served.has('SCHEDULED')).toBe(true)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByTestId('contests-grouped-skeleton')).toBeInTheDocument()
+    expect(screen.queryByText('En curso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Finalizadas')).not.toBeInTheDocument()
+
+    // Act: se libera la última consulta
+    releaseFinished()
+
+    // Assert: aparece el contenido y desaparece el skeleton
+    await waitFor(() => {
+      expect(screen.getByText('Finalizadas')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('contests-grouped-skeleton')).not.toBeInTheDocument()
+  })
+
+  it('renders only the non-empty sections once loaded, so empty ones never appear and vanish', async () => {
+    // Arrange: sin competencias en curso ni programadas, solo finalizadas
+    server.use(
+      http.get('http://localhost:8080/api/contests', ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status')
+        const items = status === 'FINISHED'
+          ? mockContests
+            .map((c) => ({ ...c, status: computeContestStatus(c.startTime, c.endTime) }))
+            .filter((c) => c.status === 'FINISHED')
+          : []
+        return HttpResponse.json({
+          items,
+          pagination: { page: 1, limit: 20, total: items.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+        })
+      }),
+    )
+    renderPage()
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText('Finalizadas')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('En curso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Próximas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('contests-grouped-skeleton')).not.toBeInTheDocument()
   })
 })

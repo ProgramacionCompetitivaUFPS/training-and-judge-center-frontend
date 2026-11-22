@@ -85,6 +85,23 @@ interface ContestSectionProps {
   emptyNote?: string
 }
 
+function GroupedSectionsSkeleton() {
+  return (
+    <div className="space-y-8" data-testid="contests-grouped-skeleton" aria-busy="true">
+      {[1, 2].map((s) => (
+        <div key={s}>
+          <div className="h-4 w-28 mb-3 rounded bg-neutral-border animate-pulse" />
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-[60px] w-full rounded-lg bg-neutral-surface border border-neutral-border animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ContestSection({ title, items, isLoading, getContestHref, variant = 'cards', accent = false, footer, emptyNote }: ContestSectionProps) {
   if (!isLoading && items.length === 0 && !footer) return null
   return (
@@ -356,8 +373,13 @@ export function ContestsPage() {
         {/* Grid */}
         {isGroupedView ? (
           (() => {
-            const allEmpty = !isLoadingActive && !isLoadingScheduled && !isLoadingFinished
-              && activeItems.length === 0
+            // Un solo skeleton hasta que lleguen las tres secciones: si cada una dibujara
+            // el suyo, las que quedan vacías desaparecerían al cargar y desplazarían a las
+            // de abajo (layout shift, RNF-4).
+            if (isLoadingActive || isLoadingScheduled || isLoadingFinished) {
+              return <GroupedSectionsSkeleton />
+            }
+            const allEmpty = activeItems.length === 0
               && scheduledItems.length === 0
               && finishedItems.length === 0
               && !moreFinished
@@ -372,12 +394,12 @@ export function ContestsPage() {
             }
             return (
               <div className="space-y-8">
-                <ContestSection title="En curso" items={activeItems} isLoading={isLoadingActive} getContestHref={contestHref} accent />
-                <ContestSection title="Próximas" items={scheduledItems} isLoading={isLoadingScheduled} getContestHref={contestHref} variant="rows" />
+                <ContestSection title="En curso" items={activeItems} isLoading={false} getContestHref={contestHref} accent />
+                <ContestSection title="Próximas" items={scheduledItems} isLoading={false} getContestHref={contestHref} variant="rows" />
                 <ContestSection
                   title="Finalizadas"
                   items={finishedItems}
-                  isLoading={isLoadingFinished}
+                  isLoading={false}
                   getContestHref={contestHref}
                   variant="rows"
                   emptyNote={onlyMine ? 'Ninguna de las finalizadas más recientes es tuya.' : undefined}
