@@ -33,15 +33,20 @@ describe('RecoverPasswordPage', () => {
 
   it('advances to reset step after successful request', async () => {
     const user = userEvent.setup()
+    let sentBody: unknown
     server.use(
-      http.post('http://localhost:8080/api/password/forgot', () =>
-        new HttpResponse(null, { status: 204 }),
-      ),
+      http.post('http://localhost:8080/api/password/forgot', async ({ request }) => {
+        sentBody = await request.json()
+        return new HttpResponse(null, { status: 204 })
+      }),
     )
     renderPage()
     await user.type(screen.getByRole('textbox', { name: /correo/i }), 'test@example.com')
     await user.click(screen.getByRole('button', { name: /enviar código/i }))
-    // Verify the ResetStep input field is now rendered (not just the subtitle text)
-    await screen.findByRole('textbox', { name: /código de verificación/i })
+
+    // The ResetStep input is rendered (not just the subtitle text) and the request step is gone
+    expect(await screen.findByRole('textbox', { name: /código de verificación/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enviar Código' })).not.toBeInTheDocument()
+    expect(sentBody).toEqual({ email: 'test@example.com' })
   })
 })
