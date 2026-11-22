@@ -40,7 +40,7 @@ import { useRejudgeContestProblem } from '@/hooks/api/useContests'
 import { useGroupDetail } from '@/hooks/api/useGroups'
 import { useSearchUsers } from '@/hooks/api/useUsers'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input } from '@/components/ui/Input'
@@ -49,7 +49,7 @@ import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/errorMessages'
 import { exceedsZipStructureCheckSize, peekZipEntryPaths } from '@/lib/zipPeek'
-import type { ProblemAccessibility, ProblemDetail, PublishFailureResponse, ValidationSummary } from '@/types/problem'
+import type { ProblemAccessibility, ProblemDetail, PublishFailureResponse, ValidationSummary, LatestValidation } from '@/types/problem'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { ErrorPage } from '@/pages/errors/ErrorPage'
 
@@ -70,17 +70,1255 @@ function publishRequirementLabel(fieldKey: string): string {
   return PUBLISH_REQUIREMENTS.find((r) => r.key === fieldKey)?.label ?? fieldKey
 }
 
-export function ProblemDetailPage() {
-  const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
+type ActiveContest = ReturnType<typeof useContestSession>['contest']
+type ContestGroup = ReturnType<typeof useGroupDetail>['data']
+type AuthUser = ReturnType<typeof useAuth>['user']
+type Statistics = NonNullable<ReturnType<typeof useProblemStatistics>['data']>
+type PublishResult =
+  | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
+  | { kind: 'failure'; data: PublishFailureResponse }
+
+// ───────────────────────────── pure rules ─────────────────────────────
+
+interface ProblemPermissions {
+  isAdmin: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canSeeManagement: boolean
+  isContestOwnerOrLead: boolean
+  isContestLead: boolean
+  showManagementTabs: boolean
+}
+
+/**
+ * Who can do what with the problem. `isContestOwnerOrLead` is the real leadership of the contest's group, or
+ * ownership of the contest itself — the two identities the backend's contest-scoped rejudge endpoint actually
+ * accepts (same rule as ContestDetailPage.tsx). An Admin who is neither still sees the button (manual grants
+ * Admin access too) but must be routed to the admin rejudge endpoint instead — see handleContestRejudge.
+ */
+function permissionsOf(
+  problem: ProblemDetail,
+  user: AuthUser,
+  isContestContext: boolean,
+  contestGroup: ContestGroup,
+  activeContest: ActiveContest,
+): ProblemPermissions {
+  const isAdmin = user?.role === 'ADMIN'
+  const isModifier = !!problem.modifiers?.some((m) => m.nickname === user?.nickname)
+  const canEdit = isAdmin || isModifier
+  const isContestOwnerOrLead =
+    contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
+  return {
+    isAdmin,
+    canEdit,
+    canDelete: isAdmin || problem.author.nickname === user?.nickname,
+    canSeeManagement: user?.role === 'ADMIN' || user?.role === 'COACH',
+    isContestOwnerOrLead,
+    isContestLead: isAdmin || isContestOwnerOrLead,
+    showManagementTabs: canEdit && !isContestContext,
+  }
+}
+
+type CasesCount = { sampleCount: number; secretCount: number }
+
+function testCasesWarningOf(counts: CasesCount | undefined): string | undefined {
+  if (!counts) return undefined
+  if (counts.secretCount === 0 && counts.sampleCount === 0) return 'Los casos de prueba no tienen pares completos (.in + .ans) aún.'
+  if (counts.secretCount === 0) return 'No hay casos secretos: el juez evaluará solo con los ejemplos que los concursantes conocen.'
+  if (counts.sampleCount === 0) return 'No hay ejemplos: los concursantes no verán ningún ejemplo en el enunciado.'
+  return undefined
+}
+
+/** What the last validation says about the problem as it is now. */
+function validationFlagsOf(validation: LatestValidation | undefined) {
+  const finished = !!validation?.found && validation.terminal
+  return {
+    inProgress: !!validation?.found && !validation.terminal,
+    failed: finished && !validation.passed,
+    // A pass only counts while the problem is as it was when it ran; the server says when it is not.
+    stale: finished && validation.passed && !!validation.stale,
+    passed: finished && validation.passed && !validation.stale,
+  }
+}
+type ValidationFlags = ReturnType<typeof validationFlagsOf>
+
+function validateStepHint(requirementsMet: boolean, running: boolean, flags: ValidationFlags): string {
+  if (!requirementsMet) return 'Antes completa los pasos de arriba'
+  if (running) return 'Validando… puede tardar unos minutos'
+  if (flags.failed) return 'La última validación falló.'
+  if (flags.stale) return 'Cambiaste el problema después de validarlo.'
+  return 'Compila todo y lo prueba con tus soluciones.'
+}
+
+interface ChecklistDeps {
+  problem: ProblemDetail
+  flags: ValidationFlags
+  validationRunning: boolean
+  testCasesWarning: string | undefined
+  isUploadingFile: boolean
+  goToEdit: () => void
+  goToFiles: () => void
+  requestUpload: (fileType: ProblemFileType) => void
+  onValidate: () => void
+}
+
+/**
+ * The five backend requirements as the author thinks of them: both limits are set in the same
+ * form, so they're one step. A step is done when every requirement it covers is met.
+ */
+function buildChecklistSteps(deps: ChecklistDeps): { steps: PublishChecklistStep[]; requirementsMet: boolean } {
+  const { problem, flags, testCasesWarning, goToEdit } = deps
+  const metKeys = new Set(PUBLISH_REQUIREMENTS.filter((r) => r.met(problem)).map((r) => r.key))
+  const requirementsMet = PUBLISH_REQUIREMENTS.every((r) => r.met(problem))
+  const steps: PublishChecklistStep[] = [
+    { key: 'statement', label: 'Enunciado', met: metKeys.has('statement'), hint: 'Aún no tiene enunciado', actionLabel: 'Editar', onAction: goToEdit },
+    {
+      key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
+      hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
+    },
+    {
+      key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir',
+      onAction: () => deps.requestUpload('testCases'), warning: testCasesWarning, disabled: deps.isUploadingFile,
+    },
+    {
+      key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar',
+      onAction: () => deps.requestUpload('solution'), disabled: deps.isUploadingFile,
+    },
+    {
+      key: 'validate',
+      label: 'Validación',
+      met: flags.passed,
+      hint: validateStepHint(requirementsMet, deps.validationRunning, flags),
+      actionLabel: flags.failed ? 'Reintentar' : 'Validar',
+      onAction: deps.onValidate,
+      disabled: !requirementsMet,
+      loading: deps.validationRunning,
+      onDetail: flags.failed ? deps.goToFiles : undefined,
+    },
+  ]
+  return { steps, requirementsMet }
+}
+
+interface PublishDialogTextDeps {
+  warnings: (string | undefined)[]
+  testCasesUnchecked: boolean
+  testCasesError: boolean
+}
+
+/** What the confirmation before publishing says: the checklist's warnings, or why the test cases are still unchecked. */
+function publishDialogTextsOf({ warnings, testCasesUnchecked, testCasesError }: PublishDialogTextDeps) {
+  if (warnings.length > 0) return { title: 'El problema tiene advertencias', description: warnings.join(' ') }
+  if (!testCasesUnchecked) return { title: 'Publicar problema', description: 'Los casos de prueba ya se revisaron y no hay advertencias.' }
+  return {
+    title: 'Casos de prueba sin comprobar',
+    description: testCasesError
+      ? 'No se pudieron revisar los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
+      : 'Todavía se están revisando los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.',
+  }
+}
+
+// ───────────────────────────── data and actions (one hook per concern) ─────────────────────────────
+
+/** Statistics, latest validation and test-case counts: what the sidebar and the checklist are built from. */
+function useProblemReviewData(problem: ProblemDetail, slug: string, isContestContext: boolean, user: AuthUser) {
+  const { data: stats } = useProblemStatistics(slug, problem.status === 'PUBLISHED')
+  // Only an editor of a draft needs it: the checklist's last step and the Publicar button depend on it.
+  const mayValidate =
+    !isContestContext && problem.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
+  const { data: validation } = useLatestValidation(slug, { enabled: mayValidate })
+  const testCasesQueryEnabled = mayValidate && !!problem.files?.testCases
+  const { data: testCasesData, isError: testCasesError } = useProblemTestCases(slug, testCasesQueryEnabled)
+  return {
+    stats,
+    validation,
+    testCasesError,
+    // The query is on but has no answer yet (loading or failed): "unknown" is not "no warnings"
+    testCasesUnchecked: testCasesQueryEnabled && !testCasesData,
+    testCasesWarning: testCasesWarningOf(testCasesData),
+  }
+}
+
+/** Validate and publish, and what the publish attempt answered (success logs or the failure detail). */
+function usePublishFlow(problem: ProblemDetail, slug: string) {
+  const { toast } = useToastContext()
+  const publishMutation = usePublishProblem()
+  const validateMutation = useValidateProblem()
+  // Tied to the problem that opened it: the route reuses this component when :slug changes
+  // (browser back), and a stale open flag would confirm the publication of the wrong problem.
+  const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
+  const [publishResult, setPublishResult] = useState<PublishResult | null>(null)
+
+  const handleValidate = () => {
+    validateMutation.mutate(problem.slug, {
+      onError: (err) => toast({ variant: 'error', title: 'No se pudo validar', description: getErrorMessage(err) }),
+    })
+  }
+
+  const handlePublish = () => {
+    publishMutation.mutate(problem.slug, {
+      onSuccess: (data) => {
+        toast({ variant: 'success', title: 'Problema publicado' })
+        if (data.validationLogs?.length) {
+          setPublishResult({ kind: 'success', validationLogs: data.validationLogs, validationSummary: data.validationSummary })
+        }
+      },
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'VALIDATION_FAILED' && err.raw) {
+          toast({ variant: 'error', title: 'No se pudo publicar', description: 'Revisa el detalle de la validación.' })
+          setPublishResult({ kind: 'failure', data: err.raw as PublishFailureResponse })
+        } else {
+          toast({ variant: 'error', title: 'Error al publicar', description: getErrorMessage(err) })
+        }
+      },
+    })
+  }
+
+  /** With warnings (or test cases not checked yet) the author confirms first; otherwise it publishes. */
+  const handlePublishClick = (needsConfirmation: boolean) => {
+    if (needsConfirmation) setPublishWarningSlug(slug)
+    else handlePublish()
+  }
+
+  return {
+    isValidating: validateMutation.isPending,
+    isPublishing: publishMutation.isPending,
+    publishWarningOpen: !!slug && publishWarningSlug === slug,
+    setPublishWarningOpen: (open: boolean) => setPublishWarningSlug(open ? slug : null),
+    confirmPublishDespiteWarnings: () => {
+      setPublishWarningSlug(null)
+      handlePublish()
+    },
+    publishResult,
+    closePublishResult: () => setPublishResult(null),
+    handleValidate,
+    handlePublishClick,
+  }
+}
+
+/** Public/private: going private restricts who can see and add the problem, so it asks first; going public does not. */
+function useAccessibilityChange(problem: ProblemDetail, slug: string) {
+  const { toast } = useToastContext()
+  const accessibilityMutation = useUpdateAccessibility()
+  // Same idea as the publish warning: it must never confirm over a different problem
+  const [makePrivateSlug, setMakePrivateSlug] = useState<string | null>(null)
+  // Drop a stale confirmation as soon as another problem is shown, so coming back doesn't reopen it
+  if (makePrivateSlug !== null && makePrivateSlug !== slug) setMakePrivateSlug(null)
+
+  const changeAccessibility = (accessibility: ProblemAccessibility) => {
+    accessibilityMutation.mutate(
+      { slug: problem.slug, accessibility },
+      {
+        onSuccess: () =>
+          toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
+        onSettled: () => setMakePrivateSlug(null),
+      },
+    )
+  }
+
+  return {
+    isChanging: accessibilityMutation.isPending,
+    makePrivateDialogOpen: !!slug && makePrivateSlug === slug,
+    setMakePrivateOpen: (open: boolean) => setMakePrivateSlug(open ? slug : null),
+    handleAccessibilityClick: () => {
+      if (problem.accessibility === 'PUBLIC') setMakePrivateSlug(problem.slug)
+      else changeAccessibility('PUBLIC')
+    },
+    handleMakePrivateConfirm: () => {
+      // Only the problem that opened the confirmation may be changed by it
+      if (makePrivateSlug !== problem.slug) return
+      changeAccessibility('PRIVATE')
+    },
+  }
+}
+
+const ACTIVE_CONTEST_USE = 'Este problema está siendo usado en una competencia activa en este momento.'
+
+/** Unpublish and delete, with their confirmations. */
+function useRetireProblem(problem: ProblemDetail) {
+  const navigate = useNavigate()
+  const { toast } = useToastContext()
+  const unpublishMutation = useUnpublishProblem()
+  const deleteMutation = useDeleteProblem()
+  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [confirmSlug, setConfirmSlug] = useState('')
+
+  const handleUnpublish = () => {
+    unpublishMutation.mutate(problem.slug, {
+      onSuccess: () => {
+        toast({ variant: 'success', title: 'Problema despublicado' })
+        setUnpublishDialogOpen(false)
+      },
+      onError: (err) => {
+        if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+          toast({ variant: 'error', title: 'No se puede despublicar', description: ACTIVE_CONTEST_USE })
+        } else {
+          toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
+        }
+        setUnpublishDialogOpen(false)
+      },
+    })
+  }
+
+  const handleDelete = () => {
+    if (confirmSlug !== problem.slug) return
+    deleteMutation.mutate(
+      { slug: problem.slug, data: { confirmSlug } },
+      {
+        onSuccess: () => {
+          toast({ variant: 'success', title: 'Problema eliminado' })
+          navigate('/problems')
+        },
+        onError: (err) => toast(deleteErrorToast(err)),
+      },
+    )
+  }
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false)
+    setConfirmSlug('')
+  }
+
+  return {
+    isUnpublishing: unpublishMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    unpublishDialogOpen,
+    setUnpublishDialogOpen,
+    deleteDialogOpen,
+    openDeleteDialog: () => setDeleteDialogOpen(true),
+    closeDeleteDialog,
+    confirmSlug,
+    setConfirmSlug,
+    switchToUnpublish: () => {
+      closeDeleteDialog()
+      setUnpublishDialogOpen(true)
+    },
+    handleUnpublish,
+    handleDelete,
+  }
+}
+
+function deleteErrorToast(err: unknown) {
+  const code = err instanceof ApiClientError ? err.code : undefined
+  if (code === 'PROBLEM_IN_ACTIVE_CONTEST') {
+    return { variant: 'error' as const, title: 'No se puede eliminar', description: ACTIVE_CONTEST_USE }
+  }
+  if (code === 'PROBLEM_HAS_CONTEST_HISTORY') {
+    return {
+      variant: 'error' as const,
+      title: 'No se puede eliminar',
+      description: 'Tiene envíos hechos en una competencia: borrarlo cambiaría sus resultados. Despublícalo en su lugar.',
+    }
+  }
+  return { variant: 'error' as const, title: 'Error al eliminar' }
+}
+
+interface RejudgeDeps {
+  problem: ProblemDetail
+  groupId: string | undefined
+  contestId: string | undefined
+  isContestOwnerOrLead: boolean
+}
+
+/** Rejudge: global (Admin) or inside a contest (owner/lead, or Admin through the admin endpoint). */
+function useRejudge({ problem, groupId, contestId, isContestOwnerOrLead }: RejudgeDeps) {
+  const { toast } = useToastContext()
+  const adminRejudgeMutation = useAdminRejudgeProblem()
+  const rejudgeContestMutation = useRejudgeContestProblem()
+  const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
+  const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
+
+  const handleAdminRejudge = () => {
+    adminRejudgeMutation.mutate(
+      { slug: problem.slug },
+      {
+        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
+        onError: (err) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
+      },
+    )
+    setAdminRejudgeDialogOpen(false)
+  }
+
+  const handleContestRejudge = () => {
+    if (!groupId || !contestId) return
+    const onSettled = {
+      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
+      onError: (err: unknown) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
+    }
+    // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
+    // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
+    // ?contestId= is the one designed for that case (see PRB-09 in docs/seguimiento).
+    if (isContestOwnerOrLead) {
+      rejudgeContestMutation.mutate({ groupId, contestId, problemSlug: problem.slug }, onSettled)
+    } else {
+      adminRejudgeMutation.mutate({ slug: problem.slug, contestId }, onSettled)
+    }
+    setContestRejudgeDialogOpen(false)
+  }
+
+  return {
+    isAdminRejudging: adminRejudgeMutation.isPending,
+    isContestRejudging: rejudgeContestMutation.isPending || adminRejudgeMutation.isPending,
+    adminRejudgeDialogOpen,
+    setAdminRejudgeDialogOpen,
+    contestRejudgeDialogOpen,
+    setContestRejudgeDialogOpen,
+    handleAdminRejudge,
+    handleContestRejudge,
+  }
+}
+
+function useExportProblemAction(problem: ProblemDetail) {
+  const { toast } = useToastContext()
+  const exportMutation = useExportProblem()
+  return {
+    isExporting: exportMutation.isPending,
+    handleExport: () =>
+      exportMutation.mutate(problem.slug, {
+        onError: (err) => toast({ variant: 'error', title: 'No se pudo exportar el problema', description: getErrorMessage(err) }),
+      }),
+  }
+}
+
+// ───────────────────────────── presentational pieces ─────────────────────────────
+
+function ExampleCard({ sample, index }: Readonly<{ sample: { name: string; input: string; output: string }; index: number }>) {
+  return (
+    <div className="border border-neutral-border rounded-lg overflow-hidden">
+      <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
+        <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
+            <CopyButton text={sample.input} label={`Copiar entrada del ejemplo ${index + 1}`} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
+            <CopyButton text={sample.output} label={`Copiar salida del ejemplo ${index + 1}`} />
+          </div>
+          <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** The reader's view: statement and examples. */
+function ProblemContent({ problem }: Readonly<{ problem: ProblemDetail }>) {
+  const isPublished = problem.status === 'PUBLISHED'
+  return (
+    <>
+      {/* Statement — the "Enunciado" label is only useful while reviewing a draft
+          alongside the Archivos/Gestión cards; once published, this is the only thing
+          on the page and a contestant is just here to read the problem, so the label
+          would be redundant chrome. */}
+      <Card>
+        {!isPublished && (
+          <CardHeader>
+            <CardTitle>Enunciado</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent className={isPublished ? 'pt-6' : undefined}>
+          {problem.statement ? (
+            <MarkdownRenderer content={problem.statement} variant="statement" />
+          ) : (
+            <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
+          `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
+      {!!problem.samples?.length && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ejemplos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {problem.samples.map((sample, index) => (
+              <ExampleCard key={sample.name} sample={sample} index={index} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </>
+  )
+}
+
+function PublishButton({ problem, canPublish, missingRequirements, requirementsMet, validationStale, isPublishing, onClick }: Readonly<{
+  problem: ProblemDetail
+  canPublish: boolean
+  missingRequirements: PublishRequirement[]
+  requirementsMet: boolean
+  validationStale: boolean
+  isPublishing: boolean
+  onClick: () => void
+}>) {
+  if (problem.status !== 'DRAFT') return null
+  if (canPublish) {
+    return (
+      <Button variant="primary" className="gap-2" onClick={onClick} isLoading={isPublishing}>
+        <ArrowUpCircle className="h-4 w-4" />
+        Publicar
+      </Button>
+    )
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0} className="block">
+          <Button variant="primary" className="gap-2" disabled>
+            <ArrowUpCircle className="h-4 w-4" />
+            Publicar
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
+        <ul className="mt-1 list-disc list-inside">
+          {missingRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
+          {requirementsMet && <li>{validationStale ? 'Validar de nuevo el problema' : 'Validar el problema'}</li>}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+interface ManagementMenuProps {
+  problem: ProblemDetail
+  isAdmin: boolean
+  canDelete: boolean
+  retire: ReturnType<typeof useRetireProblem>
+  accessibility: ReturnType<typeof useAccessibilityChange>
+  rejudge: ReturnType<typeof useRejudge>
+  exporting: ReturnType<typeof useExportProblemAction>
+  onEdit: () => void
+}
+
+function ManagementMenu({ problem, isAdmin, canDelete, retire, accessibility, rejudge, exporting, onEdit }: Readonly<ManagementMenuProps>) {
+  const isPublic = problem.accessibility === 'PUBLIC'
+  const isPublished = problem.status === 'PUBLISHED'
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" aria-label="Más acciones" title="Más acciones">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {/* The edit form refuses a published problem, so say why here instead of leading to a dead end */}
+        <DropdownMenuItem onClick={onEdit} disabled={isPublished}>
+          <Pencil className="mr-2 h-4 w-4 shrink-0" />
+          <span>
+            Editar
+            {isPublished && <span className="block text-xs text-neutral-text-muted">Despublica el problema para editarlo</span>}
+          </span>
+        </DropdownMenuItem>
+        {/* Unlike editing, the backend lets this change while the problem is published: no need to unpublish first */}
+        <DropdownMenuItem onClick={accessibility.handleAccessibilityClick} disabled={accessibility.isChanging}>
+          {isPublic ? <Lock className="mr-2 h-4 w-4 shrink-0" /> : <Globe className="mr-2 h-4 w-4 shrink-0" />}
+          <span>
+            {isPublic ? 'Hacer privado' : 'Hacer público'}
+            <span className="block text-xs text-neutral-text-muted">
+              {isPublic
+                ? 'Solo los modificadores podrán añadirlo a nuevas competencias'
+                : 'Cualquier creador de competencias podrá añadirlo'}
+            </span>
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={exporting.handleExport} disabled={exporting.isExporting}>
+          <Download className="mr-2 h-4 w-4 shrink-0" />
+          <span>
+            {exporting.isExporting ? 'Exportando…' : 'Exportar ZIP'}
+            <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
+          </span>
+        </DropdownMenuItem>
+        {isPublished && (
+          <DropdownMenuItem onClick={() => retire.setUnpublishDialogOpen(true)} disabled={retire.isUnpublishing}>
+            <ArrowDownCircle className="mr-2 h-4 w-4 shrink-0" />
+            Despublicar
+          </DropdownMenuItem>
+        )}
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => rejudge.setAdminRejudgeDialogOpen(true)} disabled={rejudge.isAdminRejudging}>
+            <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
+            Rejuzgar (global)
+          </DropdownMenuItem>
+        )}
+        {canDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={retire.openDeleteDialog} className="text-status-error">
+              <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+              Eliminar
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function MetadataCard({ problem }: Readonly<{ problem: ProblemDetail }>) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Metadata</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <MetadataRow icon={User} label="Autor" value={problem.author.name} />
+        <MetadataRow icon={Clock} label="Tiempo límite" value={problem.timeLimit ? `${problem.timeLimit} ms` : 'No definido'} />
+        <MetadataRow icon={HardDrive} label="Memoria" value={problem.memoryLimit ? `${problem.memoryLimit} MiB` : 'No definido'} />
+        {problem.languageOverrides.length > 0 && (
+          <div className="pt-2 mt-2 border-t border-neutral-border">
+            <p className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Overrides por lenguaje</p>
+            <div className="space-y-1.5">
+              {problem.languageOverrides.map((lo) => (
+                <div key={lo.language} className="flex items-center justify-between text-xs">
+                  <Badge variant="outline" className="text-[10px] py-0">{lo.language}</Badge>
+                  <span className="text-neutral-text-muted font-mono">
+                    {[lo.timeLimit && `${lo.timeLimit}ms`, lo.memoryLimit && `${lo.memoryLimit}MiB`].filter(Boolean).join(' / ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <MetadataRow icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
+      </CardContent>
+    </Card>
+  )
+}
+
+const percentOf = (part: number, total: number) => Math.round((part / total) * 100)
+
+function verdictBarColor(verdict: string) {
+  if (verdict === 'ACCEPTED') return 'bg-status-success'
+  if (verdict === 'WRONG_ANSWER' || verdict === 'RUNTIME_ERROR') return 'bg-status-error'
+  return 'bg-status-warning'
+}
+
+function VerdictDistribution({ distribution, total }: Readonly<{ distribution: NonNullable<Statistics['verdictDistribution']>; total: number }>) {
+  return (
+    <div className="pt-3 border-t border-neutral-border">
+      <h4 className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Veredictos</h4>
+      <div className="space-y-1.5">
+        {distribution.map((v) => {
+          const config = SUBMISSION_STATUS_CONFIG[v.verdict as keyof typeof SUBMISSION_STATUS_CONFIG]
+          const pct = percentOf(v.count, total)
+          return (
+            <div key={v.verdict} className="flex items-center gap-2 text-xs">
+              <span className="w-20 truncate text-neutral-text-muted">{config?.label || v.verdict}</span>
+              <div className="flex-1 h-1 bg-neutral-surface rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${verdictBarColor(v.verdict)}`} style={{ width: `${pct}%` }} />
+              </div>
+              <span className="w-8 text-right font-mono text-neutral-text-muted">{pct}%</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function StatsCard({ stats, uniqueUsers }: Readonly<{ stats: Statistics; uniqueUsers: NonNullable<Statistics['uniqueUsers']> }>) {
+  const successRate = percentOf(uniqueUsers.solved, uniqueUsers.attempted)
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted flex items-center gap-2">
+          <BarChart3 className="h-3.5 w-3.5" />
+          Estadísticas
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-lg font-bold text-neutral-text-primary">{stats.totalSubmissions}</div>
+            <div className="text-[10px] text-neutral-text-muted">Envíos</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-neutral-text-primary">{uniqueUsers.attempted}</div>
+            <div className="text-[10px] text-neutral-text-muted">Intentaron</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-status-success">{uniqueUsers.solved}</div>
+            <div className="text-[10px] text-neutral-text-muted">Resolvieron</div>
+          </div>
+        </div>
+
+        {/* Success rate bar */}
+        {uniqueUsers.attempted > 0 && (
+          <div>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-neutral-text-muted">Tasa de éxito</span>
+              <span className="font-mono font-bold">{successRate}%</span>
+            </div>
+            <div className="h-1.5 bg-neutral-surface rounded-full overflow-hidden">
+              <div className="h-full bg-status-success rounded-full" style={{ width: `${successRate}%` }} />
+            </div>
+          </div>
+        )}
+
+        {stats.verdictDistribution && <VerdictDistribution distribution={stats.verdictDistribution} total={stats.totalSubmissions} />}
+
+        {/* Acceptance by language */}
+        {stats.acceptanceRateByLanguage && (
+          <div className="pt-3 border-t border-neutral-border">
+            <h4 className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Por lenguaje</h4>
+            <div className="space-y-2">
+              {stats.acceptanceRateByLanguage.map((lang) => {
+                const rate = lang.usersAttempted > 0 ? percentOf(lang.usersAccepted, lang.usersAttempted) : 0
+                return (
+                  <div key={lang.language} className="flex items-center justify-between text-xs">
+                    <span className="font-mono">{lang.language}</span>
+                    <span className="font-bold text-brand-primary">{rate}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface RouteContext {
+  groupId: string | undefined
+  contestId: string | undefined
+  letter: string | undefined
+}
+
+function SubmitCard({ problem, route }: Readonly<{ problem: ProblemDetail; route: RouteContext }>) {
+  const navigate = useNavigate()
+  const { groupId, contestId, letter } = route
+  const goSubmit = () => {
+    if (groupId && contestId && letter) navigate(PATHS.contestSubmit(groupId, contestId, letter.toUpperCase()))
+    else navigate(`/submit?problem=${problem.slug}`)
+  }
+  const goSubmissions = () => {
+    if (groupId && contestId) navigate(`${PATHS.contestSubmissions(groupId, contestId)}?problem=${encodeURIComponent(problem.slug)}`)
+    else navigate(PATHS.problemSubmissions(problem.slug))
+  }
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <Button variant="primary" className="w-full gap-2" onClick={goSubmit}>
+          <Send className="h-4 w-4" />
+          Enviar solución
+        </Button>
+        <Button variant="outline" className="w-full gap-2 mt-2" onClick={goSubmissions}>
+          <BarChart3 className="h-4 w-4" />
+          Ver envíos
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ContestManagementCard({ isLoading, onRejudge }: Readonly<{ isLoading: boolean; onRejudge: () => void }>) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Gestión de la competencia</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Button variant="outline" className="w-full gap-2" onClick={onRejudge} isLoading={isLoading}>
+          <RefreshCw className="h-4 w-4" />
+          Rejuzgar envíos
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function PublishResultDialog({ result, onClose }: Readonly<{ result: PublishResult | null; onClose: () => void }>) {
+  return (
+    <Dialog open={!!result} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {result?.kind === 'failure' ? (
+              <>
+                <XCircle className="h-5 w-5 text-status-error" />
+                No se pudo publicar
+              </>
+            ) : (
+              <>
+                <ClipboardCheck className="h-5 w-5 text-status-success" />
+                Detalle de la validación
+              </>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {result?.kind === 'success' && (
+          <ul className="space-y-2">
+            {result.validationLogs.map((log, i) => (
+              <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
+            ))}
+          </ul>
+        )}
+
+        {result?.kind === 'failure' && (
+          <div className="space-y-4">
+            <p className="text-sm text-neutral-text-primary">{result.data.message}</p>
+
+            {!!result.data.missingFields?.length && (
+              <div>
+                <p className="text-sm font-semibold text-neutral-text-primary">Faltan campos requeridos:</p>
+                <ul className="mt-1 list-disc list-inside text-sm text-neutral-text-primary">
+                  {result.data.missingFields.map((field) => (
+                    <li key={field}>{publishRequirementLabel(field)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <ValidationReportView
+              compilationErrors={result.data.compilationErrors}
+              failedTestCases={result.data.failedTestCases}
+              failedInputs={result.data.failedInputs}
+              validationLogs={result.data.validationLogs}
+            />
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button onClick={onClose}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteProblemDialog({ problem, retire }: Readonly<{ problem: ProblemDetail; retire: ReturnType<typeof useRetireProblem> }>) {
+  return (
+    <Dialog
+      open={retire.deleteDialogOpen}
+      onOpenChange={(open) => {
+        if (open) retire.openDeleteDialog()
+        else retire.closeDeleteDialog()
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Eliminar problema</DialogTitle>
+          <DialogDescription>
+            Esta acción es irreversible. Escribe <span className="font-mono font-semibold">{problem.slug}</span> para confirmar.
+          </DialogDescription>
+        </DialogHeader>
+        {problem.status === 'PUBLISHED' && (
+          <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm space-y-1" role="status">
+            <p className="font-semibold text-neutral-text-primary">Este problema está publicado.</p>
+            <p className="text-neutral-text-muted">
+              Si eliminas, se borran sus archivos y se quita de las competencias donde esté. Si solo quieres que nadie más
+              lo use, despublícalo: vuelve a borrador y conserva todo, y lo puedes publicar de nuevo cuando quieras.
+              Si ya recibió envíos dentro de una competencia, no se puede eliminar: sus resultados dependen de él.
+            </p>
+            <Button variant="primary" size="sm" className="mt-2" onClick={retire.switchToUnpublish}>
+              Despublicar en vez de eliminar
+            </Button>
+          </div>
+        )}
+        <Input
+          label="Confirmar slug"
+          value={retire.confirmSlug}
+          onChange={(e) => retire.setConfirmSlug(e.target.value)}
+          placeholder={problem.slug}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={retire.closeDeleteDialog}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={retire.handleDelete}
+            isLoading={retire.isDeleting}
+            disabled={retire.confirmSlug !== problem.slug}
+          >
+            {problem.status === 'PUBLISHED' ? 'Eliminar de todos modos' : 'Eliminar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ProblemTitle({ problem, route, isContestContext, canSeeManagement }: Readonly<{
+  problem: ProblemDetail
+  route: RouteContext
+  isContestContext: boolean
+  canSeeManagement: boolean
+}>) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-3 mb-1 flex-wrap">
+        <h1 className="text-2xl font-extrabold text-neutral-text-primary">
+          {isContestContext && route.letter && `${route.letter.toUpperCase()}. `}{problem.title}
+        </h1>
+        {!isContestContext && canSeeManagement && (
+          <>
+            <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
+              {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
+            </Badge>
+            <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
+              {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
+            </Badge>
+          </>
+        )}
+        {/* Letter badge removed — letter is now prefixed in the title */}
+      </div>
+      {!isContestContext && (
+        <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
+      )}
+    </div>
+  )
+}
+
+function breadcrumbsOf(
+  problem: ProblemDetail,
+  route: RouteContext,
+  contestGroup: ContestGroup,
+  activeContest: ActiveContest,
+) {
+  const { groupId, contestId, letter } = route
+  if (!contestId) return [{ label: 'Problemas', href: '/problems' }, { label: problem.title }]
+  return [
+    { label: 'Grupos', href: '/groups' },
+    { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
+    { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId) },
+    { label: `Problema ${letter?.toUpperCase() || ''}` },
+  ]
+}
+
+// ───────────────────────────── page ─────────────────────────────
+
+/** The optional files (checker, validator) a problem does not have. */
+function optionalFilesMissing(problem: ProblemDetail): string[] {
+  if (!problem.files) return []
+  return [...(problem.files.checker ? [] : ['checker']), ...(problem.files.validator ? [] : ['validador'])]
+}
+
+/**
+ * A draft can't be published without test cases and a solution, and those live in the other
+ * tab now, so say so on the tab instead of leaving a new author to look for them.
+ */
+function requiredFilesMissing(problem: ProblemDetail): boolean {
+  return problem.status === 'DRAFT' && (!problem.files?.testCases || (problem.files?.solutions.length ?? 0) === 0)
+}
+
+interface ProblemBodyProps {
+  showTabs: boolean
+  showManagement: boolean
+  tabParam: string | null
+  onTabChange: (tab: string) => void
+  missingFiles: boolean
+  problemContent: ReactNode
+  managementContent: ReactNode
+}
+
+function ProblemBody({ showTabs, showManagement, tabParam, onTabChange, missingFiles, problemContent, managementContent }: Readonly<ProblemBodyProps>) {
+  if (!showTabs) {
+    return (
+      <>
+        {problemContent}
+        {/* Inside a contest only an Admin can reach this, and no tabs there */}
+        {showManagement && managementContent}
+      </>
+    )
+  }
+  // Whoever edits the problem gets the reader's view (statement and examples, as a
+  // contestant sees it) apart from the management cards, instead of one long page.
+  return (
+    <Tabs value={tabParam === 'files' ? 'files' : 'problem'} onValueChange={onTabChange} className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="problem">Problema</TabsTrigger>
+        <TabsTrigger value="files" className="gap-1.5">
+          Archivos y colaboradores
+          {missingFiles && (
+            <span
+              className="h-2 w-2 rounded-full bg-status-warning"
+              role="img"
+              aria-label="Faltan archivos por subir"
+              title="Faltan archivos por subir"
+            />
+          )}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="problem" className="mt-0 space-y-6">
+        {problemContent}
+      </TabsContent>
+      <TabsContent value="files" className="mt-0 space-y-6">
+        {managementContent}
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+interface ProblemDetailViewProps {
+  problem: ProblemDetail
+  /** Slug of the problem shown (in a contest, resolved from the problem's letter). */
+  slug: string
+  route: RouteContext
+  activeContest: ActiveContest
+  contestGroup: ContestGroup
+}
+
+function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }: Readonly<ProblemDetailViewProps>) {
   const navigate = useNavigate()
   // Which tab is open lives in the URL, so a file page's "Volver" and the browser's back button land on it
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
+  const isContestContext = !!route.contestId
+  const isContestActive = isContestContext && activeContest?.status === 'ACTIVE'
+  const perms = permissionsOf(problem, user, isContestContext, contestGroup, activeContest)
+
+  const review = useProblemReviewData(problem, slug, isContestContext, user)
+  const publishing = usePublishFlow(problem, slug)
+  const accessibility = useAccessibilityChange(problem, slug)
+  const retire = useRetireProblem(problem)
+  const rejudge = useRejudge({ problem, groupId: route.groupId, contestId: route.contestId, isContestOwnerOrLead: perms.isContestOwnerOrLead })
+  const exporting = useExportProblemAction(problem)
+
+  // The upload outlives FilesManager (tab switches unmount it), so its state comes from the mutation
+  // cache; the ZIP structure check runs before the upload starts and is reported up by FilesManager.
+  const isUploadMutating = useIsUploadingProblemFile(slug)
+  const [isCheckingZip, setIsCheckingZip] = useState(false)
+  // Set by the checklist's "Subir"/"Agregar" actions: FilesManager opens the matching file picker once, then clears it.
+  const [pendingAutoUpload, setPendingAutoUpload] = useState<ProblemFileType | null>(null)
+
+  const goToFiles = () => setSearchParams({ tab: 'files' }, { replace: true })
+  const goToEdit = () => navigate(PATHS.problemEdit(problem.slug))
+
+  const flags = validationFlagsOf(review.validation)
+  const validationRunning = publishing.isValidating || publishing.isPublishing || flags.inProgress
+  const { steps: checklistSteps, requirementsMet } = buildChecklistSteps({
+    problem,
+    flags,
+    validationRunning,
+    testCasesWarning: review.testCasesWarning,
+    isUploadingFile: isUploadMutating || isCheckingZip,
+    goToEdit,
+    goToFiles,
+    requestUpload: (fileType) => {
+      goToFiles()
+      setPendingAutoUpload(fileType)
+    },
+    onValidate: publishing.handleValidate,
+  })
+  const warnings = checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning)
+  const hasWarnings = warnings.length > 0
+  const publishDialogTexts = publishDialogTextsOf({
+    warnings,
+    testCasesUnchecked: review.testCasesUnchecked,
+    testCasesError: review.testCasesError,
+  })
+  const showChecklist = perms.showManagementTabs && problem.status === 'DRAFT'
+  const optionalMissing = optionalFilesMissing(problem)
+  const missingFiles = requiredFilesMissing(problem)
+
+  const publishChecklist = (className?: string) => (
+    <PublishChecklist steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} className={className} />
+  )
+
+  // Only Publicar stays in view, and only on a draft: it's the last step of the flow, so hiding it
+  // would make a new author hunt for it (the tooltip says what's still missing). Everything else
+  // lives in the menu so this doesn't grow with every new feature.
+  const managementActions = (
+    <div className="flex items-center gap-2 shrink-0">
+      <PublishButton
+        problem={problem}
+        canPublish={requirementsMet && flags.passed}
+        missingRequirements={PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))}
+        requirementsMet={requirementsMet}
+        validationStale={flags.stale}
+        isPublishing={publishing.isPublishing}
+        onClick={() => publishing.handlePublishClick(hasWarnings || review.testCasesUnchecked)}
+      />
+      <ManagementMenu
+        problem={problem}
+        isAdmin={perms.isAdmin}
+        canDelete={perms.canDelete}
+        retire={retire}
+        accessibility={accessibility}
+        rejudge={rejudge}
+        exporting={exporting}
+        onEdit={goToEdit}
+      />
+    </div>
+  )
+
+  const problemContent = <ProblemContent problem={problem} />
+
+  const managementContent = (
+    <>
+      {/* Files: always readable; uploading and deleting only while it's a draft — the backend
+          rejects changes to a published problem */}
+      {problem.files && (
+        <FilesManager
+          problem={problem}
+          readOnly={problem.status === 'PUBLISHED'}
+          testCasesWarning={review.testCasesWarning}
+          autoUpload={pendingAutoUpload}
+          onAutoUploadConsumed={() => setPendingAutoUpload(null)}
+          isUploading={isUploadMutating}
+          isCheckingZip={isCheckingZip}
+          onCheckingZipChange={setIsCheckingZip}
+        />
+      )}
+
+      {/* What happened with the last publish attempt: persists, follows a running validation */}
+      <ValidationPanel slug={problem.slug} isPublishing={publishing.isPublishing || publishing.isValidating} />
+
+      {/* Modifiers (only for modifiers) */}
+      <ModifiersManager problem={problem} canAdd={perms.canEdit} canRemove={perms.canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
+    </>
+  )
+
+  const tags = isContestActive ? [] : problem.tags
+  const uniqueUsers = review.stats?.uniqueUsers
+
+  return (
+    <TooltipProvider>
+    <AppLayout breadcrumbs={breadcrumbsOf(problem, route, contestGroup, activeContest)}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+        {/* === Left Column: Content === */}
+        <div className="space-y-6 min-w-0">
+          {/* Tags above title — hidden during active contest to prevent spoilers */}
+          {tags.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="default" className="text-[10px]">{tag}</Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Title + badges, with the management actions on the right (up here so an author
+              doesn't have to scroll the sidebar to find them) */}
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <ProblemTitle problem={problem} route={route} isContestContext={isContestContext} canSeeManagement={perms.canSeeManagement} />
+            {perms.canEdit && !isContestContext && managementActions}
+          </div>
+
+          {/* On a phone the sidebar ends up at the bottom of the page, where nobody would see it */}
+          {showChecklist && publishChecklist('lg:hidden')}
+
+          <ProblemBody
+            showTabs={perms.showManagementTabs}
+            showManagement={perms.canEdit}
+            tabParam={searchParams.get('tab')}
+            onTabChange={(tab) => setSearchParams(tab === 'files' ? { tab: 'files' } : {}, { replace: true })}
+            missingFiles={missingFiles}
+            problemContent={problemContent}
+            managementContent={managementContent}
+          />
+        </div>
+
+        {/* === Right Column: Sidebar === */}
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:h-fit">
+          {/* Submit action */}
+          {problem.status === 'PUBLISHED' && <SubmitCard problem={problem} route={route} />}
+
+          {/* Technical metadata */}
+          <MetadataCard problem={problem} />
+
+          {showChecklist && publishChecklist('hidden lg:block')}
+
+          {/* Statistics — hidden during active contest */}
+          {!isContestActive && review.stats && review.stats.totalSubmissions > 0 && uniqueUsers && (
+            <StatsCard stats={review.stats} uniqueUsers={uniqueUsers} />
+          )}
+
+          {/* Contest-scoped rejudge (only within a contest, for the group's real leads, the
+              contest's owner, or Admin — see handleContestRejudge for the endpoint routing) */}
+          {isContestContext && perms.isContestLead && (
+            <ContestManagementCard isLoading={rejudge.isContestRejudging} onRejudge={() => rejudge.setContestRejudgeDialogOpen(true)} />
+          )}
+        </aside>
+      </div>
+
+      {/* Unpublish confirm. Caveat for maintainers: the backend only blocks unpublishing during an
+          ACTIVE contest (unpublish_problem.go), so a scheduled one could start with a draft problem
+          (PROBLEM_NOT_PUBLISHED). The real fix is listing the contests that use it (PRB-M04). */}
+      <ConfirmDialog
+        open={retire.unpublishDialogOpen}
+        onOpenChange={retire.setUnpublishDialogOpen}
+        title="Despublicar problema"
+        description="El problema volverá a borrador y nadie podrá enviarle soluciones hasta que lo publiques de nuevo."
+        variant="warning"
+        confirmLabel="Despublicar"
+        onConfirm={retire.handleUnpublish}
+        isLoading={retire.isUnpublishing}
+      />
+
+      {/* Admin rejudge (global) confirm dialog */}
+      <ConfirmDialog
+        open={rejudge.adminRejudgeDialogOpen}
+        onOpenChange={rejudge.setAdminRejudgeDialogOpen}
+        title="Rejuzgar en toda la plataforma"
+        description="Esta acción reevalúa todos los envíos de este problema en todas las competencias y en modo práctica. Puede tardar según la cantidad de envíos."
+        variant="warning"
+        confirmLabel="Rejuzgar"
+        onConfirm={rejudge.handleAdminRejudge}
+        isLoading={rejudge.isAdminRejudging}
+      />
+
+      {/* Contest rejudge confirm dialog */}
+      <ConfirmDialog
+        open={rejudge.contestRejudgeDialogOpen}
+        onOpenChange={rejudge.setContestRejudgeDialogOpen}
+        title="Rejuzgar envíos de este problema"
+        description="Esta acción reevalúa todos los envíos afectados de este problema dentro de esta competencia."
+        variant="warning"
+        confirmLabel="Rejuzgar"
+        onConfirm={rejudge.handleContestRejudge}
+        isLoading={rejudge.isContestRejudging}
+      />
+
+      <ConfirmDialog
+        open={accessibility.makePrivateDialogOpen}
+        onOpenChange={accessibility.setMakePrivateOpen}
+        title="Hacer privado el problema"
+        description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
+        variant="warning"
+        confirmLabel="Hacer privado"
+        onConfirm={accessibility.handleMakePrivateConfirm}
+        isLoading={accessibility.isChanging}
+      />
+
+      {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
+      <ConfirmDialog
+        open={publishing.publishWarningOpen}
+        onOpenChange={publishing.setPublishWarningOpen}
+        title={publishDialogTexts.title}
+        description={publishDialogTexts.description}
+        variant="warning"
+        confirmLabel="Publicar de todas formas"
+        onConfirm={publishing.confirmPublishDespiteWarnings}
+      />
+
+      {/* Publish validation result — success (validation logs) or failure (real detail from
+          the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
+      <PublishResultDialog result={publishing.publishResult} onClose={publishing.closePublishResult} />
+
+      {/* Delete dialog */}
+      <DeleteProblemDialog problem={problem} retire={retire} />
+    </AppLayout>
+    </TooltipProvider>
+  )
+}
+
+export function ProblemDetailPage() {
+  const { slug, groupId, contestId, letter } = useParams<{ slug: string; groupId?: string; contestId?: string; letter?: string }>()
   const { contest: activeContest, isLoading: isContestLoading } = useContestSession()
-  const { toast } = useToastContext()
 
   const isContestContext = !!contestId
-  const isContestActive = isContestContext && activeContest?.status === 'ACTIVE'
   const resolvedSlug = isContestContext
     ? activeContest?.problems.find(
         (p) => problemLabel(p.position) === letter?.toUpperCase()
@@ -88,63 +1326,7 @@ export function ProblemDetailPage() {
     : slug
 
   const { data: problem, isLoading, error } = useProblemDetail(resolvedSlug || '')
-  const { data: stats } = useProblemStatistics(resolvedSlug || '', problem?.status === 'PUBLISHED')
   const { data: contestGroup } = useGroupDetail(isContestContext ? groupId || '' : '')
-  const publishMutation = usePublishProblem()
-  const validateMutation = useValidateProblem()
-  // Only an editor of a draft needs it: the checklist's last step and the Publicar button depend on it.
-  const mayValidate =
-    !isContestContext && problem?.status === 'DRAFT' && (user?.role === 'ADMIN' || !!problem.modifiers?.some((m) => m.nickname === user?.nickname))
-  const { data: validation } = useLatestValidation(resolvedSlug || '', { enabled: mayValidate })
-  const testCasesQueryEnabled = mayValidate && !!problem?.files?.testCases
-  const { data: testCasesData, isError: testCasesError } = useProblemTestCases(
-    resolvedSlug || '',
-    testCasesQueryEnabled,
-  )
-  // The query is on but has no answer yet (loading or failed): "unknown" is not "no warnings"
-  const testCasesUnchecked = testCasesQueryEnabled && !testCasesData
-  const testCasesWarning: string | undefined = testCasesData
-    ? testCasesData.secretCount === 0 && testCasesData.sampleCount === 0
-      ? 'Los casos de prueba no tienen pares completos (.in + .ans) aún.'
-      : testCasesData.secretCount === 0
-        ? 'No hay casos secretos: el juez evaluará solo con los ejemplos que los concursantes conocen.'
-        : testCasesData.sampleCount === 0
-          ? 'No hay ejemplos: los concursantes no verán ningún ejemplo en el enunciado.'
-          : undefined
-    : undefined
-  const unpublishMutation = useUnpublishProblem()
-  const accessibilityMutation = useUpdateAccessibility()
-  const deleteMutation = useDeleteProblem()
-  const adminRejudgeMutation = useAdminRejudgeProblem()
-  const exportMutation = useExportProblem()
-  const rejudgeContestMutation = useRejudgeContestProblem()
-
-  // The upload outlives FilesManager (tab switches unmount it), so its state comes from the mutation
-  // cache; the ZIP structure check runs before the upload starts and is reported up by FilesManager.
-  const isUploadMutating = useIsUploadingProblemFile(resolvedSlug || '')
-  const [isCheckingZip, setIsCheckingZip] = useState(false)
-  const isUploadingFile = isUploadMutating || isCheckingZip
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [confirmSlug, setConfirmSlug] = useState('')
-  const [adminRejudgeDialogOpen, setAdminRejudgeDialogOpen] = useState(false)
-  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false)
-  const [contestRejudgeDialogOpen, setContestRejudgeDialogOpen] = useState(false)
-  // Tied to the problem that opened it: the route reuses this component when :slug changes
-  // (browser back), and a stale open flag would confirm the publication of the wrong problem.
-  const [publishWarningSlug, setPublishWarningSlug] = useState<string | null>(null)
-  const publishWarningOpen = !!resolvedSlug && publishWarningSlug === resolvedSlug
-  // Same idea for the "make private" confirmation: it must never confirm over a different problem
-  const [makePrivateSlug, setMakePrivateSlug] = useState<string | null>(null)
-  const makePrivateDialogOpen = !!resolvedSlug && makePrivateSlug === resolvedSlug
-  // Drop a stale confirmation as soon as another problem is shown, so coming back doesn't reopen it
-  if (makePrivateSlug !== null && makePrivateSlug !== resolvedSlug) setMakePrivateSlug(null)
-  const [publishResult, setPublishResult] = useState<
-    | { kind: 'success'; validationLogs: string[]; validationSummary?: ValidationSummary }
-    | { kind: 'failure'; data: PublishFailureResponse }
-    | null
-  >(null)
-  // Set by the checklist's "Subir"/"Agregar" actions: FilesManager opens the matching file picker once, then clears it.
-  const [pendingAutoUpload, setPendingAutoUpload] = useState<ProblemFileType | null>(null)
 
   // A contest problem letter that doesn't exist (or a contest that can't be seen) resolves to no slug.
   if (isContestContext && !isContestLoading && !resolvedSlug) return <NotFoundPage />
@@ -164,863 +1346,14 @@ export function ProblemDetailPage() {
 
   if (error || !problem) return <ErrorPage />
 
-  const isAdmin = user?.role === 'ADMIN'
-  const isModifier = problem.modifiers?.some((m) => m.nickname === user?.nickname)
-  const canEdit = isAdmin || isModifier
-  const canDelete = isAdmin || problem.author.nickname === user?.nickname
-  const canSeeManagement = user?.role === 'ADMIN' || user?.role === 'COACH'
-  // Real leadership of the contest's group, or ownership of the contest itself — the two
-  // identities the backend's contest-scoped rejudge endpoint actually accepts (same rule as
-  // ContestDetailPage.tsx). An Admin who is neither still sees the button (manual grants
-  // Admin access too) but must be routed to the admin rejudge endpoint instead — see
-  // handleContestRejudge.
-  const isContestOwnerOrLead =
-    contestGroup?.userMembership.role === 'LEAD' || activeContest?.owner.nickname === user?.nickname
-  const isContestLead = isAdmin || isContestOwnerOrLead
-  const missingPublishRequirements = PUBLISH_REQUIREMENTS.filter((r) => !r.met(problem))
-  const showManagementTabs = canEdit && !isContestContext
-  const goToFiles = () => setSearchParams({ tab: 'files' }, { replace: true })
-  const goToEdit = () => navigate(PATHS.problemEdit(problem.slug))
-  // The five backend requirements as the author thinks of them: both limits are set in the same
-  // form, so they're one step. A step is done when every requirement it covers is met.
-  const metKeys = new Set(PUBLISH_REQUIREMENTS.filter((r) => r.met(problem)).map((r) => r.key))
-  const checklistSteps: PublishChecklistStep[] = [
-    { key: 'statement', label: 'Enunciado', met: metKeys.has('statement'), hint: 'Aún no tiene enunciado', actionLabel: 'Editar', onAction: goToEdit },
-    {
-      key: 'limits', label: 'Límites de tiempo y memoria', met: metKeys.has('timeLimit') && metKeys.has('memoryLimit'),
-      hint: 'Falta definir alguno', actionLabel: 'Editar', onAction: goToEdit,
-    },
-    { key: 'testCases', label: 'Casos de prueba', met: metKeys.has('testCases'), hint: 'No hay ninguno', actionLabel: 'Subir', onAction: () => { goToFiles(); setPendingAutoUpload('testCases') }, warning: testCasesWarning, disabled: isUploadingFile },
-    { key: 'solution', label: 'Al menos una solución', met: metKeys.has('solution'), hint: 'No hay ninguna', actionLabel: 'Agregar', onAction: () => { goToFiles(); setPendingAutoUpload('solution') }, disabled: isUploadingFile },
-  ]
-  const requirementsMet = missingPublishRequirements.length === 0
-  const validationRunning = validateMutation.isPending || publishMutation.isPending || (!!validation?.found && !validation.terminal)
-  const validationFailed = !!validation?.found && validation.terminal && !validation.passed
-  // A pass only counts while the problem is as it was when it ran; the server says when it is not.
-  const validationStale = !!validation?.found && validation.terminal && validation.passed && !!validation.stale
-  const validationPassed = !!validation?.found && validation.terminal && validation.passed && !validation.stale
-  checklistSteps.push({
-    key: 'validate',
-    label: 'Validación',
-    met: validationPassed,
-    hint: !requirementsMet
-      ? 'Antes completa los pasos de arriba'
-      : validationRunning
-        ? 'Validando… puede tardar unos minutos'
-        : validationFailed
-          ? 'La última validación falló.'
-          : validationStale
-            ? 'Cambiaste el problema después de validarlo.'
-            : 'Compila todo y lo prueba con tus soluciones.',
-    actionLabel: validationFailed ? 'Reintentar' : 'Validar',
-    onAction: handleValidate,
-    disabled: !requirementsMet,
-    loading: validationRunning,
-    onDetail: validationFailed ? goToFiles : undefined,
-  })
-  const hasWarnings = checklistSteps.some((s) => s.met && !!s.warning)
-  const publishWarnings = checklistSteps.filter((s) => s.met && s.warning).map((s) => s.warning)
-  const publishDialogTitle = hasWarnings
-    ? 'El problema tiene advertencias'
-    : testCasesUnchecked
-      ? 'Casos de prueba sin comprobar'
-      : 'Publicar problema'
-  const publishDialogDescription = hasWarnings
-    ? publishWarnings.join(' ')
-    : testCasesUnchecked
-      ? testCasesError
-        ? 'No se pudieron revisar los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
-        : 'Todavía se están revisando los casos de prueba, así que no sabemos si faltan casos secretos o de ejemplo.'
-      : 'Los casos de prueba ya se revisaron y no hay advertencias.'
-  const showChecklist = showManagementTabs && problem.status === 'DRAFT'
-  const optionalMissing = [
-    ...(problem.files && !problem.files.checker ? ['checker'] : []),
-    ...(problem.files && !problem.files.validator ? ['validador'] : []),
-  ]
-  // A draft can't be published without test cases and a solution, and those live in the other
-  // tab now, so say so on the tab instead of leaving a new author to look for them.
-  const missingFiles =
-    problem.status === 'DRAFT' && (!problem.files?.testCases || (problem.files?.solutions.length ?? 0) === 0)
-
-  // Only Publicar stays in view, and only on a draft: it's the last step of the flow, so hiding it
-  // would make a new author hunt for it (the tooltip says what's still missing). Everything else
-  // lives in the menu so this doesn't grow with every new feature.
-  const publishChecklist = (className?: string) => (
-    <PublishChecklist steps={checklistSteps} optionalMissing={optionalMissing} onOptionalAction={goToFiles} className={className} />
-  )
-
-  const managementActions = (
-    <div className="flex items-center gap-2 shrink-0">
-      {problem.status === 'DRAFT' &&
-        (!requirementsMet || !validationPassed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="block">
-                <Button variant="primary" className="gap-2" disabled>
-                  <ArrowUpCircle className="h-4 w-4" />
-                  Publicar
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="font-semibold text-neutral-text-primary">Falta completar antes de publicar:</p>
-              <ul className="mt-1 list-disc list-inside">
-                {missingPublishRequirements.map((r) => <li key={r.label}>{r.label}</li>)}
-                {requirementsMet && <li>{validationStale ? 'Validar de nuevo el problema' : 'Validar el problema'}</li>}
-              </ul>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <Button variant="primary" className="gap-2" onClick={handlePublishClick} isLoading={publishMutation.isPending}>
-            <ArrowUpCircle className="h-4 w-4" />
-            Publicar
-          </Button>
-        ))}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" aria-label="Más acciones" title="Más acciones">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
-          {/* The edit form refuses a published problem, so say why here instead of leading to a dead end */}
-          <DropdownMenuItem onClick={() => navigate(PATHS.problemEdit(problem.slug))} disabled={problem.status === 'PUBLISHED'}>
-            <Pencil className="mr-2 h-4 w-4 shrink-0" />
-            <span>
-              Editar
-              {problem.status === 'PUBLISHED' && (
-                <span className="block text-xs text-neutral-text-muted">Despublica el problema para editarlo</span>
-              )}
-            </span>
-          </DropdownMenuItem>
-          {/* Unlike editing, the backend lets this change while the problem is published: no need to unpublish first */}
-          <DropdownMenuItem onClick={handleAccessibilityClick} disabled={accessibilityMutation.isPending}>
-            {problem.accessibility === 'PUBLIC' ? (
-              <Lock className="mr-2 h-4 w-4 shrink-0" />
-            ) : (
-              <Globe className="mr-2 h-4 w-4 shrink-0" />
-            )}
-            <span>
-              {problem.accessibility === 'PUBLIC' ? 'Hacer privado' : 'Hacer público'}
-              <span className="block text-xs text-neutral-text-muted">
-                {problem.accessibility === 'PUBLIC'
-                  ? 'Solo los modificadores podrán añadirlo a nuevas competencias'
-                  : 'Cualquier creador de competencias podrá añadirlo'}
-              </span>
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleExport} disabled={exportMutation.isPending}>
-            <Download className="mr-2 h-4 w-4 shrink-0" />
-            <span>
-              {exportMutation.isPending ? 'Exportando…' : 'Exportar ZIP'}
-              <span className="block text-xs text-neutral-text-muted">Formato ICPC, se puede volver a importar</span>
-            </span>
-          </DropdownMenuItem>
-          {problem.status === 'PUBLISHED' && (
-            <DropdownMenuItem onClick={() => setUnpublishDialogOpen(true)} disabled={unpublishMutation.isPending}>
-              <ArrowDownCircle className="mr-2 h-4 w-4 shrink-0" />
-              Despublicar
-            </DropdownMenuItem>
-          )}
-          {isAdmin && (
-            <DropdownMenuItem onClick={() => setAdminRejudgeDialogOpen(true)} disabled={adminRejudgeMutation.isPending}>
-              <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
-              Rejuzgar (global)
-            </DropdownMenuItem>
-          )}
-          {canDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-status-error">
-                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
-                Eliminar
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-
-  const problemContent = (
-    <>
-      {/* Statement — the "Enunciado" label is only useful while reviewing a draft
-          alongside the Archivos/Gestión cards; once published, this is the only thing
-          on the page and a contestant is just here to read the problem, so the label
-          would be redundant chrome. */}
-      <Card>
-        {problem.status !== 'PUBLISHED' && (
-          <CardHeader>
-            <CardTitle>Enunciado</CardTitle>
-          </CardHeader>
-        )}
-        <CardContent className={problem.status === 'PUBLISHED' ? 'pt-6' : undefined}>
-          {problem.statement ? (
-            <MarkdownRenderer content={problem.statement} variant="statement" />
-          ) : (
-            <p className="text-neutral-text-muted italic">Sin enunciado aún</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Examples — derived automatically from the data/sample/ test-case files (GetProblem's
-          `samples` field), not authored by hand, so they can't drift from what's actually judged. */}
-      {!!problem.samples?.length && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ejemplos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {problem.samples.map((sample, index) => (
-              <div key={sample.name} className="border border-neutral-border rounded-lg overflow-hidden">
-                <div className="bg-neutral-background px-4 py-2 border-b border-neutral-border">
-                  <span className="text-xs font-bold text-neutral-text-muted uppercase tracking-wider">Ejemplo {index + 1}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-border">
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Entrada</span>
-                      <CopyButton text={sample.input} label={`Copiar entrada del ejemplo ${index + 1}`} />
-                    </div>
-                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.input}</pre>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-neutral-text-muted uppercase tracking-wider">Salida</span>
-                      <CopyButton text={sample.output} label={`Copiar salida del ejemplo ${index + 1}`} />
-                    </div>
-                    <pre className="font-mono text-sm text-neutral-text-primary whitespace-pre bg-neutral-background rounded-md p-3 overflow-x-auto">{sample.output}</pre>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-    </>
-  )
-
-  const managementContent = (
-    <>
-      {/* Files: always readable; uploading and deleting only while it's a draft — the backend
-          rejects changes to a published problem */}
-      {problem.files && (
-        <FilesManager
-          problem={problem}
-          readOnly={problem.status === 'PUBLISHED'}
-          testCasesWarning={testCasesWarning}
-          autoUpload={pendingAutoUpload}
-          onAutoUploadConsumed={() => setPendingAutoUpload(null)}
-          isUploading={isUploadMutating}
-          isCheckingZip={isCheckingZip}
-          onCheckingZipChange={setIsCheckingZip}
-        />
-      )}
-
-      {/* What happened with the last publish attempt: persists, follows a running validation */}
-      <ValidationPanel slug={problem.slug} isPublishing={publishMutation.isPending || validateMutation.isPending} />
-
-      {/* Modifiers (only for modifiers) */}
-      <ModifiersManager problem={problem} canAdd={!!canEdit} canRemove={canDelete} canSearchUsers={user?.role === 'ADMIN' || user?.role === 'COACH'} />
-    </>
-  )
-
-  function handleValidate() {
-    if (!problem) return
-    validateMutation.mutate(problem.slug, {
-      onError: (err) => toast({ variant: 'error', title: 'No se pudo validar', description: getErrorMessage(err) }),
-    })
-  }
-
-  function handlePublishClick() {
-    if (hasWarnings || testCasesUnchecked) {
-      setPublishWarningSlug(resolvedSlug ?? null)
-    } else {
-      handlePublish()
-    }
-  }
-
-  function handlePublish() {
-    if (!problem) return
-    publishMutation.mutate(problem.slug, {
-      onSuccess: (data) => {
-        toast({ variant: 'success', title: 'Problema publicado' })
-        if (data.validationLogs?.length) {
-          setPublishResult({ kind: 'success', validationLogs: data.validationLogs, validationSummary: data.validationSummary })
-        }
-      },
-      onError: (err) => {
-        if (err instanceof ApiClientError && err.code === 'VALIDATION_FAILED' && err.raw) {
-          toast({ variant: 'error', title: 'No se pudo publicar', description: 'Revisa el detalle de la validación.' })
-          setPublishResult({ kind: 'failure', data: err.raw as PublishFailureResponse })
-        } else {
-          toast({ variant: 'error', title: 'Error al publicar', description: getErrorMessage(err) })
-        }
-      },
-    })
-  }
-
-  function changeAccessibility(accessibility: ProblemAccessibility) {
-    if (!problem) return
-    accessibilityMutation.mutate(
-      { slug: problem.slug, accessibility },
-      {
-        onSuccess: () =>
-          toast({ variant: 'success', title: accessibility === 'PUBLIC' ? 'El problema ahora es público' : 'El problema ahora es privado' }),
-        onError: (err) => toast({ variant: 'error', title: 'No se pudo cambiar la visibilidad', description: getErrorMessage(err) }),
-        onSettled: () => setMakePrivateSlug(null),
-      },
-    )
-  }
-
-  // Going private restricts who can see and add the problem, so it asks first; going public does not
-  function handleAccessibilityClick() {
-    if (!problem) return
-    if (problem.accessibility === 'PUBLIC') setMakePrivateSlug(problem.slug)
-    else changeAccessibility('PUBLIC')
-  }
-
-  function handleMakePrivateConfirm() {
-    // Only the problem that opened the confirmation may be changed by it
-    if (!problem || makePrivateSlug !== problem.slug) return
-    changeAccessibility('PRIVATE')
-  }
-
-  function handleUnpublish() {
-    if (!problem) return
-    unpublishMutation.mutate(problem.slug, {
-      onSuccess: () => {
-        toast({ variant: 'success', title: 'Problema despublicado' })
-        setUnpublishDialogOpen(false)
-      },
-      onError: (err) => {
-        if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
-          toast({ variant: 'error', title: 'No se puede despublicar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
-        } else {
-          toast({ variant: 'error', title: 'Error al despublicar', description: getErrorMessage(err) })
-        }
-        setUnpublishDialogOpen(false)
-      },
-    })
-  }
-
-  function handleDelete() {
-    if (!problem || confirmSlug !== problem.slug) return
-    deleteMutation.mutate(
-      { slug: problem.slug, data: { confirmSlug } },
-      {
-        onSuccess: () => {
-          toast({ variant: 'success', title: 'Problema eliminado' })
-          navigate('/problems')
-        },
-        onError: (err) => {
-          if (err instanceof ApiClientError && err.code === 'PROBLEM_IN_ACTIVE_CONTEST') {
-            toast({ variant: 'error', title: 'No se puede eliminar', description: 'Este problema está siendo usado en una competencia activa en este momento.' })
-          } else if (err instanceof ApiClientError && err.code === 'PROBLEM_HAS_CONTEST_HISTORY') {
-            toast({
-              variant: 'error',
-              title: 'No se puede eliminar',
-              description: 'Tiene envíos hechos en una competencia: borrarlo cambiaría sus resultados. Despublícalo en su lugar.',
-            })
-          } else {
-            toast({ variant: 'error', title: 'Error al eliminar' })
-          }
-        },
-      },
-    )
-  }
-
-  function handleExport() {
-    if (!problem) return
-    exportMutation.mutate(problem.slug, {
-      onError: (err) => toast({ variant: 'error', title: 'No se pudo exportar el problema', description: getErrorMessage(err) }),
-    })
-  }
-
-  function handleAdminRejudge() {
-    if (!problem) return
-    adminRejudgeMutation.mutate(
-      { slug: problem.slug },
-      {
-        onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento global iniciado', description: 'Se están rejuzgando todos los envíos de este problema.' }),
-        onError: (err) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
-      },
-    )
-    setAdminRejudgeDialogOpen(false)
-  }
-
-  function handleContestRejudge() {
-    if (!problem || !groupId || !contestId) return
-    const onSettled = {
-      onSuccess: () => toast({ variant: 'success', title: 'Rejuzgamiento iniciado', description: 'Se están rejuzgando los envíos de este problema en la competencia.' }),
-      onError: (err: unknown) => toast({ variant: 'error', title: 'Error al rejuzgar', description: getErrorMessage(err) }),
-    }
-    // An Admin who isn't the contest's owner/lead is rejected by the contest-scoped endpoint
-    // (RejudgeContestSubmissionsUseCase only accepts owner/lead) — the admin endpoint with
-    // ?contestId= is the one designed for that case (see PRB-09 in docs/seguimiento).
-    if (isContestOwnerOrLead) {
-      rejudgeContestMutation.mutate({ groupId, contestId, problemSlug: problem.slug }, onSettled)
-    } else {
-      adminRejudgeMutation.mutate({ slug: problem.slug, contestId }, onSettled)
-    }
-    setContestRejudgeDialogOpen(false)
-  }
-
-  const breadcrumbs = contestId
-    ? [
-        { label: 'Grupos', href: '/groups' },
-        { label: contestGroup?.name || '...', href: groupId ? PATHS.group(groupId) : undefined },
-        { label: activeContest?.name || 'Competencia', href: PATHS.contest(groupId || '', contestId || '') },
-        { label: `Problema ${letter?.toUpperCase() || ''}` },
-      ]
-    : [
-        { label: 'Problemas', href: '/problems' },
-        { label: problem.title },
-      ]
-
   return (
-    <TooltipProvider>
-    <AppLayout breadcrumbs={breadcrumbs}>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
-        {/* === Left Column: Content === */}
-        <div className="space-y-6 min-w-0">
-          {/* Tags above title — hidden during active contest to prevent spoilers */}
-          {!isContestActive && problem.tags.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {problem.tags.map((tag) => (
-                <Badge key={tag} variant="default" className="text-[10px]">{tag}</Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Title + badges, with the management actions on the right (up here so an author
-              doesn't have to scroll the sidebar to find them) */}
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <h1 className="text-2xl font-extrabold text-neutral-text-primary">
-                  {isContestContext && letter && `${letter.toUpperCase()}. `}{problem.title}
-                </h1>
-                {!isContestContext && canSeeManagement && (
-                  <>
-                    <Badge variant={problem.status === 'PUBLISHED' ? 'success' : 'default'}>
-                      {problem.status === 'PUBLISHED' ? 'Publicado' : 'Borrador'}
-                    </Badge>
-                    <Badge variant={problem.accessibility === 'PUBLIC' ? 'primary' : 'outline'}>
-                      {problem.accessibility === 'PUBLIC' ? 'Público' : 'Privado'}
-                    </Badge>
-                  </>
-                )}
-                {/* Letter badge removed — letter is now prefixed in the title */}
-              </div>
-              {!isContestContext && (
-                <p className="text-sm text-neutral-text-muted font-mono">{problem.slug}</p>
-              )}
-            </div>
-            {canEdit && !isContestContext && managementActions}
-          </div>
-
-          {/* On a phone the sidebar ends up at the bottom of the page, where nobody would see it */}
-          {showChecklist && publishChecklist('lg:hidden')}
-
-          {showManagementTabs ? (
-            // Whoever edits the problem gets the reader's view (statement and examples, as a
-            // contestant sees it) apart from the management cards, instead of one long page.
-            <Tabs
-              value={searchParams.get('tab') === 'files' ? 'files' : 'problem'}
-              onValueChange={(tab) => setSearchParams(tab === 'files' ? { tab: 'files' } : {}, { replace: true })}
-              className="space-y-4"
-            >
-              <TabsList>
-                <TabsTrigger value="problem">Problema</TabsTrigger>
-                <TabsTrigger value="files" className="gap-1.5">
-                  Archivos y colaboradores
-                  {missingFiles && (
-                    <span
-                      className="h-2 w-2 rounded-full bg-status-warning"
-                      role="img"
-                      aria-label="Faltan archivos por subir"
-                      title="Faltan archivos por subir"
-                    />
-                  )}
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="problem" className="mt-0 space-y-6">
-                {problemContent}
-              </TabsContent>
-              <TabsContent value="files" className="mt-0 space-y-6">
-                {managementContent}
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <>
-              {problemContent}
-              {/* Inside a contest only an Admin can reach this, and no tabs there */}
-              {canEdit && managementContent}
-            </>
-          )}
-        </div>
-
-        {/* === Right Column: Sidebar === */}
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:h-fit">
-          {/* Submit action */}
-          {problem.status === 'PUBLISHED' && (
-            <Card>
-              <CardContent className="pt-6">
-                <Button
-                  variant="primary"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    if (isContestContext && groupId && contestId && letter) {
-                      navigate(PATHS.contestSubmit(groupId, contestId, letter.toUpperCase()))
-                    } else {
-                      navigate(`/submit?problem=${problem.slug}`)
-                    }
-                  }}
-                >
-                  <Send className="h-4 w-4" />
-                  Enviar solución
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 mt-2"
-                  onClick={() => {
-                    if (isContestContext && groupId && contestId) {
-                      navigate(`${PATHS.contestSubmissions(groupId, contestId)}?problem=${encodeURIComponent(problem.slug)}`)
-                    } else {
-                      navigate(PATHS.problemSubmissions(problem.slug))
-                    }
-                  }}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  Ver envíos
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Technical metadata */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Metadata</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <MetadataRow icon={User} label="Autor" value={problem.author.name} />
-              <MetadataRow icon={Clock} label="Tiempo límite" value={problem.timeLimit ? `${problem.timeLimit} ms` : 'No definido'} />
-              <MetadataRow icon={HardDrive} label="Memoria" value={problem.memoryLimit ? `${problem.memoryLimit} MiB` : 'No definido'} />
-              {problem.languageOverrides.length > 0 && (
-                <div className="pt-2 mt-2 border-t border-neutral-border">
-                  <p className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Overrides por lenguaje</p>
-                  <div className="space-y-1.5">
-                    {problem.languageOverrides.map((lo) => (
-                      <div key={lo.language} className="flex items-center justify-between text-xs">
-                        <Badge variant="outline" className="text-[10px] py-0">{lo.language}</Badge>
-                        <span className="text-neutral-text-muted font-mono">
-                          {[lo.timeLimit && `${lo.timeLimit}ms`, lo.memoryLimit && `${lo.memoryLimit}MiB`].filter(Boolean).join(' / ')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <MetadataRow icon={Calendar} label="Creado" value={new Date(problem.createdAt).toLocaleDateString('es')} />
-            </CardContent>
-          </Card>
-
-          {showChecklist && publishChecklist('hidden lg:block')}
-
-          {/* Statistics — hidden during active contest */}
-          {!isContestActive && stats && stats.totalSubmissions > 0 && stats.uniqueUsers && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted flex items-center gap-2">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Estadísticas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-neutral-text-primary">{stats.totalSubmissions}</div>
-                    <div className="text-[10px] text-neutral-text-muted">Envíos</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-neutral-text-primary">{stats.uniqueUsers.attempted}</div>
-                    <div className="text-[10px] text-neutral-text-muted">Intentaron</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-status-success">{stats.uniqueUsers.solved}</div>
-                    <div className="text-[10px] text-neutral-text-muted">Resolvieron</div>
-                  </div>
-                </div>
-
-                {/* Success rate bar */}
-                {stats.uniqueUsers.attempted > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-neutral-text-muted">Tasa de éxito</span>
-                      <span className="font-mono font-bold">
-                        {Math.round((stats.uniqueUsers.solved / stats.uniqueUsers.attempted) * 100)}%
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-neutral-surface rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-status-success rounded-full"
-                        style={{ width: `${Math.round((stats.uniqueUsers.solved / stats.uniqueUsers.attempted) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Verdict distribution */}
-                {stats.verdictDistribution && (
-                  <div className="pt-3 border-t border-neutral-border">
-                    <h4 className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Veredictos</h4>
-                    <div className="space-y-1.5">
-                      {stats.verdictDistribution.map((v) => {
-                        const config = SUBMISSION_STATUS_CONFIG[v.verdict as keyof typeof SUBMISSION_STATUS_CONFIG]
-                        const pct = Math.round((v.count / stats.totalSubmissions) * 100)
-                        return (
-                          <div key={v.verdict} className="flex items-center gap-2 text-xs">
-                            <span className="w-20 truncate text-neutral-text-muted">{config?.label || v.verdict}</span>
-                            <div className="flex-1 h-1 bg-neutral-surface rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  v.verdict === 'ACCEPTED' ? 'bg-status-success' :
-                                  v.verdict === 'WRONG_ANSWER' || v.verdict === 'RUNTIME_ERROR' ? 'bg-status-error' :
-                                  'bg-status-warning'
-                                }`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className="w-8 text-right font-mono text-neutral-text-muted">{pct}%</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Acceptance by language */}
-                {stats.acceptanceRateByLanguage && (
-                  <div className="pt-3 border-t border-neutral-border">
-                    <h4 className="text-[10px] font-bold text-neutral-text-muted uppercase tracking-wider mb-2">Por lenguaje</h4>
-                    <div className="space-y-2">
-                      {stats.acceptanceRateByLanguage.map((lang) => {
-                        const rate = lang.usersAttempted > 0 ? Math.round((lang.usersAccepted / lang.usersAttempted) * 100) : 0
-                        return (
-                          <div key={lang.language} className="flex items-center justify-between text-xs">
-                            <span className="font-mono">{lang.language}</span>
-                            <span className="font-bold text-brand-primary">{rate}%</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Contest-scoped rejudge (only within a contest, for the group's real leads, the
-              contest's owner, or Admin — see handleContestRejudge for the endpoint routing) */}
-          {isContestContext && isContestLead && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xs uppercase tracking-widest text-neutral-text-muted">Gestión de la competencia</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() => setContestRejudgeDialogOpen(true)}
-                  isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Rejuzgar envíos
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </aside>
-      </div>
-
-      {/* Unpublish confirm. Caveat for maintainers: the backend only blocks unpublishing during an
-          ACTIVE contest (unpublish_problem.go), so a scheduled one could start with a draft problem
-          (PROBLEM_NOT_PUBLISHED). The real fix is listing the contests that use it (PRB-M04). */}
-      <ConfirmDialog
-        open={unpublishDialogOpen}
-        onOpenChange={setUnpublishDialogOpen}
-        title="Despublicar problema"
-        description="El problema volverá a borrador y nadie podrá enviarle soluciones hasta que lo publiques de nuevo."
-        variant="warning"
-        confirmLabel="Despublicar"
-        onConfirm={handleUnpublish}
-        isLoading={unpublishMutation.isPending}
-      />
-
-      {/* Admin rejudge (global) confirm dialog */}
-      <ConfirmDialog
-        open={adminRejudgeDialogOpen}
-        onOpenChange={setAdminRejudgeDialogOpen}
-        title="Rejuzgar en toda la plataforma"
-        description="Esta acción reevalúa todos los envíos de este problema en todas las competencias y en modo práctica. Puede tardar según la cantidad de envíos."
-        variant="warning"
-        confirmLabel="Rejuzgar"
-        onConfirm={handleAdminRejudge}
-        isLoading={adminRejudgeMutation.isPending}
-      />
-
-      {/* Contest rejudge confirm dialog */}
-      <ConfirmDialog
-        open={contestRejudgeDialogOpen}
-        onOpenChange={setContestRejudgeDialogOpen}
-        title="Rejuzgar envíos de este problema"
-        description="Esta acción reevalúa todos los envíos afectados de este problema dentro de esta competencia."
-        variant="warning"
-        confirmLabel="Rejuzgar"
-        onConfirm={handleContestRejudge}
-        isLoading={rejudgeContestMutation.isPending || adminRejudgeMutation.isPending}
-      />
-
-      <ConfirmDialog
-        open={makePrivateDialogOpen}
-        onOpenChange={(open) => setMakePrivateSlug(open ? (resolvedSlug ?? null) : null)}
-        title="Hacer privado el problema"
-        description="Solo los modificadores podrán añadirlo a nuevas competencias, y los demás usuarios dejarán de verlo en el listado público. Las competencias que ya lo incluyen y los envíos existentes no se ven afectados."
-        variant="warning"
-        confirmLabel="Hacer privado"
-        onConfirm={handleMakePrivateConfirm}
-        isLoading={accessibilityMutation.isPending}
-      />
-
-      {/* Publish confirm when the checklist still carries warnings (non-blocking: the author decides) */}
-      <ConfirmDialog
-        open={publishWarningOpen}
-        onOpenChange={(open) => setPublishWarningSlug(open ? (resolvedSlug ?? null) : null)}
-        title={publishDialogTitle}
-        description={publishDialogDescription}
-        variant="warning"
-        confirmLabel="Publicar de todas formas"
-        onConfirm={() => { setPublishWarningSlug(null); handlePublish() }}
-      />
-
-      {/* Publish validation result — success (validation logs) or failure (real detail from
-          the backend: missing fields, failed test cases, compilation errors, rejected inputs) */}
-      <Dialog open={!!publishResult} onOpenChange={(open) => !open && setPublishResult(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {publishResult?.kind === 'failure' ? (
-                <>
-                  <XCircle className="h-5 w-5 text-status-error" />
-                  No se pudo publicar
-                </>
-              ) : (
-                <>
-                  <ClipboardCheck className="h-5 w-5 text-status-success" />
-                  Detalle de la validación
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          {publishResult?.kind === 'success' && (
-            <ul className="space-y-2">
-              {publishResult.validationLogs.map((log, i) => (
-                <li key={i} className="text-sm text-neutral-text-primary">{log}</li>
-              ))}
-            </ul>
-          )}
-
-          {publishResult?.kind === 'failure' && (
-            <div className="space-y-4">
-              <p className="text-sm text-neutral-text-primary">{publishResult.data.message}</p>
-
-              {!!publishResult.data.missingFields?.length && (
-                <div>
-                  <p className="text-sm font-semibold text-neutral-text-primary">Faltan campos requeridos:</p>
-                  <ul className="mt-1 list-disc list-inside text-sm text-neutral-text-primary">
-                    {publishResult.data.missingFields.map((field) => (
-                      <li key={field}>{publishRequirementLabel(field)}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <ValidationReportView
-                compilationErrors={publishResult.data.compilationErrors}
-                failedTestCases={publishResult.data.failedTestCases}
-                failedInputs={publishResult.data.failedInputs}
-                validationLogs={publishResult.data.validationLogs}
-              />
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setPublishResult(null)}>Cerrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open)
-          if (!open) setConfirmSlug('')
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar problema</DialogTitle>
-            <DialogDescription>
-              Esta acción es irreversible. Escribe <span className="font-mono font-semibold">{problem.slug}</span> para confirmar.
-            </DialogDescription>
-          </DialogHeader>
-          {problem.status === 'PUBLISHED' && (
-            <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 text-sm space-y-1" role="status">
-              <p className="font-semibold text-neutral-text-primary">Este problema está publicado.</p>
-              <p className="text-neutral-text-muted">
-                Si eliminas, se borran sus archivos y se quita de las competencias donde esté. Si solo quieres que nadie más
-                lo use, despublícalo: vuelve a borrador y conserva todo, y lo puedes publicar de nuevo cuando quieras.
-                Si ya recibió envíos dentro de una competencia, no se puede eliminar: sus resultados dependen de él.
-              </p>
-              <Button
-                variant="primary"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  setDeleteDialogOpen(false)
-                  setConfirmSlug('')
-                  setUnpublishDialogOpen(true)
-                }}
-              >
-                Despublicar en vez de eliminar
-              </Button>
-            </div>
-          )}
-          <Input
-            label="Confirmar slug"
-            value={confirmSlug}
-            onChange={(e) => setConfirmSlug(e.target.value)}
-            placeholder={problem.slug}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteDialogOpen(false); setConfirmSlug('') }}>Cancelar</Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              isLoading={deleteMutation.isPending}
-              disabled={confirmSlug !== problem.slug}
-            >
-              {problem.status === 'PUBLISHED' ? 'Eliminar de todos modos' : 'Eliminar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </AppLayout>
-    </TooltipProvider>
+    <ProblemDetailView
+      problem={problem}
+      slug={resolvedSlug ?? ''}
+      route={{ groupId, contestId, letter }}
+      activeContest={activeContest}
+      contestGroup={contestGroup}
+    />
   )
 }
 
