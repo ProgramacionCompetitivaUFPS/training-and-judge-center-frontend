@@ -21,7 +21,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { usePaginationHandlers } from '@/hooks/usePaginationHandlers'
 import { cn } from '@/lib/utils'
 import { isGroupLeadOrAdmin } from '@/lib/permissions'
-import type { MaterialListParams, MaterialStatus } from '@/types/material'
+import type { Material, MaterialListParams, MaterialStatus } from '@/types/material'
 
 const PINNED_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Todos' },
@@ -39,6 +39,113 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'PUBLISHED', label: 'Publicados' },
   { value: 'DRAFT', label: 'Borrador' },
 ]
+
+interface MaterialQueryState {
+  page: number
+  limit: number
+  activeSearch: string
+  pinnedFilter: string
+  activeTag: string | null
+  statusFilter: string
+  confirmedAuthor: string
+  publishedFrom: string
+  publishedTo: string
+  sort: MaterialListParams['sort']
+}
+
+/** Only the filters that are set go to the backend; "relevance" is the default sort and is not sent. */
+function buildMaterialListParams(state: MaterialQueryState): MaterialListParams {
+  return {
+    page: state.page,
+    limit: state.limit,
+    ...(state.activeSearch && { q: state.activeSearch }),
+    ...(state.pinnedFilter !== 'all' && { pinned: state.pinnedFilter === 'pinned' }),
+    ...(state.activeTag && { tags: state.activeTag }),
+    ...(state.statusFilter !== 'all' && { status: state.statusFilter as MaterialStatus }),
+    ...(state.confirmedAuthor && { author: state.confirmedAuthor }),
+    ...(state.publishedFrom && { publishedFrom: state.publishedFrom }),
+    ...(state.publishedTo && { publishedTo: state.publishedTo }),
+    ...(state.sort && state.sort !== 'relevance' && { sort: state.sort }),
+  }
+}
+
+interface AuthorSuggestion {
+  nickname: string
+  name: string
+}
+
+const MAX_AUTHOR_SUGGESTIONS = 8
+
+/** Authors of recent materials that match the typed text, then users from /users/search not already listed. */
+function buildAuthorSuggestions<T extends AuthorSuggestion, U extends { nickname: string }>(
+  recentAuthors: T[],
+  typed: string,
+  searchedUsers: U[],
+): Array<T | U> {
+  const query = typed.trim().toLowerCase()
+  const localMatches = query
+    ? recentAuthors.filter((a) => a.nickname.toLowerCase().includes(query) || a.name.toLowerCase().includes(query))
+    : recentAuthors
+  const others = searchedUsers.filter((u) => !localMatches.some((a) => a.nickname === u.nickname))
+  return [...localMatches, ...others].slice(0, MAX_AUTHOR_SUGGESTIONS)
+}
+
+/** Pinned materials come first unless sorting by title or searching. */
+function sortHint(sort: MaterialListParams['sort'], activeSearch: string): string {
+  if (sort === 'title') return 'Los fijados no se priorizan ordenando por título'
+  if (activeSearch) return 'Buscando: los fijados no se priorizan'
+  return 'Los fijados aparecen primero'
+}
+
+interface MaterialsContentProps {
+  isLoading: boolean
+  materials: Material[]
+  isLead: boolean
+  groupId: string
+  onCreate: () => void
+}
+
+function MaterialsContent({ isLoading, materials, isLead, groupId, onCreate }: Readonly<MaterialsContentProps>) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 w-full rounded-lg" />
+        ))}
+      </div>
+    )
+  }
+  if (materials.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-neutral-text-muted">No se encontraron materiales</p>
+          {isLead && (
+            <Button size="sm" className="mt-3" onClick={onCreate}>
+              Crear primer material
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="divide-y divide-neutral-border">
+          {materials.map((material) => (
+            <MaterialListItem
+              key={material.id}
+              material={material}
+              href={`/groups/${groupId}/materials/${material.id}`}
+              showPreview
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export function MaterialsPage() {
   const { groupId } = useParams<{ groupId: string }>()
@@ -75,18 +182,18 @@ export function MaterialsPage() {
 
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPageQuery)
 
-  const params: MaterialListParams = {
+  const params = buildMaterialListParams({
     page: pageQuery.page,
     limit: pageQuery.limit,
-    ...(activeSearch && { q: activeSearch }),
-    ...(pinnedFilter !== 'all' && { pinned: pinnedFilter === 'pinned' }),
-    ...(activeTag && { tags: activeTag }),
-    ...(statusFilter !== 'all' && { status: statusFilter as MaterialStatus }),
-    ...(confirmedAuthor && { author: confirmedAuthor }),
-    ...(publishedFrom && { publishedFrom }),
-    ...(publishedTo && { publishedTo }),
-    ...(sort && sort !== 'relevance' && { sort }),
-  }
+    activeSearch,
+    pinnedFilter,
+    activeTag,
+    statusFilter,
+    confirmedAuthor,
+    publishedFrom,
+    publishedTo,
+    sort,
+  })
 
   const { data, isLoading } = useMaterials(groupId!, params)
   const materials = data?.materials ?? []
@@ -95,19 +202,12 @@ export function MaterialsPage() {
   const availableTags = tagsData?.tags ?? []
   const { data: authorsData } = useMaterialAuthors(groupId!)
   const availableAuthors = authorsData?.authors ?? []
-  const authorQuery = authorInput.trim().toLowerCase()
-  const localAuthorMatches = authorQuery
-    ? availableAuthors.filter((a) => a.nickname.toLowerCase().includes(authorQuery) || a.name.toLowerCase().includes(authorQuery))
-    : availableAuthors
   // Los autores recientes del grupo (arriba) son más relevantes para este filtro, pero no
   // cubren a alguien que escribió hace tiempo y ya no sale en la muestra — /users/search cubre
   // ese caso como respaldo (mismo endpoint ya usado en Grupos/Equipos para invitar).
   const debouncedAuthorQuery = useDebounce(authorInput, 300)
   const { data: userSearchData, isFetching: isSearchingAuthors } = useSearchUsers(debouncedAuthorQuery)
-  const authorSuggestions = [
-    ...localAuthorMatches,
-    ...(userSearchData?.users ?? []).filter((u) => !localAuthorMatches.some((a) => a.nickname === u.nickname)),
-  ].slice(0, 8)
+  const authorSuggestions = buildAuthorSuggestions(availableAuthors, authorInput, userSearchData?.users ?? [])
 
   function handleTagClick(tag: string) {
     setManualTag('')
@@ -335,49 +435,19 @@ export function MaterialsPage() {
             </div>
             {/* Los fijados van primero con "Relevancia" o "Fecha de publicación", salvo que haya una búsqueda activa. */}
             <span className="text-xs text-neutral-text-muted">
-              {sort === 'title'
-                ? 'Los fijados no se priorizan ordenando por título'
-                : activeSearch
-                  ? 'Buscando: los fijados no se priorizan'
-                  : 'Los fijados aparecen primero'}
+              {sortHint(sort, activeSearch)}
             </span>
           </div>
         </div>
 
         {/* Content */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : materials.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-neutral-text-muted">No se encontraron materiales</p>
-              {isLead && (
-                <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${groupId}/materials/new`)}>
-                  Crear primer material
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="divide-y divide-neutral-border">
-                {materials.map((material) => (
-                  <MaterialListItem
-                    key={material.id}
-                    material={material}
-                    href={`/groups/${groupId}/materials/${material.id}`}
-                    showPreview
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <MaterialsContent
+          isLoading={isLoading}
+          materials={materials}
+          isLead={isLead}
+          groupId={groupId!}
+          onCreate={() => navigate(`/groups/${groupId}/materials/new`)}
+        />
 
         {/* Pagination */}
         {pagination && (
