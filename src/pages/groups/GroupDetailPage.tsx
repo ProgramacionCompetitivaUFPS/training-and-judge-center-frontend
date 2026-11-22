@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { EntityDetailPage } from '@/components/patterns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -85,6 +85,15 @@ import {
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
 import { getErrorMessage } from '@/lib/errorMessages'
 
+type GroupData = NonNullable<ReturnType<typeof useGroupDetail>['data']>
+type MembersData = NonNullable<ReturnType<typeof useGroupMembers>['data']>
+type RequestsData = NonNullable<ReturnType<typeof useJoinRequests>['data']>
+type InvitationsData = NonNullable<ReturnType<typeof useInvitations>['data']>
+type MaterialsData = NonNullable<ReturnType<typeof useMaterials>['data']>
+type ContestsData = NonNullable<ReturnType<typeof useContests>['data']>
+type MyJoinRequest = ReturnType<typeof useMyJoinRequest>['data']
+type PageQuery = { page: number; limit: number }
+
 // Deterministic color from name initial
 const INITIAL_COLORS = [
   'bg-rose-50 text-rose-700',
@@ -101,98 +110,100 @@ function getInitialColor(name: string) {
   return INITIAL_COLORS[code % INITIAL_COLORS.length]
 }
 
-export function GroupDetailPage() {
-  const { id } = useParams<{ id: string }>()
+const POLICY_LABELS: Record<string, string> = { OPEN: 'Abierto', REQUEST: 'Solicitud', INVITE: 'Invitación' }
+
+const REQUEST_STATUS_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'PENDING', label: 'Pendientes' },
+  { value: 'APPROVED', label: 'Aprobadas' },
+  { value: 'REJECTED', label: 'Rechazadas' },
+]
+
+const CONTEST_STATUS_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'SCHEDULED', label: 'Programadas' },
+  { value: 'ACTIVE', label: 'En curso' },
+  { value: 'FINISHED', label: 'Finalizadas' },
+]
+
+const REQUEST_BADGE: Record<JoinRequestStatus, { variant: 'warning' | 'success' | 'error'; label: string }> = {
+  PENDING: { variant: 'warning', label: 'Pendiente' },
+  APPROVED: { variant: 'success', label: 'Aprobada' },
+  REJECTED: { variant: 'error', label: 'Rechazada' },
+}
+
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString('es')
+
+// ───────────────────────────── header: badges and actions ─────────────────────────────
+
+function buildBadges(group: GroupData | undefined) {
+  if (!group) return []
+  return [
+    { label: group.visibility === 'VISIBLE' ? 'Visible' : 'No visible', variant: group.visibility === 'VISIBLE' ? 'primary' as const : 'default' as const },
+    { label: POLICY_LABELS[group.joinPolicy], variant: 'default' as const },
+    ...(group.isGlobal ? [{ label: 'Global', variant: 'warning' as const }] : []),
+  ]
+}
+
+interface PrimaryActionDeps {
+  group: GroupData | undefined
+  isMember: boolean
+  myJoinRequest: MyJoinRequest
+  onCancelRequest: () => void
+  onJoin: () => void
+  onRequest: () => void
+}
+
+/** The main button of the header, by membership state. */
+function buildPrimaryAction({ group, isMember, myJoinRequest, onCancelRequest, onJoin, onRequest }: PrimaryActionDeps) {
+  if (!group || isMember) return undefined
+  if (myJoinRequest?.request?.status === 'PENDING') {
+    return { label: 'Cancelar Solicitud', onClick: onCancelRequest, variant: 'outline' as const }
+  }
+  if (group.joinPolicy === 'OPEN') {
+    return { label: 'Unirse', onClick: onJoin, icon: UserPlus, variant: 'primary' as const }
+  }
+  if (group.joinPolicy === 'REQUEST') {
+    return { label: 'Solicitar Ingreso', onClick: onRequest, icon: UserPlus, variant: 'primary' as const }
+  }
+  return undefined
+}
+
+interface AdditionalActionsDeps {
+  group: GroupData | undefined
+  isMember: boolean
+  canManage: boolean
+  onLeave: () => void
+  onAddMember: () => void
+  onInvite: () => void
+}
+
+function buildAdditionalActions({ group, isMember, canManage, onLeave, onAddMember, onInvite }: AdditionalActionsDeps) {
+  const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
+  if (isMember && !group?.isGlobal) {
+    actions.push({ label: 'Salir del grupo', onClick: onLeave, icon: LogOut, variant: 'danger' })
+  }
+  if (canManage) {
+    actions.push({ label: 'Agregar miembro', onClick: onAddMember, icon: UserPlus })
+    if (group?.joinPolicy === 'INVITE') {
+      actions.push({ label: 'Invitar usuario', onClick: onInvite, icon: UserPlus })
+    }
+  }
+  return actions.length > 0 ? actions : undefined
+}
+
+// ───────────────────────────── actions (one hook per concern) ─────────────────────────────
+
+/** What the user does with their own membership: join, cancel a request, leave, and (lead/admin) delete the group. */
+function useMembershipActions(id: string, groupName: string | undefined) {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToastContext()
-  const { user } = useAuth()
-
-  const { data: group, isLoading, error } = useGroupDetail(id!)
-  const isLead = group?.userMembership.role === 'LEAD'
-  const canManage = isLead || user?.role === 'ADMIN'
-  const isMember = group?.userMembership.isMember ?? false
-  // Only group members (and admins) can list members — backend answers 403 to non-members.
-  const { data: membersData } = useGroupMembers(id!, undefined, { enabled: isMember || canManage })
-  const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
-  const [requestsPageQuery, setRequestsPageQuery] = useState({ page: 1, limit: 10 })
-  // Only leads/admins can list requests (the backend answers 403 to anyone else).
-  const { data: requestsData } = useJoinRequests(id!, {
-    status: requestsStatus === 'all' ? undefined : requestsStatus,
-    page: requestsPageQuery.page,
-    limit: requestsPageQuery.limit,
-  }, { enabled: canManage })
-  // Unfiltered count, so whether the tab exists doesn't depend on the status filter picked in it.
-  const { data: allRequestsData } = useJoinRequests(id!, { limit: 1 }, { enabled: canManage })
-  const { data: myJoinRequest } = useMyJoinRequest(id!, {
-    enabled: !isMember && group?.joinPolicy === 'REQUEST',
-  })
-  const [invitationsPageQuery, setInvitationsPageQuery] = useState({ page: 1, limit: 10 })
-  const { data: invitationsData } = useInvitations(id!, invitationsPageQuery, { enabled: canManage })
-  const { data: materialsData } = useMaterials(id!, { limit: 5 })
-  const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
-  const [contestsPageQuery, setContestsPageQuery] = useState({ page: 1, limit: 10 })
-  // Consultas independientes del filtro interactivo de la pestaña, solo para las
-  // tarjetas de resumen — el backend no calcula contestCount/activeContestCount en
-  // el detalle del grupo (a diferencia de memberCount), así que se derivan aquí.
-  const { data: contestsOverviewData } = useContests(id!, { limit: 1 })
-  const { data: activeContestsOverviewData } = useContests(id!, { limit: 1, status: 'ACTIVE' })
-  const { data: contestsData } = useContests(id!, {
-    status: contestsStatus === 'all' ? undefined : contestsStatus,
-    page: contestsPageQuery.page,
-    limit: contestsPageQuery.limit,
-    sortBy: 'startTime',
-    sortOrder: 'desc',
-  })
-
   const joinMutation = useJoinGroup()
-  const requestMutation = useCreateJoinRequest()
   const cancelRequestMutation = useCancelJoinRequest()
   const leaveMutation = useLeaveGroup()
   const deleteMutation = useDeleteGroup()
-  const processRequestMutation = useProcessJoinRequest()
-  const removeMemberMutation = useRemoveMember()
-  const changeRoleMutation = useChangeMemberRole()
-  const addMemberMutation = useAddMember()
-  const inviteMutation = useCreateInvitation()
-
-  const [deleteOpen, setDeleteOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
-  const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
-  const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [addNickname, setAddNickname] = useState('')
-  const [addRole, setAddRole] = useState<GroupRole>('MEMBER')
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviteMethod, setInviteMethod] = useState<'nickname' | 'email'>('nickname')
-  const [inviteNickname, setInviteNickname] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null)
-  const [requestOpen, setRequestOpen] = useState(false)
-  const [requestMessage, setRequestMessage] = useState('')
-
-  // GET /users/search allows any authenticated role — these dialogs are already only reachable
-  // when canManage is true (group lead or platform Admin), so no extra gate is needed here.
-  const debouncedAddNickname = useDebounce(addNickname)
-  const { data: addMemberSearchData, isFetching: isSearchingAddMember } = useSearchUsers(debouncedAddNickname)
-  const debouncedInviteNickname = useDebounce(inviteNickname)
-  const { data: inviteSearchData, isFetching: isSearchingInvite } = useSearchUsers(debouncedInviteNickname)
-
-  const { handlePageChange: handleRequestsPageChange, handleLimitChange: handleRequestsLimitChange } = usePaginationHandlers(setRequestsPageQuery)
-  const handleRequestsStatusChange = (value: string) => {
-    setRequestsStatus(value as JoinRequestStatus | 'all')
-    setRequestsPageQuery((p) => ({ ...p, page: 1 }))
-  }
-  const handleInvitationsPageChange = (page: number) => setInvitationsPageQuery((p) => ({ ...p, page }))
-  const handleInvitationsSizeChange = (limit: number) => setInvitationsPageQuery({ page: 1, limit })
-  const { handlePageChange: handleContestsPageChange, handleLimitChange: handleContestsLimitChange } = usePaginationHandlers(setContestsPageQuery)
-  const handleContestsStatusChange = (value: string) => {
-    setContestsStatus(value as ContestStatus | 'all')
-    setContestsPageQuery((p) => ({ ...p, page: 1 }))
-  }
-
-  if (!id) return null
-  if (isNotFoundError(error)) return <NotFoundPage />
-  if (error) return <ErrorPage />
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const handleJoinOpen = async () => {
     try {
@@ -200,17 +211,6 @@ export function GroupDetailPage() {
       toast({ variant: 'success', title: 'Te has unido al grupo' })
     } catch (err) {
       toast({ variant: 'error', title: 'Error al unirse al grupo', description: getErrorMessage(err) })
-    }
-  }
-
-  const handleSubmitRequest = async () => {
-    try {
-      await requestMutation.mutateAsync({ groupId: id, data: requestMessage.trim() ? { message: requestMessage.trim() } : undefined })
-      toast({ variant: 'success', title: 'Solicitud enviada' })
-      setRequestOpen(false)
-      setRequestMessage('')
-    } catch (err) {
-      toast({ variant: 'error', title: 'Error al enviar la solicitud', description: getErrorMessage(err) })
     }
   }
 
@@ -240,7 +240,7 @@ export function GroupDetailPage() {
   }
 
   const handleDelete = async (confirmationName: string) => {
-    if (!group || confirmationName !== group.name) return
+    if (confirmationName !== groupName) return
     try {
       await deleteMutation.mutateAsync({ id, data: { confirmationName } })
       toast({ variant: 'success', title: 'Grupo eliminado' })
@@ -251,14 +251,26 @@ export function GroupDetailPage() {
     setDeleteOpen(false)
   }
 
-  const handleProcessRequest = async (requestId: string, status: 'APPROVED' | 'REJECTED') => {
-    try {
-      await processRequestMutation.mutateAsync({ groupId: id, requestId, data: { status } })
-      toast({ variant: 'success', title: status === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada' })
-    } catch (err) {
-      toast({ variant: 'error', title: 'Error al procesar solicitud', description: getErrorMessage(err) })
-    }
+  return {
+    leaveOpen,
+    setLeaveOpen,
+    deleteOpen,
+    setDeleteOpen,
+    isLeaving: leaveMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    handleJoinOpen,
+    handleCancelRequest,
+    handleLeave,
+    handleDelete,
   }
+}
+
+/** Lead/admin actions over existing members: change their role and remove them (after confirming). */
+function useMemberManagement(id: string) {
+  const { toast } = useToastContext()
+  const removeMemberMutation = useRemoveMember()
+  const changeRoleMutation = useChangeMemberRole()
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<string | null>(null)
 
   const handleRemoveMember = async () => {
     if (!removeMemberTarget) return
@@ -281,95 +293,101 @@ export function GroupDetailPage() {
     }
   }
 
-  const handleAddMember = async () => {
-    if (!addNickname.trim()) return
-    try {
-      await addMemberMutation.mutateAsync({ groupId: id, data: { nickname: addNickname.trim(), role: addRole } })
-      toast({ variant: 'success', title: 'Miembro agregado' })
-      setAddMemberOpen(false)
-      setAddNickname('')
-    } catch (err) {
-      toast({ variant: 'error', title: 'Error al agregar miembro', description: getErrorMessage(err) })
-    }
+  return {
+    removeMemberTarget,
+    setRemoveMemberTarget,
+    isRemoving: removeMemberMutation.isPending,
+    handleRemoveMember,
+    handleChangeRole,
   }
+}
 
-  const handleInvite = async () => {
-    const data = inviteMethod === 'nickname'
-      ? { userNickname: inviteNickname.trim() }
-      : { userEmail: inviteEmail.trim() }
-    if (inviteMethod === 'nickname' ? !inviteNickname.trim() : !inviteEmail.trim()) return
-    try {
-      const response = await inviteMutation.mutateAsync({ groupId: id, data })
-      toast({ variant: 'success', title: 'Invitación enviada' })
-      // The backend never returns a ready-made link — only `id` — so the frontend builds it,
-      // matching the same route the invitation email itself points to.
-      setGeneratedInviteUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(id, response.id)}`)
-      setInviteNickname('')
-      setInviteEmail('')
-    } catch (err) {
-      // ALREADY_MEMBER's generic text ("Ya eres miembro…") is written for the person joining;
-      // here the lead is inviting someone else.
-      const description = err instanceof ApiClientError && err.code === 'ALREADY_MEMBER'
-        ? 'Ese usuario ya es miembro del grupo.'
-        : getErrorMessage(err)
-      toast({ variant: 'error', title: 'Error al enviar invitación', description })
-    }
-  }
+// ───────────────────────────── shared pieces ─────────────────────────────
 
-  const handleCopyInviteUrl = async () => {
-    if (!generatedInviteUrl) return
-    await navigator.clipboard.writeText(generatedInviteUrl)
-    toast({ variant: 'success', title: 'Enlace copiado' })
-  }
+/** "Estado" filter: one pill per option. */
+function StatusPills({ options, selected, onSelect }: Readonly<{
+  options: { value: string; label: string }[]
+  selected: string
+  onSelect: (value: string) => void
+}>) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onSelect(opt.value)}
+          className={cn(
+            'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
+            selected === opt.value
+              ? 'bg-brand-primary text-neutral-surface'
+              : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
-  const closeInviteDialog = () => {
-    setInviteOpen(false)
-    setGeneratedInviteUrl(null)
-    setInviteMethod('nickname')
-  }
+function EmptyRow({ colSpan, children }: Readonly<{ colSpan: number; children: ReactNode }>) {
+  return (
+    <TableRow>
+      <TableCell colSpan={colSpan} className="text-center text-neutral-text-muted py-8">{children}</TableCell>
+    </TableRow>
+  )
+}
 
-  // Build primary action based on membership state
-  const buildPrimaryAction = () => {
-    if (!group) return undefined
-    if (isMember) return undefined
-    if (myJoinRequest?.request?.status === 'PENDING') {
-      return { label: 'Cancelar Solicitud', onClick: handleCancelRequest, variant: 'outline' as const }
-    }
-    if (group.joinPolicy === 'OPEN') {
-      return { label: 'Unirse', onClick: handleJoinOpen, icon: UserPlus, variant: 'primary' as const }
-    }
-    if (group.joinPolicy === 'REQUEST') {
-      return { label: 'Solicitar Ingreso', onClick: () => setRequestOpen(true), icon: UserPlus, variant: 'primary' as const }
-    }
-    return undefined
-  }
+function PersonCell({ name, nickname }: Readonly<{ name: string; nickname: string }>) {
+  return (
+    <div>
+      <p className="font-medium">{name}</p>
+      <p className="text-xs text-neutral-text-muted">@{nickname}</p>
+    </div>
+  )
+}
 
-  const buildAdditionalActions = () => {
-    const actions: Array<{ label: string; onClick: () => void; icon?: React.ElementType; variant?: 'default' | 'danger' }> = []
-    if (isMember && !group?.isGlobal) {
-      actions.push({ label: 'Salir del grupo', onClick: () => setLeaveOpen(true), icon: LogOut, variant: 'danger' })
-    }
-    if (canManage) {
-      actions.push({ label: 'Agregar miembro', onClick: () => setAddMemberOpen(true), icon: UserPlus })
-      if (group?.joinPolicy === 'INVITE') {
-        actions.push({ label: 'Invitar usuario', onClick: () => setInviteOpen(true), icon: UserPlus })
-      }
-    }
-    return actions.length > 0 ? actions : undefined
-  }
+// ───────────────────────────── tabs ─────────────────────────────
 
-  const policyLabels: Record<string, string> = { OPEN: 'Abierto', REQUEST: 'Solicitud', INVITE: 'Invitación' }
+interface MembersTabProps {
+  members: MembersData['members'] | undefined
+  canManage: boolean
+  isMember: boolean
+  onChangeRole: (nickname: string, role: GroupRole) => void
+  onRemove: (nickname: string) => void
+}
 
-  const metadata: never[] = []
+function MemberActions({ member, onChangeRole, onRemove }: Readonly<{
+  member: MembersData['members'][number]
+  onChangeRole: MembersTabProps['onChangeRole']
+  onRemove: MembersTabProps['onRemove']
+}>) {
+  const canBecomeLead = member.role === 'LEAD' || member.systemRole === 'COACH' || member.systemRole === 'ADMIN'
+  let roleTitle = 'Solo Coaches y Administradores pueden ser líderes'
+  if (member.role === 'LEAD') roleTitle = 'Hacer miembro'
+  else if (canBecomeLead) roleTitle = 'Hacer líder'
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onChangeRole(member.nickname, member.role === 'LEAD' ? 'MEMBER' : 'LEAD')}
+        title={roleTitle}
+        disabled={!canBecomeLead}
+      >
+        <Shield className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => onRemove(member.nickname)} title="Eliminar">
+        <UserMinus className="h-4 w-4 text-status-error" />
+      </Button>
+    </div>
+  )
+}
 
-  const badges = group ? [
-    { label: group.visibility === 'VISIBLE' ? 'Visible' : 'No visible', variant: group.visibility === 'VISIBLE' ? 'primary' as const : 'default' as const },
-    { label: policyLabels[group.joinPolicy], variant: 'default' as const },
-    ...(group.isGlobal ? [{ label: 'Global', variant: 'warning' as const }] : []),
-  ] : []
-
-  // Tabs content
-  const membersTab = (
+function MembersTab({ members, canManage, isMember, onChangeRole, onRemove }: Readonly<MembersTabProps>) {
+  return (
     <Card>
       <CardContent className="pt-4">
         <Table>
@@ -382,91 +400,68 @@ export function GroupDetailPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {membersData?.members.map((m) => (
+            {members?.map((m) => (
               <TableRow key={m.userId}>
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{m.name}</p>
-                    <p className="text-xs text-neutral-text-muted">@{m.nickname}</p>
-                  </div>
-                </TableCell>
+                <TableCell><PersonCell name={m.name} nickname={m.nickname} /></TableCell>
                 <TableCell>
                   <Badge variant={m.role === 'LEAD' ? 'warning' : 'outline'}>{m.role === 'LEAD' ? 'Líder' : 'Miembro'}</Badge>
                 </TableCell>
-                <TableCell className="text-sm text-neutral-text-muted">{new Date(m.joinedAt).toLocaleDateString('es')}</TableCell>
+                <TableCell className="text-sm text-neutral-text-muted">{formatDate(m.joinedAt)}</TableCell>
                 {canManage && (
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {(() => {
-                        const canBecomeLead = m.role === 'LEAD' || m.systemRole === 'COACH' || m.systemRole === 'ADMIN'
-                        return (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleChangeRole(m.nickname, m.role === 'LEAD' ? 'MEMBER' : 'LEAD')}
-                            title={m.role === 'LEAD' ? 'Hacer miembro' : canBecomeLead ? 'Hacer líder' : 'Solo Coaches y Administradores pueden ser líderes'}
-                            disabled={!canBecomeLead}
-                          >
-                            <Shield className="h-4 w-4" />
-                          </Button>
-                        )
-                      })()}
-                      <Button variant="ghost" size="sm" onClick={() => setRemoveMemberTarget(m.nickname)} title="Eliminar">
-                        <UserMinus className="h-4 w-4 text-status-error" />
-                      </Button>
-                    </div>
+                    <MemberActions member={m} onChangeRole={onChangeRole} onRemove={onRemove} />
                   </TableCell>
                 )}
               </TableRow>
             ))}
-            {(!membersData || membersData.members.length === 0) && (
-              <TableRow>
-                <TableCell colSpan={canManage ? 4 : 3} className="text-center text-neutral-text-muted py-8">
-                  {!isMember && !canManage
-                    ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
-                    : 'No hay miembros'}
-                </TableCell>
-              </TableRow>
+            {(!members || members.length === 0) && (
+              <EmptyRow colSpan={canManage ? 4 : 3}>
+                {!isMember && !canManage
+                  ? 'Debes ser miembro de este grupo para ver la lista de miembros.'
+                  : 'No hay miembros'}
+              </EmptyRow>
             )}
           </TableBody>
         </Table>
       </CardContent>
     </Card>
   )
+}
 
-  const requestsTab = canManage ? (
+interface RequestsTabProps {
+  groupId: string
+  data: RequestsData | undefined
+  status: JoinRequestStatus | 'all'
+  limit: number
+  onStatusChange: (value: string) => void
+  onLimitChange: (limit: number) => void
+  onPageChange: (page: number) => void
+}
+
+function RequestsTab({ groupId, data, status, limit, onStatusChange, onLimitChange, onPageChange }: Readonly<RequestsTabProps>) {
+  const { toast } = useToastContext()
+  const processRequestMutation = useProcessJoinRequest()
+
+  const handleProcessRequest = async (requestId: string, newStatus: 'APPROVED' | 'REJECTED') => {
+    try {
+      await processRequestMutation.mutateAsync({ groupId, requestId, data: { status: newStatus } })
+      toast({ variant: 'success', title: newStatus === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada' })
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al procesar solicitud', description: getErrorMessage(err) })
+    }
+  }
+
+  return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
-        {[
-          { value: 'all', label: 'Todas' },
-          { value: 'PENDING', label: 'Pendientes' },
-          { value: 'APPROVED', label: 'Aprobadas' },
-          { value: 'REJECTED', label: 'Rechazadas' },
-        ].map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => handleRequestsStatusChange(opt.value)}
-            className={cn(
-              'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
-              requestsStatus === opt.value
-                ? 'bg-brand-primary text-neutral-surface'
-                : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      {requestsData && (
+      <StatusPills options={REQUEST_STATUS_OPTIONS} selected={status} onSelect={onStatusChange} />
+      {data && (
         <PaginationSummary
-          total={requestsData.pagination.total}
+          total={data.pagination.total}
           totalLabel="solicitudes"
-          currentPage={requestsData.pagination.page}
-          totalPages={requestsData.pagination.totalPages}
-          limit={requestsPageQuery.limit}
-          onLimitChange={handleRequestsLimitChange}
+          currentPage={data.pagination.page}
+          totalPages={data.pagination.totalPages}
+          limit={limit}
+          onLimitChange={onLimitChange}
         />
       )}
       <Card>
@@ -482,21 +477,14 @@ export function GroupDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requestsData?.requests.map((r) => (
+              {data?.requests.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{r.requester.name}</p>
-                      <p className="text-xs text-neutral-text-muted">@{r.requester.nickname}</p>
-                    </div>
-                  </TableCell>
+                  <TableCell><PersonCell name={r.requester.name} nickname={r.requester.nickname} /></TableCell>
                   <TableCell className="text-sm text-neutral-text-muted">{r.message || '—'}</TableCell>
                   <TableCell>
-                    <Badge variant={r.status === 'PENDING' ? 'warning' : r.status === 'APPROVED' ? 'success' : 'error'}>
-                      {r.status === 'PENDING' ? 'Pendiente' : r.status === 'APPROVED' ? 'Aprobada' : 'Rechazada'}
-                    </Badge>
+                    <Badge variant={REQUEST_BADGE[r.status].variant}>{REQUEST_BADGE[r.status].label}</Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(r.createdAt).toLocaleDateString('es')}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{formatDate(r.createdAt)}</TableCell>
                   <TableCell className="text-right">
                     {r.status === 'PENDING' && (
                       <div className="flex items-center justify-end gap-1">
@@ -511,33 +499,38 @@ export function GroupDetailPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!requestsData || requestsData.requests.length === 0) && (
-                <TableRow><TableCell colSpan={5} className="text-center text-neutral-text-muted py-8">No hay solicitudes{requestsStatus !== 'all' ? ' con este estado' : ''}</TableCell></TableRow>
+              {(!data || data.requests.length === 0) && (
+                <EmptyRow colSpan={5}>No hay solicitudes{status === 'all' ? '' : ' con este estado'}</EmptyRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-      {requestsData && (
-        <PaginationControls
-          currentPage={requestsData.pagination.page}
-          totalPages={requestsData.pagination.totalPages}
-          onPageChange={handleRequestsPageChange}
-        />
+      {data && (
+        <PaginationControls currentPage={data.pagination.page} totalPages={data.pagination.totalPages} onPageChange={onPageChange} />
       )}
     </div>
-  ) : null
+  )
+}
 
-  const invitationsTab = canManage ? (
+interface InvitationsTabProps {
+  data: InvitationsData | undefined
+  limit: number
+  onSizeChange: (limit: number) => void
+  onPageChange: (page: number) => void
+}
+
+function InvitationsTab({ data, limit, onSizeChange, onPageChange }: Readonly<InvitationsTabProps>) {
+  return (
     <div className="space-y-4">
-      {invitationsData && (
+      {data && (
         <PaginationSummary
-          total={invitationsData.pagination.total}
+          total={data.pagination.total}
           totalLabel="invitaciones"
-          currentPage={invitationsData.pagination.page}
-          totalPages={invitationsData.pagination.totalPages}
-          limit={invitationsPageQuery.limit}
-          onLimitChange={handleInvitationsSizeChange}
+          currentPage={data.pagination.page}
+          totalPages={data.pagination.totalPages}
+          limit={limit}
+          onLimitChange={onSizeChange}
         />
       )}
       <Card>
@@ -551,7 +544,7 @@ export function GroupDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invitationsData?.invitations.map((inv) => (
+              {data?.invitations.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell>
                     <div>
@@ -562,27 +555,62 @@ export function GroupDetailPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-neutral-text-muted">{inv.invitee?.email ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-neutral-text-muted">{new Date(inv.expiresAt).toLocaleDateString('es')}</TableCell>
+                  <TableCell className="text-sm text-neutral-text-muted">{formatDate(inv.expiresAt)}</TableCell>
                 </TableRow>
               ))}
-              {(!invitationsData || invitationsData.invitations.length === 0) && (
-                <TableRow><TableCell colSpan={3} className="text-center text-neutral-text-muted py-8">No hay invitaciones pendientes</TableCell></TableRow>
+              {(!data || data.invitations.length === 0) && (
+                <EmptyRow colSpan={3}>No hay invitaciones pendientes</EmptyRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-      {invitationsData && (
-        <PaginationControls
-          currentPage={invitationsData.pagination.page}
-          totalPages={invitationsData.pagination.totalPages}
-          onPageChange={handleInvitationsPageChange}
-        />
+      {data && (
+        <PaginationControls currentPage={data.pagination.page} totalPages={data.pagination.totalPages} onPageChange={onPageChange} />
       )}
     </div>
-  ) : null
+  )
+}
 
-  const infoTab = group ? (
+function LeadsCard({ leads }: Readonly<{ leads: GroupData['leads'] }>) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>Líderes</CardTitle></CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {leads.map((l) => (
+            <div
+              key={l.userId}
+              className="relative flex items-center gap-3 cursor-pointer hover:bg-neutral-background/50 rounded-lg p-2 -mx-2 transition-colors"
+            >
+              <div className={cn(
+                'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
+                getInitialColor(l.name)
+              )}>
+                {l.name.charAt(0).toUpperCase()}
+              </div>
+              <RowLink to={`/users/${l.nickname}`}>
+                <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
+                <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
+              </RowLink>
+              <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface InfoTabProps {
+  group: GroupData
+  activeContestsTotal: number
+  contestsTotal: number
+  materialsTotal: number
+}
+
+function InfoTab({ group, activeContestsTotal, contestsTotal, materialsTotal }: Readonly<InfoTabProps>) {
+  return (
     <div className="space-y-4">
       {/* Description */}
       <Card>
@@ -595,14 +623,9 @@ export function GroupDetailPage() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard align="center" value={group.statistics.memberCount} label="Miembros" />
-        <StatCard
-          align="center"
-          value={activeContestsOverviewData?.pagination.total ?? 0}
-          label="Competencias activas"
-          valueColor="text-status-success"
-        />
-        <StatCard align="center" value={contestsOverviewData?.pagination.total ?? 0} label="Competencias totales" />
-        <StatCard align="center" value={materialsData?.pagination.total ?? 0} label="Materiales" />
+        <StatCard align="center" value={activeContestsTotal} label="Competencias activas" valueColor="text-status-success" />
+        <StatCard align="center" value={contestsTotal} label="Competencias totales" />
+        <StatCard align="center" value={materialsTotal} label="Materiales" />
       </div>
 
       {/* Metadata */}
@@ -611,12 +634,12 @@ export function GroupDetailPage() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="flex items-center gap-2 text-neutral-text-muted">
               <Calendar className="h-4 w-4" />
-              <span>Creado: <span className="font-medium text-neutral-text-primary">{new Date(group.createdAt).toLocaleDateString('es')}</span></span>
+              <span>Creado: <span className="font-medium text-neutral-text-primary">{formatDate(group.createdAt)}</span></span>
             </div>
             {group.updatedAt && (
               <div className="flex items-center gap-2 text-neutral-text-muted">
                 <Clock className="h-4 w-4" />
-                <span>Actualizado: <span className="font-medium text-neutral-text-primary">{new Date(group.updatedAt).toLocaleDateString('es')}</span></span>
+                <span>Actualizado: <span className="font-medium text-neutral-text-primary">{formatDate(group.updatedAt)}</span></span>
               </div>
             )}
           </div>
@@ -624,37 +647,19 @@ export function GroupDetailPage() {
       </Card>
 
       {/* Leaders with initial avatars */}
-      {group.leads.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Líderes</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {group.leads.map((l) => (
-                <div
-                  key={l.userId}
-                  className="relative flex items-center gap-3 cursor-pointer hover:bg-neutral-background/50 rounded-lg p-2 -mx-2 transition-colors"
-                >
-                  <div className={cn(
-                    'w-9 h-9 rounded-md flex items-center justify-center font-bold text-sm shrink-0',
-                    getInitialColor(l.name)
-                  )}>
-                    {l.name.charAt(0).toUpperCase()}
-                  </div>
-                  <RowLink to={`/users/${l.nickname}`}>
-                    <p className="font-medium text-sm text-neutral-text-primary">{l.name}</p>
-                    <p className="text-xs text-neutral-text-muted">@{l.nickname}</p>
-                  </RowLink>
-                  <Badge variant="warning" className="ml-auto text-[10px]">Líder</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {group.leads.length > 0 && <LeadsCard leads={group.leads} />}
     </div>
-  ) : null
+  )
+}
 
-  const materialsTab = (
+function MaterialsTab({ groupId, materials, canManage }: Readonly<{
+  groupId: string
+  materials: MaterialsData['materials'] | undefined
+  canManage: boolean
+}>) {
+  const navigate = useNavigate()
+  const hasMaterials = !!materials && materials.length > 0
+  return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-text-muted">
@@ -662,25 +667,21 @@ export function GroupDetailPage() {
         </p>
         <div className="flex items-center gap-2">
           {canManage && (
-            <Button size="sm" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+            <Button size="sm" onClick={() => navigate(`/groups/${groupId}/materials/new`)}>
               Nuevo material
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/materials`)}>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${groupId}/materials`)}>
             Ver todos
           </Button>
         </div>
       </div>
-      {materialsData?.materials && materialsData.materials.length > 0 ? (
+      {hasMaterials ? (
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-neutral-border">
-              {materialsData.materials.map((m) => (
-                <MaterialListItem
-                  key={m.id}
-                  material={m}
-                  href={`/groups/${id}/materials/${m.id}`}
-                />
+              {materials.map((m) => (
+                <MaterialListItem key={m.id} material={m} href={`/groups/${groupId}/materials/${m.id}`} />
               ))}
             </div>
           </CardContent>
@@ -690,7 +691,7 @@ export function GroupDetailPage() {
           <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p>No hay materiales en este grupo</p>
           {canManage && (
-            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${id}/materials/new`)}>
+            <Button size="sm" className="mt-3" onClick={() => navigate(`/groups/${groupId}/materials/new`)}>
               Crear primer material
             </Button>
           )}
@@ -698,116 +699,543 @@ export function GroupDetailPage() {
       )}
     </div>
   )
+}
 
-  const contestsTab = (
+function ContestCard({ groupId, contest }: Readonly<{ groupId: string; contest: ContestsData['items'][number] }>) {
+  return (
+    <Card className="relative cursor-pointer hover:border-brand-primary/40 transition-colors">
+      <CardContent className="pt-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <ContestStatusBadge status={contest.status} />
+          <span className="text-xs text-neutral-text-muted">{formatDuration(contest.duration)}</span>
+        </div>
+        <h3 className="font-semibold text-neutral-text-primary leading-tight"><RowLink to={PATHS.contest(groupId, contest.id)}>{contest.name}</RowLink></h3>
+        <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" />
+            {new Date(contest.startTime).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            {contest.participantCount}
+          </span>
+          <span className="flex items-center gap-1">
+            <Trophy className="h-3.5 w-3.5" />
+            {pluralize(contest.problemCount, 'problema')}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface ContestsTabProps {
+  groupId: string
+  data: ContestsData | undefined
+  status: ContestStatus | 'all'
+  limit: number
+  canManage: boolean
+  onStatusChange: (value: string) => void
+  onLimitChange: (limit: number) => void
+  onPageChange: (page: number) => void
+}
+
+function ContestsTab({ groupId, data, status, limit, canManage, onStatusChange, onLimitChange, onPageChange }: Readonly<ContestsTabProps>) {
+  const navigate = useNavigate()
+  const items = data?.items ?? []
+  return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-text-muted">
           Competencias de este grupo
         </p>
         {canManage && (
-          <Button size="sm" onClick={() => navigate(PATHS.contestNew(id))}>
+          <Button size="sm" onClick={() => navigate(PATHS.contestNew(groupId))}>
             Nueva competencia
           </Button>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-semibold text-neutral-text-muted mr-1">Estado</span>
-        {[
-          { value: 'all', label: 'Todas' },
-          { value: 'SCHEDULED', label: 'Programadas' },
-          { value: 'ACTIVE', label: 'En curso' },
-          { value: 'FINISHED', label: 'Finalizadas' },
-        ].map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => handleContestsStatusChange(opt.value)}
-            className={cn(
-              'px-3 py-1 rounded-pill text-xs font-bold transition-colors',
-              contestsStatus === opt.value
-                ? 'bg-brand-primary text-neutral-surface'
-                : 'bg-neutral-border/50 text-neutral-text-primary hover:bg-neutral-border'
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      {contestsData && (
+      <StatusPills options={CONTEST_STATUS_OPTIONS} selected={status} onSelect={onStatusChange} />
+      {data && (
         <PaginationSummary
-          total={contestsData.pagination.total}
+          total={data.pagination.total}
           totalLabel="competencias"
-          currentPage={contestsData.pagination.page}
-          totalPages={contestsData.pagination.totalPages}
-          limit={contestsPageQuery.limit}
-          onLimitChange={handleContestsLimitChange}
+          currentPage={data.pagination.page}
+          totalPages={data.pagination.totalPages}
+          limit={limit}
+          onLimitChange={onLimitChange}
         />
       )}
-      {contestsData?.items && contestsData.items.length > 0 ? (
+      {items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contestsData.items.map((c) => (
-            <Card
-              key={c.id}
-              className="relative cursor-pointer hover:border-brand-primary/40 transition-colors"
-            >
-              <CardContent className="pt-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <ContestStatusBadge status={c.status} />
-                  <span className="text-xs text-neutral-text-muted">{formatDuration(c.duration)}</span>
-                </div>
-                <h3 className="font-semibold text-neutral-text-primary leading-tight"><RowLink to={PATHS.contest(id, c.id)}>{c.name}</RowLink></h3>
-                <div className="flex items-center gap-4 text-xs text-neutral-text-muted">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    {new Date(c.startTime).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    {c.participantCount}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Trophy className="h-3.5 w-3.5" />
-                    {pluralize(c.problemCount, 'problema')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {items.map((c) => <ContestCard key={c.id} groupId={groupId} contest={c} />)}
         </div>
       ) : (
         <div className="py-8 text-center text-neutral-text-muted">
           <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No hay competencias{contestsStatus !== 'all' ? ' con este estado' : ' en este grupo'}</p>
-          {canManage && contestsStatus === 'all' && (
-            <Button size="sm" className="mt-3" onClick={() => navigate(PATHS.contestNew(id))}>
+          <p>No hay competencias{status === 'all' ? ' en este grupo' : ' con este estado'}</p>
+          {canManage && status === 'all' && (
+            <Button size="sm" className="mt-3" onClick={() => navigate(PATHS.contestNew(groupId))}>
               Crear primera competencia
             </Button>
           )}
         </div>
       )}
-      {contestsData && (
-        <PaginationControls
-          currentPage={contestsData.pagination.page}
-          totalPages={contestsData.pagination.totalPages}
-          onPageChange={handleContestsPageChange}
-        />
+      {data && (
+        <PaginationControls currentPage={data.pagination.page} totalPages={data.pagination.totalPages} onPageChange={onPageChange} />
       )}
     </div>
   )
+}
 
-  const tabs = [
-    { id: 'info', label: 'Información', content: infoTab },
-    { id: 'contests', label: 'Competencias', content: contestsTab, badge: contestsData?.pagination.total },
-    { id: 'members', label: 'Miembros', content: membersTab, badge: group?.statistics.memberCount },
-    { id: 'materials', label: 'Materiales', content: materialsTab, badge: materialsData?.pagination.total },
-    // Join requests only exist under the REQUEST policy; keep the tab if the group still has any
-    // (e.g. the policy changed afterwards) so they can still be processed.
-    ...(canManage && (group?.joinPolicy === 'REQUEST' || (allRequestsData?.pagination.total ?? 0) > 0)
-      ? [{ id: 'requests', label: 'Solicitudes', content: requestsTab, badge: requestsData?.pagination.total }]
+// ───────────────────────────── dialogs (each keeps its own form) ─────────────────────────────
+
+function UserSearchField({ nickname, onNicknameChange, members }: Readonly<{
+  nickname: string
+  onNicknameChange: (value: string) => void
+  members: MembersData['members'] | undefined
+}>) {
+  // GET /users/search allows any authenticated role — these dialogs are already only reachable
+  // when canManage is true (group lead or platform Admin), so no extra gate is needed here.
+  const debounced = useDebounce(nickname)
+  const { data, isFetching } = useSearchUsers(debounced)
+  return (
+    <SearchSelect
+      query={nickname}
+      onQueryChange={onNicknameChange}
+      results={(data?.users ?? []).filter((u) => !members?.some((m) => m.nickname === u.nickname))}
+      isSearching={isFetching}
+      placeholder="Buscar usuario por nombre o nickname..."
+      emptyLabel="Sin resultados (o ya es miembro)"
+      hintLabel="Escribe al menos 2 caracteres"
+      getKey={(u) => u.id}
+      renderItem={(u) => (
+        <div>
+          <p className="font-medium text-neutral-text-primary">{u.name}</p>
+          <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
+        </div>
+      )}
+      onSelect={(u) => onNicknameChange(u.nickname)}
+    />
+  )
+}
+
+function AddMemberDialog({ groupId, open, onOpenChange, members }: Readonly<{
+  groupId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  members: MembersData['members'] | undefined
+}>) {
+  const { toast } = useToastContext()
+  const addMemberMutation = useAddMember()
+  const [nickname, setNickname] = useState('')
+  const [role, setRole] = useState<GroupRole>('MEMBER')
+
+  const handleAddMember = async () => {
+    if (!nickname.trim()) return
+    try {
+      await addMemberMutation.mutateAsync({ groupId, data: { nickname: nickname.trim(), role } })
+      toast({ variant: 'success', title: 'Miembro agregado' })
+      onOpenChange(false)
+      setNickname('')
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al agregar miembro', description: getErrorMessage(err) })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Agregar miembro</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block">Usuario</label>
+            <UserSearchField nickname={nickname} onNicknameChange={setNickname} members={members} />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Rol</label>
+            <Select value={role} onValueChange={(v) => setRole(v as GroupRole)}>
+              <SelectTrigger aria-label="Rol del miembro"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEMBER">Miembro</SelectItem>
+                <SelectItem value="LEAD">Líder</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleAddMember} disabled={!nickname.trim()}>Agregar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type InviteMethod = 'nickname' | 'email'
+
+function InviteDialog({ groupId, open, onClose, members }: Readonly<{
+  groupId: string
+  open: boolean
+  onClose: () => void
+  members: MembersData['members'] | undefined
+}>) {
+  const { toast } = useToastContext()
+  const inviteMutation = useCreateInvitation()
+  const [method, setMethod] = useState<InviteMethod>('nickname')
+  const [nickname, setNickname] = useState('')
+  const [email, setEmail] = useState('')
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+
+  const recipient = method === 'nickname' ? nickname.trim() : email.trim()
+
+  const close = () => {
+    onClose()
+    setGeneratedUrl(null)
+    setMethod('nickname')
+  }
+
+  const handleInvite = async () => {
+    if (!recipient) return
+    const data = method === 'nickname' ? { userNickname: recipient } : { userEmail: recipient }
+    try {
+      const response = await inviteMutation.mutateAsync({ groupId, data })
+      toast({ variant: 'success', title: 'Invitación enviada' })
+      // The backend never returns a ready-made link — only `id` — so the frontend builds it,
+      // matching the same route the invitation email itself points to.
+      setGeneratedUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(groupId, response.id)}`)
+      setNickname('')
+      setEmail('')
+    } catch (err) {
+      // ALREADY_MEMBER's generic text ("Ya eres miembro…") is written for the person joining;
+      // here the lead is inviting someone else.
+      const description = err instanceof ApiClientError && err.code === 'ALREADY_MEMBER'
+        ? 'Ese usuario ya es miembro del grupo.'
+        : getErrorMessage(err)
+      toast({ variant: 'error', title: 'Error al enviar invitación', description })
+    }
+  }
+
+  const handleCopyUrl = async () => {
+    if (!generatedUrl) return
+    await navigator.clipboard.writeText(generatedUrl)
+    toast({ variant: 'success', title: 'Enlace copiado' })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) close() }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Invitar usuario</DialogTitle></DialogHeader>
+        {generatedUrl ? (
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-text-muted">
+              Invitación generada. Comparte este enlace con la persona invitada (también se le envía automáticamente):
+            </p>
+            <div className="flex items-center gap-2">
+              <Input value={generatedUrl} readOnly className="flex-1" />
+              <Button variant="outline" size="sm" onClick={handleCopyUrl}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2 mb-1">
+              <Button variant={method === 'nickname' ? 'primary' : 'outline'} size="sm" onClick={() => setMethod('nickname')}>
+                Por nickname
+              </Button>
+              <Button variant={method === 'email' ? 'primary' : 'outline'} size="sm" onClick={() => setMethod('email')}>
+                Por correo
+              </Button>
+            </div>
+            {method === 'nickname' ? (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Usuario</label>
+                <UserSearchField nickname={nickname} onNicknameChange={setNickname} members={members} />
+              </div>
+            ) : (
+              <Input label="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+            )}
+          </>
+        )}
+        <DialogFooter>
+          {generatedUrl ? (
+            <Button onClick={close}>Cerrar</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={close}>Cancelar</Button>
+              <Button onClick={handleInvite} isLoading={inviteMutation.isPending} disabled={!recipient}>
+                Enviar invitación
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Join request dialog (REQUEST policy). */
+function JoinRequestDialog({ groupId, open, onOpenChange, previousRequest }: Readonly<{
+  groupId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  previousRequest: NonNullable<MyJoinRequest>['request'] | undefined
+}>) {
+  const { toast } = useToastContext()
+  const requestMutation = useCreateJoinRequest()
+  const [message, setMessage] = useState('')
+
+  const handleSubmitRequest = async () => {
+    try {
+      await requestMutation.mutateAsync({ groupId, data: message.trim() ? { message: message.trim() } : undefined })
+      toast({ variant: 'success', title: 'Solicitud enviada' })
+      onOpenChange(false)
+      setMessage('')
+    } catch (err) {
+      toast({ variant: 'error', title: 'Error al enviar la solicitud', description: getErrorMessage(err) })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Solicitar ingreso</DialogTitle>
+          <DialogDescription>Puedes agregar un mensaje opcional para los líderes del grupo.</DialogDescription>
+        </DialogHeader>
+        {previousRequest?.status === 'REJECTED' && (
+          <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
+            Tu solicitud anterior a este grupo fue rechazada
+            {previousRequest.createdAt && ` el ${formatDate(previousRequest.createdAt)}`}.
+            Puedes intentarlo de nuevo.
+          </div>
+        )}
+        <Textarea
+          label="Mensaje (opcional)"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Cuéntales por qué quieres unirte..."
+          rows={4}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSubmitRequest} isLoading={requestMutation.isPending}>Enviar solicitud</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ───────────────────────────── page ─────────────────────────────
+
+interface Tab {
+  id: string
+  label: string
+  content: ReactNode
+  badge?: number
+}
+
+/** Every list the page shows (members, requests, invitations, materials, contests) with its filters and paging. */
+function useGroupLists(id: string, group: GroupData | undefined, canManage: boolean, isMember: boolean) {
+  // Only group members (and admins) can list members — backend answers 403 to non-members.
+  const { data: membersData } = useGroupMembers(id!, undefined, { enabled: isMember || canManage })
+  const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
+  const [requestsPageQuery, setRequestsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
+  // Only leads/admins can list requests (the backend answers 403 to anyone else).
+  const { data: requestsData } = useJoinRequests(id!, {
+    status: requestsStatus === 'all' ? undefined : requestsStatus,
+    page: requestsPageQuery.page,
+    limit: requestsPageQuery.limit,
+  }, { enabled: canManage })
+  // Unfiltered count, so whether the tab exists doesn't depend on the status filter picked in it.
+  const { data: allRequestsData } = useJoinRequests(id!, { limit: 1 }, { enabled: canManage })
+  const { data: myJoinRequest } = useMyJoinRequest(id!, {
+    enabled: !isMember && group?.joinPolicy === 'REQUEST',
+  })
+  const [invitationsPageQuery, setInvitationsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
+  const { data: invitationsData } = useInvitations(id!, invitationsPageQuery, { enabled: canManage })
+  const { data: materialsData } = useMaterials(id!, { limit: 5 })
+  const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
+  const [contestsPageQuery, setContestsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
+  // Consultas independientes del filtro interactivo de la pestaña, solo para las
+  // tarjetas de resumen — el backend no calcula contestCount/activeContestCount en
+  // el detalle del grupo (a diferencia de memberCount), así que se derivan aquí.
+  const { data: contestsOverviewData } = useContests(id!, { limit: 1 })
+  const { data: activeContestsOverviewData } = useContests(id!, { limit: 1, status: 'ACTIVE' })
+  const { data: contestsData } = useContests(id!, {
+    status: contestsStatus === 'all' ? undefined : contestsStatus,
+    page: contestsPageQuery.page,
+    limit: contestsPageQuery.limit,
+    sortBy: 'startTime',
+    sortOrder: 'desc',
+  })
+
+  const { handlePageChange: handleRequestsPageChange, handleLimitChange: handleRequestsLimitChange } = usePaginationHandlers(setRequestsPageQuery)
+  const handleRequestsStatusChange = (value: string) => {
+    setRequestsStatus(value as JoinRequestStatus | 'all')
+    setRequestsPageQuery((p) => ({ ...p, page: 1 }))
+  }
+  const handleInvitationsPageChange = (page: number) => setInvitationsPageQuery((p) => ({ ...p, page }))
+  const handleInvitationsSizeChange = (limit: number) => setInvitationsPageQuery({ page: 1, limit })
+  const { handlePageChange: handleContestsPageChange, handleLimitChange: handleContestsLimitChange } = usePaginationHandlers(setContestsPageQuery)
+  const handleContestsStatusChange = (value: string) => {
+    setContestsStatus(value as ContestStatus | 'all')
+    setContestsPageQuery((p) => ({ ...p, page: 1 }))
+  }
+
+  return {
+    membersData,
+    requestsData,
+    allRequestsData,
+    myJoinRequest,
+    invitationsData,
+    materialsData,
+    contestsData,
+    contestsOverviewData,
+    activeContestsOverviewData,
+    requestsStatus,
+    requestsPageQuery,
+    invitationsPageQuery,
+    contestsStatus,
+    contestsPageQuery,
+    handleRequestsPageChange,
+    handleRequestsLimitChange,
+    handleRequestsStatusChange,
+    handleInvitationsPageChange,
+    handleInvitationsSizeChange,
+    handleContestsPageChange,
+    handleContestsLimitChange,
+    handleContestsStatusChange,
+  }
+}
+
+type GroupLists = ReturnType<typeof useGroupLists>
+
+interface TabsDeps {
+  id: string
+  group: GroupData | undefined
+  canManage: boolean
+  isMember: boolean
+  lists: GroupLists
+  memberManagement: ReturnType<typeof useMemberManagement>
+}
+
+function buildTabs({ id, group, canManage, isMember, lists, memberManagement }: TabsDeps): Tab[] {
+  // Join requests only exist under the REQUEST policy; keep the tab if the group still has any
+  // (e.g. the policy changed afterwards) so they can still be processed.
+  const showRequestsTab = canManage && (group?.joinPolicy === 'REQUEST' || (lists.allRequestsData?.pagination.total ?? 0) > 0)
+
+  return [
+    {
+      id: 'info',
+      label: 'Información',
+      content: group ? (
+        <InfoTab
+          group={group}
+          activeContestsTotal={lists.activeContestsOverviewData?.pagination.total ?? 0}
+          contestsTotal={lists.contestsOverviewData?.pagination.total ?? 0}
+          materialsTotal={lists.materialsData?.pagination.total ?? 0}
+        />
+      ) : null,
+    },
+    {
+      id: 'contests',
+      label: 'Competencias',
+      badge: lists.contestsData?.pagination.total,
+      content: (
+        <ContestsTab
+          groupId={id}
+          data={lists.contestsData}
+          status={lists.contestsStatus}
+          limit={lists.contestsPageQuery.limit}
+          canManage={canManage}
+          onStatusChange={lists.handleContestsStatusChange}
+          onLimitChange={lists.handleContestsLimitChange}
+          onPageChange={lists.handleContestsPageChange}
+        />
+      ),
+    },
+    {
+      id: 'members',
+      label: 'Miembros',
+      badge: group?.statistics.memberCount,
+      content: (
+        <MembersTab
+          members={lists.membersData?.members}
+          canManage={canManage}
+          isMember={isMember}
+          onChangeRole={memberManagement.handleChangeRole}
+          onRemove={memberManagement.setRemoveMemberTarget}
+        />
+      ),
+    },
+    {
+      id: 'materials',
+      label: 'Materiales',
+      badge: lists.materialsData?.pagination.total,
+      content: <MaterialsTab groupId={id} materials={lists.materialsData?.materials} canManage={canManage} />,
+    },
+    ...(showRequestsTab
+      ? [{
+          id: 'requests',
+          label: 'Solicitudes',
+          badge: lists.requestsData?.pagination.total,
+          content: (
+            <RequestsTab
+              groupId={id}
+              data={lists.requestsData}
+              status={lists.requestsStatus}
+              limit={lists.requestsPageQuery.limit}
+              onStatusChange={lists.handleRequestsStatusChange}
+              onLimitChange={lists.handleRequestsLimitChange}
+              onPageChange={lists.handleRequestsPageChange}
+            />
+          ),
+        }]
       : []),
-    ...(canManage ? [{ id: 'invitations', label: 'Invitaciones', content: invitationsTab, badge: invitationsData?.pagination.total }] : []),
+    ...(canManage
+      ? [{
+          id: 'invitations',
+          label: 'Invitaciones',
+          badge: lists.invitationsData?.pagination.total,
+          content: (
+            <InvitationsTab
+              data={lists.invitationsData}
+              limit={lists.invitationsPageQuery.limit}
+              onSizeChange={lists.handleInvitationsSizeChange}
+              onPageChange={lists.handleInvitationsPageChange}
+            />
+          ),
+        }]
+      : []),
   ]
+}
+
+export function GroupDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { user } = useAuth()
+
+  const { data: group, isLoading, error } = useGroupDetail(id!)
+  const isLead = group?.userMembership.role === 'LEAD'
+  const canManage = isLead || user?.role === 'ADMIN'
+  const isMember = group?.userMembership.isMember ?? false
+  const lists = useGroupLists(id!, group, canManage, isMember)
+
+  const membership = useMembershipActions(id!, group?.name)
+  const memberManagement = useMemberManagement(id!)
+
+  const [addMemberOpen, setAddMemberOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [requestOpen, setRequestOpen] = useState(false)
+
+  if (!id) return null
+  if (isNotFoundError(error)) return <NotFoundPage />
+  if (error) return <ErrorPage />
+
+  const tabs = buildTabs({ id, group, canManage, isMember, lists, memberManagement })
 
   // Kept in the URL (?tab=...) so navigating away (e.g. to create a contest) and back
   // returns to the tab you were on, instead of always resetting to "Información".
@@ -822,214 +1250,80 @@ export function GroupDetailPage() {
     }, { replace: true })
   }
 
+  const canEditOrDelete = canManage && !group?.isGlobal
+
   return (
     <>
       <EntityDetailPage
         title={group?.name ?? ''}
         subtitle={group?.description ?? undefined}
-        badges={badges}
+        badges={buildBadges(group)}
         breadcrumbs={[{ label: 'Grupos', href: ROUTES.GROUPS }, { label: group?.name ?? 'Cargando...' }]}
         isLoading={isLoading}
-        metadata={metadata}
+        metadata={[]}
         tabs={tabs}
         defaultTab="info"
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onEdit={canManage && !group?.isGlobal ? () => navigate(`/groups/${id}/edit`) : undefined}
-        onDelete={canManage && !group?.isGlobal ? () => setDeleteOpen(true) : undefined}
-        primaryAction={buildPrimaryAction()}
-        additionalActions={buildAdditionalActions()}
+        onEdit={canEditOrDelete ? () => navigate(`/groups/${id}/edit`) : undefined}
+        onDelete={canEditOrDelete ? () => membership.setDeleteOpen(true) : undefined}
+        primaryAction={buildPrimaryAction({
+          group,
+          isMember,
+          myJoinRequest: lists.myJoinRequest,
+          onCancelRequest: membership.handleCancelRequest,
+          onJoin: membership.handleJoinOpen,
+          onRequest: () => setRequestOpen(true),
+        })}
+        additionalActions={buildAdditionalActions({
+          group,
+          isMember,
+          canManage,
+          onLeave: () => membership.setLeaveOpen(true),
+          onAddMember: () => setAddMemberOpen(true),
+          onInvite: () => setInviteOpen(true),
+        })}
       />
 
       {/* Delete confirmation: shows what is lost and asks for the confirmation in steps */}
       {group && (
         <GroupDeletionDialog
           // remounted on every open/close, so nothing typed or ticked survives a failed deletion
-          key={deleteOpen ? 'open' : 'closed'}
-          open={deleteOpen}
-          onOpenChange={setDeleteOpen}
+          key={membership.deleteOpen ? 'open' : 'closed'}
+          open={membership.deleteOpen}
+          onOpenChange={membership.setDeleteOpen}
           groupId={id}
           groupName={group.name}
-          isDeleting={deleteMutation.isPending}
-          onConfirm={handleDelete}
+          isDeleting={membership.isDeleting}
+          onConfirm={membership.handleDelete}
         />
       )}
 
       <ConfirmDialog
-        open={leaveOpen}
-        onOpenChange={setLeaveOpen}
+        open={membership.leaveOpen}
+        onOpenChange={membership.setLeaveOpen}
         title="Salir del grupo"
         description="¿Seguro que deseas salir del grupo? También se cancelarán tus inscripciones individuales a las competencias programadas de este grupo."
         confirmLabel="Salir"
         variant="warning"
-        onConfirm={handleLeave}
-        isLoading={leaveMutation.isPending}
+        onConfirm={membership.handleLeave}
+        isLoading={membership.isLeaving}
       />
 
       <ConfirmDialog
-        open={!!removeMemberTarget}
-        onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
+        open={!!memberManagement.removeMemberTarget}
+        onOpenChange={(open) => !open && memberManagement.setRemoveMemberTarget(null)}
         title="Eliminar miembro"
-        description={`¿Eliminar a @${removeMemberTarget} del grupo?`}
+        description={`¿Eliminar a @${memberManagement.removeMemberTarget} del grupo?`}
         confirmLabel="Eliminar"
         variant="warning"
-        onConfirm={handleRemoveMember}
-        isLoading={removeMemberMutation.isPending}
+        onConfirm={memberManagement.handleRemoveMember}
+        isLoading={memberManagement.isRemoving}
       />
 
-      {/* Add member dialog */}
-      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Agregar miembro</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Usuario</label>
-              <SearchSelect
-                query={addNickname}
-                onQueryChange={setAddNickname}
-                results={(addMemberSearchData?.users ?? []).filter(
-                  (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
-                )}
-                isSearching={isSearchingAddMember}
-                placeholder="Buscar usuario por nombre o nickname..."
-                emptyLabel="Sin resultados (o ya es miembro)"
-                hintLabel="Escribe al menos 2 caracteres"
-                getKey={(u) => u.id}
-                renderItem={(u) => (
-                  <div>
-                    <p className="font-medium text-neutral-text-primary">{u.name}</p>
-                    <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
-                  </div>
-                )}
-                onSelect={(u) => setAddNickname(u.nickname)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Rol</label>
-              <Select value={addRole} onValueChange={(v) => setAddRole(v as GroupRole)}>
-                <SelectTrigger aria-label="Rol del miembro"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MEMBER">Miembro</SelectItem>
-                  <SelectItem value="LEAD">Líder</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddMemberOpen(false)}>Cancelar</Button>
-            <Button onClick={handleAddMember} disabled={!addNickname.trim()}>Agregar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invite dialog */}
-      <Dialog open={inviteOpen} onOpenChange={(open) => (open ? setInviteOpen(true) : closeInviteDialog())}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Invitar usuario</DialogTitle></DialogHeader>
-          {generatedInviteUrl ? (
-            <div className="space-y-3">
-              <p className="text-sm text-neutral-text-muted">
-                Invitación generada. Comparte este enlace con la persona invitada (también se le envía automáticamente):
-              </p>
-              <div className="flex items-center gap-2">
-                <Input value={generatedInviteUrl} readOnly className="flex-1" />
-                <Button variant="outline" size="sm" onClick={handleCopyInviteUrl}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex gap-2 mb-1">
-                <Button
-                  variant={inviteMethod === 'nickname' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setInviteMethod('nickname')}
-                >
-                  Por nickname
-                </Button>
-                <Button
-                  variant={inviteMethod === 'email' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setInviteMethod('email')}
-                >
-                  Por correo
-                </Button>
-              </div>
-              {inviteMethod === 'nickname' ? (
-                <div>
-                  <label className="text-sm font-medium mb-1 block">Usuario</label>
-                  <SearchSelect
-                    query={inviteNickname}
-                    onQueryChange={setInviteNickname}
-                    results={(inviteSearchData?.users ?? []).filter(
-                      (u) => !membersData?.members.some((m) => m.nickname === u.nickname),
-                    )}
-                    emptyLabel="Sin resultados (o ya es miembro)"
-                    isSearching={isSearchingInvite}
-                    placeholder="Buscar usuario por nombre o nickname..."
-                    hintLabel="Escribe al menos 2 caracteres"
-                    getKey={(u) => u.id}
-                    renderItem={(u) => (
-                      <div>
-                        <p className="font-medium text-neutral-text-primary">{u.name}</p>
-                        <p className="text-xs text-neutral-text-muted">@{u.nickname}</p>
-                      </div>
-                    )}
-                    onSelect={(u) => setInviteNickname(u.nickname)}
-                  />
-                </div>
-              ) : (
-                <Input label="Correo electrónico" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="correo@ejemplo.com" />
-              )}
-            </>
-          )}
-          <DialogFooter>
-            {generatedInviteUrl ? (
-              <Button onClick={closeInviteDialog}>Cerrar</Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={closeInviteDialog}>Cancelar</Button>
-                <Button
-                  onClick={handleInvite}
-                  isLoading={inviteMutation.isPending}
-                  disabled={inviteMethod === 'nickname' ? !inviteNickname.trim() : !inviteEmail.trim()}
-                >
-                  Enviar invitación
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Join request dialog (REQUEST policy) */}
-      <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Solicitar ingreso</DialogTitle>
-            <DialogDescription>Puedes agregar un mensaje opcional para los líderes del grupo.</DialogDescription>
-          </DialogHeader>
-          {myJoinRequest?.request?.status === 'REJECTED' && (
-            <div className="bg-status-warning/10 border border-status-warning/30 rounded-md p-3 text-sm text-status-warning">
-              Tu solicitud anterior a este grupo fue rechazada
-              {myJoinRequest.request.createdAt && ` el ${new Date(myJoinRequest.request.createdAt).toLocaleDateString('es')}`}.
-              Puedes intentarlo de nuevo.
-            </div>
-          )}
-          <Textarea
-            label="Mensaje (opcional)"
-            value={requestMessage}
-            onChange={(e) => setRequestMessage(e.target.value)}
-            placeholder="Cuéntales por qué quieres unirte..."
-            rows={4}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRequestOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmitRequest} isLoading={requestMutation.isPending}>Enviar solicitud</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddMemberDialog groupId={id} open={addMemberOpen} onOpenChange={setAddMemberOpen} members={lists.membersData?.members} />
+      <InviteDialog groupId={id} open={inviteOpen} onClose={() => setInviteOpen(false)} members={lists.membersData?.members} />
+      <JoinRequestDialog groupId={id} open={requestOpen} onOpenChange={setRequestOpen} previousRequest={lists.myJoinRequest?.request} />
     </>
   )
 }
