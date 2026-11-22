@@ -151,13 +151,40 @@ describe('ContestsPage', () => {
     })
   })
 
-  it('shows a single skeleton until every grouped section has loaded', async () => {
-    // Arrange
+  it('keeps a single skeleton while any grouped section is still loading', async () => {
+    // Arrange: ACTIVE y SCHEDULED responden de inmediato; FINISHED queda pendiente hasta liberarla
+    let releaseFinished!: () => void
+    const finishedGate = new Promise<void>((resolve) => { releaseFinished = resolve })
+    const served = new Set<string>()
+    server.use(
+      http.get('http://localhost:8080/api/contests', async ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status') ?? 'ALL'
+        if (status === 'FINISHED') await finishedGate
+        served.add(status)
+        const items = mockContests
+          .map((c) => ({ ...c, status: computeContestStatus(c.startTime, c.endTime) }))
+          .filter((c) => c.status === status)
+        return HttpResponse.json({
+          items,
+          pagination: { page: 1, limit: 20, total: items.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+        })
+      }),
+    )
     renderPage()
 
-    // Assert: mientras cargan, un único skeleton y ninguna sección dibujada
+    // Assert: con dos de las tres consultas resueltas, el skeleton sigue y no se dibuja ninguna sección
+    await waitFor(() => {
+      expect(served.has('ACTIVE') && served.has('SCHEDULED')).toBe(true)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.getByTestId('contests-grouped-skeleton')).toBeInTheDocument()
+    expect(screen.queryByText('En curso')).not.toBeInTheDocument()
     expect(screen.queryByText('Finalizadas')).not.toBeInTheDocument()
+
+    // Act: se libera la última consulta
+    releaseFinished()
+
+    // Assert: aparece el contenido y desaparece el skeleton
     await waitFor(() => {
       expect(screen.getByText('Finalizadas')).toBeInTheDocument()
     })
