@@ -5,6 +5,12 @@ import { clearAccessToken, resetSessionExpiredNotified } from '@/lib/tokenStore'
 
 configure({ asyncUtilTimeout: 4000 })
 
+// jsdom lacks these DOM APIs, which Radix primitives (Select, DropdownMenu) call when they open
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.setPointerCapture ??= () => {}
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.scrollIntoView ??= () => {}
+
 globalThis.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
