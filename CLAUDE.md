@@ -15,7 +15,7 @@ npm run preview   # Preview production build locally
 
 **New logic and changed logic must be covered by tests.** When you add a new component, hook, or page, or change existing behavior (not just rename, reformat, or reorganize imports), add or update the corresponding test file. Purely cosmetic changes (import consolidation, type annotation tweaks) do not require a test update. See `docs/TESTING_STANDARDS.md` for what to cover and how to structure tests.
 
-CI runs on PRs to `develop` and `main`: install → lint → tests with coverage (80 % gate, report uploaded as an artifact) → integration tests → build.
+CI runs on PRs to `develop` and `main`: install → lint → unit + integration tests with coverage (80 % gate, report uploaded as an artifact) → build.
 
 **Pull requests** always target `develop`. When creating a PR via `gh pr create`, use the template at `.github/PULL_REQUEST_TEMPLATE.md` — fill every section (Summary, Motivation, Changeset, Test plan) and delete sections that don't apply (Screenshots, Breaking changes, Notas).
 

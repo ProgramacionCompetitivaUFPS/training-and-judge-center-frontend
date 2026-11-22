@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Lint, Test, Integration & Build
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -34,9 +34,9 @@ jobs:
       - name: Lint (0 warnings)
         run: npm run lint
 
-      # Unit + page + integration tests with coverage. Fails if any metric drops below the 80 %
-      # thresholds in vitest.config.ts.
-      - name: Tests with coverage
+      # Unit, page and integration tests (both vitest projects) with coverage. Fails if any metric
+      # drops below the 80 % thresholds in vitest.config.ts.
+      - name: Tests (unit + integration) with coverage
         run: npm run test:coverage
 
       - name: Upload coverage report
@@ -46,11 +46,6 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 30
-
-      # Already part of the run above; repeated on its own so the integration stage shows up
-      # as a separate result (takes well under a minute).
-      - name: Integration tests
-        run: npm run test:integration
 
       - name: Build
         run: npm run build
