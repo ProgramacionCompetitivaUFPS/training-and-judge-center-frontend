@@ -30,9 +30,6 @@ export default defineConfig({
         'src/components/features/blockly/toolboxConfig.ts',
         // Pyodide worker: needs a real Worker + WebAssembly runtime that jsdom does not provide
         'src/workers/**',
-        // TEMPORARY: removed in Task 5 of the coverage plan, once these hooks have tests
-        'src/hooks/useBlocklyPersistence.ts',
-        'src/hooks/usePyodide.ts',
       ],
       reporter: ['text', 'html', 'json-summary', 'lcov'],
       thresholds: {
