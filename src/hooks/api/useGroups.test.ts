@@ -5,8 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
-import { stubEndpoint, exerciseMutation, exerciseQuery } from '@/test/hookHarness'
-import { ApiClientError } from '@/lib/errors'
+import { stubEndpoint, exerciseMutation, exerciseQuery, describeMutationCases, type MutationCase } from '@/test/hookHarness'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockGroups, mockMyGroups } from '@/mocks/data'
 import type { CreateGroupRequest, UpdateGroupRequest } from '@/types/group'
@@ -361,17 +360,7 @@ describe('useProcessJoinRequest', () => {
 // Mutaciones de miembros, solicitudes e invitaciones
 // ---------------------------------------------------------------------------
 
-interface GroupMutationCase {
-  name: string
-  run: () => ReturnType<typeof exerciseMutation>
-  method: 'post' | 'patch' | 'delete'
-  path: string
-  requestBody: unknown
-  respond: { status?: number; body?: unknown }
-  invalidates: unknown[]
-}
-
-const GROUP_MUTATION_CASES: GroupMutationCase[] = [
+const GROUP_MUTATION_CASES: MutationCase[] = [
   {
     name: 'useCreateJoinRequest',
     run: () => exerciseMutation(useCreateJoinRequest, { groupId: 'group-1', data: { message: 'Quiero unirme' } }),
@@ -446,39 +435,7 @@ const GROUP_MUTATION_CASES: GroupMutationCase[] = [
   },
 ]
 
-describe('mutaciones de grupos (miembros, solicitudes, invitaciones)', () => {
-  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
-  afterEach(() => clearAccessToken())
-
-  it.each(GROUP_MUTATION_CASES)(
-    '$name envía $method $path con el cuerpo esperado e invalida las claves correctas',
-    async (c) => {
-      const calls = stubEndpoint(c.method, c.path, c.respond)
-
-      const outcome = await c.run()
-
-      expect(outcome.isSuccess).toBe(true)
-      expect(calls).toHaveLength(1)
-      expect(calls[0].method.toLowerCase()).toBe(c.method)
-      expect(calls[0].body).toEqual(c.requestBody)
-      expect(outcome.invalidatedKeys).toEqual(c.invalidates)
-    },
-  )
-
-  it.each(GROUP_MUTATION_CASES)(
-    '$name propaga ApiClientError 403 y no invalida la caché cuando el servidor rechaza',
-    async (c) => {
-      stubEndpoint(c.method, c.path, { status: 403, body: { error: 'FORBIDDEN', message: 'sin permiso' } })
-
-      const outcome = await c.run()
-
-      expect(outcome.isSuccess).toBe(false)
-      expect(outcome.error).toBeInstanceOf(ApiClientError)
-      expect((outcome.error as ApiClientError).status).toBe(403)
-      expect(outcome.invalidatedKeys).toEqual([])
-    },
-  )
-})
+describeMutationCases('mutaciones de grupos (miembros, solicitudes, invitaciones)', GROUP_MUTATION_CASES)
 
 describe('useGroupDeletionImpact', () => {
   beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))

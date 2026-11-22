@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
@@ -206,14 +206,14 @@ describe('polling del veredicto', () => {
     // Act
     const { result } = renderHook(() => useSubmissionDetail('sub-poll'), { wrapper })
     await waitFor(() => expect(result.current.data?.status).toBe('PENDING'))
-    await vi.advanceTimersByTimeAsync(3_100)
-    await vi.advanceTimersByTimeAsync(3_100)
+    await act(() => vi.advanceTimersByTimeAsync(3_100))
+    await act(() => vi.advanceTimersByTimeAsync(3_100))
 
     // Assert: the verdict arrived after exactly 3 requests...
     await waitFor(() => expect(result.current.data?.status).toBe('ACCEPTED'))
     expect(requests).toBe(3)
     // ...and polling stopped: no more requests after a terminal status
-    await vi.advanceTimersByTimeAsync(10_000)
+    await act(() => vi.advanceTimersByTimeAsync(10_000))
     expect(requests).toBe(3)
   })
 
@@ -231,11 +231,11 @@ describe('polling del veredicto', () => {
 
     const { result } = renderHook(() => useMySubmissions(), { wrapper })
     await waitFor(() => expect(result.current.data?.submissions[1].status).toBe('RUNNING'))
-    await vi.advanceTimersByTimeAsync(3_100)
+    await act(() => vi.advanceTimersByTimeAsync(3_100))
 
     await waitFor(() => expect(result.current.data?.submissions[1].status).toBe('WRONG_ANSWER'))
     expect(requests).toBe(2)
-    await vi.advanceTimersByTimeAsync(10_000)
+    await act(() => vi.advanceTimersByTimeAsync(10_000))
     expect(requests).toBe(2)
   })
 
@@ -251,7 +251,7 @@ describe('polling del veredicto', () => {
 
     const { result } = renderHook(() => useProblemSubmissions('two-sum'), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    await vi.advanceTimersByTimeAsync(10_000)
+    await act(() => vi.advanceTimersByTimeAsync(10_000))
 
     expect(requests).toBe(1)
   })

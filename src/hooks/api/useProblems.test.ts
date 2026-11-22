@@ -9,6 +9,7 @@ import { resetProblemHandlerState } from '@/mocks/handlers/problems'
 import { mockProblems } from '@/mocks/data'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import type { CreateProblemRequest } from '@/types/problem'
+import { stubEndpoint, stubXhr, exerciseMutation, exerciseQuery, describeMutationCases } from '@/test/hookHarness'
 import {
   problemKeys,
   useProblems,
@@ -27,6 +28,17 @@ import {
   useUploadProblemFile,
   useIsUploadingProblemFile,
   useUploadProgress,
+  usePublishProblem,
+  useValidateProblem,
+  useUnpublishProblem,
+  useDeleteProblemFile,
+  useAdminRejudgeProblem,
+  useProblemTestCases,
+  useProblemSourceFile,
+  useProblemTestCasePart,
+  useDownloadTestCases,
+  useExportProblem,
+  useImportProblem,
 } from './useProblems'
 import * as problemsApi from '@/api/problems'
 import { ApiClientError } from '@/lib/errors'
@@ -505,5 +517,223 @@ describe('useUploadProgress — retención en cache', () => {
     const query = queryClient.getQueryCache().find({ queryKey: ['upload-progress', 'two-sum'] })
 
     expect(query?.gcTime).toBeGreaterThan(10 * 60 * 1000)
+  })
+})
+
+describeMutationCases('mutaciones de publicación y archivos de problemas', [
+  {
+    name: 'usePublishProblem',
+    run: () => exerciseMutation(usePublishProblem, 'two-sum'),
+    method: 'post',
+    path: '/problems/p/two-sum/publish',
+    requestBody: undefined,
+    respond: { body: { slug: 'two-sum', status: 'PUBLISHED' } },
+    invalidates: [problemKeys.detail('two-sum'), problemKeys.all, problemKeys.validation('two-sum')],
+    // a failed publish still has a validation result to show
+    invalidatesOnError: [problemKeys.validation('two-sum')],
+  },
+  {
+    name: 'useValidateProblem',
+    run: () => exerciseMutation(useValidateProblem, 'two-sum'),
+    method: 'post',
+    path: '/problems/p/two-sum/validate',
+    requestBody: undefined,
+    respond: { status: 202, body: { slug: 'two-sum', validationId: 'val-1' } },
+    invalidates: [problemKeys.validation('two-sum')],
+    invalidatesOnError: [problemKeys.validation('two-sum')],
+  },
+  {
+    name: 'useUnpublishProblem',
+    run: () => exerciseMutation(useUnpublishProblem, 'two-sum'),
+    method: 'post',
+    path: '/problems/p/two-sum/unpublish',
+    requestBody: undefined,
+    respond: { body: { slug: 'two-sum', status: 'DRAFT' } },
+    invalidates: [problemKeys.detail('two-sum'), problemKeys.all],
+  },
+  {
+    name: 'useDeleteProblemFile',
+    run: () => exerciseMutation(useDeleteProblemFile, { slug: 'two-sum', fileType: 'solution', fileName: 'a.cpp' }),
+    method: 'delete',
+    path: '/problems/p/two-sum/files/solution',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [
+      problemKeys.detail('two-sum'),
+      problemKeys.validation('two-sum'),
+      problemKeys.testCases('two-sum'),
+      problemKeys.sourceFiles('two-sum'),
+    ],
+  },
+  {
+    name: 'useAdminRejudgeProblem',
+    run: () => exerciseMutation(useAdminRejudgeProblem, { slug: 'two-sum' }),
+    method: 'post',
+    path: '/admin/problems/two-sum/rejudge',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [],
+  },
+])
+
+describe('useDeleteProblemFile (parámetros)', () => {
+  it('envía fileName como query param cuando se indica', async () => {
+    const calls = stubEndpoint('delete', '/problems/p/two-sum/files/solution')
+
+    await exerciseMutation(useDeleteProblemFile, { slug: 'two-sum', fileType: 'solution', fileName: 'a.cpp' })
+
+    expect(calls[0].search).toBe('?fileName=a.cpp')
+  })
+
+  it('no envía query params cuando no hay fileName', async () => {
+    const calls = stubEndpoint('delete', '/problems/p/two-sum/files/checker')
+
+    await exerciseMutation(useDeleteProblemFile, { slug: 'two-sum', fileType: 'checker' })
+
+    expect(calls[0].search).toBe('')
+  })
+})
+
+describe('useAdminRejudgeProblem (parámetros)', () => {
+  it('envía contestId como query param cuando se indica', async () => {
+    const calls = stubEndpoint('post', '/admin/problems/two-sum/rejudge')
+
+    await exerciseMutation(useAdminRejudgeProblem, { slug: 'two-sum', contestId: 'contest-7' })
+
+    expect(calls[0].search).toBe('?contestId=contest-7')
+  })
+})
+
+describe('lectura de archivos del problema', () => {
+  it('useProblemTestCases retorna el resumen de casos de prueba', async () => {
+    stubEndpoint('get', '/problems/p/two-sum/testcases', {
+      body: { hasTestCases: true, sampleCount: 2, secretCount: 5, cases: [] },
+    })
+
+    const { data } = await exerciseQuery(() => useProblemTestCases('two-sum', true))
+
+    expect(data).toEqual({ hasTestCases: true, sampleCount: 2, secretCount: 5, cases: [] })
+  })
+
+  it('useProblemTestCases no hace fetch mientras la lista no está abierta (enabled=false)', async () => {
+    const calls = stubEndpoint('get', '/problems/p/two-sum/testcases', { body: {} })
+    const { wrapper } = makeWrapper()
+
+    const { result } = renderHook(() => useProblemTestCases('two-sum', false), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('useProblemSourceFile pide el archivo con fileName y full=true cuando se pide completo', async () => {
+    const calls = stubEndpoint('get', '/problems/p/two-sum/files/solution', {
+      body: { fileType: 'solution', filename: 'a.cpp', language: 'cpp20', content: 'int main(){}', truncated: false, sizeBytes: 12 },
+    })
+
+    const { data } = await exerciseQuery(() => useProblemSourceFile('two-sum', 'solution', 'a.cpp', true, true))
+
+    expect(calls[0].search).toBe('?fileName=a.cpp&full=true')
+    expect(data?.content).toBe('int main(){}')
+  })
+
+  it('useProblemSourceFile no envía params cuando no hay fileName ni full', async () => {
+    const calls = stubEndpoint('get', '/problems/p/two-sum/files/checker', {
+      body: { fileType: 'checker', filename: 'chk.cpp', language: 'cpp20', content: '', truncated: false, sizeBytes: 0 },
+    })
+
+    await exerciseQuery(() => useProblemSourceFile('two-sum', 'checker', undefined, true))
+
+    expect(calls[0].search).toBe('')
+  })
+
+  it('useProblemTestCasePart devuelve el texto de la entrada de un caso y codifica el nombre en la URL', async () => {
+    const requestedNames: string[] = []
+    server.use(
+      http.get('http://localhost:8080/api/problems/p/two-sum/testcases/sample/:name/input', ({ params }) => {
+        requestedNames.push(String(params.name))
+        return new HttpResponse('3 4\n', { headers: { 'Content-Type': 'text/plain' } })
+      }),
+    )
+
+    const { data } = await exerciseQuery(() => useProblemTestCasePart('two-sum', 'sample', 'case 1', 'input', true))
+
+    expect(data).toBe('3 4\n')
+    expect(requestedNames).toEqual(['case 1'])
+  })
+})
+
+describe('descargas de problemas', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  function captureDownload() {
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:zip'), revokeObjectURL: vi.fn() })
+    const names: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download)
+    })
+    return names
+  }
+
+  it('useDownloadTestCases descarga el ZIP de casos como <slug>-testcases.zip', async () => {
+    stubEndpoint('get', '/problems/p/two-sum/files/testcases', { body: { zip: true } })
+    const names = captureDownload()
+
+    const outcome = await exerciseMutation(useDownloadTestCases, 'two-sum')
+
+    expect(outcome.isSuccess).toBe(true)
+    expect(names).toEqual(['two-sum-testcases.zip'])
+  })
+
+  it('useExportProblem descarga el paquete como <slug>.zip', async () => {
+    stubEndpoint('get', '/problems/p/two-sum/export', { body: { zip: true } })
+    const names = captureDownload()
+
+    const outcome = await exerciseMutation(useExportProblem, 'two-sum')
+
+    expect(outcome.isSuccess).toBe(true)
+    expect(names).toEqual(['two-sum.zip'])
+  })
+
+  it('useExportProblem falla con ApiClientError 403 y no descarga nada', async () => {
+    stubEndpoint('get', '/problems/p/two-sum/export', { status: 403, body: { error: 'FORBIDDEN', message: 'no' } })
+    const names = captureDownload()
+
+    const outcome = await exerciseMutation(useExportProblem, 'two-sum')
+
+    expect(outcome.isSuccess).toBe(false)
+    expect((outcome.error as ApiClientError).status).toBe(403)
+    expect(names).toEqual([])
+  })
+})
+
+describe('useImportProblem', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sube el paquete a /problems/import e invalida problemKeys.all', async () => {
+    const sent = stubXhr({ status: 201, body: { slug: 'imported', title: 'Imported' } })
+
+    const outcome = await exerciseMutation(useImportProblem, { file: new File(['zip'], 'p.zip'), slug: 'imported' })
+
+    expect(outcome.isSuccess).toBe(true)
+    expect(outcome.data).toEqual({ slug: 'imported', title: 'Imported' })
+    expect(sent).toHaveLength(1)
+    expect(sent[0].url).toBe('http://localhost:8080/api/problems/import')
+    expect((sent[0].body as FormData).get('slug')).toBe('imported')
+    expect(outcome.invalidatedKeys).toEqual([problemKeys.all])
+  })
+
+  it('propaga ApiClientError 409 y no invalida la caché cuando el slug ya existe', async () => {
+    stubXhr({ status: 409, body: { error: 'SLUG_TAKEN', message: 'ya existe' } })
+
+    const outcome = await exerciseMutation(useImportProblem, { file: new File(['zip'], 'p.zip'), slug: 'taken' })
+
+    expect((outcome.error as ApiClientError).code).toBe('SLUG_TAKEN')
+    expect(outcome.invalidatedKeys).toEqual([])
   })
 })
