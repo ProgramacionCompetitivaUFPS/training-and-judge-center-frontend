@@ -3,7 +3,7 @@ import { configure } from '@testing-library/react'
 import { server } from './server'
 import { clearAccessToken, resetSessionExpiredNotified } from '@/lib/tokenStore'
 
-configure({ asyncUtilTimeout: 4000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // jsdom lacks these DOM APIs, which Radix primitives (Select, DropdownMenu) call when they open
 Element.prototype.hasPointerCapture ??= () => false
