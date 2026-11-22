@@ -1078,7 +1078,7 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
       expect(screen.getByTestId('location')).toHaveTextContent(/^\/groups\/group-1$/)
     })
 
-    it('la pestaña Solicitudes aparece con política distinta de REQUEST si todavía hay solicitudes', async () => {
+    it('la pestaña Solicitudes aparece con política distinta de REQUEST si hay historial aunque no haya pendientes', async () => {
       stubGroupDetail({ joinPolicy: 'OPEN' })
       // Only approved requests in the history: nothing pending, so the tab must not depend on the PENDING total
       server.use(
@@ -1087,9 +1087,11 @@ describe('GroupDetailPage — contenido de las pestañas', () => {
           return HttpResponse.json({ requests: [], pagination: page(unfiltered ? 1 : 0) })
         }),
       )
-      renderAt('/groups/group-1')
+      renderAt('/groups/group-1?tab=requests')
 
-      expect(await screen.findByRole('tab', { name: /solicitudes/i })).toBeInTheDocument()
+      // No pending request, yet the tab exists (the history says there were some) and shows the empty state
+      expect(await screen.findByText('No hay solicitudes con este estado')).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: /solicitudes/i })).toBeInTheDocument()
     })
 
     it('la pestaña Solicitudes no aparece con política distinta de REQUEST y sin solicitudes', async () => {
