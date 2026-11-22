@@ -6,32 +6,36 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
     globals: true,
     testTimeout: 15000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        // Not production code
+        // Entry points and composition roots
+        'src/main.tsx',
+        'src/App.tsx',
+        'src/vite-env.d.ts',
+        '**/*.d.ts',
+        // Development / test infrastructure
         'src/mocks/**',
         'src/test/**',
-        // Test files themselves
+        'src/integration/support/**',
         '**/*.test.{ts,tsx}',
-        // Pure TypeScript type definitions — no executable statements
+        // Pure types and re-export barrels (no executable logic)
         'src/types/**',
-        // Web worker — requires a separate worker test environment
+        'src/**/index.ts',
+        // Declarative Blockly toolbox configuration (static data)
+        'src/components/features/blockly/toolboxConfig.ts',
+        // Pyodide worker: needs a real Worker + WebAssembly runtime that jsdom does not provide
         'src/workers/**',
-        // Skipped: Blockly and Pyodide depend on external binaries unavailable in jsdom
-        'src/hooks/useBlocklyPersistence.ts',
-        'src/hooks/usePyodide.ts',
       ],
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'json-summary', 'lcov'],
       thresholds: {
-        lines: 60,
-        branches: 50,
-        functions: 50,
-        statements: 60,
+        lines: 80,
+        branches: 80,
+        functions: 80,
+        statements: 80,
       },
     },
   },

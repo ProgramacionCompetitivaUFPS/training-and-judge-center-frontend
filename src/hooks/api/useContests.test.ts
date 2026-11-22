@@ -9,6 +9,7 @@ import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 import { mockContests, mockContestReveals } from '@/mocks/data'
 import type { ContestDetail, CreateContestRequest, StandingsParams, StandingsPhase, StandingsResponse } from '@/types/contest'
+import { exerciseMutation, describeMutationCases } from '@/test/hookHarness'
 import {
   contestKeys,
   standingsRefetchInterval,
@@ -26,6 +27,7 @@ import {
   useRegisterToContest,
   useUnregisterFromContest,
   useRevealContestResults,
+  useRejudgeContestProblem,
 } from './useContests'
 
 function makeWrapper() {
@@ -1191,3 +1193,20 @@ describe('useUnregisterFromContest', () => {
     )
   })
 })
+
+describeMutationCases('useRejudgeContestProblem', [
+  {
+    name: 'useRejudgeContestProblem',
+    run: () =>
+      exerciseMutation(useRejudgeContestProblem, {
+        groupId: 'group-1',
+        contestId: 'contest-1',
+        problemSlug: 'two-sum',
+      }),
+    method: 'post',
+    path: '/groups/group-1/contests/contest-1/problems/two-sum/rejudge',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [contestKeys.detail('group-1', 'contest-1')],
+  },
+])

@@ -8,6 +8,7 @@ import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockMaterials } from '@/mocks/data'
 import type { CreateMaterialRequest } from '@/types/material'
+import { exerciseMutation, describeMutationCases } from '@/test/hookHarness'
 import {
   materialKeys,
   useMaterials,
@@ -18,6 +19,9 @@ import {
   useUpdateMaterial,
   useDeleteMaterial,
   usePublishMaterial,
+  useUnpublishMaterial,
+  usePinMaterial,
+  useUnpinMaterial,
 } from './useMaterials'
 
 function makeWrapper() {
@@ -226,3 +230,33 @@ describe('usePublishMaterial', () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: materialKeys.list(GROUP_ID) }))
   })
 })
+
+describeMutationCases('mutaciones de visibilidad de materiales', [
+  {
+    name: 'useUnpublishMaterial',
+    run: () => exerciseMutation(useUnpublishMaterial, { groupId: 'group-1', materialId: 'mat-1' }),
+    method: 'post',
+    path: '/groups/group-1/materials/mat-1/unpublish',
+    requestBody: undefined,
+    respond: { body: { id: 'mat-1', status: 'DRAFT' } },
+    invalidates: [materialKeys.detail('group-1', 'mat-1'), materialKeys.list('group-1')],
+  },
+  {
+    name: 'usePinMaterial',
+    run: () => exerciseMutation(usePinMaterial, { groupId: 'group-1', materialId: 'mat-1' }),
+    method: 'post',
+    path: '/groups/group-1/materials/mat-1/pin',
+    requestBody: undefined,
+    respond: { body: { id: 'mat-1', isPinned: true } },
+    invalidates: [materialKeys.detail('group-1', 'mat-1'), materialKeys.list('group-1')],
+  },
+  {
+    name: 'useUnpinMaterial',
+    run: () => exerciseMutation(useUnpinMaterial, { groupId: 'group-1', materialId: 'mat-1' }),
+    method: 'post',
+    path: '/groups/group-1/materials/mat-1/unpin',
+    requestBody: undefined,
+    respond: { body: { id: 'mat-1', isPinned: false } },
+    invalidates: [materialKeys.detail('group-1', 'mat-1'), materialKeys.list('group-1')],
+  },
+])

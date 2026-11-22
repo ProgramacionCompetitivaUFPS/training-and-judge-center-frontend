@@ -10,6 +10,7 @@ import { setAccessToken, clearAccessToken, getAccessToken } from '@/lib/tokenSto
 import * as tokenStore from '@/lib/tokenStore'
 import { mockCurrentUser, mockUsers } from '@/mocks/data'
 import type { LoginRequest, UpdateProfileRequest } from '@/types/user'
+import { stubEndpoint, exerciseMutation, exerciseQuery, describeMutationCases } from '@/test/hookHarness'
 import {
   userKeys,
   useCurrentUser,
@@ -22,6 +23,21 @@ import {
   useRegister,
   useConfirmDeactivation,
   useAdminUpdateUser,
+  useLinkGoogle,
+  useUnlinkGoogle,
+  useChangePassword,
+  useSetPassword,
+  useRequestEmailChange,
+  useConfirmEmailChange,
+  useRecoverPassword,
+  useResetPassword,
+  useRequestDeactivation,
+  useAdminDeactivateUser,
+  useUserDashboard,
+  useUserStats,
+  useAdminUsers,
+  useAdminUserFilterOptions,
+  useSoleLeadGroups,
 } from './useUsers'
 
 function makeWrapper() {
@@ -325,5 +341,197 @@ describe('session mark — login y logout', () => {
 
     // Assert
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describeMutationCases('mutaciones de cuenta (Google, contraseña, correo, desactivación)', [
+  {
+    name: 'useLinkGoogle',
+    run: () => exerciseMutation(useLinkGoogle, { id_token: 'google-token' }),
+    method: 'post',
+    path: '/users/google',
+    requestBody: { id_token: 'google-token' },
+    respond: {},
+    invalidates: [userKeys.me],
+  },
+  {
+    name: 'useUnlinkGoogle',
+    run: () => exerciseMutation(useUnlinkGoogle, undefined),
+    method: 'delete',
+    path: '/users/google',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [userKeys.me],
+  },
+  {
+    name: 'useChangePassword',
+    run: () => exerciseMutation(useChangePassword, { currentPassword: 'Old12345!', newPassword: 'New12345!' }),
+    method: 'put',
+    path: '/users/password',
+    requestBody: { currentPassword: 'Old12345!', newPassword: 'New12345!' },
+    respond: {},
+    invalidates: [],
+  },
+  {
+    name: 'useSetPassword',
+    run: () => exerciseMutation(useSetPassword, { newPassword: 'New12345!' }),
+    method: 'post',
+    path: '/users/password',
+    requestBody: { newPassword: 'New12345!' },
+    respond: {},
+    invalidates: [userKeys.me],
+  },
+  {
+    name: 'useRequestEmailChange',
+    run: () => exerciseMutation(useRequestEmailChange, { newEmail: 'nuevo@correo.com', password: 'Pass1234!' }),
+    method: 'post',
+    path: '/users/email-change/request',
+    requestBody: { newEmail: 'nuevo@correo.com', password: 'Pass1234!' },
+    respond: {},
+    invalidates: [],
+  },
+  {
+    name: 'useConfirmEmailChange',
+    run: () => exerciseMutation(useConfirmEmailChange, { code: '123456' }),
+    method: 'post',
+    path: '/users/email-change/confirm',
+    requestBody: { code: '123456' },
+    respond: {},
+    invalidates: [userKeys.me],
+  },
+  {
+    name: 'useRecoverPassword',
+    run: () => exerciseMutation(useRecoverPassword, { email: 'ana@correo.com' }),
+    method: 'post',
+    path: '/password/forgot',
+    requestBody: { email: 'ana@correo.com' },
+    respond: {},
+    invalidates: [],
+  },
+  {
+    name: 'useResetPassword',
+    run: () => exerciseMutation(useResetPassword, { email: 'ana@correo.com', code: '654321', newPassword: 'New12345!' }),
+    method: 'post',
+    path: '/password/reset',
+    requestBody: { email: 'ana@correo.com', code: '654321', newPassword: 'New12345!' },
+    respond: {},
+    invalidates: [],
+  },
+  {
+    name: 'useRequestDeactivation',
+    run: () => exerciseMutation(useRequestDeactivation, { password: 'Pass1234!' }),
+    method: 'post',
+    path: '/users/deactivation',
+    requestBody: { password: 'Pass1234!' },
+    respond: {},
+    invalidates: [],
+  },
+  {
+    name: 'useAdminDeactivateUser',
+    run: () => exerciseMutation(useAdminDeactivateUser, 'user-9'),
+    method: 'post',
+    path: '/admin/users/user-9/deactivate',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [userKeys.all],
+  },
+])
+
+describe('consultas de usuario', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it('useUserDashboard retorna el tablero del usuario autenticado', async () => {
+    stubEndpoint('get', '/users/me/dashboard', { body: { recentSubmissions: [], upcomingContests: [] } })
+
+    const { data } = await exerciseQuery(() => useUserDashboard())
+
+    expect(data).toEqual({ recentSubmissions: [], upcomingContests: [] })
+  })
+
+  it('useUserDashboard no hace fetch cuando enabled es false', async () => {
+    const calls = stubEndpoint('get', '/users/me/dashboard', { body: {} })
+    const { wrapper } = makeWrapper()
+
+    const { result } = renderHook(() => useUserDashboard(false), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(calls).toHaveLength(0)
+  })
+
+  it('useUserStats retorna las estadísticas del perfil', async () => {
+    stubEndpoint('get', '/users/me/stats', { body: { solved: 12, attempted: 30 } })
+
+    const { data } = await exerciseQuery(() => useUserStats())
+
+    expect(data).toEqual({ solved: 12, attempted: 30 })
+  })
+
+  it('useAdminUsers traduce search/sortBy/sortOrder a searchTerm/sort/order en la URL', async () => {
+    const calls = stubEndpoint('get', '/admin/users', { body: { users: [], pagination: { total: 0 } } })
+
+    await exerciseQuery(() =>
+      useAdminUsers({ page: 2, search: 'ana', sortBy: 'nickname', sortOrder: 'desc', role: 'COACH' }),
+    )
+
+    const query = new URLSearchParams(calls[0].search)
+    expect(query.get('searchTerm')).toBe('ana')
+    expect(query.get('sort')).toBe('nickname')
+    expect(query.get('order')).toBe('desc')
+    expect(query.get('page')).toBe('2')
+    expect(query.get('role')).toBe('COACH')
+    expect(query.has('search')).toBe(false)
+  })
+
+  it('useAdminUsers propaga ApiClientError 403 cuando el usuario no es admin', async () => {
+    stubEndpoint('get', '/admin/users', { status: 403, body: { error: 'FORBIDDEN', message: 'no' } })
+
+    const { error } = await exerciseQuery(() => useAdminUsers())
+
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).status).toBe(403)
+  })
+
+  it('useAdminUserFilterOptions retorna las opciones de filtro', async () => {
+    stubEndpoint('get', '/admin/users/filters', { body: { countries: ['Colombia'], cities: [], institutions: [] } })
+
+    const { data } = await exerciseQuery(() => useAdminUserFilterOptions())
+
+    expect(data).toEqual({ countries: ['Colombia'], cities: [], institutions: [] })
+  })
+})
+
+describe('useSoleLeadGroups', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it('consulta /users/me/sole-lead-groups cuando no hay userId', async () => {
+    const calls = stubEndpoint('get', '/users/me/sole-lead-groups', { body: { groups: [{ id: 'group-1' }] } })
+
+    const { data } = await exerciseQuery(() => useSoleLeadGroups(undefined, true))
+
+    expect(calls).toHaveLength(1)
+    expect(data).toEqual({ groups: [{ id: 'group-1' }] })
+  })
+
+  it('consulta /admin/users/:userId/sole-lead-groups cuando se indica un usuario', async () => {
+    const calls = stubEndpoint('get', '/admin/users/user-9/sole-lead-groups', { body: { groups: [] } })
+
+    const { data } = await exerciseQuery(() => useSoleLeadGroups('user-9', true))
+
+    expect(calls).toHaveLength(1)
+    expect(data).toEqual({ groups: [] })
+  })
+
+  it('no hace fetch cuando enabled es false', async () => {
+    const calls = stubEndpoint('get', '/users/me/sole-lead-groups', { body: {} })
+    const { wrapper } = makeWrapper()
+
+    const { result } = renderHook(() => useSoleLeadGroups(undefined, false), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(calls).toHaveLength(0)
   })
 })

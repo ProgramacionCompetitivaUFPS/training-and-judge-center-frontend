@@ -4,15 +4,19 @@ on:
   pull_request:
     branches:
       - develop
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
+      - main
   workflow_dispatch:
+
+# A newer push to the same PR cancels the run it supersedes (less queueing, less CI time)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
     name: Lint, Test & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -27,11 +31,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
+      - name: Lint (0 warnings)
         run: npm run lint
 
-      - name: Test
-        run: npm run test:run
+      # Unit, page and integration tests (both vitest projects) with coverage. Fails if any metric
+      # drops below the 80 % thresholds in vitest.config.ts.
+      - name: Tests (unit + integration) with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
 
       - name: Build
         run: npm run build

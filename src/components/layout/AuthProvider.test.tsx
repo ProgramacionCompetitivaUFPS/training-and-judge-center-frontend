@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse, delay } from 'msw'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { AuthProvider } from './AuthProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { server } from '@/mocks/server'
-import { clearAccessToken, setAccessToken, notifySessionExpired, resetSessionExpiredNotified, markSessionActive, clearSessionMark, hasSessionMark } from '@/lib/tokenStore'
+import { mockCurrentUser } from '@/mocks/data'
+import { getAccessToken, clearAccessToken, setAccessToken, notifySessionExpired, resetSessionExpiredNotified, markSessionActive, clearSessionMark, hasSessionMark } from '@/lib/tokenStore'
 import type { UserRole } from '@/types/user'
 
 // Stable reference so tests can assert on specific calls
@@ -306,5 +308,125 @@ describe('AuthProvider', () => {
 
     // Assert
     expect(hasSessionMark()).toBe(false)
+  })
+})
+
+describe('AuthProvider — roles', () => {
+  const ROLES: UserRole[] = ['ADMIN', 'COACH', 'CONTESTANT']
+
+  it.each(ROLES)('hasRole solo es verdadero para el rol %s del usuario autenticado', async (userRole) => {
+    // Arrange
+    markSessionActive()
+    server.use(
+      http.get('http://localhost:8080/api/users/me', () =>
+        HttpResponse.json({ ...mockCurrentUser, role: userRole }),
+      ),
+    )
+    function AllRoles() {
+      const { hasRole, isLoading } = useAuth()
+      if (isLoading) return <div>loading</div>
+      return <div data-testid="roles">{ROLES.filter((r) => hasRole(r)).join(',')}</div>
+    }
+
+    // Act
+    render(
+      <Wrapper>
+        <AuthProvider>
+          <AllRoles />
+        </AuthProvider>
+      </Wrapper>,
+    )
+
+    // Assert
+    await waitFor(() => expect(screen.getByTestId('roles').textContent).toBe(userRole), { timeout: 3000 })
+  })
+})
+
+describe('AuthProvider — cierre de sesión', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('vacía la caché de React Query cuando el token desaparece', async () => {
+    // Arrange
+    markSessionActive()
+    queryClient.setQueryData(['problems', 'detail', 'two-sum'], { slug: 'two-sum' })
+    render(
+      <Wrapper>
+        <AuthProvider>
+          <AuthConsumer />
+        </AuthProvider>
+      </Wrapper>,
+    )
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('authenticated'), { timeout: 3000 })
+    expect(queryClient.getQueryData(['problems', 'detail', 'two-sum'])).toEqual({ slug: 'two-sum' })
+
+    // Act
+    act(() => { clearAccessToken() })
+
+    // Assert
+    expect(queryClient.getQueryData(['problems', 'detail', 'two-sum'])).toBeUndefined()
+  })
+
+  it('logout invoca POST /auth/logout, limpia sesión y redirige a /login', async () => {
+    // Arrange
+    markSessionActive()
+    const location = { href: '/dashboard' }
+    vi.stubGlobal('location', location)
+    let logoutCalls = 0
+    server.use(
+      http.post('http://localhost:8080/api/auth/logout', () => {
+        logoutCalls += 1
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    function LogoutButton() {
+      const { logout, isAuthenticated } = useAuth()
+      return isAuthenticated ? <button onClick={logout}>Salir</button> : <div>guest</div>
+    }
+    render(
+      <Wrapper>
+        <AuthProvider>
+          <LogoutButton />
+        </AuthProvider>
+      </Wrapper>,
+    )
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Salir' }, { timeout: 3000 }))
+
+    // Assert
+    await waitFor(() => expect(location.href).toBe('/login'))
+    expect(logoutCalls).toBe(1)
+    expect(getAccessToken()).toBeNull()
+    expect(hasSessionMark()).toBe(false)
+  })
+
+  it('logout limpia la sesión y redirige aunque el servidor responda 500', async () => {
+    // Arrange
+    markSessionActive()
+    const location = { href: '/dashboard' }
+    vi.stubGlobal('location', location)
+    server.use(
+      http.post('http://localhost:8080/api/auth/logout', () => new HttpResponse(null, { status: 500 })),
+    )
+    function LogoutButton() {
+      const { logout, isAuthenticated } = useAuth()
+      return isAuthenticated ? <button onClick={logout}>Salir</button> : <div>guest</div>
+    }
+    render(
+      <Wrapper>
+        <AuthProvider>
+          <LogoutButton />
+        </AuthProvider>
+      </Wrapper>,
+    )
+    const user = userEvent.setup()
+
+    // Act
+    await user.click(await screen.findByRole('button', { name: 'Salir' }, { timeout: 3000 }))
+
+    // Assert
+    await waitFor(() => expect(location.href).toBe('/login'))
+    expect(getAccessToken()).toBeNull()
   })
 })

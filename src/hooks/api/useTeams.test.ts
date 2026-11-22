@@ -10,6 +10,7 @@ import { mockMyTeams, mockTeamRegistrations } from '@/mocks/data'
 import { ApiClientError } from '@/lib/errors'
 import type { CreateTeamRequest } from '@/types/team'
 import { contestKeys } from './useContests'
+import { stubEndpoint, exerciseMutation, exerciseQuery, describeMutationCases } from '@/test/hookHarness'
 import {
   teamKeys,
   useMyTeams,
@@ -24,6 +25,10 @@ import {
   useAcceptTeamInvitation,
   useRejectTeamInvitation,
   useRegisterTeamToContest,
+  useInviteTeamMember,
+  useUpdateTeamRegistration,
+  useUnregisterTeamFromContest,
+  useTeamRegistrationEligibility,
 } from './useTeams'
 
 function makeWrapper() {
@@ -388,5 +393,87 @@ describe('useLeaveTeam con los handlers por defecto', () => {
 
     // Assert
     expect(result.current.isSuccess).toBe(true)
+  })
+})
+
+describeMutationCases('mutaciones de equipos (invitaciones e inscripción)', [
+  {
+    name: 'useInviteTeamMember',
+    run: () => exerciseMutation(useInviteTeamMember, { teamId: 'team-1', data: { nickname: 'ana' } }),
+    method: 'post',
+    path: '/teams/team-1/invitations',
+    requestBody: { nickname: 'ana' },
+    respond: { status: 201, body: { id: 'tinv-1', teamId: 'team-1' } },
+    invalidates: [teamKeys.detail('team-1')],
+  },
+  {
+    name: 'useUpdateTeamRegistration',
+    run: () =>
+      exerciseMutation(useUpdateTeamRegistration, {
+        groupId: 'group-1',
+        contestId: 'contest-1',
+        teamId: 'team-1',
+        data: { selectedMembers: ['user-1', 'user-2'] },
+      }),
+    method: 'put',
+    path: '/groups/group-1/contests/contest-1/team-registrations/team-1',
+    requestBody: { selectedMembers: ['user-1', 'user-2'] },
+    respond: { body: { teamId: 'team-1' } },
+    invalidates: [
+      teamKeys.contestRegistrations('group-1', 'contest-1'),
+      ['contests', 'registrations', 'group-1', 'contest-1'],
+    ],
+  },
+  {
+    name: 'useUnregisterTeamFromContest',
+    run: () =>
+      exerciseMutation(useUnregisterTeamFromContest, {
+        groupId: 'group-1',
+        contestId: 'contest-1',
+        teamId: 'team-1',
+      }),
+    method: 'delete',
+    path: '/groups/group-1/contests/contest-1/team-registrations/team-1',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [
+      teamKeys.contestRegistrations('group-1', 'contest-1'),
+      contestKeys.detail('group-1', 'contest-1'),
+      ['contests', 'registrations', 'group-1', 'contest-1'],
+    ],
+  },
+])
+
+describe('useTeamRegistrationEligibility', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it('retorna qué integrantes del equipo pueden inscribirse y por qué no los demás', async () => {
+    stubEndpoint('get', '/groups/group-1/contests/contest-1/team-registrations/team-1/eligibility', {
+      body: {
+        teamAlreadyRegistered: false,
+        members: [
+          { id: 'user-1', nickname: 'ana', eligible: true },
+          { id: 'user-2', nickname: 'luis', eligible: false, reason: 'MEMBER_ALREADY_REGISTERED' },
+        ],
+      },
+    })
+
+    const { data } = await exerciseQuery(() => useTeamRegistrationEligibility('group-1', 'contest-1', 'team-1'))
+
+    expect(data?.teamAlreadyRegistered).toBe(false)
+    expect(data?.members[1]).toEqual({ id: 'user-2', nickname: 'luis', eligible: false, reason: 'MEMBER_ALREADY_REGISTERED' })
+  })
+
+  it('no hace fetch cuando falta el id del equipo', async () => {
+    const calls = stubEndpoint('get', '/groups/group-1/contests/contest-1/team-registrations//eligibility', { body: {} })
+    const { result } = renderHook(() => useTeamRegistrationEligibility('group-1', 'contest-1', ''), {
+      wrapper: ({ children }) =>
+        React.createElement(QueryClientProvider, { client: createTestQueryClient() }, children),
+    })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(calls).toHaveLength(0)
   })
 })
