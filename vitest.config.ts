@@ -33,10 +33,9 @@ export default defineConfig({
       ],
       reporter: ['text', 'html', 'json-summary', 'lcov'],
       thresholds: {
-        // Ratchet: functions rises each phase until it reaches 80 (see the coverage plan)
         lines: 80,
         branches: 80,
-        functions: 62,
+        functions: 80,
         statements: 80,
       },
     },
