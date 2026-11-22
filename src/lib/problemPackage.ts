@@ -68,7 +68,7 @@ const dir = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndex
 
 /**
  * Drops a trailing YAML comment: a `#` that follows whitespace, and the whitespace before it. When the value itself
- * starts with `#` it is a comment only if spaces separated it from the colon (`name: # todo` has no value, `name:#x`
+ * starts with `#` it is a comment only if spaces separated it from the colon (`name: # pendiente` has no value, `name:#x`
  * is not a comment).
  */
 function stripTrailingComment(value: string, afterSpace: boolean): string {
