@@ -12,11 +12,11 @@ afterEach(() => {
 })
 
 describe('useToast', () => {
-  it('agrega un aviso con variante default y duración de 5 segundos por omisión', () => {
+  it('agrega un aviso con la duración de 5 segundos por omisión', () => {
     const { result } = renderHook(() => useToast())
 
     act(() => {
-      result.current.toast({ title: 'Guardado' })
+      result.current.toast({ variant: 'default', title: 'Guardado' })
     })
 
     expect(result.current.toasts).toHaveLength(1)
@@ -28,7 +28,7 @@ describe('useToast', () => {
     let id = ''
 
     act(() => {
-      id = result.current.toast({ title: 'Hola' })
+      id = result.current.toast({ variant: 'default', title: 'Hola' })
     })
 
     expect(id).not.toBe('')
@@ -39,8 +39,8 @@ describe('useToast', () => {
     const { result } = renderHook(() => useToast())
 
     act(() => {
-      result.current.toast({ title: 'Primero' })
-      result.current.toast({ title: 'Segundo' })
+      result.current.toast({ variant: 'default', title: 'Primero' })
+      result.current.toast({ variant: 'default', title: 'Segundo' })
     })
 
     expect(result.current.toasts.map((t) => t.title)).toEqual(['Primero', 'Segundo'])
@@ -49,7 +49,7 @@ describe('useToast', () => {
   it('quita el aviso solo cuando termina su duración', () => {
     const { result } = renderHook(() => useToast())
     act(() => {
-      result.current.toast({ title: 'Efímero', duration: 3000 })
+      result.current.toast({ variant: 'default', title: 'Efímero', duration: 3000 })
     })
 
     act(() => {
@@ -66,8 +66,8 @@ describe('useToast', () => {
   it('al vencer un aviso no afecta a los demás', () => {
     const { result } = renderHook(() => useToast())
     act(() => {
-      result.current.toast({ title: 'Corto', duration: 1000 })
-      result.current.toast({ title: 'Largo', duration: 8000 })
+      result.current.toast({ variant: 'default', title: 'Corto', duration: 1000 })
+      result.current.toast({ variant: 'default', title: 'Largo', duration: 8000 })
     })
 
     act(() => {
@@ -80,7 +80,7 @@ describe('useToast', () => {
   it('con duración 0 el aviso permanece hasta que se descarta', () => {
     const { result } = renderHook(() => useToast())
     act(() => {
-      result.current.toast({ title: 'Fijo', duration: 0 })
+      result.current.toast({ variant: 'default', title: 'Fijo', duration: 0 })
     })
 
     act(() => {
@@ -94,8 +94,8 @@ describe('useToast', () => {
     const { result } = renderHook(() => useToast())
     let first = ''
     act(() => {
-      first = result.current.toast({ title: 'Uno', duration: 0 })
-      result.current.toast({ title: 'Dos', duration: 0 })
+      first = result.current.toast({ variant: 'default', title: 'Uno', duration: 0 })
+      result.current.toast({ variant: 'default', title: 'Dos', duration: 0 })
     })
 
     act(() => {
@@ -108,8 +108,8 @@ describe('useToast', () => {
   it('dismissAll quita todos los avisos', () => {
     const { result } = renderHook(() => useToast())
     act(() => {
-      result.current.toast({ title: 'Uno', duration: 0 })
-      result.current.toast({ title: 'Dos', duration: 0 })
+      result.current.toast({ variant: 'default', title: 'Uno', duration: 0 })
+      result.current.toast({ variant: 'default', title: 'Dos', duration: 0 })
     })
 
     act(() => {
