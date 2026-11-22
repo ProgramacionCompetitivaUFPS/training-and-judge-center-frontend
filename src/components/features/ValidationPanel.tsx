@@ -4,6 +4,7 @@ import { CheckCircle2, ClipboardCheck, Loader2, TriangleAlert, XCircle } from 'l
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { ValidationReportView } from '@/components/features/ValidationReportView'
 import { problemKeys, useLatestValidation } from '@/hooks/api/useProblems'
+import type { LatestValidation } from '@/types/problem'
 
 interface ValidationPanelProps {
   slug: string
@@ -26,6 +27,103 @@ function Elapsed() {
   return <>{`${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`}</>
 }
 
+/** The worker reports an infrastructure failure as a failed attempt with only this message and no detail. */
+function isSystemError(data: LatestValidation): boolean {
+  return (
+    !data.compilationErrors &&
+    !data.failedTestCases?.length &&
+    !data.failedInputs?.length &&
+    !!data.validationLogs?.some((log) => /internal error/i.test(log))
+  )
+}
+
+interface ValidationBadgeProps {
+  running: boolean
+  passed: boolean
+  systemError: boolean
+  failed: boolean
+}
+
+function ValidationBadge({ running, passed, systemError, failed }: Readonly<ValidationBadgeProps>) {
+  if (running) return <Badge variant="warning">Validando</Badge>
+  if (passed) return <Badge variant="success">Pasó</Badge>
+  if (systemError) return <Badge variant="warning">Error del sistema</Badge>
+  if (failed) return <Badge variant="error">Falló</Badge>
+  return null
+}
+
+function RunningSection() {
+  return (
+    <div className="space-y-1" role="status">
+      <p className="flex items-center gap-2 text-neutral-text-primary">
+        <Loader2 aria-label="Cargando" className="h-4 w-4 animate-spin" />
+        Validando el problema…{' '}
+        <span className="font-mono text-neutral-text-muted">
+          <Elapsed />
+        </span>
+      </p>
+      <p className="text-xs text-neutral-text-muted">
+        Compila el checker y el validador, corre cada solución contra todos los casos y comprueba que den la respuesta
+        esperada. Puede tardar unos minutos y sigue aunque cierres esta pestaña: el resultado queda aquí.
+      </p>
+    </div>
+  )
+}
+
+function passedMessage(awaitingPublish: boolean, stale: boolean | undefined): string {
+  if (!awaitingPublish) return 'La última validación pasó.'
+  if (stale) return 'La última validación pasó, pero cambiaste el problema después: vuelve a validarlo antes de publicar.'
+  return 'La última validación pasó. El problema sigue en borrador: ya puedes publicarlo.'
+}
+
+function PassedSection({ data, awaitingPublish }: Readonly<{ data: LatestValidation; awaitingPublish: boolean }>) {
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 text-status-success">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        {passedMessage(awaitingPublish, data.stale)}
+      </p>
+      {data.validationSummary && (
+        <ul className="list-disc list-inside text-neutral-text-primary">
+          <li>{data.validationSummary.sampleCases} caso(s) de ejemplo y {data.validationSummary.secretCases} secreto(s)</li>
+          <li>{data.validationSummary.solutionsTested} solución(es) de referencia probada(s)</li>
+        </ul>
+      )}
+      <ValidationReportView validationLogs={data.validationLogs} />
+    </div>
+  )
+}
+
+function FailedSection({ data }: Readonly<{ data: LatestValidation }>) {
+  return (
+    <div className="space-y-3">
+      <p className="flex items-center gap-2 text-status-error">
+        <XCircle className="h-4 w-4 shrink-0" />
+        La última validación falló; el problema no se publicó. Corrige lo que sigue y vuelve a pulsar «Validar».
+      </p>
+      <ValidationReportView
+        compilationErrors={data.compilationErrors}
+        failedTestCases={data.failedTestCases}
+        failedInputs={data.failedInputs}
+        validationLogs={data.validationLogs}
+      />
+    </div>
+  )
+}
+
+function SystemErrorSection({ data }: Readonly<{ data: LatestValidation }>) {
+  return (
+    <div className="space-y-2">
+      <p className="flex items-start gap-2 text-neutral-text-primary">
+        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
+        La validación no pudo terminar por un error del sistema, no por el problema. Vuelve a pulsar «Validar»; si se
+        repite, avisa a un administrador.
+      </p>
+      <ValidationReportView validationLogs={data.validationLogs} />
+    </div>
+  )
+}
+
 /**
  * What happened with the last attempt to publish the problem. The result used to exist only in the
  * dialog that opens if the publish request ends while the page is still open; this card keeps it,
@@ -40,12 +138,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
   // A pass leaves the problem a draft when it came from "Validar": publishing is a separate step.
   const awaitingPublish = finished && data.passed && data.status === 'DRAFT'
   // The worker reports an infrastructure failure as a failed attempt with only this message and no detail.
-  const systemError =
-    failed &&
-    !data.compilationErrors &&
-    !data.failedTestCases?.length &&
-    !data.failedInputs?.length &&
-    !!data.validationLogs?.some((log) => /internal error/i.test(log))
+  const systemError = failed && isSystemError(data)
 
   // When a validation that was running ends, the worker may have just published the problem: refresh it.
   const wasRunning = useRef(false)
@@ -64,15 +157,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           <ClipboardCheck className="h-4 w-4" />
           Última validación
         </CardTitle>
-        {running ? (
-          <Badge variant="warning">Validando</Badge>
-        ) : finished && data.passed ? (
-          <Badge variant="success">Pasó</Badge>
-        ) : systemError ? (
-          <Badge variant="warning">Error del sistema</Badge>
-        ) : failed ? (
-          <Badge variant="error">Falló</Badge>
-        ) : null}
+        <ValidationBadge running={running} passed={finished && data.passed} systemError={systemError} failed={failed} />
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {isLoading && !running && <p className="text-neutral-text-muted">Cargando…</p>}
@@ -86,21 +171,7 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           </div>
         )}
 
-        {running && (
-          <div className="space-y-1" role="status">
-            <p className="flex items-center gap-2 text-neutral-text-primary">
-              <Loader2 aria-label="Cargando" className="h-4 w-4 animate-spin" />
-              Validando el problema…{' '}
-              <span className="font-mono text-neutral-text-muted">
-                <Elapsed />
-              </span>
-            </p>
-            <p className="text-xs text-neutral-text-muted">
-              Compila el checker y el validador, corre cada solución contra todos los casos y comprueba que den la respuesta
-              esperada. Puede tardar unos minutos y sigue aunque cierres esta pestaña: el resultado queda aquí.
-            </p>
-          </div>
-        )}
+        {running && <RunningSection />}
 
         {!running && data && !data.found && (
           <p className="text-neutral-text-muted">
@@ -110,51 +181,11 @@ export function ValidationPanel({ slug, isPublishing }: ValidationPanelProps) {
           </p>
         )}
 
-        {finished && data.passed && (
-          <div className="space-y-2">
-            <p className="flex items-center gap-2 text-status-success">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              {awaitingPublish
-                ? data.stale
-                  ? 'La última validación pasó, pero cambiaste el problema después: vuelve a validarlo antes de publicar.'
-                  : 'La última validación pasó. El problema sigue en borrador: ya puedes publicarlo.'
-                : 'La última validación pasó.'}
-            </p>
-            {data.validationSummary && (
-              <ul className="list-disc list-inside text-neutral-text-primary">
-                <li>{data.validationSummary.sampleCases} caso(s) de ejemplo y {data.validationSummary.secretCases} secreto(s)</li>
-                <li>{data.validationSummary.solutionsTested} solución(es) de referencia probada(s)</li>
-              </ul>
-            )}
-            <ValidationReportView validationLogs={data.validationLogs} />
-          </div>
-        )}
+        {finished && data.passed && <PassedSection data={data} awaitingPublish={awaitingPublish} />}
 
-        {failed && !systemError && (
-          <div className="space-y-3">
-            <p className="flex items-center gap-2 text-status-error">
-              <XCircle className="h-4 w-4 shrink-0" />
-              La última validación falló; el problema no se publicó. Corrige lo que sigue y vuelve a pulsar «Validar».
-            </p>
-            <ValidationReportView
-              compilationErrors={data.compilationErrors}
-              failedTestCases={data.failedTestCases}
-              failedInputs={data.failedInputs}
-              validationLogs={data.validationLogs}
-            />
-          </div>
-        )}
+        {failed && !systemError && <FailedSection data={data} />}
 
-        {systemError && (
-          <div className="space-y-2">
-            <p className="flex items-start gap-2 text-neutral-text-primary">
-              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-              La validación no pudo terminar por un error del sistema, no por el problema. Vuelve a pulsar «Validar»; si se
-              repite, avisa a un administrador.
-            </p>
-            <ValidationReportView validationLogs={data.validationLogs} />
-          </div>
-        )}
+        {systemError && <SystemErrorSection data={data} />}
       </CardContent>
     </Card>
   )

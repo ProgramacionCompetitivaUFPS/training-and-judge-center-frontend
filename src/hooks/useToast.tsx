@@ -8,6 +8,9 @@ export interface ToastMessage {
   duration?: number
 }
 
+/** State updater that drops one toast; a named function keeps the callbacks below shallow. */
+const withoutToast = (id: string) => (toasts: ToastMessage[]) => toasts.filter((t) => t.id !== id)
+
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
@@ -24,9 +27,7 @@ export function useToast() {
       setToasts((prev) => [...prev, newToast])
 
       if (duration > 0) {
-        setTimeout(() => {
-          setToasts((prev) => prev.filter((t) => t.id !== id))
-        }, duration)
+        setTimeout(() => setToasts(withoutToast(id)), duration)
       }
 
       return id
@@ -35,7 +36,7 @@ export function useToast() {
   )
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
+    setToasts(withoutToast(id))
   }, [])
 
   const dismissAll = useCallback(() => {

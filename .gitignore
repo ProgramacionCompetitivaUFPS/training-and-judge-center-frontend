@@ -45,3 +45,6 @@ scripts/
 
 # Coverage reports
 coverage/
+
+# SonarQube scanner working directory
+.scannerwork/

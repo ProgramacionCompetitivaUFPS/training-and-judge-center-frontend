@@ -78,6 +78,8 @@ describe('explainPythonError', () => {
 
   it.each([
     ['KeyError: 3'],
+    ['constructor: boom'],
+    ['toString: boom'],
     ['ValueError: math domain error'],
     ["NameError: algo distinto"],
     ["TypeError: 'int' object is not callable"],
