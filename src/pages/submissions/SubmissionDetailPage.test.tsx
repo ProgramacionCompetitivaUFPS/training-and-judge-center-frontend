@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { http, HttpResponse } from 'msw'
@@ -20,6 +21,11 @@ vi.mock('@/hooks/useAuth', () => ({
     lastNickname: mockCurrentUser.nickname,
     logout: mockLogout,
   }),
+}))
+
+// Blockly needs a real SVG layout engine: the viewer is replaced by a marker that shows which workspace it got
+vi.mock('@/components/features/BlocklyWorkspaceViewer', () => ({
+  default: ({ workspaceXml }: { workspaceXml: string }) => <div data-testid="blockly-viewer">{workspaceXml}</div>,
 }))
 
 const mockToast = vi.fn()
@@ -153,5 +159,83 @@ describe('SubmissionDetailPage compiler output', () => {
     // Assert
     expect(await screen.findByText('Código fuente')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('Salida del compilador')).not.toBeInTheDocument())
+  })
+})
+
+// The viewer highlights the code, which splits it into several elements: match the <code> block by its whole text
+const codeBlock = (text: string) => screen.getByText((_, el) => el?.tagName === 'CODE' && el.textContent === text)
+
+describe('SubmissionDetailPage source code', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  function serveDetail(detail: Partial<SubmissionDetail>) {
+    server.use(
+      http.get('http://localhost:8080/api/submissions/:id', () => HttpResponse.json({ ...failedWithoutLog, ...detail })),
+    )
+  }
+
+  it('muestra el código fuente de un envío normal', async () => {
+    serveDetail({ sourceCode: 'int main() { return 0; }' })
+    renderPage(COMPILATION_ERROR_ID)
+
+    expect(await screen.findByText('Código fuente')).toBeInTheDocument()
+    expect(codeBlock('int main() { return 0; }')).toBeInTheDocument()
+  })
+
+  it('avisa que el archivo ya no existe cuando el código fuente es null', async () => {
+    serveDetail({ sourceCode: null })
+    renderPage(COMPILATION_ERROR_ID)
+
+    expect(
+      await screen.findByText('Código fuente no disponible: el archivo de este envío ya no existe.'),
+    ).toBeInTheDocument()
+  })
+
+  describe('envío del editor de bloques', () => {
+    const blockly = { isBlocklySubmission: true, language: 'python310' as const, workspaceXml: '<xml>workspace-1</xml>', sourceCode: 'print(1)' }
+
+    it('muestra los bloques por defecto', async () => {
+      serveDetail(blockly)
+      renderPage(COMPILATION_ERROR_ID)
+
+      expect(await screen.findByTestId('blockly-viewer')).toHaveTextContent('<xml>workspace-1</xml>')
+      expect(screen.getByRole('button', { name: 'Código Python' })).toBeInTheDocument()
+    })
+
+    it('cambia al código Python generado y vuelve a los bloques', async () => {
+      serveDetail(blockly)
+      const user = userEvent.setup()
+      renderPage(COMPILATION_ERROR_ID)
+      await screen.findByTestId('blockly-viewer')
+
+      await user.click(screen.getByRole('button', { name: 'Código Python' }))
+      expect(codeBlock('print(1)')).toBeInTheDocument()
+      expect(screen.queryByTestId('blockly-viewer')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Bloques' }))
+
+      expect(await screen.findByTestId('blockly-viewer')).toBeInTheDocument()
+    })
+
+    it('avisa que el archivo ya no existe al ver el código Python si el código es null', async () => {
+      serveDetail({ ...blockly, sourceCode: null })
+      const user = userEvent.setup()
+      renderPage(COMPILATION_ERROR_ID)
+      await screen.findByTestId('blockly-viewer')
+
+      await user.click(screen.getByRole('button', { name: 'Código Python' }))
+
+      expect(
+        screen.getByText('Código fuente no disponible: el archivo de este envío ya no existe.'),
+      ).toBeInTheDocument()
+    })
+
+    it('trata como envío normal uno de bloques sin workspace guardado', async () => {
+      serveDetail({ ...blockly, workspaceXml: null })
+      renderPage(COMPILATION_ERROR_ID)
+
+      expect(await screen.findByText('Código fuente')).toBeInTheDocument()
+      expect(screen.queryByTestId('blockly-viewer')).not.toBeInTheDocument()
+    })
   })
 })

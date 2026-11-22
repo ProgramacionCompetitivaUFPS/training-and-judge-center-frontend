@@ -15,7 +15,7 @@ import { PROGRAMMING_LANGUAGES, PATHS, judgeLanguage } from '@/lib/constants'
 import { ApiClientError, isNotFoundError } from '@/lib/errors'
 import { problemLabel } from '@/lib/utils'
 import { NotFoundPage } from '@/pages/errors/NotFoundPage'
-import type { SubmissionOrigin } from '@/types/submission'
+import type { SubmissionDetail, SubmissionOrigin } from '@/types/submission'
 import { getErrorMessage } from '@/lib/errorMessages'
 
 const BlocklyWorkspaceViewer = React.lazy(() => import('@/components/features/BlocklyWorkspaceViewer'))
@@ -236,82 +236,85 @@ export function SubmissionDetailPage() {
         )}
 
         {/* Source Code / Blockly blocks */}
-        {(() => {
-          if (submission.isBlocklySubmission && submission.workspaceXml !== null) {
-            return (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      {showBlocklyCode ? (
-                        <Code2 className="h-5 w-5" />
-                      ) : (
-                        <Puzzle className="h-5 w-5" />
-                      )}
-                      {showBlocklyCode ? 'Código Python' : 'Bloques'}
-                    </CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowBlocklyCode((prev) => !prev)}
-                    >
-                      {showBlocklyCode ? (
-                        <><Puzzle className="h-4 w-4 mr-2" />Bloques</>
-                      ) : (
-                        <><Code2 className="h-4 w-4 mr-2" />Código Python</>
-                      )}
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {showBlocklyCode ? (
-                    submission.sourceCode === null ? (
-                      <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
-                    ) : (
-                      <CodeViewer code={submission.sourceCode} language={submission.language} />
-                    )
-                  ) : (
-                    // If the viewer's chunk can't load, the generated Python is still readable.
-                    <LoadErrorBoundary
-                      fallback={
-                        submission.sourceCode === null ? (
-                          <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
-                        ) : (
-                          <CodeViewer code={submission.sourceCode} language={submission.language} />
-                        )
-                      }
-                    >
-                      <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
-                        {/* Keyed by submission so moving to another one starts the viewer fresh. */}
-                        <BlocklyWorkspaceViewer key={submission.id} workspaceXml={submission.workspaceXml} />
-                      </Suspense>
-                    </LoadErrorBoundary>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          }
-
-          return (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Code2 className="h-5 w-5" />
-                  Código fuente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {submission.sourceCode === null ? (
-                  <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
-                ) : (
-                  <CodeViewer code={submission.sourceCode} language={submission.language} />
-                )}
-              </CardContent>
-            </Card>
-          )
-        })()}
+        {submission.isBlocklySubmission && submission.workspaceXml !== null ? (
+          <BlocklySubmissionCard
+            submission={submission}
+            workspaceXml={submission.workspaceXml}
+            showCode={showBlocklyCode}
+            onToggle={() => setShowBlocklyCode((prev) => !prev)}
+          />
+        ) : (
+          <PlainSourceCard submission={submission} />
+        )}
       </div>
     </AppLayout>
+  )
+}
+
+/** The submitted code, or the notice that its file no longer exists. */
+function SourceCodeView({ submission }: Readonly<{ submission: SubmissionDetail }>) {
+  if (submission.sourceCode === null) {
+    return <p className="text-sm text-neutral-text-muted">{SOURCE_CODE_UNAVAILABLE}</p>
+  }
+  return <CodeViewer code={submission.sourceCode} language={submission.language} />
+}
+
+function PlainSourceCard({ submission }: Readonly<{ submission: SubmissionDetail }>) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Code2 className="h-5 w-5" />
+          Código fuente
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SourceCodeView submission={submission} />
+      </CardContent>
+    </Card>
+  )
+}
+
+interface BlocklySubmissionCardProps {
+  submission: SubmissionDetail
+  workspaceXml: string
+  showCode: boolean
+  onToggle: () => void
+}
+
+/** A block editor submission: the blocks by default, with a switch to the Python they generated. */
+function BlocklySubmissionCard({ submission, workspaceXml, showCode, onToggle }: Readonly<BlocklySubmissionCardProps>) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            {showCode ? <Code2 className="h-5 w-5" /> : <Puzzle className="h-5 w-5" />}
+            {showCode ? 'Código Python' : 'Bloques'}
+          </CardTitle>
+          <Button variant="outline" size="sm" onClick={onToggle}>
+            {showCode ? (
+              <><Puzzle className="h-4 w-4 mr-2" />Bloques</>
+            ) : (
+              <><Code2 className="h-4 w-4 mr-2" />Código Python</>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {showCode ? (
+          <SourceCodeView submission={submission} />
+        ) : (
+          // If the viewer's chunk can't load, the generated Python is still readable.
+          <LoadErrorBoundary fallback={<SourceCodeView submission={submission} />}>
+            <Suspense fallback={<div className="h-[480px] rounded-md border border-neutral-border bg-neutral-background animate-pulse" />}>
+              {/* Keyed by submission so moving to another one starts the viewer fresh. */}
+              <BlocklyWorkspaceViewer key={submission.id} workspaceXml={workspaceXml} />
+            </Suspense>
+          </LoadErrorBoundary>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
