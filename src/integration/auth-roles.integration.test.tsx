@@ -65,10 +65,10 @@ describe('login y redirección', () => {
 
 describe('acceso por rol', () => {
   it.each([
-    ['CONTESTANT', ANA, '/problems/new'],
-    ['CONTESTANT', ANA, '/admin/users'],
-    ['COACH', BETO, '/admin/users'],
-  ])('un %s que abre %s directamente recibe la página de «no encontrado»', async (_role, who, route) => {
+    ['CONTESTANT', '/problems/new', ANA],
+    ['CONTESTANT', '/admin/users', ANA],
+    ['COACH', '/admin/users', BETO],
+  ])('un %s que abre %s directamente recibe la página de «no encontrado»', async (_role, route, who) => {
     installAuthBackend([who], { signedInAs: who })
     markSessionActive()
 
