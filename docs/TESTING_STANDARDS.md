@@ -599,8 +599,23 @@ Regla práctica:
 | **Integración de hook** | Hook + cliente API + MSW (red real interceptada) | `useProblems.test.ts` |
 | **Integración de componente** | Componente + providers reales + MSW | `AuthProvider.test.tsx` |
 | **Integración de página** | Página completa + routing + providers + MSW | `LoginPage.test.tsx` (PR 5) |
+| **Integración de flujo** | La app real (`AppRoutes` + `AuthProvider` + `ContestSessionProvider` + React Query + router) con HTTP simulado | `src/integration/auth-roles.integration.test.tsx` |
 
 A mayor nivel de integración, menos tests pero más valor. No replicar en integración lo que ya cubre unit.
+
+### Pruebas de integración de flujo (`src/integration/`)
+
+- **Qué son:** un flujo de usuario que cruza varias páginas/capas **sin mockear ningún hook ni módulo de `@/api`**. La única frontera simulada es HTTP (MSW).
+- **Dónde y cómo se llaman:** `src/integration/<flujo>.integration.test.tsx` (excepción a "co-ubicado": un flujo no tiene un único archivo dueño). Se ejecutan con `npm run test:integration`; el resto con `npm run test:unit`; `npm run test:run` y `npm run test:coverage` ejecutan ambos.
+- **Entorno efímero por prueba:** `renderApp()` crea un `QueryClient` nuevo; `src/integration/support/setup.ts` limpia handlers, `localStorage`, `sessionStorage` y el token entre pruebas.
+- **Handlers independientes de los de desarrollo:** el servidor de integración nace **vacío** (`src/integration/support/server.ts`). Cada flujo registra solo lo que usa, desde `src/integration/support/*Backend.ts`. **Lo único que se reutiliza de `src/mocks` son los fixtures de `data.ts`** (Object Mother). Las pruebas unitarias y de página siguen usando los handlers compartidos de `src/mocks`.
+- **Sin esperas reales:** para sondeos (polling) usar `vi.useFakeTimers({ shouldAdvanceTime: true })` y `act(() => vi.advanceTimersByTimeAsync(ms))`. Nunca `setTimeout` real.
+- **Pocas y de valor:** se añade un flujo nuevo solo si cruza capas que las pruebas unitarias no pueden cubrir juntas (guardas de ruta + sesión, caché compartida entre pantallas, polling, conflictos de edición). Cada archivo añade unos segundos de arranque en CI.
+
+### Helpers de prueba compartidos (`src/test/`)
+
+- `hookHarness.ts`: `stubEndpoint` (handler MSW de un solo uso que registra las peticiones), `exerciseMutation` / `exerciseQuery` (hook con `QueryClient` fresco), `describeMutationCases` (tabla de casos: método, ruta, cuerpo, invalidaciones y error 403) y `stubXhr` (las subidas con `postFormDataWithProgress` usan XHR, que MSW no intercepta aquí).
+- `setup.ts` incluye polyfills de jsdom para Radix y CodeMirror (`hasPointerCapture`, `scrollIntoView`, `Range.getClientRects`).
 
 ---
 
