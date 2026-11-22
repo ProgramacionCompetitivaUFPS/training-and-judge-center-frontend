@@ -261,6 +261,11 @@ describe('mutaciones de envío', () => {
   const file = new File(['int main(){}'], 'sol.cpp')
 
   it('useSubmitSolution devuelve el envío PENDING e invalida submissionKeys.all', async () => {
+    server.use(
+      http.post(`${API}/problems/p/two-sum/submissions`, () =>
+        HttpResponse.json({ id: 'sub-new-1', status: 'PENDING', problem: { slug: 'two-sum', title: 'Two Sum' } }, { status: 201 }),
+      ),
+    )
     const { wrapper, queryClient } = makeWrapper()
     const spy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useSubmitSolution(), { wrapper })
@@ -314,6 +319,11 @@ describe('mutaciones de envío', () => {
   })
 
   it('useSubmitBlocklySolution devuelve el envío e invalida las claves de submissions', async () => {
+    server.use(
+      http.post(`${API}/problems/p/two-sum/submissions`, () =>
+        HttpResponse.json({ id: 'sub-new-1', status: 'PENDING', problem: { slug: 'two-sum', title: 'Two Sum' } }, { status: 201 }),
+      ),
+    )
     const { wrapper, queryClient } = makeWrapper()
     const spy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useSubmitBlocklySolution(), { wrapper })
