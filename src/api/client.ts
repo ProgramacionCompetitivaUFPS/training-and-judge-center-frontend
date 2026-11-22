@@ -9,6 +9,32 @@ interface RequestConfig {
   headers?: Record<string, string>
 }
 
+interface ErrorBody {
+  error?: string
+  message?: string
+  details?: Array<{ field: string; code?: string; message: string }>
+}
+
+type UploadUnauthorizedOutcome =
+  | { action: 'retry' }
+  | { action: 'reject'; body: ErrorBody }
+  | { action: 'continue' }
+
+/** The JSON object of an error answer; anything else ("null", a string, not JSON) has no fields. */
+function parseErrorBody(text: string): ErrorBody {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return parsed && typeof parsed === 'object' ? (parsed as ErrorBody) : {}
+  } catch {
+    return {}
+  }
+}
+
+function uploadHttpError(status: number, statusText: string, responseText: string): ApiClientError {
+  const body = parseErrorBody(responseText)
+  return new ApiClientError(status, body.error ?? 'UNKNOWN', body.message ?? statusText, body.details, body)
+}
+
 class ApiClient {
   private baseUrl: string
   private refreshPromise: Promise<'ok' | 'definitive' | 'transient'> | null = null
@@ -143,6 +169,26 @@ class ApiClient {
     return this.handleResponse<T>(response)
   }
 
+  /**
+   * What to do with a 401 answered to an upload: retry with a refreshed token, reject because the
+   * session is gone, or `continue` and treat it like any other error (it is not an expired token).
+   */
+  private async resolveUploadUnauthorized(responseText: string): Promise<UploadUnauthorizedOutcome> {
+    const body = parseErrorBody(responseText)
+    if (body.error !== 'UNAUTHORIZED') return { action: 'continue' }
+
+    if (isLoggingOut()) {
+      clearAccessToken()
+      return { action: 'reject', body }
+    }
+    const refreshResult = await this.ensureFreshToken()
+    if (refreshResult === 'ok') return { action: 'retry' }
+
+    clearAccessToken()
+    if (refreshResult === 'definitive') notifySessionExpired()
+    return { action: 'reject', body }
+  }
+
   postFormDataWithProgress<T>(
     path: string,
     formData: FormData,
@@ -172,40 +218,19 @@ class ApiClient {
 
         xhr.onload = async () => {
           if (xhr.status === 401 && !isRetry) {
-            let body: { error?: string } = {}
-            try { body = JSON.parse(xhr.responseText) } catch { /* noop */ }
-            if (body?.error === 'UNAUTHORIZED') {
-              if (isLoggingOut()) {
-                clearAccessToken()
-                reject(new ApiClientError(401, 'UNAUTHORIZED', 'Unauthorized', undefined, body))
-                return
-              }
-              const result = await this.ensureFreshToken()
-              if (result === 'ok') {
-                attempt(true)
-                return
-              }
-              clearAccessToken()
-              if (result === 'definitive') notifySessionExpired()
-              reject(new ApiClientError(401, 'UNAUTHORIZED', 'Unauthorized', undefined, body))
+            const outcome = await this.resolveUploadUnauthorized(xhr.responseText)
+            if (outcome.action === 'retry') {
+              attempt(true)
+              return
+            }
+            if (outcome.action === 'reject') {
+              reject(new ApiClientError(401, 'UNAUTHORIZED', 'Unauthorized', undefined, outcome.body))
               return
             }
           }
 
           if (xhr.status >= 400) {
-            let error: { error?: string; message?: string; details?: Array<{ field: string; code?: string; message: string }> } = {}
-            try {
-              // "null" (or any non-object) parses fine but has no fields: keep the UNKNOWN fallback
-              const parsed: unknown = JSON.parse(xhr.responseText)
-              if (parsed && typeof parsed === 'object') error = parsed as typeof error
-            } catch { /* noop */ }
-            reject(new ApiClientError(
-              xhr.status,
-              error.error ?? 'UNKNOWN',
-              error.message ?? xhr.statusText,
-              error.details,
-              error,
-            ))
+            reject(uploadHttpError(xhr.status, xhr.statusText, xhr.responseText))
             return
           }
 
