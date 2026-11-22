@@ -80,11 +80,12 @@ function stripTrailingComment(value: string): string {
 export function parseProblemYaml(text: string): { name?: string; timeLimit?: string; memoryLimit?: string } {
   const out: Record<string, string> = {}
   for (const raw of text.split(/\r?\n/)) {
-    // Top level: no indentation. The line is trimmed first so the pattern needs no trailing `\s*$`, which
-    // backtracks quadratically on a line that is mostly spaces.
-    const m = /^(name|time_limit|memory_limit)\s*:\s*(.*)$/.exec(raw.trimEnd())
+    // Top level: no indentation. The line is trimmed first so the pattern needs no trailing `\s*$`, and the value
+    // starts at a non-space (`\S`) so it never overlaps the spaces before it: both overlaps backtrack quadratically
+    // on a line that is mostly spaces.
+    const m = /^(name|time_limit|memory_limit)\s*:\s*(\S.*)?$/.exec(raw.trimEnd())
     if (!m) continue
-    let value = m[2]
+    let value = m[2] ?? ''
     const quoted = /^(["'])(.*)\1/.exec(value)
     if (quoted) value = quoted[2]
     else value = stripTrailingComment(value)

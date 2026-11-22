@@ -103,6 +103,18 @@ memory_limit: ${spaces}x`)
     expect(parsed.timeLimit).toBe('2')
   })
 
+  it('no se bloquea con espacios seguidos de un separador de línea raro dentro del valor (tiempo lineal)', () => {
+    // U+2028 is a line terminator for `.` but is not split by the importer's \r?\n, so it can sit inside a "line"
+    const lineSeparator = String.fromCharCode(0x2028)
+    const start = performance.now()
+
+    const parsed = parseProblemYaml(`name:${' '.repeat(300_000)}x${lineSeparator}y\ntime_limit: 3`)
+
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(parsed.name).toBeUndefined()
+    expect(parsed.timeLimit).toBe('3')
+  })
+
   it('ignora las claves con sangría y las que no usa el importador', () => {
     const yaml = 'author: Ana\nlimits:\n  time_limit: 9\n  memory_limit: 9\nname: Suma\n'
 

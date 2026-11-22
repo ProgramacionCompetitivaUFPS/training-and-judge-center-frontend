@@ -72,7 +72,7 @@ function resolveProblemSlug(
 function wrongJavaClassName(code: string): string | undefined {
   // The indentation excludes line breaks: with `\s*` every blank line is a new start that rescans the whole run
   // of blank lines after it, which is quadratic and runs on every keystroke.
-  const name = /^[^\S\r\n\u2028\u2029]*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m.exec(code)?.[1]
+  const name = /^(?:(?![\r\n\u2028\u2029])\s)*public\s+(?:final\s+|abstract\s+)*class\s+(\w+)/m.exec(code)?.[1]
   return name && name !== 'Solution' ? name : undefined
 }
 
