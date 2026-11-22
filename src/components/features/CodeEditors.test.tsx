@@ -1,11 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 
 import CodeBlockViewer from './CodeBlockViewer'
 import CodeEditor from './CodeEditor'
 
-// With a language mode CodeMirror wraps each token in a <span> to colour it; without one the line stays plain text.
+// With a language mode CodeMirror wraps each token in a <span> to colour it (the parse finishes shortly after
+// the first paint); without one the line stays plain text.
 const highlightedTokens = () => screen.getByRole('textbox').querySelectorAll('span').length
+const expectHighlighted = () => waitFor(() => expect(highlightedTokens()).toBeGreaterThan(0))
+const letParseFinish = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 100)))
 
 describe('CodeBlockViewer', () => {
   it('muestra el contenido recibido con su etiqueta accesible', () => {
@@ -28,15 +31,17 @@ describe('CodeBlockViewer', () => {
     expect(screen.getByRole('textbox')).toHaveAttribute('inputmode', 'none')
   })
 
-  it.each([['cpp'], ['java'], ['python']] as const)('resalta la sintaxis con el modo %s', (mode) => {
+  it.each([['cpp'], ['java'], ['python']] as const)('resalta la sintaxis con el modo %s', async (mode) => {
     render(<CodeBlockViewer value="x = 1" mode={mode} ariaLabel="Código" />)
 
+    await expectHighlighted()
     expect(screen.getByRole('textbox')).toHaveTextContent('x = 1')
-    expect(highlightedTokens()).toBeGreaterThan(0)
   })
 
-  it('no resalta nada cuando no se indica modo', () => {
+  it('no resalta nada cuando no se indica modo', async () => {
     render(<CodeBlockViewer value="x = 1" ariaLabel="Código" />)
+
+    await letParseFinish()
 
     expect(highlightedTokens()).toBe(0)
   })
@@ -57,15 +62,17 @@ describe('CodeEditor', () => {
     expect(screen.getByText('Escribe tu solución')).toBeInTheDocument()
   })
 
-  it.each([['cpp20'], ['java17'], ['python310'], ['blockly']])('resalta la sintaxis para el lenguaje %s', (language) => {
+  it.each([['cpp20'], ['java17'], ['python310'], ['blockly']])('resalta la sintaxis para el lenguaje %s', async (language) => {
     render(<CodeEditor value="x = 1" onChange={vi.fn()} language={language} />)
 
+    await expectHighlighted()
     expect(screen.getByRole('textbox')).toHaveTextContent('x = 1')
-    expect(highlightedTokens()).toBeGreaterThan(0)
   })
 
-  it('no resalta nada para un lenguaje desconocido', () => {
+  it('no resalta nada para un lenguaje desconocido', async () => {
     render(<CodeEditor value="x = 1" onChange={vi.fn()} language="desconocido" />)
+
+    await letParseFinish()
 
     expect(highlightedTokens()).toBe(0)
   })
