@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { UsersRound, Check, LogOut } from 'lucide-react'
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -71,6 +71,281 @@ interface TeamContestRegistrationProps {
   onTeamSelect: (teamId: string) => void
 }
 
+const allowsTeams = (participationMode: string) => participationMode === 'TEAM' || participationMode === 'MIXED'
+
+/** Editing a roster always updates; a late registration needs the user's confirmation first. */
+function submitAction(isEditingRoster: boolean, availability: ReturnType<typeof getRegistrationAvailability>): 'update' | 'confirm-late' | 'register' {
+  if (isEditingRoster) return 'update'
+  return availability === 'late' ? 'confirm-late' : 'register'
+}
+
+/** Who can still take part, and whether the current pick respects the team size and eligibility. */
+function describeSelection(eligibility: TeamRegistrationEligibility | undefined, selected: string[], min: number, max: number) {
+  const eligibleIds = new Set(eligibility?.members.filter((m) => m.eligible).map((m) => m.id) ?? [])
+  const hasIneligibleSelected = selected.some((id) => !eligibleIds.has(id))
+  return {
+    eligibleIds,
+    eligibleCount: eligibleIds.size,
+    hasIneligibleSelected,
+    isValidSelection: selected.length >= min && selected.length <= max && !hasIneligibleSelected,
+  }
+}
+
+/** Adds or removes a member; adding is ignored once the team is full. */
+function toggledSelection(selected: string[], memberId: string, max: number): string[] {
+  if (selected.includes(memberId)) return selected.filter((id) => id !== memberId)
+  return selected.length < max ? [...selected, memberId] : selected
+}
+
+interface RegisteredActionsProps {
+  canLeave: boolean
+  teamSizeMin: number
+  onEdit: () => void
+  onLeave: () => void
+  onCancel: () => void
+}
+
+function RegisteredActions({ canLeave, teamSizeMin, onEdit, onLeave, onCancel }: Readonly<RegisteredActionsProps>) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" onClick={onEdit}>
+        <UsersRound className="h-4 w-4 mr-2" />
+        Editar alineación
+      </Button>
+      <Button
+        variant="outline"
+        onClick={onLeave}
+        disabled={!canLeave}
+        title={canLeave ? undefined : `No puedes salir: el equipo quedaría por debajo del mínimo (${teamSizeMin})`}
+      >
+        <LogOut className="h-4 w-4 mr-2" />
+        Salir de esta competencia
+      </Button>
+      <Button variant="outline" onClick={onCancel}>
+        Cancelar registro
+      </Button>
+    </div>
+  )
+}
+
+interface RegisteredContentProps {
+  registration: TeamRegistration
+  variant: 'card' | 'inline'
+  children: ReactNode
+}
+
+function RegisteredContent({ registration, variant, children }: Readonly<RegisteredContentProps>) {
+  if (variant === 'inline') {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="success" className="text-sm px-3 py-1.5">
+          Equipo registrado: {registration.team.name}
+        </Badge>
+        {children}
+      </div>
+    )
+  }
+  return (
+    <Card className="border-brand-accent/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <UsersRound className="h-4 w-4 text-brand-accent" />
+          Tu equipo está registrado
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-neutral-text-muted">
+          <span className="font-semibold text-neutral-text-primary">{registration.team.name}</span>
+          {' — '}
+          {registration.selectedMembers.map((m) => m.nickname).join(', ')}
+        </p>
+        {children}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface RegisterEntryProps {
+  variant: 'card' | 'inline'
+  participationMode: string
+  teamSizeMin: number
+  teamSizeMax: number
+  children: ReactNode
+}
+
+function RegisterEntry({ variant, participationMode, teamSizeMin, teamSizeMax, children }: Readonly<RegisterEntryProps>) {
+  if (variant === 'inline') return <>{children}</>
+  return (
+    <Card className="border-brand-accent/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <UsersRound className="h-4 w-4 text-brand-accent" />
+          Registro por equipo
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-neutral-text-muted mb-3">
+          Esta competencia permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
+          Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
+        </p>
+        {children}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface TeamFieldProps {
+  isEditingRoster: boolean
+  teamName: string | undefined
+  teams: MyTeamItem[]
+  selectedTeamId: string
+  onSelect: (teamId: string) => void
+}
+
+function TeamField({ isEditingRoster, teamName, teams, selectedTeamId, onSelect }: Readonly<TeamFieldProps>) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Equipo</label>
+      {isEditingRoster && <p className="text-sm font-medium text-neutral-text-primary">{teamName}</p>}
+      {!isEditingRoster && teams.length === 0 && (
+        <p className="text-sm text-neutral-text-muted">No tienes equipos. Crea uno primero en la sección de Equipos.</p>
+      )}
+      {!isEditingRoster && teams.length > 0 && (
+        <Select value={selectedTeamId} onValueChange={onSelect}>
+          <SelectTrigger aria-label="Equipo a registrar">
+            <SelectValue placeholder="Seleccionar equipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {teams.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name} ({pluralize(t.memberCount, 'miembro')})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  )
+}
+
+interface EligibilityNoticesProps {
+  isLoading: boolean
+  failed: boolean
+  /** The team is already registered without the user (and the user is not editing that registration). */
+  teamAlreadyRegistered: boolean
+  onRetry: () => void
+}
+
+function EligibilityNotices({ isLoading, failed, teamAlreadyRegistered, onRetry }: Readonly<EligibilityNoticesProps>) {
+  return (
+    <>
+      {isLoading && <p className="text-sm text-neutral-text-muted">Cargando miembros…</p>}
+
+      {failed && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-status-error">No se pudo verificar qué miembros pueden participar.</p>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {teamAlreadyRegistered && (
+        <p className="text-sm text-status-warning">
+          Este equipo ya está inscrito en esta competencia sin ti. Para sumarte, alguien de la alineación
+          debe cancelar la inscripción y volver a registrar al equipo contigo.
+        </p>
+      )}
+    </>
+  )
+}
+
+interface SelectionHintProps {
+  eligibleCount: number
+  teamSizeMin: number
+  hasIneligibleSelected: boolean
+  isValidSelection: boolean
+  selectedCount: number
+}
+
+function SelectionHint({ eligibleCount, teamSizeMin, hasIneligibleSelected, isValidSelection, selectedCount }: Readonly<SelectionHintProps>) {
+  if (eligibleCount < teamSizeMin) {
+    return (
+      <p className="text-xs text-status-warning mt-1">
+        Solo {eligibleCount} {eligibleCount === 1 ? 'miembro puede' : 'miembros pueden'} participar y la competencia exige al menos {teamSizeMin}.
+      </p>
+    )
+  }
+  if (hasIneligibleSelected) {
+    return <p className="text-xs text-status-warning mt-1">Quita a los miembros que ya no pueden participar para continuar.</p>
+  }
+  if (!isValidSelection && selectedCount > 0) {
+    return <p className="text-xs text-status-warning mt-1">Necesitas al menos {pluralize(teamSizeMin, 'miembro')}</p>
+  }
+  return null
+}
+
+interface MemberChecklistProps {
+  members: TeamRegistrationEligibility['members']
+  selectedMembers: string[]
+  teamSizeMin: number
+  teamSizeMax: number
+  isValidSelection: boolean
+  hasIneligibleSelected: boolean
+  eligibleCount: number
+  onToggle: (memberId: string) => void
+}
+
+function MemberChecklist({
+  members, selectedMembers, teamSizeMin, teamSizeMax, isValidSelection, hasIneligibleSelected, eligibleCount, onToggle,
+}: Readonly<MemberChecklistProps>) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">
+        Miembros participantes
+        <Badge variant={isValidSelection ? 'success' : 'default'} className="ml-2">
+          {selectedMembers.length}/{teamSizeMax}
+        </Badge>
+      </label>
+      <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-neutral-border p-2">
+        {members.map((member) => {
+          const isSelected = selectedMembers.includes(member.id)
+          // A selected member always stays toggleable so they can be removed if they turn ineligible.
+          const isDisabled = !isSelected && (!member.eligible || selectedMembers.length >= teamSizeMax)
+          return (
+            <label
+              key={member.id}
+              className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                isSelected ? 'bg-brand-primary/5' : 'hover:bg-neutral-background'
+              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => !isDisabled && onToggle(member.id)}
+                disabled={isDisabled}
+              />
+              <span className="text-sm font-medium text-neutral-text-primary">{member.nickname}</span>
+              {!member.eligible && (
+                <span className="text-xs text-neutral-text-muted ml-auto">
+                  {(member.reason && INELIGIBILITY_LABELS[member.reason]) || 'No puede participar'}
+                </span>
+              )}
+              {isSelected && <Check className="h-3.5 w-3.5 text-status-success ml-auto" />}
+            </label>
+          )
+        })}
+      </div>
+      <SelectionHint
+        eligibleCount={eligibleCount}
+        teamSizeMin={teamSizeMin}
+        hasIneligibleSelected={hasIneligibleSelected}
+        isValidSelection={isValidSelection}
+        selectedCount={selectedMembers.length}
+      />
+    </div>
+  )
+}
+
 export function TeamContestRegistration({
   contestStatus,
   allowLateRegistration,
@@ -109,21 +384,12 @@ export function TeamContestRegistration({
   const [pendingLateRegistration, setPendingLateRegistration] = useState<{ teamId: string; members: string[] } | null>(null)
 
   const availability = getRegistrationAvailability({ status: contestStatus, allowLateRegistration })
-  const canRegisterTeam = availability !== 'closed' && !isRegistered && !myRegistration &&
-    (participationMode === 'TEAM' || participationMode === 'MIXED')
+  const canRegisterTeam = availability !== 'closed' && !isRegistered && !myRegistration && allowsTeams(participationMode)
   const canManageRegistration = contestStatus === 'SCHEDULED' && !!myRegistration
 
   if (!canRegisterTeam && !canManageRegistration) return null
 
-  const toggleMember = (memberId: string) => {
-    setSelectedMembers((prev) =>
-      prev.includes(memberId)
-        ? prev.filter((id) => id !== memberId)
-        : prev.length < teamSizeMax
-          ? [...prev, memberId]
-          : prev
-    )
-  }
+  const toggleMember = (memberId: string) => setSelectedMembers((prev) => toggledSelection(prev, memberId, teamSizeMax))
 
   const handleTeamSelect = (teamId: string) => {
     setSelectedTeamId(teamId)
@@ -151,13 +417,10 @@ export function TeamContestRegistration({
 
   const handleSubmitDialog = () => {
     if (!selectedTeamId || selectedMembers.length === 0) return
-    if (isEditingRoster) {
-      onUpdateTeamRegistration(selectedTeamId, selectedMembers)
-    } else if (availability === 'late') {
-      setPendingLateRegistration({ teamId: selectedTeamId, members: selectedMembers })
-    } else {
-      onRegisterTeam(selectedTeamId, selectedMembers)
-    }
+    const action = submitAction(isEditingRoster, availability)
+    if (action === 'update') onUpdateTeamRegistration(selectedTeamId, selectedMembers)
+    else if (action === 'confirm-late') setPendingLateRegistration({ teamId: selectedTeamId, members: selectedMembers })
+    else onRegisterTeam(selectedTeamId, selectedMembers)
     setShowDialog(false)
     setSelectedTeamId('')
     setSelectedMembers([])
@@ -182,11 +445,7 @@ export function TeamContestRegistration({
     setLeaveOpen(false)
   }
 
-  const eligibleIds = new Set(eligibility?.members.filter((m) => m.eligible).map((m) => m.id) ?? [])
-  const hasIneligibleSelected = selectedMembers.some((id) => !eligibleIds.has(id))
-  const isValidSelection = selectedMembers.length >= teamSizeMin && selectedMembers.length <= teamSizeMax &&
-    !hasIneligibleSelected
-  const eligibleCount = eligibleIds.size
+  const { eligibleIds, eligibleCount, hasIneligibleSelected, isValidSelection } = describeSelection(eligibility, selectedMembers, teamSizeMin, teamSizeMax)
 
   // La elegibilidad pudo cambiar (refetch, reconexión) mientras el aviso estaba abierto: si hay una
   // consulta en curso o algún miembro dejó de ser elegible, no se envía y se vuelve al selector con
@@ -212,76 +471,24 @@ export function TeamContestRegistration({
   )
 
   const registeredActions = myRegistration && (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" onClick={openEditRosterDialog}>
-        <UsersRound className="h-4 w-4 mr-2" />
-        Editar alineación
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => setLeaveOpen(true)}
-        disabled={!canLeaveRoster}
-        title={!canLeaveRoster ? `No puedes salir: el equipo quedaría por debajo del mínimo (${teamSizeMin})` : undefined}
-      >
-        <LogOut className="h-4 w-4 mr-2" />
-        Salir de esta competencia
-      </Button>
-      <Button variant="outline" onClick={() => setCancelOpen(true)}>
-        Cancelar registro
-      </Button>
-    </div>
-  )
-
-  const registeredContent = myRegistration && (
-    variant === 'inline' ? (
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="success" className="text-sm px-3 py-1.5">
-          Equipo registrado: {myRegistration.team.name}
-        </Badge>
-        {registeredActions}
-      </div>
-    ) : (
-      <Card className="border-brand-accent/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <UsersRound className="h-4 w-4 text-brand-accent" />
-            Tu equipo está registrado
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-neutral-text-muted">
-            <span className="font-semibold text-neutral-text-primary">{myRegistration.team.name}</span>
-            {' — '}
-            {myRegistration.selectedMembers.map((m) => m.nickname).join(', ')}
-          </p>
-          {registeredActions}
-        </CardContent>
-      </Card>
-    )
+    <RegisteredActions
+      canLeave={canLeaveRoster}
+      teamSizeMin={teamSizeMin}
+      onEdit={openEditRosterDialog}
+      onLeave={() => setLeaveOpen(true)}
+      onCancel={() => setCancelOpen(true)}
+    />
   )
 
   return (
     <>
-      {canManageRegistration ? registeredContent : (
-        variant === 'inline' ? (
-          registerTrigger
-        ) : (
-          <Card className="border-brand-accent/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <UsersRound className="h-4 w-4 text-brand-accent" />
-                Registro por equipo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-neutral-text-muted mb-3">
-                Esta competencia permite participación {participationMode === 'TEAM' ? 'por equipos' : 'mixta (individual o equipo)'}.
-                Tamaño de equipo: {teamSizeMin}–{teamSizeMax} miembros.
-              </p>
-              {registerTrigger}
-            </CardContent>
-          </Card>
-        )
+      {canManageRegistration && myRegistration && (
+        <RegisteredContent registration={myRegistration} variant={variant}>{registeredActions}</RegisteredContent>
+      )}
+      {!canManageRegistration && (
+        <RegisterEntry variant={variant} participationMode={participationMode} teamSizeMin={teamSizeMin} teamSizeMax={teamSizeMax}>
+          {registerTrigger}
+        </RegisterEntry>
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -296,99 +503,34 @@ export function TeamContestRegistration({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div>
-              <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">Equipo</label>
-              {isEditingRoster ? (
-                <p className="text-sm font-medium text-neutral-text-primary">{myRegistration?.team.name}</p>
-              ) : teams.length === 0 ? (
-                <p className="text-sm text-neutral-text-muted">No tienes equipos. Crea uno primero en la sección de Equipos.</p>
-              ) : (
-                <Select value={selectedTeamId} onValueChange={handleTeamSelect}>
-                  <SelectTrigger aria-label="Equipo a registrar">
-                    <SelectValue placeholder="Seleccionar equipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name} ({pluralize(t.memberCount, 'miembro')})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            <TeamField
+              isEditingRoster={isEditingRoster}
+              teamName={myRegistration?.team.name}
+              teams={teams}
+              selectedTeamId={selectedTeamId}
+              onSelect={handleTeamSelect}
+            />
 
-            {/* Member selection */}
-            {selectedTeamId && isLoadingEligibility && (
-              <p className="text-sm text-neutral-text-muted">Cargando miembros…</p>
-            )}
-
-            {selectedTeamId && eligibilityFailed && (
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-status-error">No se pudo verificar qué miembros pueden participar.</p>
-                <Button variant="outline" size="sm" onClick={onRetryEligibility}>
-                  Reintentar
-                </Button>
-              </div>
-            )}
-
-            {selectedTeamId && eligibility?.teamAlreadyRegistered && !isEditingRoster && (
-              <p className="text-sm text-status-warning">
-                Este equipo ya está inscrito en esta competencia sin ti. Para sumarte, alguien de la alineación
-                debe cancelar la inscripción y volver a registrar al equipo contigo.
-              </p>
+            {selectedTeamId && (
+              <EligibilityNotices
+                isLoading={isLoadingEligibility}
+                failed={eligibilityFailed}
+                teamAlreadyRegistered={!!eligibility?.teamAlreadyRegistered && !isEditingRoster}
+                onRetry={onRetryEligibility}
+              />
             )}
 
             {selectedTeamId && eligibility && (!eligibility.teamAlreadyRegistered || isEditingRoster) && (
-              <div>
-                <label className="text-sm font-medium text-neutral-text-primary mb-1.5 block">
-                  Miembros participantes
-                  <Badge variant={isValidSelection ? 'success' : 'default'} className="ml-2">
-                    {selectedMembers.length}/{teamSizeMax}
-                  </Badge>
-                </label>
-                <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-neutral-border p-2">
-                  {eligibility.members.map((member) => {
-                    const isSelected = selectedMembers.includes(member.id)
-                    // A selected member always stays toggleable so they can be removed if they turn ineligible.
-                    const isDisabled = !isSelected && (!member.eligible || selectedMembers.length >= teamSizeMax)
-                    return (
-                      <label
-                        key={member.id}
-                        className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
-                          isSelected ? 'bg-brand-primary/5' : 'hover:bg-neutral-background'
-                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => !isDisabled && toggleMember(member.id)}
-                          disabled={isDisabled}
-                        />
-                        <span className="text-sm font-medium text-neutral-text-primary">{member.nickname}</span>
-                        {!member.eligible && (
-                          <span className="text-xs text-neutral-text-muted ml-auto">
-                            {(member.reason && INELIGIBILITY_LABELS[member.reason]) || 'No puede participar'}
-                          </span>
-                        )}
-                        {isSelected && <Check className="h-3.5 w-3.5 text-status-success ml-auto" />}
-                      </label>
-                    )
-                  })}
-                </div>
-                {eligibleCount < teamSizeMin ? (
-                  <p className="text-xs text-status-warning mt-1">
-                    Solo {eligibleCount} {eligibleCount === 1 ? 'miembro puede' : 'miembros pueden'} participar y la competencia exige al menos {teamSizeMin}.
-                  </p>
-                ) : hasIneligibleSelected ? (
-                  <p className="text-xs text-status-warning mt-1">
-                    Quita a los miembros que ya no pueden participar para continuar.
-                  </p>
-                ) : !isValidSelection && selectedMembers.length > 0 && (
-                  <p className="text-xs text-status-warning mt-1">
-                    Necesitas al menos {pluralize(teamSizeMin, 'miembro')}
-                  </p>
-                )}
-              </div>
+              <MemberChecklist
+                members={eligibility.members}
+                selectedMembers={selectedMembers}
+                teamSizeMin={teamSizeMin}
+                teamSizeMax={teamSizeMax}
+                isValidSelection={isValidSelection}
+                hasIneligibleSelected={hasIneligibleSelected}
+                eligibleCount={eligibleCount}
+                onToggle={toggleMember}
+              />
             )}
           </div>
 
