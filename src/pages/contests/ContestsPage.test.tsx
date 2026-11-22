@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
-import { mockCurrentUser } from '@/mocks/data'
+import { mockCurrentUser, mockContests, computeContestStatus } from '@/mocks/data'
 import { ContestsPage } from './ContestsPage'
 
 const mockLogout = vi.fn()
@@ -149,5 +149,45 @@ describe('ContestsPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('No hay competencias').length).toBeGreaterThanOrEqual(1)
     })
+  })
+
+  it('shows a single skeleton until every grouped section has loaded', async () => {
+    // Arrange
+    renderPage()
+
+    // Assert: mientras cargan, un único skeleton y ninguna sección dibujada
+    expect(screen.getByTestId('contests-grouped-skeleton')).toBeInTheDocument()
+    expect(screen.queryByText('Finalizadas')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Finalizadas')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('contests-grouped-skeleton')).not.toBeInTheDocument()
+  })
+
+  it('renders only the non-empty sections once loaded, so empty ones never appear and vanish', async () => {
+    // Arrange: sin competencias en curso ni programadas, solo finalizadas
+    server.use(
+      http.get('http://localhost:8080/api/contests', ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status')
+        const items = status === 'FINISHED'
+          ? mockContests
+            .map((c) => ({ ...c, status: computeContestStatus(c.startTime, c.endTime) }))
+            .filter((c) => c.status === 'FINISHED')
+          : []
+        return HttpResponse.json({
+          items,
+          pagination: { page: 1, limit: 20, total: items.length, totalPages: 1, hasNextPage: false, hasPrevPage: false },
+        })
+      }),
+    )
+    renderPage()
+
+    // Assert
+    await waitFor(() => {
+      expect(screen.getByText('Finalizadas')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('En curso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Próximas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('contests-grouped-skeleton')).not.toBeInTheDocument()
   })
 })
