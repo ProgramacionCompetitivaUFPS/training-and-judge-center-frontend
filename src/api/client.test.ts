@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { setAccessToken, clearAccessToken, resetSessionExpiredNotified, subscribeSessionExpired } from '@/lib/tokenStore'
+import {
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+  resetSessionExpiredNotified,
+  subscribeSessionExpired,
+  setLoggingOut,
+} from '@/lib/tokenStore'
 import { ApiClientError } from '@/lib/errors'
 import { apiClient } from './client'
 
@@ -30,6 +37,7 @@ function mockFetchSequence(...responses: Array<{ status: number; body?: unknown 
 beforeEach(() => setAccessToken('test-token'))
 afterEach(() => {
   clearAccessToken()
+  setLoggingOut(false)
   vi.restoreAllMocks()
   resetSessionExpiredNotified()
 })
@@ -265,6 +273,68 @@ describe('auto-refresh en 401', () => {
   })
 })
 
+describe('refreshSession', () => {
+  it('devuelve el cuerpo con el token nuevo cuando el servidor responde 200', async () => {
+    mockFetchSequence({ status: 200, body: { token: 'fresh-token' } })
+
+    const result = await apiClient.refreshSession()
+
+    expect(result).toEqual({ token: 'fresh-token' })
+  })
+
+  it('lanza ApiClientError con code UNKNOWN y el statusText cuando el error no trae JSON', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      json: () => Promise.reject(new SyntaxError('<html>')),
+    } as unknown as Response)
+
+    const error = await apiClient.refreshSession().catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).status).toBe(502)
+    expect((error as ApiClientError).code).toBe('UNKNOWN')
+    expect((error as ApiClientError).message).toBe('Bad Gateway')
+  })
+})
+
+describe('fallos de red y cierre de sesión', () => {
+  it('propaga el rechazo de fetch cuando no hay conexión', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+
+    await expect(apiClient.get('/problems')).rejects.toThrow('Failed to fetch')
+  })
+
+  it('con el logout en curso un 401 UNAUTHORIZED limpia el token y no intenta refrescar', async () => {
+    setLoggingOut(true)
+    mockFetchSequence({ status: 401, body: { error: 'UNAUTHORIZED', message: 'unauth' } })
+
+    await expect(apiClient.get('/protected')).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' })
+
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls as Array<[string]>
+    expect(calls).toHaveLength(1)
+    expect(calls.some(([url]) => url.includes('/auth/refresh'))).toBe(false)
+    expect(getAccessToken()).toBeNull()
+  })
+
+  it('getBlob usa code UNKNOWN y el statusText cuando el error no trae JSON', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      json: () => Promise.reject(new SyntaxError('<html>')),
+      clone: () => ({ json: () => Promise.reject(new SyntaxError('<html>')) }),
+    } as unknown as Response)
+
+    const error = await apiClient.getBlob('/file').catch((e: unknown) => e)
+
+    expect((error as ApiClientError).status).toBe(502)
+    expect((error as ApiClientError).code).toBe('UNKNOWN')
+    expect((error as ApiClientError).message).toBe('Bad Gateway')
+  })
+})
+
 describe('postFormDataWithProgress', () => {
   // MSW intercepts fetch, not XMLHttpRequest, so the XHR path is exercised through this mock.
   class MockXHR {
@@ -384,6 +454,36 @@ describe('postFormDataWithProgress', () => {
     expect(error).toBeInstanceOf(ApiClientError)
     expect((error as ApiClientError).status).toBe(500)
     expect((error as ApiClientError).code).toBe('UNKNOWN')
+  })
+
+  it('resuelve con undefined cuando el servidor responde 204', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.status = 204
+    MockXHR.last.triggerLoad()
+    await expect(promise).resolves.toBeUndefined()
+  })
+
+  it('rechaza con ApiClientError UNKNOWN cuando una respuesta 200 no es JSON válido', async () => {
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.status = 200
+    MockXHR.last.responseText = '<html>not json</html>'
+    MockXHR.last.triggerLoad()
+    const error = await promise.catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect((error as ApiClientError).code).toBe('UNKNOWN')
+    expect((error as ApiClientError).message).toBe('Failed to parse response')
+  })
+
+  it('con el logout en curso un 401 UNAUTHORIZED rechaza, limpia el token y no reintenta', async () => {
+    setLoggingOut(true)
+    const promise = apiClient.postFormDataWithProgress('/problems/import', new FormData())
+    MockXHR.last.status = 401
+    MockXHR.last.responseText = '{"error":"UNAUTHORIZED"}'
+    await MockXHR.last.triggerLoad()
+    const error = await promise.catch((e: unknown) => e)
+    expect((error as ApiClientError).status).toBe(401)
+    expect(getAccessToken()).toBeNull()
+    expect(MockXHR.instances).toHaveLength(1)
   })
 
   describe('renovación de sesión tras un 401', () => {
