@@ -703,91 +703,89 @@ function ActiveContestView({ view, myStanding, onCountdownEnd }: Readonly<{
   const { contest, groupId, isLead, registrationAvailability } = view
   const noProblemsForOutsider = contest.problems.length === 0 && !contest.isRegistered
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header with compact timer */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <ContestTitle contest={contest} />
-          <HeaderStatsBox>
-            <div className="flex items-center gap-2.5">
-              <Clock className="h-4 w-4 text-brand-primary flex-shrink-0" />
-              <div>
-                <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Tiempo restante</p>
-                <ContestCountdown targetTime={contest.endTime} onComplete={onCountdownEnd} />
-              </div>
+    <div className="space-y-6">
+      {/* Header with compact timer */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <ContestTitle contest={contest} />
+        <HeaderStatsBox>
+          <div className="flex items-center gap-2.5">
+            <Clock className="h-4 w-4 text-brand-primary flex-shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Tiempo restante</p>
+              <ContestCountdown targetTime={contest.endTime} onComplete={onCountdownEnd} />
             </div>
-            <div className="h-8 w-px bg-neutral-border" />
-            <ParticipantsStat count={contest.participantCount} />
-          </HeaderStatsBox>
-        </header>
+          </div>
+          <div className="h-8 w-px bg-neutral-border" />
+          <ParticipantsStat count={contest.participantCount} />
+        </HeaderStatsBox>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <section className="lg:col-span-8">
-            <Card className={noProblemsForOutsider ? 'border-dashed border-neutral-border' : ''}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  Problemas del concurso
-                  {noProblemsForOutsider && <Lock className="h-4 w-4 text-neutral-text-muted" />}
-                </CardTitle>
-                {noProblemsForOutsider && <Badge variant="default">Acceso restringido</Badge>}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section className="lg:col-span-8">
+          <Card className={noProblemsForOutsider ? 'border-dashed border-neutral-border' : ''}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                Problemas del concurso
+                {noProblemsForOutsider && <Lock className="h-4 w-4 text-neutral-text-muted" />}
+              </CardTitle>
+              {noProblemsForOutsider && <Badge variant="default">Acceso restringido</Badge>}
+            </CardHeader>
+            <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
+              {noProblemsForOutsider ? (
+                <LockedProblemsPlaceholder
+                  title="No estás inscrito en esta competencia"
+                  description={
+                    registrationAvailability === 'late'
+                      ? 'Inscríbete para acceder a los problemas de la competencia.'
+                      : 'Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo.'
+                  }
+                  showSkeleton={false}
+                />
+              ) : (
+                <ProblemsCardContent contest={contest} groupId={groupId} showSubmit={contest.isRegistered} view={view} />
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <aside className="lg:col-span-4 space-y-4">
+          {registrationAvailability === 'late' && !contest.isRegistered && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Inscripción abierta</CardTitle>
               </CardHeader>
-              <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
-                {noProblemsForOutsider ? (
-                  <LockedProblemsPlaceholder
-                    title="No estás inscrito en esta competencia"
-                    description={
-                      registrationAvailability === 'late'
-                        ? 'Inscríbete para acceder a los problemas de la competencia.'
-                        : 'Debiste haberte registrado antes de que iniciara para poder ver los problemas. Si crees que esto es un error, contacta a un líder del grupo.'
-                    }
-                    showSkeleton={false}
-                  />
-                ) : (
-                  <ProblemsCardContent contest={contest} groupId={groupId} showSubmit={contest.isRegistered} view={view} />
-                )}
+              <CardContent className="space-y-3">
+                <p className="text-sm text-neutral-text-muted">
+                  La competencia ya comenzó, pero todavía puedes inscribirte. Una vez inscrito no podrás cancelar.
+                </p>
+                <div className="flex flex-wrap gap-3">{view.registrationActions}</div>
               </CardContent>
             </Card>
-          </section>
+          )}
+          {/* User position — first in sidebar for visibility */}
+          {contest.isRegistered && myStanding && (
+            <MyStandingCard standing={myStanding} participantCount={contest.participantCount} />
+          )}
 
-          <aside className="lg:col-span-4 space-y-4">
-            {registrationAvailability === 'late' && !contest.isRegistered && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Inscripción abierta</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-neutral-text-muted">
-                    La competencia ya comenzó, pero todavía puedes inscribirte. Una vez inscrito no podrás cancelar.
-                  </p>
-                  <div className="flex flex-wrap gap-3">{view.registrationActions}</div>
-                </CardContent>
-              </Card>
-            )}
-            {/* User position — first in sidebar for visibility */}
-            {contest.isRegistered && myStanding && (
-              <MyStandingCard standing={myStanding} participantCount={contest.participantCount} />
-            )}
+          <ContestInfoSidebar contest={contest} />
+          <ContestQuickLinks groupId={groupId} contestId={contest.id} />
 
-            <ContestInfoSidebar contest={contest} />
-            <ContestQuickLinks groupId={groupId} contestId={contest.id} />
+          {/* Edit only, no delete: lets a lead extend the end time or fix details mid-contest
+              (HU-COM-11 "antes o durante su ejecución"); the form keeps the start time read-only. */}
+          {isLead && !contest.locked && (
+            <ContestAdminActions contestId={contest.id} groupId={groupId} />
+          )}
 
-            {/* Edit only, no delete: lets a lead extend the end time or fix details mid-contest
-                (HU-COM-11 "antes o durante su ejecución"); the form keeps the start time read-only. */}
-            {isLead && !contest.locked && (
-              <ContestAdminActions contestId={contest.id} groupId={groupId} />
-            )}
-
-            {contest.description && (
-              <Card>
-                <CardContent className="pt-5">
-                  <p className="text-sm text-neutral-text whitespace-pre-wrap">{contest.description}</p>
-                </CardContent>
-              </Card>
-            )}
-          </aside>
-        </div>
+          {contest.description && (
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-sm text-neutral-text whitespace-pre-wrap">{contest.description}</p>
+              </CardContent>
+            </Card>
+          )}
+        </aside>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -916,44 +914,42 @@ function ScheduledContestView({ view, search, onCountdownEnd }: Readonly<{
 }>) {
   const { contest, groupId, isLead } = view
   return (
-    <>
-      <div className="space-y-8">
-        {/* Hero Countdown */}
-        <section className="relative overflow-hidden rounded-lg bg-neutral-surface border border-neutral-border p-8 md:p-12 text-center">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-brand-primary/5 to-transparent pointer-events-none" />
-          <div className="relative">
-            <ContestStatusBadge status={contest.status} />
-            <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-text-primary mt-4 mb-6 tracking-tight">
-              {contest.name}
-            </h1>
-            <ContestCountdown
-              targetTime={contest.startTime}
-              label="Comienza en"
-              variant="hero"
-              onComplete={onCountdownEnd}
-            />
-            <div className="mt-8 flex flex-wrap justify-center gap-3">{view.registrationActions}</div>
-          </div>
-        </section>
+    <div className="space-y-8">
+      {/* Hero Countdown */}
+      <section className="relative overflow-hidden rounded-lg bg-neutral-surface border border-neutral-border p-8 md:p-12 text-center">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-brand-primary/5 to-transparent pointer-events-none" />
+        <div className="relative">
+          <ContestStatusBadge status={contest.status} />
+          <h1 className="text-3xl md:text-4xl font-extrabold text-neutral-text-primary mt-4 mb-6 tracking-tight">
+            {contest.name}
+          </h1>
+          <ContestCountdown
+            targetTime={contest.startTime}
+            label="Comienza en"
+            variant="hero"
+            onComplete={onCountdownEnd}
+          />
+          <div className="mt-8 flex flex-wrap justify-center gap-3">{view.registrationActions}</div>
+        </div>
+      </section>
 
-        {/* Bento grid: info + sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-          <div className="space-y-6">
-            <ContestInfoCard contest={contest} />
-            <ScheduledProblemsCard view={view} />
-            {isLead && !contest.locked && <ProblemManagementCard view={view} search={search} />}
-          </div>
+      {/* Bento grid: info + sidebar */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+        <div className="space-y-6">
+          <ContestInfoCard contest={contest} />
+          <ScheduledProblemsCard view={view} />
+          {isLead && !contest.locked && <ProblemManagementCard view={view} search={search} />}
+        </div>
 
-          {/* Sidebar */}
-          <div className="space-y-4">
-            <ModalityCard contest={contest} />
-            <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-            <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
-            <ManagementSidebar view={view} />
-          </div>
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <ModalityCard contest={contest} />
+          <ContestQuickLinks groupId={groupId} contestId={contest.id} />
+          <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+          <ManagementSidebar view={view} />
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -961,57 +957,55 @@ function ScheduledContestView({ view, search, onCountdownEnd }: Readonly<{
 function FinishedContestView({ view }: Readonly<{ view: ContestViewProps }>) {
   const { contest, groupId } = view
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header with finished indicator */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <ContestTitle contest={contest} />
-          {/* Finished indicator — same container style as ACTIVE timer */}
-          <HeaderStatsBox>
-            <div className="flex items-center gap-2.5">
-              <Flag className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
-              <div>
-                <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Finalizado</p>
-                <p className="text-sm font-semibold text-neutral-text-primary">{formatDateTz(contest.endTime, { short: true })}</p>
-              </div>
+    <div className="space-y-6">
+      {/* Header with finished indicator */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <ContestTitle contest={contest} />
+        {/* Finished indicator — same container style as ACTIVE timer */}
+        <HeaderStatsBox>
+          <div className="flex items-center gap-2.5">
+            <Flag className="h-4 w-4 text-neutral-text-muted flex-shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase tracking-widest font-semibold text-neutral-text-muted leading-none mb-1">Finalizado</p>
+              <p className="text-sm font-semibold text-neutral-text-primary">{formatDateTz(contest.endTime, { short: true })}</p>
             </div>
-            <div className="h-8 w-px bg-neutral-border" />
-            <ParticipantsStat count={contest.participantCount} />
-          </HeaderStatsBox>
-        </header>
+          </div>
+          <div className="h-8 w-px bg-neutral-border" />
+          <ParticipantsStat count={contest.participantCount} />
+        </HeaderStatsBox>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main content */}
-          <section className="lg:col-span-8 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Main content */}
+        <section className="lg:col-span-8 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Problemas del concurso</CardTitle>
+            </CardHeader>
+            <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
+              <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
+            </CardContent>
+          </Card>
+
+          {contest.description && (
             <Card>
-              <CardHeader>
-                <CardTitle>Problemas del concurso</CardTitle>
-              </CardHeader>
-              <CardContent className={contest.problems.length > 0 ? 'p-0' : ''}>
-                <ContestProblemsTable problems={contest.problems} groupId={groupId} contestId={contest.id} />
+              <CardContent className="pt-5">
+                <h4 className="text-sm font-semibold text-neutral-text-primary mb-2">Descripción</h4>
+                <p className="text-sm text-neutral-text whitespace-pre-wrap leading-relaxed">{contest.description}</p>
               </CardContent>
             </Card>
+          )}
+        </section>
 
-            {contest.description && (
-              <Card>
-                <CardContent className="pt-5">
-                  <h4 className="text-sm font-semibold text-neutral-text-primary mb-2">Descripción</h4>
-                  <p className="text-sm text-neutral-text whitespace-pre-wrap leading-relaxed">{contest.description}</p>
-                </CardContent>
-              </Card>
-            )}
-          </section>
-
-          {/* Sidebar */}
-          <aside className="lg:col-span-4 space-y-4">
-            <ContestInfoSidebar contest={contest} />
-            <ContestQuickLinks groupId={groupId} contestId={contest.id} />
-            <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
-            <ManagementSidebar view={view} />
-          </aside>
-        </div>
+        {/* Sidebar */}
+        <aside className="lg:col-span-4 space-y-4">
+          <ContestInfoSidebar contest={contest} />
+          <ContestQuickLinks groupId={groupId} contestId={contest.id} />
+          <ContestOrganizerCard groupId={groupId} groupName={contest.group.name} ownerNickname={contest.owner.nickname} />
+          <ManagementSidebar view={view} />
+        </aside>
       </div>
-    </>
+    </div>
   )
 }
 
