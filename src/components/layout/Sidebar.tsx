@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn, problemLabel } from '@/lib/utils'
 import { Home, Code2, Trophy, Users, Settings, X, Send, Shield, UsersRound, BarChart3, FileText, Clock } from 'lucide-react'
@@ -107,6 +108,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     ? [{ icon: Shield, label: 'Usuarios', to: ROUTES.ADMIN_USERS }]
     : []
 
+  // Keyboard users can dismiss the mobile menu with Escape, like the click on the dimmed backdrop does
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen, onClose])
+
   const isActive = (to: string) =>
     to === ROUTES.DASHBOARD
       ? location.pathname === ROUTES.DASHBOARD || location.pathname === '/'
@@ -115,7 +126,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       {isOpen && (
+        // Decorative click-away area: the close button and the Escape key are the keyboard-accessible ways to close
         <div
+          aria-hidden="true"
           className="fixed inset-0 z-[45] bg-neutral-text-primary/80 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />

@@ -17,9 +17,10 @@ interface RenderOptions {
   role?: UserRole
   contest?: ContestDetail
   onClose?: () => void
+  isOpen?: boolean
 }
 
-function renderSidebar({ path = '/dashboard', role = 'CONTESTANT', contest, onClose = vi.fn() }: RenderOptions = {}) {
+function renderSidebar({ path = '/dashboard', role = 'CONTESTANT', contest, onClose = vi.fn(), isOpen = true }: RenderOptions = {}) {
   const authValue = {
     user: { ...mockCurrentUser, role },
     isLoading: false,
@@ -34,16 +35,16 @@ function renderSidebar({ path = '/dashboard', role = 'CONTESTANT', contest, onCl
     contest,
     isLoading: false,
   }
-  render(
+  const { container, unmount } = render(
     <AuthContext.Provider value={authValue}>
       <ContestSessionContext.Provider value={session}>
         <MemoryRouter initialEntries={[path]}>
-          <Sidebar isOpen onClose={onClose} />
+          <Sidebar isOpen={isOpen} onClose={onClose} />
         </MemoryRouter>
       </ContestSessionContext.Provider>
     </AuthContext.Provider>,
   )
-  return { onClose }
+  return { onClose, container, unmount }
 }
 
 describe('Sidebar', () => {
@@ -136,6 +137,66 @@ describe('Sidebar', () => {
 
       expect(screen.getByRole('link', { name: 'Tabla de Posiciones' })).toBeInTheDocument()
       expect(screen.queryByText('Problemas', { selector: 'p' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('capa oscura del menú móvil', () => {
+    // The dimmed backdrop is the first thing the sidebar renders while it is open
+    const backdrop = (container: HTMLElement) => container.firstElementChild as HTMLElement
+
+    it('es decorativa para los lectores de pantalla (aria-hidden)', () => {
+      const { container } = renderSidebar()
+
+      expect(backdrop(container)).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('cierra el menú al pulsarla', async () => {
+      const { onClose, container } = renderSidebar()
+
+      await userEvent.setup().click(backdrop(container))
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('no existe cuando el menú está cerrado', () => {
+      const { container } = renderSidebar({ isOpen: false })
+
+      expect(container.firstElementChild?.tagName).toBe('ASIDE')
+    })
+  })
+
+  describe('cierre con teclado', () => {
+    it('cierra el menú con la tecla Escape cuando está abierto', async () => {
+      const { onClose } = renderSidebar()
+
+      await userEvent.setup().keyboard('{Escape}')
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('no reacciona a Escape cuando el menú está cerrado', async () => {
+      const { onClose } = renderSidebar({ isOpen: false })
+
+      await userEvent.setup().keyboard('{Escape}')
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it.each([['{Enter}'], ['a'], ['{Tab}']])('no cierra el menú con otras teclas (%s)', async (key) => {
+      const { onClose } = renderSidebar()
+
+      await userEvent.setup().keyboard(key)
+
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('deja de escuchar Escape al desmontar el menú', async () => {
+      const { onClose, unmount } = renderSidebar()
+
+      unmount()
+      await userEvent.setup().keyboard('{Escape}')
+
+      expect(onClose).not.toHaveBeenCalled()
     })
   })
 })
