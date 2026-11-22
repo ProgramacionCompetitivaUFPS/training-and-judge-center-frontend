@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm, useWatch, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AppLayout } from '@/components/layout'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -91,6 +91,232 @@ function getConfirmDialogProps(action: PendingAction | null, soleLeadGroups: str
   }
 }
 
+/** Radix reports every open/close change; the dialogs here only react to closing. */
+const onlyWhenClosed = (onClose: () => void) => (open: boolean) => {
+  if (!open) onClose()
+}
+
+type ToastOptions = Parameters<ReturnType<typeof useToastContext>['toast']>[0]
+
+/** The toast shown when confirming a role change or deactivation fails. */
+function actionErrorToast(err: unknown, kind: PendingAction['kind']): ToastOptions {
+  const code = err instanceof ApiClientError ? err.code : undefined
+  if (code === 'CANNOT_SELF_DEACTIVATE') {
+    return { variant: 'error', title: 'No puedes desactivar tu propia cuenta', description: 'Pídele a otro Administrador que lo haga por ti.' }
+  }
+  if (code === 'CANNOT_DEACTIVATE_ADMIN') {
+    return { variant: 'error', title: 'No se puede desactivar a otro Administrador' }
+  }
+  return {
+    variant: 'error',
+    title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
+    description: getErrorMessage(err),
+  }
+}
+
+interface UserRowProps {
+  user: UserWithId
+  actionPending: boolean
+  onEdit: (user: UserWithId) => void
+  onAction: (action: PendingAction) => void
+}
+
+function UserRow({ user, actionPending, onEdit, onAction }: Readonly<UserRowProps>) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div>
+          <p className="font-medium text-neutral-text-primary">{user.name}</p>
+          <p className="text-xs text-neutral-text-muted">@{user.nickname}</p>
+        </div>
+      </TableCell>
+      <TableCell className="text-neutral-text-muted">{user.email}</TableCell>
+      <TableCell>
+        <Badge variant={ROLE_CONFIG[user.role].badgeVariant}>
+          {ROLE_CONFIG[user.role].label}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant={user.status === 'ACTIVE' ? 'default' : 'outline'}>
+          {user.status === 'ACTIVE' ? 'Activo' : 'Desactivado'}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        {user.status === 'ACTIVE' && (
+          <UserActionsMenu user={user} disabled={actionPending} onEdit={onEdit} onAction={onAction} />
+        )}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+interface UserActionsMenuProps {
+  user: UserWithId
+  disabled: boolean
+  onEdit: (user: UserWithId) => void
+  onAction: (action: PendingAction) => void
+}
+
+function UserActionsMenu({ user, disabled, onEdit, onAction }: Readonly<UserActionsMenuProps>) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={disabled}
+          aria-label={`Acciones para @${user.nickname}`}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => onEdit(user)}>
+          <Pencil className="mr-2 h-4 w-4" />
+          Editar usuario
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {user.role === 'CONTESTANT' && (
+          <DropdownMenuItem onClick={() => onAction({ user, kind: 'promote' })}>
+            <ArrowUp className="mr-2 h-4 w-4" />
+            Subir a Coach
+          </DropdownMenuItem>
+        )}
+        {user.role === 'COACH' && (
+          <DropdownMenuItem onClick={() => onAction({ user, kind: 'demote' })}>
+            <ArrowDown className="mr-2 h-4 w-4" />
+            Bajar a Competidor
+          </DropdownMenuItem>
+        )}
+        {user.role !== 'ADMIN' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onAction({ user, kind: 'deactivate' })} className="text-status-error">
+              <UserX className="mr-2 h-4 w-4" />
+              Desactivar usuario
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+interface EditUserDialogProps {
+  user: UserWithId | null
+  form: UseFormReturn<AdminUpdateUserFormData>
+  role: AdminUpdateUserFormData['role'] | undefined
+  isSaving: boolean
+  onSubmit: (formData: AdminUpdateUserFormData) => Promise<void>
+  onClose: () => void
+}
+
+function EditUserDialog({ user, form, role, isSaving, onSubmit, onClose }: Readonly<EditUserDialogProps>) {
+  const { errors } = form.formState
+  return (
+    <Dialog open={!!user} onOpenChange={onlyWhenClosed(onClose)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar usuario {user && `@${user.nickname}`}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Input label="Nombre" {...form.register('name')} error={errors.name?.message} />
+          <Input label="Email" type="email" {...form.register('email')} error={errors.email?.message} />
+          <Input label="Nickname" {...form.register('nickname')} error={errors.nickname?.message} />
+          <Input label="Institución" {...form.register('institution')} error={errors.institution?.message} />
+          <div>
+            <label className="text-sm font-medium mb-1 block">Rol</label>
+            <Select
+              value={role}
+              onValueChange={(v) => form.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
+            >
+              <SelectTrigger aria-label="Rol del usuario"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
+                <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" isLoading={isSaving}>Guardar cambios</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type SortOption = (typeof SORT_OPTIONS)[number]
+
+interface UserListFilters {
+  page: number
+  limit: number
+  search: string
+  role: UserRole | undefined
+  status: UserStatus | undefined
+  country: string | undefined
+  city: string | undefined
+  institution: string | undefined
+  sort: SortOption | undefined
+}
+
+/** Only the filters that have a value go into the request. */
+function buildUserListParams({ page, limit, search, role, status, country, city, institution, sort }: UserListFilters): AdminUserListParams {
+  return {
+    page,
+    limit,
+    ...(search && { search }),
+    ...(role && { role }),
+    ...(status && { status }),
+    ...(country && { country }),
+    ...(city && { city }),
+    ...(institution && { institution }),
+    ...(sort && { sortBy: sort.sortBy, sortOrder: sort.sortOrder }),
+  }
+}
+
+interface UsersTableProps {
+  users: UserWithId[]
+  isActionPending: (userId: string) => boolean
+  onEdit: (user: UserWithId) => void
+  onAction: (action: PendingAction) => void
+}
+
+function UsersTable({ users, isActionPending, onEdit, onAction }: Readonly<UsersTableProps>) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Usuario</TableHead>
+              <TableHead>Correo</TableHead>
+              <TableHead>Rol</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-neutral-text-muted">
+                  No se encontraron usuarios con estos filtros.
+                </TableCell>
+              </TableRow>
+            ) : (
+              users.map((user) => (
+                <UserRow key={user.id} user={user} actionPending={isActionPending(user.id)} onEdit={onEdit} onAction={onAction} />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function UsersListPage() {
   const { toast } = useToastContext()
 
@@ -108,17 +334,17 @@ export function UsersListPage() {
 
   const selectedSort = SORT_OPTIONS.find((s) => s.value === sortValue)
 
-  const params: AdminUserListParams = {
+  const params = buildUserListParams({
     page: pagination.page,
     limit: pagination.limit,
-    ...(debouncedSearch && { search: debouncedSearch }),
-    ...(roleFilter && { role: roleFilter }),
-    ...(statusFilter && { status: statusFilter }),
-    ...(countryFilter && { country: countryFilter }),
-    ...(cityFilter && { city: cityFilter }),
-    ...(institutionFilter && { institution: institutionFilter }),
-    ...(selectedSort && { sortBy: selectedSort.sortBy, sortOrder: selectedSort.sortOrder }),
-  }
+    search: debouncedSearch,
+    role: roleFilter,
+    status: statusFilter,
+    country: countryFilter,
+    city: cityFilter,
+    institution: institutionFilter,
+    sort: selectedSort,
+  })
 
   const { data, isLoading, error } = useAdminUsers(params)
   const { data: filterOptions } = useAdminUserFilterOptions()
@@ -160,30 +386,16 @@ export function UsersListPage() {
     setPagination((p) => ({ ...p, page: 1 }))
   }
 
-  const handleRoleFilter = (role: string) => {
-    setRoleFilter(role === 'ALL' ? undefined : (role as UserRole))
+  // Each filter select uses 'ALL' for "no filter"; changing any filter goes back to the first page.
+  const applyFilter = <T extends string>(set: (value: T | undefined) => void) => (value: string) => {
+    set(value === 'ALL' ? undefined : (value as T))
     setPagination((p) => ({ ...p, page: 1 }))
   }
-
-  const handleStatusFilter = (status: string) => {
-    setStatusFilter(status === 'ALL' ? undefined : (status as UserStatus))
-    setPagination((p) => ({ ...p, page: 1 }))
-  }
-
-  const handleCountryFilter = (country: string) => {
-    setCountryFilter(country === 'ALL' ? undefined : country)
-    setPagination((p) => ({ ...p, page: 1 }))
-  }
-
-  const handleCityFilter = (city: string) => {
-    setCityFilter(city === 'ALL' ? undefined : city)
-    setPagination((p) => ({ ...p, page: 1 }))
-  }
-
-  const handleInstitutionFilter = (institution: string) => {
-    setInstitutionFilter(institution === 'ALL' ? undefined : institution)
-    setPagination((p) => ({ ...p, page: 1 }))
-  }
+  const handleRoleFilter = applyFilter<UserRole>(setRoleFilter)
+  const handleStatusFilter = applyFilter<UserStatus>(setStatusFilter)
+  const handleCountryFilter = applyFilter(setCountryFilter)
+  const handleCityFilter = applyFilter(setCityFilter)
+  const handleInstitutionFilter = applyFilter(setInstitutionFilter)
 
   const { handlePageChange, handleLimitChange } = usePaginationHandlers(setPagination)
 
@@ -204,17 +416,7 @@ export function UsersListPage() {
         toast({ variant: 'success', title: 'Rol actualizado' })
       }
     } catch (err) {
-      if (err instanceof ApiClientError && err.code === 'CANNOT_SELF_DEACTIVATE') {
-        toast({ variant: 'error', title: 'No puedes desactivar tu propia cuenta', description: 'Pídele a otro Administrador que lo haga por ti.' })
-      } else if (err instanceof ApiClientError && err.code === 'CANNOT_DEACTIVATE_ADMIN') {
-        toast({ variant: 'error', title: 'No se puede desactivar a otro Administrador' })
-      } else {
-        toast({
-          variant: 'error',
-          title: kind === 'deactivate' ? 'Error al desactivar usuario' : 'Error al actualizar rol',
-          description: getErrorMessage(err),
-        })
-      }
+      toast(actionErrorToast(err, kind))
     }
     setPendingAction(null)
   }
@@ -324,122 +526,31 @@ export function UsersListPage() {
           />
         )}
 
-        {isLoading ? (
+        {isLoading && (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-16" />
             ))}
           </div>
-        ) : data ? (
-          <>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Correo</TableHead>
-                      <TableHead>Rol</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.users.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-neutral-text-muted">
-                          No se encontraron usuarios con estos filtros.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      data.users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-neutral-text-primary">{user.name}</p>
-                              <p className="text-xs text-neutral-text-muted">@{user.nickname}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-neutral-text-muted">{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant={ROLE_CONFIG[user.role].badgeVariant}>
-                              {ROLE_CONFIG[user.role].label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={user.status === 'ACTIVE' ? 'default' : 'outline'}>
-                              {user.status === 'ACTIVE' ? 'Activo' : 'Desactivado'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {user.status === 'ACTIVE' && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="shrink-0"
-                                    disabled={isRowActionPending(user.id)}
-                                    aria-label={`Acciones para @${user.nickname}`}
-                                  >
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => setEditingUser(user)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Editar usuario
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  {user.role === 'CONTESTANT' && (
-                                    <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'promote' })}>
-                                      <ArrowUp className="mr-2 h-4 w-4" />
-                                      Subir a Coach
-                                    </DropdownMenuItem>
-                                  )}
-                                  {user.role === 'COACH' && (
-                                    <DropdownMenuItem onClick={() => setPendingAction({ user, kind: 'demote' })}>
-                                      <ArrowDown className="mr-2 h-4 w-4" />
-                                      Bajar a Competidor
-                                    </DropdownMenuItem>
-                                  )}
-                                  {user.role !== 'ADMIN' && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onClick={() => setPendingAction({ user, kind: 'deactivate' })}
-                                        className="text-status-error"
-                                      >
-                                        <UserX className="mr-2 h-4 w-4" />
-                                        Desactivar usuario
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+        )}
 
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
+        {!isLoading && data && (
+          <>
+            <UsersTable
+              users={data.users}
+              isActionPending={isRowActionPending}
+              onEdit={setEditingUser}
+              onAction={setPendingAction}
             />
+            <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
           </>
-        ) : null}
+        )}
       </div>
 
       {confirmDialogProps && (
         <ConfirmDialog
           open={!!pendingAction}
-          onOpenChange={(open) => !open && setPendingAction(null)}
+          onOpenChange={onlyWhenClosed(() => setPendingAction(null))}
           title={confirmDialogProps.title}
           description={confirmDialogProps.description}
           variant="warning"
@@ -448,53 +559,14 @@ export function UsersListPage() {
         />
       )}
 
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar usuario {editingUser && `@${editingUser.nickname}`}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-            <Input
-              label="Nombre"
-              {...editForm.register('name')}
-              error={editForm.formState.errors.name?.message}
-            />
-            <Input
-              label="Email"
-              type="email"
-              {...editForm.register('email')}
-              error={editForm.formState.errors.email?.message}
-            />
-            <Input
-              label="Nickname"
-              {...editForm.register('nickname')}
-              error={editForm.formState.errors.nickname?.message}
-            />
-            <Input
-              label="Institución"
-              {...editForm.register('institution')}
-              error={editForm.formState.errors.institution?.message}
-            />
-            <div>
-              <label className="text-sm font-medium mb-1 block">Rol</label>
-              <Select
-                value={editRole}
-                onValueChange={(v) => editForm.setValue('role', v as 'COACH' | 'CONTESTANT', { shouldValidate: true })}
-              >
-                <SelectTrigger aria-label="Rol del usuario"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CONTESTANT">{ROLE_CONFIG.CONTESTANT.label}</SelectItem>
-                  <SelectItem value="COACH">{ROLE_CONFIG.COACH.label}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancelar</Button>
-              <Button type="submit" isLoading={editUserMutation.isPending}>Guardar cambios</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EditUserDialog
+        user={editingUser}
+        form={editForm}
+        role={editRole}
+        isSaving={editUserMutation.isPending}
+        onSubmit={onEditSubmit}
+        onClose={() => setEditingUser(null)}
+      />
     </AppLayout>
   )
 }
