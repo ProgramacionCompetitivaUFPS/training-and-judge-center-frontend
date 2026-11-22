@@ -1,3 +1,15 @@
+/* Inter loads from Google Fonts with display=swap. When the data arrives before the font, the page
+   is painted with the fallback and reflows when Inter swaps in (layout shift, RNF-4). This local
+   fallback is Arial scaled to Inter's metrics, so the swap barely moves the text. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  size-adjust: 107.4%;
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
