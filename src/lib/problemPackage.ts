@@ -66,8 +66,13 @@ const ext = (path: string) => {
 const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const dir = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
 
-/** Drops a trailing YAML comment: a `#` that follows whitespace, and the whitespace before it. */
-function stripTrailingComment(value: string): string {
+/**
+ * Drops a trailing YAML comment: a `#` that follows whitespace, and the whitespace before it. When the value itself
+ * starts with `#` it is a comment only if spaces separated it from the colon (`name: # todo` has no value, `name:#x`
+ * is not a comment).
+ */
+function stripTrailingComment(value: string, afterSpace: boolean): string {
+  if (afterSpace && value.startsWith('#')) return ''
   let hash = value.indexOf('#')
   while (hash !== -1) {
     if (hash > 0 && /\s/.test(value[hash - 1])) return value.slice(0, hash).trimEnd()
@@ -83,13 +88,14 @@ export function parseProblemYaml(text: string): { name?: string; timeLimit?: str
     // Top level: no indentation. The line is trimmed first so the pattern needs no trailing `\s*$`, and the value
     // starts at a non-space (`\S`) so it never overlaps the spaces before it: both overlaps backtrack quadratically
     // on a line that is mostly spaces.
-    const m = /^(name|time_limit|memory_limit)\s*:\s*(\S.*)?$/.exec(raw.trimEnd())
+    const m = /^(name|time_limit|memory_limit)\s*:(\s*)(\S.*)?$/.exec(raw.trimEnd())
     if (!m) continue
-    let value = m[2] ?? ''
+    const [, key, gap, rawValue = ''] = m
+    let value = rawValue
     const quoted = /^(["'])(.*)\1/.exec(value)
     if (quoted) value = quoted[2]
-    else value = stripTrailingComment(value)
-    out[m[1]] = value
+    else value = stripTrailingComment(value, gap.length > 0)
+    out[key] = value
   }
   return { name: out.name, timeLimit: out.time_limit, memoryLimit: out.memory_limit }
 }

@@ -86,6 +86,10 @@ describe('parseProblemYaml', () => {
     ['name: 	 Suma 	  ', 'Suma'],
     ['name: "Suma # no se corta"', 'Suma # no se corta'],
     ['name:   ', ''],
+    ['name: # pendiente', ''],
+    ['name:    #pendiente', ''],
+    ['name:#no es comentario', '#no es comentario'],
+    ['name: "#entre comillas"', '#entre comillas'],
   ])('interpreta el valor de %j como %j (comentarios y espacios)', (line, expected) => {
     expect(parseProblemYaml(line).name).toBe(expected)
   })
@@ -131,6 +135,21 @@ memory_limit: ${spaces}x`)
 })
 
 describe('reviewProblemPackage', () => {
+  it('un título que es solo un comentario cuenta como nombre ausente', async () => {
+    const result = await review(variant({ 'problem.yaml': 'name: # pendiente\ntime_limit: 2\nmemory_limit: 256\n' }))
+
+    expect(messages(result, 'error')).toEqual(['problem.yaml no tiene el campo name.'])
+    expect(result.summary.title).toBeUndefined()
+    expect(result.canImport).toBe(false)
+  })
+
+  it('un título que contiene # sin espacio antes sigue siendo un nombre válido', async () => {
+    const result = await review(variant({ 'problem.yaml': 'name: Suma#texto\ntime_limit: 2\nmemory_limit: 256\n' }))
+
+    expect(messages(result, 'error')).toEqual([])
+    expect(result.summary.title).toBe('Suma#texto')
+  })
+
   it('acepta sin hallazgos un paquete completo y resume su contenido', async () => {
     const result = await review(VALID_PACKAGE)
 
