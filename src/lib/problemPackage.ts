@@ -66,16 +66,28 @@ const ext = (path: string) => {
 const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const dir = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
 
+/** Drops a trailing YAML comment: a `#` that follows whitespace, and the whitespace before it. */
+function stripTrailingComment(value: string): string {
+  let hash = value.indexOf('#')
+  while (hash !== -1) {
+    if (hash > 0 && /\s/.test(value[hash - 1])) return value.slice(0, hash).trimEnd()
+    hash = value.indexOf('#', hash + 1)
+  }
+  return value
+}
+
 /** Reads the three keys the importer uses from problem.yaml (top level only). */
 export function parseProblemYaml(text: string): { name?: string; timeLimit?: string; memoryLimit?: string } {
   const out: Record<string, string> = {}
   for (const raw of text.split(/\r?\n/)) {
-    const m = /^(name|time_limit|memory_limit)\s*:\s*(.*?)\s*$/.exec(raw) // top level: no indentation
+    // Top level: no indentation. The line is trimmed first so the pattern needs no trailing `\s*$`, which
+    // backtracks quadratically on a line that is mostly spaces.
+    const m = /^(name|time_limit|memory_limit)\s*:\s*(.*)$/.exec(raw.trimEnd())
     if (!m) continue
     let value = m[2]
     const quoted = /^(["'])(.*)\1/.exec(value)
     if (quoted) value = quoted[2]
-    else value = value.replace(/\s+#.*$/, '') // a trailing comment
+    else value = stripTrailingComment(value)
     out[m[1]] = value
   }
   return { name: out.name, timeLimit: out.time_limit, memoryLimit: out.memory_limit }

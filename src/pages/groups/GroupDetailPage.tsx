@@ -903,7 +903,7 @@ function InviteDialog({ groupId, open, onClose, members }: Readonly<{
       toast({ variant: 'success', title: 'Invitación enviada' })
       // The backend never returns a ready-made link — only `id` — so the frontend builds it,
       // matching the same route the invitation email itself points to.
-      setGeneratedUrl(`${window.location.origin}${PATHS.groupAcceptInvitation(groupId, response.id)}`)
+      setGeneratedUrl(`${globalThis.location.origin}${PATHS.groupAcceptInvitation(groupId, response.id)}`)
       setNickname('')
       setEmail('')
     } catch (err) {
@@ -1039,31 +1039,31 @@ interface Tab {
 /** Every list the page shows (members, requests, invitations, materials, contests) with its filters and paging. */
 function useGroupLists(id: string, group: GroupData | undefined, canManage: boolean, isMember: boolean) {
   // Only group members (and admins) can list members — backend answers 403 to non-members.
-  const { data: membersData } = useGroupMembers(id!, undefined, { enabled: isMember || canManage })
+  const { data: membersData } = useGroupMembers(id, undefined, { enabled: isMember || canManage })
   const [requestsStatus, setRequestsStatus] = useState<JoinRequestStatus | 'all'>('PENDING')
   const [requestsPageQuery, setRequestsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
   // Only leads/admins can list requests (the backend answers 403 to anyone else).
-  const { data: requestsData } = useJoinRequests(id!, {
+  const { data: requestsData } = useJoinRequests(id, {
     status: requestsStatus === 'all' ? undefined : requestsStatus,
     page: requestsPageQuery.page,
     limit: requestsPageQuery.limit,
   }, { enabled: canManage })
   // Unfiltered count, so whether the tab exists doesn't depend on the status filter picked in it.
-  const { data: allRequestsData } = useJoinRequests(id!, { limit: 1 }, { enabled: canManage })
-  const { data: myJoinRequest } = useMyJoinRequest(id!, {
+  const { data: allRequestsData } = useJoinRequests(id, { limit: 1 }, { enabled: canManage })
+  const { data: myJoinRequest } = useMyJoinRequest(id, {
     enabled: !isMember && group?.joinPolicy === 'REQUEST',
   })
   const [invitationsPageQuery, setInvitationsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
-  const { data: invitationsData } = useInvitations(id!, invitationsPageQuery, { enabled: canManage })
-  const { data: materialsData } = useMaterials(id!, { limit: 5 })
+  const { data: invitationsData } = useInvitations(id, invitationsPageQuery, { enabled: canManage })
+  const { data: materialsData } = useMaterials(id, { limit: 5 })
   const [contestsStatus, setContestsStatus] = useState<ContestStatus | 'all'>('all')
   const [contestsPageQuery, setContestsPageQuery] = useState<PageQuery>({ page: 1, limit: 10 })
   // Consultas independientes del filtro interactivo de la pestaña, solo para las
   // tarjetas de resumen — el backend no calcula contestCount/activeContestCount en
   // el detalle del grupo (a diferencia de memberCount), así que se derivan aquí.
-  const { data: contestsOverviewData } = useContests(id!, { limit: 1 })
-  const { data: activeContestsOverviewData } = useContests(id!, { limit: 1, status: 'ACTIVE' })
-  const { data: contestsData } = useContests(id!, {
+  const { data: contestsOverviewData } = useContests(id, { limit: 1 })
+  const { data: activeContestsOverviewData } = useContests(id, { limit: 1, status: 'ACTIVE' })
+  const { data: contestsData } = useContests(id, {
     status: contestsStatus === 'all' ? undefined : contestsStatus,
     page: contestsPageQuery.page,
     limit: contestsPageQuery.limit,

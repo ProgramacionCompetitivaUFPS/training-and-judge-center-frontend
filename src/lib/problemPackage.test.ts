@@ -79,6 +79,30 @@ describe('parseProblemYaml', () => {
     expect(parseProblemYaml(line).name).toBe(expected)
   })
 
+  it.each([
+    ['name: Suma # uno # dos', 'Suma'],
+    ['name: Suma#no es comentario', 'Suma#no es comentario'],
+    ['name: a#b #c', 'a#b'],
+    ['name: 	 Suma 	  ', 'Suma'],
+    ['name: "Suma # no se corta"', 'Suma # no se corta'],
+    ['name:   ', ''],
+  ])('interpreta el valor de %j como %j (comentarios y espacios)', (line, expected) => {
+    expect(parseProblemYaml(line).name).toBe(expected)
+  })
+
+  it('no se bloquea con líneas enormes de espacios (tiempo lineal)', () => {
+    const spaces = ' '.repeat(300_000)
+    const start = performance.now()
+
+    const parsed = parseProblemYaml(`name: a${spaces}b
+time_limit: 2${spaces}# c
+memory_limit: ${spaces}x`)
+
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(parsed.name).toBe(`a${spaces}b`)
+    expect(parsed.timeLimit).toBe('2')
+  })
+
   it('ignora las claves con sangría y las que no usa el importador', () => {
     const yaml = 'author: Ana\nlimits:\n  time_limit: 9\n  memory_limit: 9\nname: Suma\n'
 

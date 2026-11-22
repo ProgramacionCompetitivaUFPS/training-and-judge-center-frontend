@@ -273,11 +273,8 @@ function usePublishFlow(problem: ProblemDetail, slug: string) {
     })
   }
 
-  /** With warnings (or test cases not checked yet) the author confirms first; otherwise it publishes. */
-  const handlePublishClick = (needsConfirmation: boolean) => {
-    if (needsConfirmation) setPublishWarningSlug(slug)
-    else handlePublish()
-  }
+  /** With warnings (or test cases not checked yet) the author confirms first instead of publishing right away. */
+  const askToConfirmPublish = () => setPublishWarningSlug(slug)
 
   return {
     isValidating: validateMutation.isPending,
@@ -291,7 +288,8 @@ function usePublishFlow(problem: ProblemDetail, slug: string) {
     publishResult,
     closePublishResult: () => setPublishResult(null),
     handleValidate,
-    handlePublishClick,
+    askToConfirmPublish,
+    publishNow: handlePublish,
   }
 }
 
@@ -1139,7 +1137,7 @@ function ProblemDetailView({ problem, slug, route, activeContest, contestGroup }
         requirementsMet={requirementsMet}
         validationStale={flags.stale}
         isPublishing={publishing.isPublishing}
-        onClick={() => publishing.handlePublishClick(hasWarnings || review.testCasesUnchecked)}
+        onClick={hasWarnings || review.testCasesUnchecked ? publishing.askToConfirmPublish : publishing.publishNow}
       />
       <ManagementMenu
         problem={problem}
