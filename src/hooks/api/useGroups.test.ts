@@ -5,6 +5,8 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/mocks/server'
 import { createTestQueryClient } from '@/test/renderWithProviders'
+import { stubEndpoint, exerciseMutation, exerciseQuery } from '@/test/hookHarness'
+import { ApiClientError } from '@/lib/errors'
 import { setAccessToken, clearAccessToken } from '@/lib/tokenStore'
 import { mockGroups, mockMyGroups } from '@/mocks/data'
 import type { CreateGroupRequest, UpdateGroupRequest } from '@/types/group'
@@ -22,6 +24,15 @@ import {
   useDeleteGroup,
   useJoinGroup,
   useProcessJoinRequest,
+  useGroupDeletionImpact,
+  useCreateJoinRequest,
+  useCancelJoinRequest,
+  useAddMember,
+  useRemoveMember,
+  useChangeMemberRole,
+  useLeaveGroup,
+  useCreateInvitation,
+  useAcceptInvitation,
 } from './useGroups'
 
 function makeWrapper() {
@@ -343,5 +354,154 @@ describe('useProcessJoinRequest', () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.joinRequests('group-1') }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.members('group-1') }))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: groupKeys.detail('group-1') }))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mutaciones de miembros, solicitudes e invitaciones
+// ---------------------------------------------------------------------------
+
+interface GroupMutationCase {
+  name: string
+  run: () => ReturnType<typeof exerciseMutation>
+  method: 'post' | 'patch' | 'delete'
+  path: string
+  requestBody: unknown
+  respond: { status?: number; body?: unknown }
+  invalidates: unknown[]
+}
+
+const GROUP_MUTATION_CASES: GroupMutationCase[] = [
+  {
+    name: 'useCreateJoinRequest',
+    run: () => exerciseMutation(useCreateJoinRequest, { groupId: 'group-1', data: { message: 'Quiero unirme' } }),
+    method: 'post',
+    path: '/groups/group-1/requests',
+    requestBody: { message: 'Quiero unirme' },
+    respond: { status: 201, body: { id: 'req-1', status: 'PENDING' } },
+    invalidates: [['groups', 'detail', 'group-1'], ['groups', 'group-1', 'requests', 'me']],
+  },
+  {
+    name: 'useCancelJoinRequest',
+    run: () => exerciseMutation(useCancelJoinRequest, 'group-1'),
+    method: 'delete',
+    path: '/groups/group-1/requests/me',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [['groups']],
+  },
+  {
+    name: 'useAddMember',
+    run: () => exerciseMutation(useAddMember, { groupId: 'group-1', data: { nickname: 'ana', role: 'MEMBER' } }),
+    method: 'post',
+    path: '/groups/group-1/members',
+    requestBody: { nickname: 'ana', role: 'MEMBER' },
+    respond: { status: 201, body: { nickname: 'ana', role: 'MEMBER' } },
+    invalidates: [['groups', 'group-1', 'members'], ['groups', 'detail', 'group-1']],
+  },
+  {
+    name: 'useRemoveMember',
+    run: () => exerciseMutation(useRemoveMember, { groupId: 'group-1', nickname: 'ana' }),
+    method: 'delete',
+    path: '/groups/group-1/members/ana',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [['groups', 'group-1', 'members'], ['groups', 'detail', 'group-1']],
+  },
+  {
+    name: 'useChangeMemberRole',
+    run: () => exerciseMutation(useChangeMemberRole, { groupId: 'group-1', nickname: 'ana', data: { role: 'LEAD' } }),
+    method: 'patch',
+    path: '/groups/group-1/members/ana',
+    requestBody: { role: 'LEAD' },
+    respond: { body: { nickname: 'ana', role: 'LEAD' } },
+    invalidates: [['groups', 'group-1', 'members'], ['groups', 'detail', 'group-1']],
+  },
+  {
+    name: 'useLeaveGroup',
+    run: () => exerciseMutation(useLeaveGroup, 'group-1'),
+    method: 'delete',
+    path: '/groups/group-1/members/me',
+    requestBody: undefined,
+    respond: {},
+    invalidates: [['groups']],
+  },
+  {
+    name: 'useCreateInvitation',
+    run: () => exerciseMutation(useCreateInvitation, { groupId: 'group-1', data: { userNickname: 'ana' } }),
+    method: 'post',
+    path: '/groups/group-1/invitations',
+    requestBody: { userNickname: 'ana' },
+    respond: { status: 201, body: { id: 'inv-1', status: 'PENDING' } },
+    invalidates: [['groups', 'detail', 'group-1'], ['groups', 'group-1', 'invitations']],
+  },
+  {
+    name: 'useAcceptInvitation',
+    run: () => exerciseMutation(useAcceptInvitation, { groupId: 'group-1', invitationId: 'inv-1' }),
+    method: 'post',
+    path: '/groups/group-1/invitations/accept',
+    requestBody: { invitationId: 'inv-1' },
+    respond: {},
+    invalidates: [['groups'], ['groups', 'detail', 'group-1']],
+  },
+]
+
+describe('mutaciones de grupos (miembros, solicitudes, invitaciones)', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it.each(GROUP_MUTATION_CASES)(
+    '$name envía $method $path con el cuerpo esperado e invalida las claves correctas',
+    async (c) => {
+      const calls = stubEndpoint(c.method, c.path, c.respond)
+
+      const outcome = await c.run()
+
+      expect(outcome.isSuccess).toBe(true)
+      expect(calls).toHaveLength(1)
+      expect(calls[0].method.toLowerCase()).toBe(c.method)
+      expect(calls[0].body).toEqual(c.requestBody)
+      expect(outcome.invalidatedKeys).toEqual(c.invalidates)
+    },
+  )
+
+  it.each(GROUP_MUTATION_CASES)(
+    '$name propaga ApiClientError 403 y no invalida la caché cuando el servidor rechaza',
+    async (c) => {
+      stubEndpoint(c.method, c.path, { status: 403, body: { error: 'FORBIDDEN', message: 'sin permiso' } })
+
+      const outcome = await c.run()
+
+      expect(outcome.isSuccess).toBe(false)
+      expect(outcome.error).toBeInstanceOf(ApiClientError)
+      expect((outcome.error as ApiClientError).status).toBe(403)
+      expect(outcome.invalidatedKeys).toEqual([])
+    },
+  )
+})
+
+describe('useGroupDeletionImpact', () => {
+  beforeEach(() => setAccessToken('mock-jwt-token-luisadmin'))
+  afterEach(() => clearAccessToken())
+
+  it('retorna el impacto de eliminar el grupo', async () => {
+    stubEndpoint('get', '/groups/group-1/deletion-impact', {
+      body: { contests: 3, activeContests: 1, materials: 4, members: 12, submissions: 90 },
+    })
+
+    const { data } = await exerciseQuery(() => useGroupDeletionImpact('group-1', true))
+
+    expect(data).toEqual({ contests: 3, activeContests: 1, materials: 4, members: 12, submissions: 90 })
+  })
+
+  it('no hace fetch cuando enabled es false', async () => {
+    const calls = stubEndpoint('get', '/groups/group-1/deletion-impact', { body: {} })
+    const { wrapper } = makeWrapper()
+
+    const { result } = renderHook(() => useGroupDeletionImpact('group-1', false), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 30))
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(calls).toHaveLength(0)
   })
 })
